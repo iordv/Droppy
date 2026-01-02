@@ -58,34 +58,49 @@ class AutoUpdater {
     }
     
     private func installAndRestart(dmgPath: String) throws {
-        // Create a temporary install script
-        let scriptPath = FileManager.default.temporaryDirectory.appendingPathComponent("install_droppy.sh").path
+        // Create a temporary install script with .command extension (runs in Terminal)
+        let scriptPath = FileManager.default.temporaryDirectory.appendingPathComponent("update_droppy.command").path
         let appPath = Bundle.main.bundlePath
         let appName = "Droppy.app"
         
+        // Detailed script with logging and pauses
         let script = """
         #!/bin/bash
+        echo "⬇️  Droppy Update Started..."
         
         # Wait for app to close
+        echo "Waiting for app to close..."
         sleep 2
         
         # Mount DMG
-        echo "Mounting DMG..."
+        echo "Mounting Update Image..."
         hdiutil attach "\(dmgPath)" -nobrowse -mountpoint /Volumes/DroppyUpdate
         
         # Copy new app
-        echo "Installing..."
-        rm -rf "\(appPath)"
-        cp -R "/Volumes/DroppyUpdate/\(appName)" "\(appPath)"
+        echo "Installing Droppy..."
+        echo "Replacing: \(appPath)"
+        
+        # Remove old app (verbose)
+        rm -rfv "\(appPath)"
+        
+        # Copy new app (verbose)
+        cp -Rv "/Volumes/DroppyUpdate/\(appName)" "\(appPath)"
         
         # Cleanup
+        echo "Cleaning up..."
         hdiutil detach /Volumes/DroppyUpdate
         rm -f "\(dmgPath)"
-        rm -f "$0" # Delete script
         
         # Relaunch
-        echo "Relaunching..."
+        echo "🚀 Relaunching Droppy..."
         open -n "\(appPath)"
+        
+        echo "✅ Update Complete!"
+        echo "You can close this window."
+        
+        # Remove this script (self-destruct after small delay)
+        (sleep 1 && rm -f "$0") &
+        exit
         """
         
         try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
@@ -95,11 +110,8 @@ class AutoUpdater {
         attributes[.posixPermissions] = 0o755
         try FileManager.default.setAttributes(attributes, ofItemAtPath: scriptPath)
         
-        // Run script in background
-        let process = Process()
-        process.launchPath = "/bin/bash"
-        process.arguments = [scriptPath]
-        process.launch()
+        // Open the script in Terminal (Visible execution)
+        NSWorkspace.shared.open(URL(fileURLWithPath: scriptPath))
         
         // Terminate current app
         NSApplication.shared.terminate(nil)
