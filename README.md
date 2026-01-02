@@ -33,7 +33,7 @@ brew install iordv/tap/droppy
 
 ### Manual Download
 
-1. Download `Droppy.dmg` from [Releases](https://github.com/iordv/Droppy/releases)
+1. Download [`Droppy.dmg`](https://github.com/iordv/Droppy/raw/main/Droppy.dmg)
 2. Drag `Droppy.app` to your Applications folder
 3. Right-click → Open (required for unsigned apps)
 
