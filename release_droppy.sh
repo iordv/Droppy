@@ -145,11 +145,16 @@ git tag "v$VERSION"
 # Tap Repo
 cd "$TAP_REPO" || exit
 echo "   - Tap Repo: Syncing changes..."
-# Commit first to stash changes
+# Ensure clean state by resetting to origin
+git fetch origin
+git reset --hard origin/main
+
+# Re-write Cask content to Tap Repo (since reset removed it if it was dirty)
+echo "$CASK_CONTENT" > "Casks/droppy.rb"
+
 git add .
-# Allow commit to fail if nothing to commit (e.g. if previous run already committed)
-git commit -m "Update Droppy to v$VERSION" || true
-git pull origin main --rebase
+git commit -m "Update Droppy to v$VERSION"
+git push origin main
 
 # 8. Confirmation
 if [ "$3" == "-y" ] || [ "$3" == "--yes" ]; then
