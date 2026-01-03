@@ -2,293 +2,245 @@ import SwiftUI
 import ServiceManagement
 
 struct SettingsView: View {
-    @State private var selectedTab: String = "General"
+    @State private var selectedTab: String? = "General"
     @AppStorage("showInMenuBar") private var showInMenuBar = true
     @AppStorage("startAtLogin") private var startAtLogin = false
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
+    // Beta feature removed - Jiggle is now standard
+    // @AppStorage("showFloatingBasket") private var showFloatingBasket = false
+
     
     // Background Hover Effect State
     @State private var hoverLocation: CGPoint = .zero
     @State private var isHovering: Bool = false
     
-    // For Fluid Sidebar Animation
-    @Namespace private var animationNamespace
-    
     var body: some View {
-        HStack(spacing: 0) {
-            // MARK: - Structural Glass Sidebar
-            VStack(alignment: .leading, spacing: 12) {
-                Text("SETTINGS")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.tertiary)
-                    .padding(.leading, 16)
-                    .padding(.top, 20)
-                
-                Group {
-                    SidebarItem(title: "General", icon: "gear", selection: $selectedTab, namespace: animationNamespace)
-                    SidebarItem(title: "Display", icon: "display", selection: $selectedTab, namespace: animationNamespace)
-                    SidebarItem(title: "What's New", icon: "sparkles", selection: $selectedTab, namespace: animationNamespace)
-                    SidebarItem(title: "About", icon: "info.circle", selection: $selectedTab, namespace: animationNamespace)
-                }
-                
-                Spacer()
-            }
-            .frame(width: 200)
-            .background(.ultraThinMaterial)
-            .overlay(
-                Rectangle()
-                    .frame(width: 1)
-                    .foregroundStyle(.white.opacity(0.1)),
-                alignment: .trailing
+        ZStack {
+            // Interactive background effect
+            HexagonDotsEffect(
+                mouseLocation: hoverLocation,
+                isHovering: isHovering,
+                coordinateSpaceName: "settingsView"
             )
             
-            // MARK: - Liquid Content Area
-            ZStack {
-                // Dynamic Background
-                HexagonDotsEffect(
-                    mouseLocation: hoverLocation,
-                    isHovering: isHovering,
-                    coordinateSpaceName: "settingsContent"
-                )
-                .opacity(0.5) // Subtle background
-                
-                // Content
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        if selectedTab == "General" {
-                            generalSettings
-                        } else if selectedTab == "Display" {
-                            displaySettings
-                        } else if selectedTab == "What's New" {
-                            changelogSettings
-                        } else if selectedTab == "About" {
-                            aboutSettings
-                        }
-                    }
-                    .padding(30)
+            NavigationSplitView {
+                List(selection: $selectedTab) {
+                    Label("General", systemImage: "gear")
+                        .tag("General")
+                    Label("Display", systemImage: "display")
+                        .tag("Display")
+                    Label("What's New", systemImage: "sparkles")
+                        .tag("Changelog")
+                    Label("About Droppy", systemImage: "info.circle")
+                        .tag("About Droppy")
                 }
-            }
-            .coordinateSpace(name: "settingsContent")
-            .onContinuousHover(coordinateSpace: .named("settingsContent")) { phase in
-                switch phase {
-                case .active(let location):
-                    hoverLocation = location
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        isHovering = true
-                    }
-                case .ended:
-                    withAnimation(.linear(duration: 0.2)) {
-                        isHovering = false
+                .navigationTitle("Settings")
+                // Fix: Use compatible background modifer
+                .background(Color.clear) 
+            } detail: {
+                Form {
+                    if selectedTab == "General" {
+                        generalSettings
+                    } else if selectedTab == "Display" {
+                        displaySettings
+                    } else if selectedTab == "Changelog" {
+                        changelogSettings
+                    } else if selectedTab == "About Droppy" {
+                        aboutSettings
                     }
                 }
+                .formStyle(.grouped)
+                // Fix: Use compatible background modifier
+                .background(Color.clear)
             }
         }
-        .frame(width: 700, height: 450) // Fixed size for custom window feel
-        .background(Color.black.opacity(0.2)) // Darker window backing
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.5)
-        )
-    }
-    
-    // MARK: - Sidebar Item Component
-    struct SidebarItem: View {
-        let title: String
-        let icon: String
-        @Binding var selection: String
-        var namespace: Namespace.ID
-        
-        var isSelected: Bool { selection == title }
-        
-        var body: some View {
-            HStack {
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundStyle(isSelected ? .white : .secondary)
-                
-                Text(title)
-                    .fontWeight(isSelected ? .semibold : .medium)
-                    .foregroundStyle(isSelected ? .white : .secondary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.8))
-                        .shadow(color: .blue.opacity(0.4), radius: 8, x: 0, y: 4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                        )
-                        .matchedGeometryEffect(id: "SidebarSelection", in: namespace)
+        .coordinateSpace(name: "settingsView")
+        // Fix: Replace visionOS glassEffect with macOS material
+        .background(.ultraThinMaterial)
+        .onContinuousHover(coordinateSpace: .named("settingsView")) { phase in
+            switch phase {
+            case .active(let location):
+                hoverLocation = location
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                    isHovering = true
                 }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                    selection = title
+            case .ended:
+                withAnimation(.linear(duration: 0.2)) {
+                    isHovering = false
                 }
             }
         }
     }
     
-    // MARK: - Content Sections WITH Liquid Design
+    // MARK: - Sections
     
     private var generalSettings: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("General")
-                .font(.largeTitle.weight(.bold))
-            
-            VStack(spacing: 16) {
-                ToggleRow(title: "Menu Bar Icon", subtitle: "Show Droppy in the menu bar", isOn: $showInMenuBar)
-                
-                ToggleRow(title: "Startup", subtitle: "Start automatically at login", isOn: Binding(
-                    get: { startAtLogin },
-                    set: { newValue in
-                        startAtLogin = newValue
-                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
-                    }
-                ))
+        Section {
+            Toggle(isOn: $showInMenuBar) {
+                VStack(alignment: .leading) {
+                    Text("Menu Bar Icon")
+                    Text("Show Droppy in the menu bar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            
+            Toggle(isOn: Binding(
+                get: { startAtLogin },
+                set: { newValue in
+                    startAtLogin = newValue
+                    LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
+                }
+            )) {
+                VStack(alignment: .leading) {
+                    Text("Startup")
+                    Text("Start automatically at login")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("General")
+        } footer: {
+            Text("Basic settings for the application.")
         }
     }
     
     private var displaySettings: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Display")
-                .font(.largeTitle.weight(.bold))
-            
-            VStack(spacing: 16) {
-                ToggleRow(title: "Transparent Background", subtitle: "Make the shelf and notch transparent", isOn: $useTransparentBackground)
+        Section {
+            Toggle(isOn: $useTransparentBackground) {
+                VStack(alignment: .leading) {
+                    Text("Transparent Background")
+                    Text("Make the shelf and notch transparent")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+        } header: {
+            Text("Display")
         }
     }
     
     private var changelogSettings: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Image(systemName: "party.popper.fill")
-                    .font(.largeTitle)
-                    .foregroundStyle(.purple.gradient)
-                VStack(alignment: .leading) {
-                    Text("What's New")
-                        .font(.largeTitle.weight(.bold))
+        Section {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                HStack {
+                    Image(systemName: "party.popper.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(.purple.gradient)
+                    VStack(alignment: .leading) {
+                        Text("Welcome to Droppy 2.0")
+                            .font(.title2.bold())
+                        Text("A huge update with powerful new workflows.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.bottom, 10)
+                
+                // Feature 1: The Basket
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "basket.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("The Floating Basket")
+                            .font(.headline)
+                        Text("Jiggle your mouse while dragging files to summon a temporary drop zone right where you are. Drag files in, drag them out, or push them to the shelf.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Feature 2: Auto-Rename
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "pencil.line")
+                        .font(.title3)
+                        .foregroundStyle(.blue)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Smart Zipping")
+                            .font(.headline)
+                        Text("Create ZIP files instantly. New archives automatically enter rename mode so you can label them immediately.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Feature 3: OCR & Conversion
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "doc.text.viewfinder")
+                        .font(.title3)
+                        .foregroundStyle(.green)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Text Extraction & Conversion")
+                            .font(.headline)
+                        Text("Right-click any image or PDF to extract text using OCR, or convert images to different formats (PNG, JPEG, HEIC, etc.) on the fly.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Feature 4: Sonoma Ready
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "macwindow")
+                        .font(.title3)
+                        .foregroundStyle(.pink)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Refined for Sonoma")
+                            .font(.headline)
+                        Text("Smoother animations, glass materials, and full compatibility with macOS 14+.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            
-            // Prism Card for Changelog
-            VStack(alignment: .leading, spacing: 10) {
-                Text(LocalizedStringKey(ChangelogData.current))
-                    .font(.body)
-                    .lineSpacing(4)
-            }
-            .padding(24)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            // The Prism Border
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: .white.opacity(0.6), location: 0),
-                                .init(color: .white.opacity(0.1), location: 0.4),
-                                .init(color: .purple.opacity(0.3), location: 1.0)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
+            .padding(.vertical, 8)
+        } header: {
+            Text("What's New in v2.0")
+        } footer: {
+            Text("Enjoy the new update!")
         }
     }
     
     private var aboutSettings: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("About")
-                .font(.largeTitle.weight(.bold))
-            
-            VStack(alignment: .center, spacing: 20) {
-                Image(systemName: "tray.and.arrow.down.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.blue.gradient)
-                    .shadow(color: .blue.opacity(0.5), radius: 20, x: 0, y: 10)
-                
-                Text("Droppy")
-                    .font(.title.bold())
-                
-                Text("Version \(UpdateChecker.shared.currentVersion)")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                
-                Text("Created by Jordy Spruit")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                LiquidButton(title: "Check for Updates", icon: "arrow.triangle.2.circlepath") {
-                    UpdateChecker.shared.checkAndNotify()
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(40)
-            .liquidGlass(radius: 24, depth: 1.0)
-        }
-    }
-    
-    // Helper Component for Toggles in Liquid Style
-    struct ToggleRow: View {
-        let title: String
-        let subtitle: String
-        @Binding var isOn: Bool
-        
-        var body: some View {
+        Section {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.blue.gradient)
+                
+                VStack(alignment: .leading) {
+                    Text("Droppy")
                         .font(.headline)
-                    Text(subtitle)
+                    Text("Version \(UpdateChecker.shared.currentVersion)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Toggle("", isOn: $isOn)
-                    .toggleStyle(.switch)
             }
-            .padding(16)
-            .liquidGlass(radius: 16, depth: 0.5)
+            .padding(.vertical, 8)
+            
+            LabeledContent("Developer", value: "Jordy Spruit")
+            
+            Button {
+                UpdateChecker.shared.checkAndNotify()
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("Check for Updates")
+                }
+            }
+        } header: {
+            Text("About")
         }
     }
 }
 
-// MARK: - Changelog Data
-struct ChangelogData {
-    // This string is automatically updated by the release script
-    static let current = """
-### 🧺 The Floating Basket
-*   **Jiggle to Reveal**: Give your mouse a little jiggle while dragging to summon the basket.
-*   **Drag & Drop**: Drop files in to hold them, drag them out when ready.
-*   **Push to Shelf**: Move items to the main shelf with one click.
-
-### ⚡ Power Tools
-*   **Smart Zipping**: Auto-renames new ZIP files.
-*   **Instant ZIP**: Create archives instantly from selection.
-*   **OCR**: Extract text from images/PDFs.
-*   **Conversion**: Convert images (HEIC, PNG, JPEG) on the fly.
-
-### 🎨 Refined Experience
-*   **Sonoma Ready**: Fully compatible with macOS 14+.
-*   **Smoother Animations**: Polished interactions.
-*   **Fix**: Closing the Settings window no longer quits the app.
-"""
-}
-
 // MARK: - Launch Handler
+
 struct LaunchAtLoginManager {
     static func setLaunchAtLogin(enabled: Bool) {
         do {
@@ -306,4 +258,3 @@ struct LaunchAtLoginManager {
         }
     }
 }
-

@@ -48,6 +48,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         newWindow.backgroundColor = .clear
         newWindow.isOpaque = false
         newWindow.hasShadow = true
+        newWindow.isReleasedWhenClosed = false
         
         newWindow.delegate = self
         newWindow.contentView = hostingView

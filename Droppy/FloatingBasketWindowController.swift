@@ -35,7 +35,8 @@ final class FloatingBasketWindowController: NSObject {
     
     /// Called by DragMonitor when jiggle is detected
     func onJiggleDetected() {
-        if let panel = basketWindow, panel.isVisible {
+        // Only move if visible AND not currently animating (show/hide) to prevent crash
+        if let panel = basketWindow, panel.isVisible, !isShowingOrHiding {
             // If already visible, move it to new location
             moveBasketToMouse()
         } else if !isShowingOrHiding {

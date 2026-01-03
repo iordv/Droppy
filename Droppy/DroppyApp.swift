@@ -15,24 +15,7 @@ struct DroppyApp: App {
     
     @AppStorage("showInMenuBar") private var showInMenuBar = true
     
-    init() {
-        // Set as accessory app (no dock icon) early, but after SwiftUI initializes
-        // This ensures MenuBarExtra is registered before hiding from dock
-        DispatchQueue.main.async {
-            NSApp.setActivationPolicy(.accessory)
-        }
-    }
-    
     var body: some Scene {
-        Settings {
-            if #available(macOS 15.0, *) {
-                SettingsView()
-                    .containerBackground(.clear, for: .window)
-            } else {
-                SettingsView()
-            }
-        }
-        
         MenuBarExtra("Droppy", systemImage: "tray.and.arrow.down.fill", isInserted: $showInMenuBar) {
             Button("Check for Updates...") {
                 UpdateChecker.shared.checkAndNotify()
@@ -58,6 +41,10 @@ struct DroppyApp: App {
 /// App delegate to manage application lifecycle and notch window
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Set as accessory app (no dock icon)
+        // Doing this here ensures MenuBarExtra is set up first
+        NSApp.setActivationPolicy(.accessory)
+        
         // Start monitoring for drag events
         DragMonitor.shared.startMonitoring()
         

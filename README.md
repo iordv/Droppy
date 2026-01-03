@@ -38,21 +38,9 @@ brew install iordv/tap/droppy
 3. Right-click → Open (required for unsigned apps)
 
 <!-- CHANGELOG_START -->
-### 🧺 The Floating Basket
-*   **Jiggle to Reveal**: Give your mouse a little jiggle while dragging to summon the basket.
-*   **Drag & Drop**: Drop files in to hold them, drag them out when ready.
-*   **Push to Shelf**: Move items to the main shelf with one click.
-
-### ⚡ Power Tools
-*   **Smart Zipping**: Auto-renames new ZIP files.
-*   **Instant ZIP**: Create archives instantly from selection.
-*   **OCR**: Extract text from images/PDFs.
-*   **Conversion**: Convert images (HEIC, PNG, JPEG) on the fly.
-
-### 🎨 Refined Experience
-*   **Sonoma Ready**: Fully compatible with macOS 14+.
-*   **Smoother Animations**: Polished interactions.
-*   **Fix**: Closing the Settings window no longer quits the app.
+Fixed: App quitting when closing Settings window
+Fixed: Crash when moving basket during animation
+Fixed: Window memory management stability improvements
 <!-- CHANGELOG_END -->
 
 ## Features
