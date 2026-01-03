@@ -38,24 +38,21 @@ brew install iordv/tap/droppy
 3. Right-click → Open (required for unsigned apps)
 
 <!-- CHANGELOG_START -->
-## New in v2.0 🚀
-
 ### 🧺 The Floating Basket
-Welcome to the family! Sometimes the notch is too far away. The **Floating Basket** brings the shelf to you.
-- **Jiggle to Reveal**: Just give your mouse a little jiggle while dragging files, and the basket pops up right where you are.
-- **Drag & Drop**: Drop files in to hold them, drag them out when you're ready.
-- **Push to Shelf**: Want to keep files for later? One click sends items from your temporary basket to the main notch shelf.
+*   **Jiggle to Reveal**: Give your mouse a little jiggle while dragging to summon the basket.
+*   **Drag & Drop**: Drop files in to hold them, drag them out when ready.
+*   **Push to Shelf**: Move items to the main shelf with one click.
 
 ### ⚡ Power Tools
-Droppy is no longer just a shelf. It's a Swiss Army knife for your files:
-- **Auto-Rename ZIPs**: Created a ZIP? Typo? No problem. New archives automatically enter rename mode.
-- **Instant ZIP Creation**: Select multiple files and zip them up instantly.
-- **Text Extraction (OCR)**: Right-click an image or PDF to extract text. Copy it directly to your clipboard.
-- **Conversion**: Right-click to convert images to different formats (PNG, JPEG, HEIC, TIFF, etc.) on the fly.
+*   **Smart Zipping**: Auto-renames new ZIP files.
+*   **Instant ZIP**: Create archives instantly from selection.
+*   **OCR**: Extract text from images/PDFs.
+*   **Conversion**: Convert images (HEIC, PNG, JPEG) on the fly.
 
 ### 🎨 Refined Experience
-- **Smoother Animations**: Every interaction has been polished.
-- **macOS Sonoma Ready**: Now fully compatible with macOS 14 (Sonoma) and later.
+*   **Sonoma Ready**: Fully compatible with macOS 14+.
+*   **Smoother Animations**: Polished interactions.
+*   **Fix**: Closing the Settings window no longer quits the app.
 <!-- CHANGELOG_END -->
 
 ## Features

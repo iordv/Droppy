@@ -36,10 +36,10 @@ if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
     echo "   - Updating SettingsView.swift..."
     # We look for `static let current = """` ... `"""` block
     # Note: We need to escape quote marks in the content string for Swift
-    SWIFT_CONTENT=$(echo "$NOTES_CONTENT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+    export SWIFT_CONTENT=$(echo "$NOTES_CONTENT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
     
     cd "$MAIN_REPO" || exit
-    perl -0777 -i -pe "s/static let current = \"\"\"(.*?)\"\"\"/static let current = \"\"\"\n$SWIFT_CONTENT\n\"\"\"/s" Droppy/SettingsView.swift
+    perl -0777 -i -pe 's/static let current = \"\"\"(.*?)\"\"\"/static let current = \"\"\"\n$ENV{SWIFT_CONTENT}\n\"\"\"/s' Droppy/SettingsView.swift
 
     # 2. Update README.md
     echo "   - Updating README.md..."
