@@ -31,6 +31,10 @@ final class NotchWindowController: NSObject, ObservableObject {
         super.init()
     }
     
+    deinit {
+        stopMonitors()
+    }
+    
     /// Sets up and shows the notch overlay window
     func setupNotchWindow() {
         guard notchWindow == nil else { return }
@@ -101,8 +105,13 @@ final class NotchWindowController: NSObject, ObservableObject {
         stopMonitors() // Idempotency
         
         // Timer for periodic hit test updates (every 30ms)
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] _ in
-            self?.notchWindow?.updateMouseEventHandling()
+        // Capture window reference directly to avoid accessing self.notchWindow during potential deallocation
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { [weak self] timer in
+            guard let self = self, let window = self.notchWindow else {
+                timer.invalidate()
+                return
+            }
+            window.updateMouseEventHandling()
         }
         
         // Global monitor catches mouse movement when Droppy is not frontmost
