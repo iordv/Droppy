@@ -75,9 +75,12 @@ class FileCompressor {
     /// Returns the URL of the compressed file, or nil on failure
     func compress(url: URL, mode: CompressionMode) async -> URL? {
         guard let type = UTType(filenameExtension: url.pathExtension) else { return nil }
+        guard let originalSize = FileCompressor.fileSize(url: url) else { return nil }
+        
+        var resultURL: URL?
         
         if type.conforms(to: .image) {
-            return await compressImage(url: url, mode: mode)
+            resultURL = await compressImage(url: url, mode: mode)
             
         } else if type.conforms(to: .pdf) {
             // TARGET SIZE RESTRICTION: Only allow target size for photos.
@@ -89,7 +92,7 @@ class FileCompressor {
             } else {
                 effectiveMode = mode
             }
-            return await compressPDF(url: url, mode: effectiveMode)
+            resultURL = await compressPDF(url: url, mode: effectiveMode)
             
         } else if type.conforms(to: .movie) || type.conforms(to: .video) {
             // TARGET SIZE RESTRICTION: Only allow target size for photos.
@@ -101,7 +104,21 @@ class FileCompressor {
             } else {
                 effectiveMode = mode
             }
-            return await compressVideo(url: url, mode: effectiveMode)
+            resultURL = await compressVideo(url: url, mode: effectiveMode)
+        }
+        
+        // MARK: - Size Guard
+        // If the compressed file is larger or equal (or basically the same), discard it.
+        // This prevents the "Compression made it bigger" issue.
+        if let compressed = resultURL, let newSize = FileCompressor.fileSize(url: compressed) {
+            if newSize < originalSize {
+                print("Compression success: \(originalSize) -> \(newSize) bytes")
+                return compressed
+            } else {
+                print("Compression Guard: New size (\(newSize)) >= Original (\(originalSize)). Discarding result.")
+                try? FileManager.default.removeItem(at: compressed)
+                return nil
+            }
         }
         
         return nil
