@@ -123,88 +123,62 @@ struct SettingsView: View {
     
     private var changelogSettings: some View {
         Section {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
                 // Header
                 HStack {
-                    Image(systemName: "party.popper.fill")
-                        .font(.largeTitle)
+                    Image(systemName: "sparkles")
+                        .font(.title2)
                         .foregroundStyle(.purple.gradient)
-                    VStack(alignment: .leading) {
-                        Text("Welcome to Droppy 2.0")
-                            .font(.title2.bold())
-                        Text("A huge update with powerful new workflows.")
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("Latest Updates")
+                        .font(.headline)
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, 4)
                 
-                // Feature 1: The Basket
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "basket.fill")
-                        .font(.title3)
-                        .foregroundStyle(.orange)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("The Floating Basket")
-                            .font(.headline)
-                        Text("Jiggle your mouse while dragging files to summon a temporary drop zone right where you are. Drag files in, drag them out, or push them to the shelf.")
-                            .font(.subheadline)
+                // Dynamic Content from Release Script
+                ForEach(ChangelogData.current.split(separator: "\n"), id: \.self) { line in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 4))
                             .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                        Text(String(line))
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 
-                // Feature 2: Auto-Rename
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "pencil.line")
-                        .font(.title3)
-                        .foregroundStyle(.blue)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Smart Zipping")
-                            .font(.headline)
-                        Text("Create ZIP files instantly. New archives automatically enter rename mode so you can label them immediately.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                Divider()
+                    .padding(.vertical, 8)
+
+                // Keep the 2.0 Highlight as a "Featured" section
+                Group {
+                    Text("Highlights from 2.0")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    Label("Floating Basket", systemImage: "basket.fill")
+                    Label("Smart Zipping & Rename", systemImage: "pencil.line")
+                    Label("Text Extraction (OCR)", systemImage: "doc.text.viewfinder")
                 }
-                
-                // Feature 3: OCR & Conversion
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "doc.text.viewfinder")
-                        .font(.title3)
-                        .foregroundStyle(.green)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Text Extraction & Conversion")
-                            .font(.headline)
-                        Text("Right-click any image or PDF to extract text using OCR, or convert images to different formats (PNG, JPEG, HEIC, etc.) on the fly.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                // Feature 4: Sonoma Ready
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "macwindow")
-                        .font(.title3)
-                        .foregroundStyle(.pink)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Refined for Sonoma")
-                            .font(.headline)
-                        Text("Smoother animations, glass materials, and full compatibility with macOS 14+.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
         } header: {
-            Text("What's New in v2.0")
-        } footer: {
-            Text("Enjoy the new update!")
+            Text("What's New")
         }
     }
+}
+
+struct ChangelogData {
+    static let current = """
+    Fixed: App quitting when closing Settings window
+    Fixed: Crash when moving basket during animation
+    Fixed: Window memory management stability improvements
+    """
+}
     
     private var aboutSettings: some View {
         Section {
