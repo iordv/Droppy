@@ -328,33 +328,48 @@ class TargetSizeDialogController {
                 }
             )
             
-            let hostingView = NSHostingView(rootView: dialogView)
-            hostingView.frame = NSRect(x: 0, y: 0, width: 340, height: 290)
+            let windowWidth: CGFloat = 340
+            let windowHeight: CGFloat = 290
             
-            let window = NSPanel(
-                contentRect: hostingView.frame,
+            // Use custom CompressPanel that can become key (like BasketPanel)
+            let panel = CompressPanel(
+                contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
                 styleMask: [.borderless, .nonactivatingPanel],
                 backing: .buffered,
                 defer: false
             )
             
-            window.contentView = hostingView
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            window.hasShadow = true
-            window.level = .floating
-            window.isMovableByWindowBackground = true
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = false // We handle shadow in SwiftUI
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            panel.isMovableByWindowBackground = true
+            panel.hidesOnDeactivate = false
+            panel.becomesKeyOnlyIfNeeded = false
+            panel.animationBehavior = .none
+            panel.isReleasedWhenClosed = false
+            
+            // Create SwiftUI hosting view
+            let hostingView = NSHostingView(rootView: dialogView)
+            hostingView.frame = NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight)
+            
+            // CRITICAL: Make hosting view layer-backed and fully transparent
+            hostingView.wantsLayer = true
+            hostingView.layer?.backgroundColor = .clear
+            
+            panel.contentView = hostingView
             
             // Center on screen
             if let screen = NSScreen.main {
                 let screenFrame = screen.frame
-                let x = (screenFrame.width - 340) / 2
-                let y = (screenFrame.height - 290) / 2
-                window.setFrameOrigin(NSPoint(x: x, y: y))
+                let x = (screenFrame.width - windowWidth) / 2
+                let y = (screenFrame.height - windowHeight) / 2
+                panel.setFrameOrigin(NSPoint(x: x, y: y))
             }
             
-            self.window = window
-            window.makeKeyAndOrderFront(nil)
+            self.window = panel
+            panel.makeKeyAndOrderFront(nil)
             
             // Make window accept key events
             NSApp.activate(ignoringOtherApps: true)
@@ -368,3 +383,15 @@ class TargetSizeDialogController {
         continuation = nil
     }
 }
+
+// MARK: - Custom Panel Class (like BasketPanel)
+class CompressPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        return true
+    }
+    
+    override var canBecomeMain: Bool {
+        return true
+    }
+}
+
