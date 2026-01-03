@@ -557,6 +557,10 @@ struct NotchItemView: View {
     // Removed local isRenaming
     @State private var renamingText = ""
     
+    // Feedback State
+    @State private var shakeOffset: CGFloat = 0
+    @State private var isShakeAnimating = false
+    
     var body: some View {
         DraggableArea(
             items: {
@@ -604,6 +608,21 @@ struct NotchItemView: View {
                 renamingText: $renamingText,
                 onRename: performRename
             )
+            .offset(x: shakeOffset)
+            .overlay(alignment: .center) {
+                if isShakeAnimating {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 44, height: 44)
+                            .shadow(radius: 4)
+                        Image(systemName: "checkmark.shield.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom))
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
         .frame(width: 76, height: 96)
         .background {
             GeometryReader { geo in
@@ -872,12 +891,38 @@ struct NotchItemView: View {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         isPoofing = true
                     }
+                    // Clean up after slight delay to ensure poof is seen
+                    Task {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        await MainActor.run {
+                            state.replaceItem(item, with: newItem)
+                            isPoofing = false
+                        }
+                    }
                 }
             } else {
                 await MainActor.run {
                     isCompressing = false
+                    // Trigger Feedback: Shake + Shield
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        isShakeAnimating = true
+                    }
+                    
+                    // Shake animation sequence
+                    Task {
+                        for _ in 0..<3 {
+                            withAnimation(.linear(duration: 0.05)) { shakeOffset = -4 }
+                            try? await Task.sleep(nanoseconds: 50_000_000)
+                            withAnimation(.linear(duration: 0.05)) { shakeOffset = 4 }
+                            try? await Task.sleep(nanoseconds: 50_000_000)
+                        }
+                        withAnimation { shakeOffset = 0 }
+                        
+                        try? await Task.sleep(nanoseconds: 1_200_000_000)
+                        withAnimation { isShakeAnimating = false }
+                    }
                 }
-                print("Compression failed")
+                print("Compression failed or no size reduction (Size Guard)")
             }
         }
     }
