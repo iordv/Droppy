@@ -38,8 +38,8 @@ enum CompressionQuality: Int, CaseIterable {
     /// Video export preset
     var videoPreset: String {
         switch self {
-        case .low: return AVAssetExportPresetLowQuality
-        case .medium: return AVAssetExportPresetMediumQuality
+        case .low: return AVAssetExportPreset1280x720
+        case .medium: return AVAssetExportPresetHEVC1920x1080
         case .high: return AVAssetExportPresetHighestQuality
         }
     }
