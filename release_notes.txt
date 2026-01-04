@@ -1,22 +1,28 @@
+# What's New in v3.2.7
+
+### ⚡️ Simplified Save & Feedback
+- **Direct Save to Downloads**: Clicking the Save button now instantly saves the file to your Downloads folder, skipping the dialog for a faster workflow.
+- **Success Morph Animations**: The Copy and Save buttons now morph into a green checkmark briefly to provide clear, beautiful confirmation of success.
+
+### 🩹 Stability & Performance
+- Fixed a lag when favoriting items by making disk operations asynchronous.
+- Resolved a critical graphics crash in the Hexagon animated background.
+- Fixed a race condition that could cause clipboard history to disappear during app launch.
+- Optimized memory usage for Link Previews with better caching.
+
+### 🔗 Link Preview Enhancements
+- Added a loading indicator for URL previews.
+- Improved support for direct image links (Postimg, Imgur, etc.).
+- Metadata cards now display more reliably with better error handling.
+
+---
+
 # What's New in v3.2.6
 
 ### 💾 Save to File
-- New download button in the clipboard preview pane
-- Save any clipboard item directly to your disk:
-  - Images save as PNG/JPG
-  - Text saves as .txt files
-  - Files are copied to your chosen location
-- Full NSSavePanel integration with format selection
+- New download button in the clipboard preview pane.
+- Save any clipboard item directly to your disk.
 
 ### 🔗 Link Previews
-- URLs now show rich previews with website metadata:
-  - Page title
-  - Domain name
-  - Preview image when available
-- Direct image URLs (`.png`, `.jpg`, `.gif`, etc.) display the image directly
-- Async loading with cached results for fast re-display
-
-### 🎨 Visual Improvements
-- Save button matches the existing squircle icon button styling
-- Smooth loading states with progress indicators
-- Link preview cards with subtle glass background
+- URLs now show rich previews with website metadata.
+- Direct image URLs display the image directly.

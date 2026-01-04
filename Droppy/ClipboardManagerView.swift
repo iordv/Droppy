@@ -896,6 +896,8 @@ struct ClipboardPreviewView: View {
     @State private var starAnimationTrigger = false
     @State private var isDownloadHovering = false
     @State private var isSavingFile = false
+    @State private var showSaveSuccess = false
+    @State private var showCopySuccess = false
     
     // Animation Namespace
     @Namespace private var animationNamespace
@@ -927,91 +929,89 @@ struct ClipboardPreviewView: View {
         } else if let imgData = item.imageData {
             NSPasteboard.general.setData(imgData, forType: .tiff)
         }
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            showCopySuccess = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                showCopySuccess = false
+            }
+        }
     }
     
     private func saveToFile() {
         isSavingFile = true
         
-        let panel = NSSavePanel()
-        panel.canCreateDirectories = true
-        panel.showsTagField = false
-        panel.level = .modalPanel // Higher than popUpMenu to appear above clipboard
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        let fileName: String
+        let fileExtension: String
         
-        // Configure based on item type
         switch item.type {
         case .image:
-            let baseName = item.customTitle ?? "Image"
-            panel.nameFieldStringValue = "\(baseName).png"
-            panel.allowedContentTypes = [.png, .jpeg, .tiff]
-            
-        case .text:
-            let baseName = item.customTitle ?? "Text"
-            panel.nameFieldStringValue = "\(baseName).txt"
-            panel.allowedContentTypes = [.plainText]
-            
-        case .url:
-            let baseName = item.customTitle ?? "Link"
-            panel.nameFieldStringValue = "\(baseName).txt"
-            panel.allowedContentTypes = [.plainText]
-            
+            fileName = item.customTitle ?? "Image_\(Int(Date().timeIntervalSince1970))"
+            fileExtension = "png"
+        case .text, .url:
+            fileName = item.customTitle ?? "Text_\(Int(Date().timeIntervalSince1970))"
+            fileExtension = "txt"
         case .file:
             if let path = item.content {
                 let url = URL(fileURLWithPath: path)
-                panel.nameFieldStringValue = url.lastPathComponent
+                fileName = url.deletingPathExtension().lastPathComponent
+                fileExtension = url.pathExtension
+            } else {
+                fileName = "File_\(Int(Date().timeIntervalSince1970))"
+                fileExtension = ""
             }
-            
         case .color:
-            panel.nameFieldStringValue = "Color.txt"
-            panel.allowedContentTypes = [.plainText]
+            fileName = "Color_\(Int(Date().timeIntervalSince1970))"
+            fileExtension = "txt"
         }
         
-        // Run modally to ensure it appears on top
-        let response = panel.runModal()
-        defer { isSavingFile = false }
-        guard response == .OK, let url = panel.url else { return }
+        var destinationURL = downloads.appendingPathComponent(fileName).appendingPathExtension(fileExtension)
+        
+        // Handle collisions
+        var counter = 1
+        while FileManager.default.fileExists(atPath: destinationURL.path) {
+            destinationURL = downloads.appendingPathComponent("\(fileName)_\(counter)").appendingPathExtension(fileExtension)
+            counter += 1
+        }
         
         do {
             switch item.type {
             case .image:
-                if let data = item.imageData {
-                    // Determine format based on chosen extension
-                    if url.pathExtension.lowercased() == "jpg" || url.pathExtension.lowercased() == "jpeg" {
-                        if let nsImage = NSImage(data: data),
-                           let tiffData = nsImage.tiffRepresentation,
-                           let bitmap = NSBitmapImageRep(data: tiffData),
-                           let jpegData = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9]) {
-                            try jpegData.write(to: url)
-                        }
-                    } else {
-                        // Default to PNG
-                        if let nsImage = NSImage(data: data),
-                           let tiffData = nsImage.tiffRepresentation,
-                           let bitmap = NSBitmapImageRep(data: tiffData),
-                           let pngData = bitmap.representation(using: .png, properties: [:]) {
-                            try pngData.write(to: url)
-                        }
-                    }
+                if let data = item.imageData,
+                   let nsImage = NSImage(data: data),
+                   let tiffData = nsImage.tiffRepresentation,
+                   let bitmap = NSBitmapImageRep(data: tiffData),
+                   let pngData = bitmap.representation(using: .png, properties: [:]) {
+                    try pngData.write(to: destinationURL)
                 }
-                
-            case .text, .url:
+            case .text, .url, .color:
                 if let content = item.content {
-                    try content.write(to: url, atomically: true, encoding: .utf8)
+                    try content.write(to: destinationURL, atomically: true, encoding: .utf8)
                 }
-                
             case .file:
                 if let path = item.content {
                     let sourceURL = URL(fileURLWithPath: path)
-                    try FileManager.default.copyItem(at: sourceURL, to: url)
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
                 }
-                
-            case .color:
-                if let content = item.content {
-                    try content.write(to: url, atomically: true, encoding: .utf8)
+            }
+            
+            // Success Feedback
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                showSaveSuccess = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showSaveSuccess = false
                 }
             }
         } catch {
-            print("Save error: \(error.localizedDescription)")
+            print("Direct save error: \(error.localizedDescription)")
         }
+        
+        isSavingFile = false
     }
     
     var body: some View {
@@ -1305,58 +1305,78 @@ struct ClipboardPreviewView: View {
                     
                     // Copy Button
                     Button(action: copyToClipboard) {
-                        Text("Copy")
-                            .fontWeight(.medium)
-                            .frame(width: 70)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(isCopyHovering ? 0.2 : 0.1))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                            )
-                            .scaleEffect(isCopyHovering ? 1.02 : 1.0)
+                        ZStack {
+                            if showCopySuccess {
+                                Image(systemName: "checkmark")
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.green)
+                                    .transition(.scale.combined(with: .opacity))
+                            } else {
+                                Text("Copy")
+                                    .fontWeight(.medium)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                        .frame(width: 70)
+                        .padding(.vertical, 12)
+                        .background(showCopySuccess ? Color.green.opacity(0.15) : Color.white.opacity(isCopyHovering ? 0.2 : 0.1))
+                        .foregroundStyle(showCopySuccess ? .green : .white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(showCopySuccess ? Color.green.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                        .scaleEffect(isCopyHovering || showCopySuccess ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)
                     .transition(.move(edge: .leading).combined(with: .opacity))
                     .onHover { hovering in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            isCopyHovering = hovering
+                        if !showCopySuccess {
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                                isCopyHovering = hovering
+                            }
                         }
                     }
                     
                     // Save to File Button
                     Button(action: saveToFile) {
                         ZStack {
-                            if isSavingFile {
+                            if showSaveSuccess {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.green)
+                                    .transition(.scale.combined(with: .opacity))
+                            } else if isSavingFile {
                                 ProgressView()
                                     .controlSize(.small)
                                     .tint(.white)
                             } else {
                                 Image(systemName: "square.and.arrow.down")
                                     .font(.system(size: 18, weight: .medium))
+                                    .transition(.scale.combined(with: .opacity))
                             }
                         }
-                        .foregroundStyle(isDownloadHovering ? .white : .secondary)
+                        .foregroundStyle(showSaveSuccess ? .green : (isDownloadHovering ? .white : .secondary))
                         .frame(width: 44, height: 44)
-                        .background(isDownloadHovering ? Color.white.opacity(0.15) : Color.clear)
+                        .background(showSaveSuccess ? Color.green.opacity(0.15) : (isDownloadHovering ? Color.white.opacity(0.15) : Color.clear))
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(isDownloadHovering ? Color.white.opacity(0.3) : Color.white.opacity(0.1), lineWidth: 1)
+                                .stroke(showSaveSuccess ? Color.green.opacity(0.5) : (isDownloadHovering ? Color.white.opacity(0.3) : Color.white.opacity(0.1)), lineWidth: 1)
                         )
-                        .scaleEffect(isDownloadHovering ? 1.08 : 1.0)
+                        .scaleEffect(isDownloadHovering || showSaveSuccess ? 1.08 : 1.0)
                     }
                     .buttonStyle(.plain)
-                    .help("Save to File")
-                    .disabled(isSavingFile)
+                    .help("Save to Downloads")
+                    .disabled(isSavingFile || showSaveSuccess)
                     .transition(.move(edge: .leading).combined(with: .opacity))
                     .onHover { hovering in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            isDownloadHovering = hovering
+                        if !showSaveSuccess {
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                                isDownloadHovering = hovering
+                            }
                         }
                     }
                 }
