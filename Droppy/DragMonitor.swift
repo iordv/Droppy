@@ -62,43 +62,45 @@ final class DragMonitor: ObservableObject {
     }
 
     private func checkForActiveDrag() {
-        // Retrieve pasteboard handle locally to ensure validity
-        let dragPasteboard = NSPasteboard(name: .drag)
-        let currentChangeCount = dragPasteboard.changeCount
-        let mouseIsDown = NSEvent.pressedMouseButtons & 1 != 0
-        
-        // Detect drag START
-        if currentChangeCount != dragStartChangeCount && mouseIsDown {
-            let hasContent = (dragPasteboard.types?.count ?? 0) > 0
-            if hasContent && !dragActive {
-                dragActive = true
-                dragStartChangeCount = currentChangeCount
-                resetJiggle()
-                dragEndNotified = false
-                lastDragLocation = NSEvent.mouseLocation
-                isDragging = true
-                dragLocation = NSEvent.mouseLocation
+        autoreleasepool {
+            // Retrieve pasteboard handle locally to ensure validity
+            let dragPasteboard = NSPasteboard(name: .drag)
+            let currentChangeCount = dragPasteboard.changeCount
+            let mouseIsDown = NSEvent.pressedMouseButtons & 1 != 0
+            
+            // Detect drag START
+            if currentChangeCount != dragStartChangeCount && mouseIsDown {
+                let hasContent = (dragPasteboard.types?.count ?? 0) > 0
+                if hasContent && !dragActive {
+                    dragActive = true
+                    dragStartChangeCount = currentChangeCount
+                    resetJiggle()
+                    dragEndNotified = false
+                    lastDragLocation = NSEvent.mouseLocation
+                    isDragging = true
+                    dragLocation = NSEvent.mouseLocation
+                }
             }
-        }
-        
-        // Update location while dragging
-        if dragActive && mouseIsDown {
-            let currentLocation = NSEvent.mouseLocation
-            dragLocation = currentLocation
-            detectJiggle(currentLocation: currentLocation)
-            lastDragLocation = currentLocation
-        }
-        
-        // Detect drag END
-        if !mouseIsDown && dragActive {
-            dragActive = false
-            isDragging = false
-            dragEndNotified = true
             
-            // Notify controller that drag ended
-            FloatingBasketWindowController.shared.onDragEnded()
+            // Update location while dragging
+            if dragActive && mouseIsDown {
+                let currentLocation = NSEvent.mouseLocation
+                dragLocation = currentLocation
+                detectJiggle(currentLocation: currentLocation)
+                lastDragLocation = currentLocation
+            }
             
-            resetJiggle()
+            // Detect drag END
+            if !mouseIsDown && dragActive {
+                dragActive = false
+                isDragging = false
+                dragEndNotified = true
+                
+                // Notify controller that drag ended
+                FloatingBasketWindowController.shared.onDragEnded()
+                
+                resetJiggle()
+            }
         }
     }
     

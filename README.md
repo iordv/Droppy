@@ -140,13 +140,13 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-Release v3.1.4
+Release v3.1.5
 
-Fixes:
-- **Icon Compatibility**: Ensured the new app icon uses the correct PNG format for compatibility with all macOS versions. (Fixed an issue where the icon might not appear on some systems).
+New:
+- **Settings Shortcut**: Added a Settings (gear) icon to the shelf when it's empty. This ensures you can always access preferences, even if the menu bar icon is hidden.
 
-New in v3.1.3:
-- **Crash Fix**: Resolved a startup crash related to preferences.
+Fixed in v3.1.4:
+- **Icon Compatibility**: Ensured the new app icon uses the correct PNG format for compatibility with all macOS versions.
 <!-- CHANGELOG_END -->
 
 ---
