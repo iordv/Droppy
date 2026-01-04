@@ -139,11 +139,16 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy v2.7.1: Editor Polish & Critical Fixes 🛠️
+# Droppy v2.7.2: The "Liquid" Update Experience ✨
 
-*This release reinforces v2.7.0 with critical stability improvements.*
+*This release introduces a stunning new update screen and solidifies v2.7.x stability.*
 
-This release marks a major milestone for Droppy, bringing the **Clipboard Manager** to full maturity and introducing significant architectural improvements for stability.
+This release marks a major milestone for Droppy, ensuring that even the update process feels like a premium, fluid experience.
+
+### ✨ New Update Experience
+- **Liquid Glass UI**: The update screen is no longer a boring system alert. It is now a beautiful, translucent window that follows the macOS 26 design language.
+- **Rich Release Notes**: Release notes now support **bold**, *italics*, and lists, making it easier to see what's new.
+- **Scrollable Content**: No more truncated text! You can now scroll through the full history of changes.
 
 ### 📋 Liquid Clipboard Manager
 - **Direct Content Editing**: Edit text and URLs directly in the history. The UI morphs seamlessly into a dedicated editor.
