@@ -140,14 +140,14 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-Release v3.1.7
+Release v3.1.8
 
-Hotfix:
-- **Optimization**: Significant performance improvement in Drag Monitor. Now avoids unnecessary system checks when idle, resolving a rare crash for heavy users.
+Refinement:
+- **Menu Bar Icon**: Replaced the generic tray with a pixel-perfect stencil of the official Droppy app icon.
 
-Previously in v3.1.6:
-- **Menu Bar Icon**: New custom stencil icon.
-- **Branding**: App icon in About section.
+Previous v3.1.x updates:
+- **Crash Fix**: Optimized drag monitoring stability.
+- **Settings Icon**: Added to empty shelf.
 <!-- CHANGELOG_END -->
 
 ---
