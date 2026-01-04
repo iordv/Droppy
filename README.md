@@ -143,7 +143,10 @@ brew install --cask iordv/tap/droppy
 Release v3.1.5
 
 New:
-- **Settings Shortcut**: Added a Settings (gear) icon to the shelf when it's empty. This ensures you can always access preferences, even if the menu bar icon is hidden.
+- **Settings Shortcut**: Added a Settings (gear) icon to the shelf when it's empty.
+
+Fixes:
+- **Crash Fix**: Resolved a timer-related crash in Drag Monitor that could occur during usage.
 
 Fixed in v3.1.4:
 - **Icon Compatibility**: Ensured the new app icon uses the correct PNG format for compatibility with all macOS versions.
