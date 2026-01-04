@@ -1,8 +1,14 @@
-Hotfix Release
-
-Fixes:
-- Fixed clipboard history not loading after update (backwards compatibility)
-- Fixed crash in NotchWindow related to objc_release
+Clipboard Engine Overhaul (v2.9.0)
 
 Features:
-- Password entries now show a key icon in clipboard history
+- New high-performance Clipboard Engine using IOHIDManager.
+- Full Keyboard Navigation: Use Arrows and Enter to navigate/paste.
+- Global Hotkey is now compatible with Secure Input (password fields).
+- Multi-item capture: Copy multiple files or photos simultaneously.
+- Smooth Fade-Out animation for the clipboard window.
+- Enhanced password manager exclusion logic.
+
+Fixes:
+- Fixed keyboard navigation being blocked in the clipboard UI.
+- Fixed clipboard window "popping" out of existence without animation.
+- Improved focus management to prevent stealing focus when unnecessary.

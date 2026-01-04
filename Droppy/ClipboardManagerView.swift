@@ -87,7 +87,8 @@ struct ClipboardManagerView: View {
                 onPaste(item)
             }
         }
-            .keyboardShortcut(.return, modifiers: [])
+            .keyboardShortcut(.return, modifiers: []) // 1. Return -> Paste
+            .keyboardShortcut(.return, modifiers: .command) // 2. Cmd+Return -> Paste (Bonus)
             .opacity(0)
     }
     
@@ -97,7 +98,10 @@ struct ClipboardManagerView: View {
             Button("") { navigateSelection(direction: -1) }.keyboardShortcut(.upArrow, modifiers: [])
             Button("") { navigateSelection(direction: 1) }.keyboardShortcut(.downArrow, modifiers: [])
             Button("") { deleteSelectedItems() }.keyboardShortcut(.delete, modifiers: [])
-            Button("") { deleteSelectedItems() }.keyboardShortcut(KeyEquivalent("\u{08}"), modifiers: [])
+            Button("") { deleteSelectedItems() }.keyboardShortcut(KeyEquivalent("\u{08}"), modifiers: []) // Backspace
+            
+            // 3. Command+C -> Copy Selected to Clipboard
+            Button("") { copySelectedToClipboard() }.keyboardShortcut("c", modifiers: .command)
         }
         .opacity(0)
     }

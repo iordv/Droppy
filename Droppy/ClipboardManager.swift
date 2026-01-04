@@ -191,19 +191,41 @@ class ClipboardManager: ObservableObject {
         
         let pasteboard = NSPasteboard.general
         
+        // Debugging: Show exactly what's happening (checking concealed status)
+        let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+        let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+        
+        let hasConcealed = pasteboard.types?.contains(concealedType) == true
+        let hasTransient = pasteboard.types?.contains(transientType) == true
+        
+        print("📋 Clipboard Change Detected!")
+        print("   - Types: \(pasteboard.types?.map { $0.rawValue } ?? [])")
+        print("   - Is Concealed: \(hasConcealed)")
+        print("   - Is Transient: \(hasTransient)")
+        print("   - Skip Setting: \(skipConcealedContent)")
+        
         // Check for concealed/password content
         if skipConcealedContent {
-            let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
-            if pasteboard.types?.contains(concealedType) == true {
-                return // Skip passwords and other concealed content
+            if hasConcealed { 
+                print("   🚫 SKIPPING: Content is Concealed")
+                return 
+            }
+            if hasTransient { 
+                print("   🚫 SKIPPING: Content is Transient")
+                return 
             }
         }
         
-        // Extract content
-        let bestItem = extractItem(from: pasteboard)
+        // Extract content (Supports Multiple Items now)
+        let newItems = extractItems(from: pasteboard)
         
-        if var item = bestItem {
-            DispatchQueue.main.async {
+        guard !newItems.isEmpty else { return }
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Insert in REVERSE order so the first item in pasteboard (index 0) ends up at the TOP of history
+            for var item in newItems.reversed() {
                 // Check if this item already exists in history
                 if let index = self.history.firstIndex(where: { $0.content == item.content && $0.type == item.type }) {
                     // It exists!
@@ -218,43 +240,80 @@ class ClipboardManager: ObservableObject {
                 
                 // 3. Insert the new (or refreshed) item at the top
                 self.history.insert(item, at: 0)
-                
-                // Limit history based on user setting
-                self.enforceHistoryLimit()
             }
+            
+            // Limit history based on user setting
+            self.enforceHistoryLimit()
         }
     }
     
-    private func extractItem(from pasteboard: NSPasteboard) -> ClipboardItem? {
+    private func extractItems(from pasteboard: NSPasteboard) -> [ClipboardItem] {
         let app = NSWorkspace.shared.frontmostApplication?.localizedName
+        var results: [ClipboardItem] = []
         
-        // Check if content is concealed (password)
+        // Global Concealed Check (Applies to all items unless specific overrides happen, which is rare)
         let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
-        let isConcealed = pasteboard.types?.contains(concealedType) == true
+        let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+        let transientTextType = NSPasteboard.PasteboardType("public.utf8-plain-text.transient")
+        let onePasswordType = NSPasteboard.PasteboardType("com.agilebits.onepassword") // Heuristic
         
-        // 1. Check for URL
-        if let urlStr = pasteboard.string(forType: .URL) {
-            return ClipboardItem(type: .url, content: urlStr, sourceApp: app, isConcealed: isConcealed)
+        guard let items = pasteboard.pasteboardItems else { return [] }
+        
+        for item in items {
+            // Per-Item Concealed Check
+            var isConcealed = false
+            let types = item.types
+            if types.contains(concealedType) { isConcealed = true }
+            if types.contains(transientType) { isConcealed = true }
+            if types.contains(transientTextType) { isConcealed = true }
+            if types.contains(onePasswordType) { isConcealed = true }
+            
+            // 1. Check for File URL (Prioritize File over Image/Text if it is a file)
+            if let fileURLVal = item.string(forType: .fileURL),
+               let url = URL(string: fileURLVal) {
+                results.append(ClipboardItem(type: .file, content: url.path, sourceApp: app, isConcealed: isConcealed))
+                continue
+            }
+            
+            // 2. Check for Image (TIFF/PNG/JPEG)
+            // We check for image types directly on the item
+            if let tiffData = item.data(forType: .tiff) ?? item.data(forType: .png) {
+                 // Convert to TIFF for internal standardization if needed, or store as is
+                 // Here we store whatever data we got but marked as image.
+                 // Ideally we want TIFF for NSImage compatibility usually.
+                 // Let's rely on NSImage to parse it from the specific item data if possible
+                 if let image = NSImage(data: tiffData), let tiff = image.tiffRepresentation {
+                    results.append(ClipboardItem(type: .image, imageData: tiff, sourceApp: app, isConcealed: isConcealed))
+                    continue
+                 }
+            }
+            
+            // 3. Check for URL
+            if let urlStr = item.string(forType: .URL) {
+                // Ensure it's not just a file path masquerading as a URL (though usually fileURL catches that)
+                results.append(ClipboardItem(type: .url, content: urlStr, sourceApp: app, isConcealed: isConcealed))
+                continue
+            }
+            
+            // 4. Check for Text (Fallback)
+            if let str = item.string(forType: .string) {
+                // Avoid empty strings
+                if !str.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    results.append(ClipboardItem(type: .text, content: str, sourceApp: app, isConcealed: isConcealed))
+                    continue
+                }
+            }
         }
         
-        // 2. Check for File URL
-        if let fileURLVal = pasteboard.propertyList(forType: .fileURL) as? String,
-           let url = URL(string: fileURLVal) {
-             return ClipboardItem(type: .file, content: url.path, sourceApp: app, isConcealed: isConcealed)
+        // Fallback: If no items found via iteration (e.g. some legacy apps put data on root but not items? Rare),
+        // try the old 'best attempt' method only if results are empty.
+        if results.isEmpty {
+           // ... (Previous logic, but simplified)
+           // Actually, pasteboardItems should cover everything. 
+           // If we are here, it might be empty or custom types we don't handle.
         }
         
-        // 3. Check for Text
-        if let str = pasteboard.string(forType: .string) {
-            return ClipboardItem(type: .text, content: str, sourceApp: app, isConcealed: isConcealed)
-        }
-        
-        // 4. Check for Image
-        if let image = NSImage(pasteboard: pasteboard),
-           let tiff = image.tiffRepresentation {
-             return ClipboardItem(type: .image, imageData: tiff, sourceApp: app, isConcealed: isConcealed)
-        }
-        
-        return nil
+        return results
     }
     
     func paste(item: ClipboardItem, targetPID: pid_t? = nil) {
@@ -300,22 +359,35 @@ class ClipboardManager: ObservableObject {
     
     private func simulatePasteCommand(targetPID: pid_t?) {
         // EXACT Mirror of ClipBook Method (V12):
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let vKey: CGKeyCode = 9 // 'v'
+        // Use discrete events for Cmd and V to correctly simulate physical input
+        let source = CGEventSource(stateID: .hidSystemState)
+        let cmdKey: CGKeyCode = 55 // kVK_Command
+        let vKey: CGKeyCode = 9    // kVK_ANSI_V
         
-        // Create Down event with Command flag
-        guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: true) else { return }
-        keyDown.flags = .maskCommand
+        // 1. Cmd Down
+        guard let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: cmdKey, keyDown: true) else { return }
+        cmdDown.flags = .maskCommand
         
-        // Create Up event WITHOUT Command flag
-        guard let keyUp = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: false) else { return }
+        // 2. V Down
+        guard let vDown = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: true) else { return }
+        vDown.flags = .maskCommand
         
-        // Post events with a tiny micro-delay to help complex editors (V12)
-        keyDown.post(tap: .cgAnnotatedSessionEventTap)
-        usleep(10000) // 10ms gap
-        keyUp.post(tap: .cgAnnotatedSessionEventTap)
+        // 3. V Up
+        guard let vUp = CGEvent(keyboardEventSource: source, virtualKey: vKey, keyDown: false) else { return }
+        vUp.flags = .maskCommand
         
-        print("🪞 Droppy: Paste mirrored from ClipBook V12 (PID: \(targetPID ?? 0))")
+        // 4. Cmd Up
+        guard let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: cmdKey, keyDown: false) else { return }
+        
+        // Post events to the system event tap (works globally)
+        let loc = CGEventTapLocation.cghidEventTap
+        
+        cmdDown.post(tap: loc)
+        vDown.post(tap: loc)
+        vUp.post(tap: loc)
+        cmdUp.post(tap: loc)
+        
+        print("🪞 Droppy: Paste simulated (Discrete Cmd+V sequence)")
     }
     
     func toggleFavorite(_ item: ClipboardItem) {

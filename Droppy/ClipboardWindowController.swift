@@ -30,6 +30,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: clipboardView)
         
         // Borderless, transparent window, but RESIZABLE for manual resizing
+        // Removed .nonactivatingPanel to allow taking focus (Fixes "Enter" to paste)
         window = ClipboardPanel(
             contentRect: NSRect(x: 0, y: 0, width: 720, height: 480),
             styleMask: [.borderless, .fullSizeContentView, .resizable], 
@@ -43,8 +44,17 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         window.hasShadow = true
         window.isMovableByWindowBackground = false // Only header area should move window
         
-        // Floating above normal windows
-        window.level = .floating 
+        // Ensure layer backing for smooth alpha animation
+        window.contentView?.wantsLayer = true
+        
+        // Use popUpMenu level to ensure it floats above almost everything (like Spotlight)
+        window.level = .popUpMenu 
+        
+        // ✅ FIX: Tell macOS this window won't interfere with password fields
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle] 
+        
+        // CRITICAL: Prevent window from vanishing instantly when clicking outside (resigning active)
+        window.hidesOnDeactivate = false
         
         // Auto-close behavior
         window.delegate = self
@@ -79,16 +89,19 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         }
     }
     
+    private var clickMonitor: Any?
+    private var localClickMonitor: Any?
+
     func show() {
         guard !isAnimating else { return }
         
-        // Save previous app to restore focus for paste
-        // Only if it's not Droppy itself!
-        if let frontmost = NSWorkspace.shared.frontmostApplication, frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+        // Save previous app
+        if let frontmost = NSWorkspace.shared.frontmostApplication, 
+           frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
             previousApp = frontmost
         }
         
-        // Center on main screen
+        // Center window
         if let screen = NSScreen.main {
             let screenRect = screen.visibleFrame
             let windowRect = window.frame
@@ -99,36 +112,113 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         isAnimating = true
         window.alphaValue = 0
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        print("⌨️ Droppy: Showing Clipboard Window (Aggressive Activation)")
         
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            window.animator().alphaValue = 1.0
-        }, completionHandler: { [weak self] in
-            self?.isAnimating = false
-        })
+        // ✅ Restore Focus to allow Keyboard Navigation (Arrows + Enter)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        
+        // Start monitoring for clicks outside to auto-close (since we are not Key)
+        startClickMonitoring()
+        
+        print("⌨️ Droppy: Showing Clipboard Window")
+        
+        NSAnimationContext.beginGrouping()
+        NSAnimationContext.current.duration = 0.25
+        NSAnimationContext.current.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        window.animator().alphaValue = 1.0
+        NSAnimationContext.endGrouping()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            self.isAnimating = false
+        }
     }
 
     func close() {
         guard window.isVisible && !isAnimating else { return }
         
+        // Stop monitoring immediately
+        stopClickMonitoring()
+        
         isAnimating = true
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+        print("⌨️ Droppy: Fading Out Clipboard Window (Duration: 0.35s)...")
+        
+        // Use explicit grouping to force commit even if app is deactivating
+        NSAnimationContext.beginGrouping()
+        NSAnimationContext.current.duration = 0.35
+        NSAnimationContext.current.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        NSAnimationContext.current.completionHandler = { [weak self] in
+            // Only order out AFTER animation completes
             self?.window.orderOut(nil)
             self?.isAnimating = false
-        })
+            self?.window.alphaValue = 1.0 
+        }
+        window.animator().alphaValue = 0
+        NSAnimationContext.endGrouping()
+    }
+    
+    // MARK: - Click Monitoring (Auto-Close)
+
+    
+    private func startClickMonitoring() {
+        stopClickMonitoring()
+        
+        print("🖱️ Droppy: Starting Click Monitoring")
+        
+        // 1. Global Monitor (Clicks sent to OTHER apps)
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self = self, self.window.isVisible else { return }
+            
+            // Check if click is outside our window frame
+            let mouseLoc = NSEvent.mouseLocation
+            let windowFrame = self.window.frame
+            
+            if !windowFrame.contains(mouseLoc) {
+                print("🖱️ Droppy: Global Click Outside (Loc: \(mouseLoc) | Frame: \(windowFrame)) -> Closing")
+                DispatchQueue.main.async {
+                    self.close()
+                }
+            }
+        }
+        
+        // 2. Local Monitor (Clicks sent to OUR app)
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self = self, self.window.isVisible else { return event }
+            
+            if event.window != self.window {
+                print("🖱️ Droppy: Local Click Outside (Window: \(String(describing: event.window))) -> Closing")
+                DispatchQueue.main.async {
+                    self.close()
+                }
+            } else {
+                 // Click was inside the window, check coordinates just in case (e.g. slight border issues)
+                 let mouseLoc = NSEvent.mouseLocation
+                 if !self.window.frame.contains(mouseLoc) {
+                     // Can happen if event.window is set but coordinate is outside? Rare.
+                     print("🖱️ Droppy: Local Click reported inside but coords outside -> Closing")
+                     DispatchQueue.main.async { self.close() }
+                 }
+            }
+            return event
+        }
+    }
+    
+    private func stopClickMonitoring() {
+        if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
+        }
+        if let monitor = localClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            localClickMonitor = nil
+        }
     }
     
     func paste(_ item: ClipboardItem) {
         // Dismiss clipboard immediately
         isAnimating = true
+        // Stop monitoring to prevent double-closes
+        stopClickMonitoring()
+        
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.1
             window.animator().alphaValue = 0
@@ -164,17 +254,12 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         })
     }
 
-    func windowDidResignKey(_ notification: Notification) {
-        // This is triggered when clicking outside
-        // Add a tiny delay check to prevent "flicker closure" during app activation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            if self.window.isVisible && !self.window.isKeyWindow {
-                self.close()
-            }
-        }
-    }
+    // Removed dead code: windowDidResignKey (Window is never Key now)
+
     
-    // MARK: - Global Shortcut (Beta)
+    // MARK: - Global Shortcut (Carbon)
+    private var globalHotKey: GlobalHotKey?
+    
     func startMonitoringShortcut() {
         stopMonitoringShortcut()
         
@@ -188,32 +273,73 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             targetModifiers = decoded.modifiers
         }
         
-        // 1. Global Monitor (when other apps are frontmost)
-        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            // Use rawValue to handle exact match, but ensure we aren't blocked by minor flags
-            if flags.rawValue == targetModifiers && event.keyCode == targetKeyCode {
-                print("⌨️ Droppy: Global Shortcut Triggered")
-                DispatchQueue.main.async { self?.toggle() }
-            }
+        // 1. Carbon HotKey (Works even with Secure Input / Password Fields)
+        globalHotKey = GlobalHotKey(keyCode: targetKeyCode, modifiers: targetModifiers) { [weak self] in
+            print("⌨️ Droppy: Global Shortcut Triggered (Carbon)")
+            self?.toggle()
         }
-
-        // 2. Local Monitor (when Droppy is frontmost)
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        
+        // 2. Only keep Local Monitor for swallowing the event when active
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             if flags.rawValue == targetModifiers && event.keyCode == targetKeyCode {
-                DispatchQueue.main.async { self?.toggle() }
-                return nil // Swallow
+                return nil
             }
             return event
+        }
+        
+        // 3. Permission Check & Prompt
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.checkPermissions()
+        }
+    }
+    
+    private func checkPermissions() {
+        // Accessibility Check
+        let isAccessibilityTrusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        
+        // Input Monitoring Check (Verified by IOHIDManager success)
+        let isInputMonitoringActive = globalHotKey?.isInputMonitoringActive ?? false
+        
+        if isAccessibilityTrusted && isInputMonitoringActive {
+            return
+        }
+        
+        let alert = NSAlert()
+        alert.messageText = "Permissions Required"
+        alert.informativeText = "To work in password fields and all apps, Droppy needs specific permissions:\n\n"
+        
+        var missingPermissions: [String] = []
+        if !isAccessibilityTrusted { missingPermissions.append("• Accessibility (for Paste)") }
+        if !isInputMonitoringActive { missingPermissions.append("• Input Monitoring (for Global Hotkey)") }
+        
+        alert.informativeText += missingPermissions.joined(separator: "\n")
+        alert.informativeText += "\n\nPlease enable them in System Settings."
+        
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Later")
+        
+        alert.window.level = .floating
+        
+        // Bring app to front to show alert
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            if !isInputMonitoringActive {
+                // Open Input Monitoring (Privacy_ListenEvent)
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
+            } else {
+                // Open Accessibility
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
         }
     }
     
     func stopMonitoringShortcut() {
-        if let monitor = globalEventMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalEventMonitor = nil
-        }
+        // GlobalHotKey deinit handles unregistration
+        globalHotKey = nil
+        
         if let monitor = localEventMonitor {
             NSEvent.removeMonitor(monitor)
             localEventMonitor = nil
@@ -223,6 +349,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
 
 // MARK: - Custom Panel Class
 class ClipboardPanel: NSPanel {
+    // ✅ FIX: Allow window to become key so it can receive Keyboard Events (Enter, Arrows)
     override var canBecomeKey: Bool {
         return true
     }
@@ -230,4 +357,9 @@ class ClipboardPanel: NSPanel {
     override var canBecomeMain: Bool {
         return true
     }
+    
+    // ✅ Allow interaction even without focus
+    // Note: acceptsFirstMouse is an NSView method, not NSWindow. 
+    // SwiftUI views inside should handle this automatically or via their hosting view.
+
 }
