@@ -135,14 +135,15 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy v2.6.2 Hotfix 🩹
+# Droppy v2.6.3 Hotfix 🩹
 
-Quick patch to resolve a stability issue reported by users.
+Another stability patch to ensure Droppy runs smoothly in the background without eating up your RAM.
 
-### 🐛 Bug Fixes
-- **Crash Fix**: Resolved a memory management issue in the notch monitor that could cause the app to crash during high-frequency checks.
+### � Improvements
+- **Memory Optimization**: Implemented tighter memory management for the Drag and Clipboard monitors. This fixes potential crashes that could occur after leaving the app running for long periods.
+- **Stability**: Hardened the monitoring loops against object accumulation.
 
-Stay liquid! 💧
+Safe and sound! �️
 <!-- CHANGELOG_END -->
 
 ---
