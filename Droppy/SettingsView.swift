@@ -18,6 +18,7 @@ struct SettingsView: View {
     
     @State private var dashPhase: CGFloat = 0
     @State private var isHistoryLimitEditing: Bool = false
+    @State private var isUpdateHovering = false
     
     var body: some View {
         ZStack {
@@ -40,9 +41,37 @@ struct SettingsView: View {
                     Label("About Droppy", systemImage: "info.circle")
                         .tag("About Droppy")
                 }
-                .navigationTitle("Settings")
-                // Fix: Use compatible background modifer
+                .scrollContentBackground(.hidden)
                 .background(Color.clear) 
+                .safeAreaInset(edge: .bottom) {
+                    Button {
+                        UpdateChecker.shared.checkAndNotify()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text("Update")
+                        }
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue.opacity(isUpdateHovering ? 1.0 : 0.8))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) // Slightly smaller radius for sidebar
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                        .scaleEffect(isUpdateHovering ? 1.02 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .onHover { hovering in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isUpdateHovering = hovering
+                        }
+                    }
+                } 
             } detail: {
                 Form {
                     if selectedTab == "General" {
@@ -176,19 +205,13 @@ struct SettingsView: View {
     
     private var aboutSettings: some View {
         Section {
-            HStack {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                
-                VStack(alignment: .leading) {
-                    Text("Droppy")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("Version \(UpdateChecker.shared.currentVersion)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading) {
+                Text("Droppy")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text("Version \(UpdateChecker.shared.currentVersion)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 8)
             
@@ -208,13 +231,48 @@ struct SettingsView: View {
                 }
             }
             
-            Button {
-                UpdateChecker.shared.checkAndNotify()
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("Check for Updates")
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 14) {
+                        // Official BMC Logo
+                        AsyncImage(url: URL(string: "https://i.postimg.cc/MHxm3CKr/5c58570cfdd26f0001068f06-198x149-2x.avif")) { image in
+                             image.resizable()
+                                  .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                             Color.gray.opacity(0.3)
+                        }
+                        .frame(width: 44, height: 44) // Generic size container
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Support Development")
+                                .font(.headline)
+                            
+                            Text("Hi, I'm Jordy. I'm a solo developer building Droppy because I believe essential tools should be free.\n\nI don't sell this app, but if you enjoy using it, a coffee would mean the world to me. Thanks for your support! ❤️")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            Link(destination: URL(string: "https://buymeacoffee.com/droppy")!) {
+                                HStack {
+                                    Text("Buy me a coffee")
+                                        .fontWeight(.medium)
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                // BMC Yellow: #FFDD00
+                                .background(Color(red: 1.0, green: 0.867, blue: 0.0))
+                                .foregroundStyle(.black) // Black text for contrast on yellow
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                            .buttonStyle(.plain) // Standard link button behavior
+                            .padding(.top, 4)
+                        }
+                    }
                 }
+                .padding(.vertical, 8)
             }
         } header: {
             Text("About")
