@@ -140,11 +140,12 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-Hotfix Release (v2.9.1)
+Release v2.9.2
 
-Fixes:
-- CRITICAL: Fixed a crash in DragMonitor related to memory management (objc_release).
-- Stability improvements for long-running drag sessions.
+New Features:
+- OCR for Images: You can now extract text directly from images in your clipboard using the new "Extract Text" button.
+- RTF Support: Enhanced rendering for Rich Text content in the clipboard preview.
+- UI Refinements: Improved OCR result view and window layering.
 <!-- CHANGELOG_END -->
 
 ---
