@@ -41,7 +41,7 @@ class LinkPreviewService {
                 }
                 return metadata
             } catch {
-                await MainActor.run {
+                _ = await MainActor.run {
                     self.pendingRequests.removeValue(forKey: urlString)
                 }
                 print("LinkPreview Error: \(error.localizedDescription)")

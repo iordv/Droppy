@@ -253,7 +253,7 @@ class NotchWindow: NSWindow {
         // For global monitors, we need to convert the event location to screen coordinates.
         // Global events have locationInScreen as the screen-based location.
         let mouseLocation: NSPoint
-        if let screen = event.window?.screen ?? NSScreen.main {
+        if (event.window?.screen ?? NSScreen.main) != nil {
             // Convert window-relative location to screen coordinates
             if event.window != nil {
                 mouseLocation = event.window!.convertPoint(toScreen: event.locationInWindow)
