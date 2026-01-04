@@ -89,11 +89,13 @@ Droppy provides a **temporary shelf** for your files. Drag files to the top of y
 ### The Clipboard Manager (BETA)
 *Your history, beautifully organized. Works in perfect harmony with the shelf and basket.*
 
-![Direct Paste](https://i.postimg.cc/VNCvkGYk/image.png)
+<p align="center">
+  <img src="https://i.postimg.cc/ZKzM7j76/image.png" alt="Multi-select, Favorite, and Paste" width="100%">
+</p>
 
-![Multi-select & Drag](https://i.postimg.cc/mrJ9d1g6/image.png)
-
-![Rename Entries](https://i.postimg.cc/SxKzkf24/image.png)
+<p align="center">
+  <img src="https://i.postimg.cc/NFqpnf45/image.png" alt="Rename, Copy, and Delete" width="100%">
+</p>
 
 ---
 
