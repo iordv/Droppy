@@ -151,25 +151,10 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Release Notes v3.2.7
+# Release Notes v3.2.8
 
-### 🚀 Major Improvements to URL Handling
-- **Rich Interactive URL Previews**: Link previews are now fully interactive. Click any preview card to open the link in your default browser.
-- **Auto-Close Clipboard**: For a smoother workflow, the clipboard window now automatically closes after you click a link, letting you focus on your browsing.
-- **Enhanced Preview Metadata**: URL previews now include website snapshots with titles, descriptions, and favicons, providing more context at a glance.
-- **Improved Link Detection**: Smarter plain-text link detection using `NSDataDetector`, allowing Droppy to recognize URLs even when they lack `http://` or `www.`.
-- **Expanded Media Support**: Direct image previews now support `.avif` and `.apng` formats, with improved detection for common image hosting sites.
-
-### 🍱 Refined Workspace & UI
-- **20% Wider Clipboard Window**: Increased the maximum width of the clipboard window from 864px to **1040px**. This provides a more spacious layout for rich content and ensures the preview pane feels premium and uncrowded.
-- **Matched Action Badges**: The "Website" and "Image Link" badges have been restyled to exactly match the "Extract Text" button's aesthetic, including its ultra-thin material background, refined overlay, and subtle shadow.
-- **Title Case Badges**: Updated badge labels to a cleaner Title Case for a more modern, integrated appearance.
-- **Borderless Aesthetic**: Removed borders and internal backgrounds from URL previews for a cleaner, glass-like look that blends perfectly with Droppy's design language.
-
-### 🧹 Code Health & DX
-- Fixed various compiler warnings related to unused values and results.
-- Optimized MainActor synchronization for smoother UI transitions.
-- Improved coordinate conversion logic in multi-monitor setups.
+### 🐛 Bug Fixes
+- **Shelf Hover Detection**: Fixed an issue where hovering over files in the shelf would only trigger on the upper half of the file icon. The interaction area now correctly covers the entire file.
 <!-- CHANGELOG_END -->
 
 ---
