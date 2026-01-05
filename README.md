@@ -163,16 +163,18 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy 4.1 — GIF Preview Update
+## Droppy 4.2 — Polished Sliders & GIF Previews
 
-### ✨ New Features
-- Added animated GIF previews in Settings for all features
-- Beautiful squarcle corners with Liquid Glass styling on all previews
-- Updated README with animated visual tour
+### 🎨 Visual Improvements
+- **Media Progress Slider**: Now matches the HUD slider style with Liquid Glass aesthetics
+  - Ultra-thin material background with concave lighting
+  - Inner glow and gradient with glow shadow
+- **Settings GIF Previews**: Now auto-play and loop properly
+  - Centered layout instead of left-aligned
+  - Uses WebKit for smooth GIF animation
 
-### 🎨 Improvements
-- Settings now show live previews when features are enabled
-- Visual tour in README now uses animated GIFs
+### 🐛 Fixes
+- Corrected Basket and Clipboard preview GIFs (were swapped)
 <!-- CHANGELOG_END -->
 
 ---
