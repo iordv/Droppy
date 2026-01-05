@@ -163,13 +163,10 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy 4.3.5 — GIF Preview Fix
+# Droppy v4.3.6
 
-### 🔧 Fixes
-- **GIF previews**: Fixed sizing to properly fit within settings sections
-  - Images now constrained to content area (max 500px wide, 200px tall)
-  - Uses proper Auto Layout constraints for centering
-  - Will only scale down, never expand beyond bounds
+## Fixes
+- **Fixed System HUD not being suppressed**: Resolved an issue where some users would see both the native macOS volume slider and Droppy's HUD when pressing volume keys. The MediaKeyInterceptor now properly starts by default for all users.
 <!-- CHANGELOG_END -->
 
 ---
