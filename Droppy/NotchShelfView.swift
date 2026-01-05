@@ -202,7 +202,8 @@ struct NotchShelfView: View {
                         }
                     )
                     .frame(width: hudWidth, height: hudHeight)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    // Match media player transition - scale with notch
+                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                     .zIndex(3)
                 }
                 

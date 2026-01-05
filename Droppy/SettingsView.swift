@@ -820,80 +820,55 @@ class ClickSelectingTextField: NSTextField {
 }
 
 // MARK: - Feature Preview GIF Component
-import WebKit
 
 struct FeaturePreviewGIF: View {
     let url: String
+    var maxHeight: CGFloat = 160  // Reduced from 200
     
     var body: some View {
         AnimatedGIFView(url: url)
-            .frame(height: 200)
+            .frame(height: maxHeight)
             .frame(maxWidth: .infinity, alignment: .center)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: .white.opacity(0.4), location: 0),
-                                .init(color: .white.opacity(0.1), location: 0.5),
-                                .init(color: .black.opacity(0.2), location: 1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-            .padding(.vertical, 8)
+            // Removed white border overlay - cleaner look
+            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+            .padding(.vertical, 6)
     }
 }
 
-/// NSViewRepresentable wrapper for WKWebView to display animated GIFs
+/// Native NSImageView-based GIF display (crash-safe, no WebKit)
 struct AnimatedGIFView: NSViewRepresentable {
     let url: String
     
-    func makeNSView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        webView.setValue(false, forKey: "drawsBackground")
+    func makeNSView(context: Context) -> NSImageView {
+        let imageView = NSImageView()
+        imageView.animates = true
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.canDrawSubviewsIntoLayer = true
         
-        // Load GIF with auto-play, centered, and fitting in container
-        let html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                * { margin: 0; padding: 0; }
-                html, body {
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    background: transparent;
-                    overflow: hidden;
+        // Load GIF data asynchronously
+        if let gifURL = URL(string: url) {
+            Task {
+                do {
+                    let (data, _) = try await URLSession.shared.data(from: gifURL)
+                    if let image = NSImage(data: data) {
+                        await MainActor.run {
+                            imageView.image = image
+                        }
+                    }
+                } catch {
+                    print("GIF load failed: \(error)")
                 }
-                img {
-                    max-width: 100%;
-                    max-height: 100%;
-                    object-fit: contain;
-                    border-radius: 16px;
-                }
-            </style>
-        </head>
-        <body>
-            <img src="\(url)" alt="Preview">
-        </body>
-        </html>
-        """
+            }
+        }
         
-        webView.loadHTMLString(html, baseURL: nil)
-        return webView
+        return imageView
     }
     
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
+    func updateNSView(_ nsView: NSImageView, context: Context) {
+        // Ensure animation is running
+        nsView.animates = true
+    }
 }
 
 // MARK: - GIF Pre-loader
