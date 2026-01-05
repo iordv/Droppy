@@ -163,10 +163,13 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy 4.3.4 — Settings Polish
+## Droppy 4.3.5 — GIF Preview Fix
 
 ### 🔧 Fixes
-- **GIF previews**: Reverted to original styling with white gradient border and 200px height
+- **GIF previews**: Fixed sizing to properly fit within settings sections
+  - Images now constrained to content area (max 500px wide, 200px tall)
+  - Uses proper Auto Layout constraints for centering
+  - Will only scale down, never expand beyond bounds
 <!-- CHANGELOG_END -->
 
 ---
