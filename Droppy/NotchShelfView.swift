@@ -211,7 +211,8 @@ struct NotchShelfView: View {
                 // Only show if we have valid song info (not just isPlaying)
                 // Wait for songDuration > 0 to ensure complete metadata is loaded
                 // Hide during song transitions for collapse-expand effect
-                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && musicManager.songDuration > 0 && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning {
+                // Removed songDuration > 0 check - web sources often don't provide valid duration
+                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning {
                     MediaHUDView(musicManager: musicManager)
                         .frame(width: hudWidth, height: hudHeight)
                         // Match the exact notch collapse/expand animation

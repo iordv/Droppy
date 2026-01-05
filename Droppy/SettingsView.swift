@@ -79,7 +79,7 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 16)
-                .frame(minWidth: 180)
+                .frame(minWidth: 200)
                 .background(Color.clear) 
             } detail: {
                 Form {

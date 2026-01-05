@@ -95,6 +95,46 @@ final class MusicManager: ObservableObject {
     private init() {
         loadMediaRemoteForCommands()
         startAdapterProcess()
+        
+        // Fetch full metadata after a short delay to solve cold start issue
+        // (when app opens while media is already playing, initial stream may miss duration)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.fetchFullNowPlayingInfo()
+        }
+    }
+    
+    /// Fetch complete now playing info using the "get" command
+    /// This solves the cold start problem where duration isn't sent in the initial stream
+    private func fetchFullNowPlayingInfo() {
+        guard let scriptURL = Bundle.main.url(forResource: "mediaremote-adapter", withExtension: "pl"),
+              let frameworkPath = Bundle.main.privateFrameworksPath?.appending("/MediaRemoteAdapter.framework") else {
+            return
+        }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
+        process.arguments = [scriptURL.path, frameworkPath, "get"]
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        
+        do {
+            try process.run()
+            
+            // Read output in background
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                
+                if !data.isEmpty {
+                    print("MusicManager: Cold start fetch received \(data.count) bytes")
+                    self?.processJSONLine(data)
+                }
+            }
+        } catch {
+            print("MusicManager: Cold start fetch failed: \(error)")
+        }
     }
     
     deinit {
@@ -187,22 +227,31 @@ final class MusicManager: ObservableObject {
     // MARK: - JSON Stream Processing
     
     private func processJSONLine(_ data: Data) {
-        // Debug: Log raw JSON to find all available fields
+        // Debug: Always log raw JSON for timing issues
         if let jsonStr = String(data: data, encoding: .utf8) {
-            // Only log full JSON once to avoid spam
-            if !jsonStr.contains("\"payload\":{}") && songDuration == 0 {
-                print("MusicManager: RAW JSON KEYS: \(jsonStr)")
-            }
+            print("MusicManager: Raw JSON received: \(jsonStr.prefix(500))")
         }
         
         do {
             let decoder = JSONDecoder()
-            let update = try decoder.decode(NowPlayingUpdate.self, from: data)
+            // Try decoding as full update structure first
+            if let update = try? decoder.decode(NowPlayingUpdate.self, from: data) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleUpdate(update)
+                }
+                return
+            }
+            
+            // Fallback: Try decoding as payload directly (adapter "get" command output format)
+            let payload = try decoder.decode(NowPlayingUpdate.NowPlayingPayload.self, from: data)
+            let update = NowPlayingUpdate(type: "data", payload: payload, diff: false)
+            print("MusicManager: Decoded as direct payload")
+            
             DispatchQueue.main.async { [weak self] in
                 self?.handleUpdate(update)
             }
         } catch {
-            // Silently ignore parsing errors for partial/malformed lines
+            print("MusicManager: Failed to decode JSON: \(error)")
         }
     }
     
@@ -225,11 +274,48 @@ final class MusicManager: ObservableObject {
         if let album = payload.album {
             albumName = album
         }
-        if let duration = payload.duration {
-            songDuration = duration
+        if let duration = payload.duration, duration > 0 {
+            // Only accept duration if it makes sense (greater than current elapsed time)
+            // For web sources, MediaRemote sometimes sends elapsedTime as duration
+            let currentElapsed = payload.elapsedTime ?? elapsedTime
+            if duration > currentElapsed || currentElapsed < 5 {
+                songDuration = duration
+            } else {
+                print("MusicManager: Rejected invalid duration \(duration) <= elapsed \(currentElapsed)")
+            }
         }
         if let elapsed = payload.elapsedTime {
-            elapsedTime = elapsed
+            // Store the raw elapsed time from adapter
+            let rawElapsedTime = elapsed
+            
+            // Parse ISO 8601 timestamp to get when this elapsed time was captured
+            if let ts = payload.timestamp {
+                let formatter = ISO8601DateFormatter()
+                if let captureDate = formatter.date(from: ts) {
+                    // Calculate how much time has passed since the timestamp was captured
+                    let timeSinceCapture = Date().timeIntervalSince(captureDate)
+                    let rate = payload.playbackRate ?? 1.0
+                    
+                    // Allow adjustment for up to 5 minutes (300s) if playing
+                    // Web sources send stale timestamps on cold start, but if rate > 0 we can extrapolate
+                    if timeSinceCapture >= 0 && timeSinceCapture < 300 && rate > 0 {
+                        elapsedTime = rawElapsedTime + (timeSinceCapture * rate)
+                        print("MusicManager: Adjusted elapsed by \(timeSinceCapture)s: \(rawElapsedTime) -> \(elapsedTime)")
+                    } else {
+                        elapsedTime = rawElapsedTime
+                        if timeSinceCapture >= 300 {
+                            print("MusicManager: Timestamp too old (\(Int(timeSinceCapture))s), using raw elapsed")
+                        }
+                    }
+                    timestampDate = Date()
+                } else {
+                    elapsedTime = rawElapsedTime
+                    timestampDate = Date()
+                }
+            } else {
+                elapsedTime = rawElapsedTime
+                timestampDate = Date()
+            }
         }
         if let rate = payload.playbackRate {
             playbackRate = rate
@@ -240,14 +326,6 @@ final class MusicManager: ObservableObject {
         
         // Always update isPlaying from playbackRate (computed property)
         isPlaying = payload.isPlaying
-        
-        // Parse ISO 8601 timestamp
-        if let ts = payload.timestamp {
-            let formatter = ISO8601DateFormatter()
-            if let date = formatter.date(from: ts) {
-                timestampDate = date
-            }
-        }
         
         // Handle artwork
         if let base64Art = payload.artworkData,
@@ -518,12 +596,16 @@ final class MusicManager: ObservableObject {
         }
     }
     
-    /// Estimate current playback position
     func estimatedPlaybackPosition(at date: Date = Date()) -> Double {
         guard isPlaying else { return elapsedTime }
         let delta = date.timeIntervalSince(timestampDate)
         let progressed = elapsedTime + (delta * playbackRate)
-        return min(max(progressed, 0), songDuration)
+        // Only clamp to duration if we have a valid duration (> 0)
+        if songDuration > 0 {
+            return min(max(progressed, 0), songDuration)
+        } else {
+            return max(progressed, 0)
+        }
     }
 }
 
