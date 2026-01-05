@@ -151,12 +151,11 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-Droppy v3.3.3
+Droppy v3.3.4
 
 🚀 Fixes & Improvements:
-- Shelf Hover Fix: Significantly improved hover detection for shelf items, ensuring the entire item area is responsive.
-- Internal Optimizations: Refined state management and UI performance.
-- Cleanup: Removed legacy temporary file management logic.
+- Fixed an issue where the notch window would drift toward the middle of the screen during screen resolution changes (e.g. docking/undocking).
+- The notch now automatically repositions to the top-center of the active display.
 <!-- CHANGELOG_END -->
 
 ---
