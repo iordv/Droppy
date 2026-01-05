@@ -1,14 +1,10 @@
-Droppy v3.3.6: Memory Optimization & Smooth UI
+Droppy v3.3.7: Stability Hotfix
 
-This update focuses on making Droppy more efficient while refining the feel of the interface.
+This hotfix addresses a rare crash during file jiggles and further optimizes system resource usage.
 
-**Memory Optimizations**
-- **Disk-Based Clipboard**: Large image data in your clipboard history is now offloaded to disk. This significantly reduces RAM usage, especially for high-resolution images. Existing history will be migrated automatically on first launch.
-- **Bounded Link Previews**: Optimized LinkPreviewService with NSCache to prevent unbounded memory growth over time.
+**Fixes & Improvements**
+- **Reactive Drag Monitoring**: Completely refactored the drag detection engine to use native macOS event monitors instead of a background polling loop. This eliminates potential race conditions in the HID event system and reduces idle CPU usage.
+- **Animation Stability**: Added debouncing to the floating basket's movement animations to prevent overload during rapid jiggles.
+- **Crash Prevention**: Resolved an `objc_release` issue in the system event queue reported by users.
 
-**UI & Animations**
-- **Smooth Basket Movement**: Re-introduced the "fly" animation for the floating basket. When you jiggle a file again, the basket now glides smoothly to the new position.
-- **Polished Transitions**: Restored the elegant fade-in effect when summoning the basket.
-
-**Stability**
-- Maintained window lifecycle stability fixes from v3.3.5 to prevent AppKit crashes during rapid interaction.
+This release builds on the memory optimizations and smooth animation improvements introduced in v3.3.6.
