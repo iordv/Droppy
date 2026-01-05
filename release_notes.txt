@@ -1,5 +1,10 @@
-# Release Notes v3.2.8
+## 🚀 Features
 
-### 🐛 Bug Fixes
-- **Shelf Hover Detection**: Fixed an issue where hovering over files in the shelf would only trigger on the upper half of the file icon. The interaction area now correctly covers the entire file.
-- **Stability Improvements**: Resolved a potential crash related to high-frequency rendering updates in the background effects.
+- **Memory Optimization**: Significantly reduced idle memory usage by implementing lazy loading for dropped item icons and offloading large clipboard images to disk.
+- **Auto-Cleanup**: Droppy now automatically cleans up temporary files (created from conversions, compressions, and drops) when you close the Shelf or Basket.
+- **Performance**: Smoother interactions and better resource management for long-running sessions.
+
+## 🛠 Fixes
+
+- Fixed potential memory leaks in drag monitoring.
+- Resolved temporary file accumulation in system temp directories.
