@@ -82,7 +82,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // 3. Media Key Interceptor for HUD replacement
             // Start if HUD replacement is enabled to suppress system HUD
-            if UserDefaults.standard.bool(forKey: "enableHUDReplacement") {
+            // Default to true if key is not set (matches @AppStorage default in SettingsView)
+            let hudEnabled = UserDefaults.standard.object(forKey: "enableHUDReplacement") == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: "enableHUDReplacement")
+            if hudEnabled {
                 print("🎛️ Droppy: Starting Media Key Interceptor for HUD")
                 MediaKeyInterceptor.shared.start()
             }
