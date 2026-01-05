@@ -6,9 +6,9 @@
 
 <p align="center">
   <strong>The ultimate productivity tool for macOS.</strong><br>
-  <em>Notch Shelf • Floating Basket • Clipboard Manager</em><br>
+  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Volume & Brightness HUD</em><br>
   <br>
-  Designed with ❤️ and pixel-perfect polish. Now featuring rich Interactive URL Previews in our Clipboard.
+  Designed with ❤️ and pixel-perfect polish. Now with buttery smooth custom HUDs!
 </p>
 
 <p align="center">
@@ -28,11 +28,13 @@
 
 ## What is Droppy?
 
-Droppy reimagines productivity on macOS by combining three essential tools into one seamless experience:
+Droppy reimagines productivity on macOS by combining five essential tools into one seamless experience:
 
 1.  **Notch Shelf**: A sleek holding zone hidden in your webcam notch.
 2.  **Floating Basket**: Summon a drop zone anywhere with a quick mouse jiggle.
 3.  **Clipboard Manager**: A powerful history tool with OCR, favorites, and instant search.
+4.  **🆕 Media Player**: Beautiful Now Playing controls embedded in the notch.
+5.  **🆕 Custom HUDs**: Gorgeous volume and brightness overlays that replace the ugly system HUDs.
 
 It's the perfect bridge between your apps, spaces, and workflow.
 
@@ -45,6 +47,9 @@ It's the perfect bridge between your apps, spaces, and workflow.
 | **🗂️ Notch Shelf** | Drag files to the Notch — they vanish into a sleek shelf, ready when you need them. |
 | **🧺 Floating Basket** | **"Jiggle" your mouse** while dragging to summon a basket instantly at your cursor. |
 | **📋 Clipboard Manager** | A powerful clipboard history with full **keyboard navigation**, **search**, **favorites**, and **OCR text extraction**. |
+| **🎵 Media Player** | Now Playing controls right in your notch. Album art, seek slider, playback controls with buttery smooth animations. |
+| **🔊 Volume HUD** | Beautiful animated volume indicator with dynamic icons — replaces the ugly system HUD. |
+| **🔆 Brightness HUD** | Elegant brightness overlay with smooth animations. |
 | **📦 Move To...** | Move files directly to saved folders (like your NAS) from the shelf. Non-blocking & fast. |
 | **📉 Smart Compression** | Right-click to compress images, PDFs, and videos. Includes **Target Size** and **Size Guard** 🛡️. |
 | **⚡️ Fast Actions** | Convert images, extract text (OCR), zip, rename — all directly in the shelf. |
@@ -94,24 +99,31 @@ Drag files out of the shelf and drop into any app — email, Discord, Photoshop,
 ### The Notch Shelf
 *Perfect for MacBook users. Utilizes the empty space around your webcam.*
 <p align="center">
-  <img src="https://i.postimg.cc/63TpswW4/image.png" alt="Notch Shelf Preview" width="100%">
+  <img src="https://i.postimg.cc/jqkPwkRp/Schermopname2026-01-05om22-04-43-ezgif-com-video-to-gif-converter.gif" alt="Notch Shelf Preview" width="100%">
 </p>
 
 ### The Floating Basket
 *Summoned anywhere with a quick jiggle. The perfect temporary holding zone.*
 <p align="center">
-  <img src="https://i.postimg.cc/50488cNj/image.png" alt="Floating Basket Preview" width="100%">
+  <img src="https://i.postimg.cc/X7VmqqYM/Schermopname2026-01-05om21-57-55-ezgif-com-video-to-gif-converter.gif" alt="Floating Basket Preview" width="100%">
 </p>
 
 ### The Clipboard Manager
 *Your history, beautifully organized. Search, Edit, and Drag & Drop.*
-
 <p align="center">
-  <img src="https://i.postimg.cc/rpdpn8sH/image.png" alt="Multi-select, Favorite, and Paste" width="100%">
+  <img src="https://i.postimg.cc/dtHH09fB/Schermopname2026-01-05om22-01-22-ezgif-com-video-to-gif-converter.gif" alt="Clipboard Manager Preview" width="100%">
 </p>
 
+### 🆕 Media Player
+*Full Now Playing controls embedded right in your notch. Buttery smooth animations.*
 <p align="center">
-  <img src="https://i.postimg.cc/63npKYdc/image.png" alt="Rename, Copy, and Delete" width="100%">
+  <img src="https://i.postimg.cc/wM52HXm6/Schermopname2026-01-05om21-48-08-ezgif-com-video-to-gif-converter.gif" alt="Media Player Preview" width="100%">
+</p>
+
+### 🆕 Volume & Brightness HUD
+*Beautiful overlays that replace the ugly system HUDs. Animated icons and smooth transitions.*
+<p align="center">
+  <img src="https://i.postimg.cc/hG22QtJ8/Schermopname2026-01-05om19-08-22-ezgif-com-video-to-gif-converter.gif" alt="HUD Preview" width="100%">
 </p>
 
 ---
@@ -151,11 +163,35 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy 4.0.1 — Hotfix
+## Droppy 4.0 — The HUD Update 🎛️
 
-### 🐛 Fixed
-- Fixed crash in Brightness HUD polling on some systems
-- Thread-safety improvement for display ID access
+This is a HUGE update! Droppy now replaces the ugly macOS system HUDs with beautiful, animated overlays embedded right in your notch.
+
+### ✨ New Features
+
+**🎵 Media Player HUD**
+- Full media controls directly in the notch
+- Album art with smooth crossfade transitions between songs
+- Interactive seek slider with tactile feedback
+- Play/pause, skip forward/back controls
+- Tap album art to open the source app
+
+**🔊 Volume HUD**
+- Beautiful volume indicator replaces the system HUD
+- Animated icon that morphs between mute/low/high states
+- Smooth liquid glass styling
+
+**🔆 Brightness HUD**
+- Elegant brightness control overlay
+- Dynamic sun icon animation
+
+### 🎨 Design
+- All HUDs use the signature Liquid Glass aesthetic
+- Buttery smooth spring animations throughout
+- Icon-centric design that feels native to macOS
+
+### 🔧 Improvements
+- Fixed Homebrew quarantine issue — no more security dialogs on updates
 <!-- CHANGELOG_END -->
 
 ---

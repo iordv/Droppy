@@ -1,5 +1,10 @@
-## Droppy 4.0.1 — Hotfix
+## Droppy 4.1 — GIF Preview Update
 
-### 🐛 Fixed
-- Fixed crash in Brightness HUD polling on some systems
-- Thread-safety improvement for display ID access
+### ✨ New Features
+- Added animated GIF previews in Settings for all features
+- Beautiful squarcle corners with Liquid Glass styling on all previews
+- Updated README with animated visual tour
+
+### 🎨 Improvements
+- Settings now show live previews when features are enabled
+- Visual tour in README now uses animated GIFs

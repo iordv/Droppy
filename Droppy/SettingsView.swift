@@ -200,6 +200,10 @@ struct SettingsView: View {
                     NotchWindowController.shared.closeWindow()
                 }
             }
+            
+            if enableNotchShelf {
+                FeaturePreviewGIF(url: "https://i.postimg.cc/jqkPwkRp/Schermopname2026-01-05om22-04-43-ezgif-com-video-to-gif-converter.gif")
+            }
 
             Toggle(isOn: $enableFloatingBasket) {
                 VStack(alignment: .leading) {
@@ -213,6 +217,10 @@ struct SettingsView: View {
                 if !newValue {
                     FloatingBasketWindowController.shared.hideBasket()
                 }
+            }
+            
+            if enableFloatingBasket {
+                FeaturePreviewGIF(url: "https://i.postimg.cc/X7VmqqYM/Schermopname2026-01-05om21-57-55-ezgif-com-video-to-gif-converter.gif")
             }
         } header: {
             Text("General")
@@ -256,6 +264,8 @@ struct SettingsView: View {
                 }
                 
                 if showMediaPlayer {
+                    FeaturePreviewGIF(url: "https://i.postimg.cc/wM52HXm6/Schermopname2026-01-05om21-48-08-ezgif-com-video-to-gif-converter.gif")
+                    
                     Toggle(isOn: $autoFadeMediaHUD) {
                         VStack(alignment: .leading) {
                             Text("Auto-Fade Preview")
@@ -282,6 +292,10 @@ struct SettingsView: View {
                         // Stop interceptor, let system handle keys normally
                         MediaKeyInterceptor.shared.stop()
                     }
+                }
+                
+                if enableHUDReplacement {
+                    FeaturePreviewGIF(url: "https://i.postimg.cc/hG22QtJ8/Schermopname2026-01-05om19-08-22-ezgif-com-video-to-gif-converter.gif")
                 }
             } header: {
                 Text("HUD & Media")
@@ -451,6 +465,8 @@ struct SettingsView: View {
             }
             
             if enableClipboard {
+                FeaturePreviewGIF(url: "https://i.postimg.cc/dtHH09fB/Schermopname2026-01-05om22-01-22-ezgif-com-video-to-gif-converter.gif")
+                
                 HStack {
                     Text("Global Shortcut")
                     Spacer()
@@ -800,5 +816,55 @@ class ClickSelectingTextField: NSTextField {
         
         // And notify focus
         onFocusChange?(true)
+    }
+}
+
+// MARK: - Feature Preview GIF Component
+struct FeaturePreviewGIF: View {
+    let url: String
+    @State private var isLoaded = false
+    
+    var body: some View {
+        AsyncImage(url: URL(string: url)) { phase in
+            switch phase {
+            case .empty:
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .frame(height: 160)
+                    .overlay(
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    )
+            case .success(let image):
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .white.opacity(0.4), location: 0),
+                                        .init(color: .white.opacity(0.1), location: 0.5),
+                                        .init(color: .black.opacity(0.2), location: 1)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            case .failure:
+                EmptyView()
+            @unknown default:
+                EmptyView()
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isLoaded)
+        .padding(.vertical, 8)
     }
 }
