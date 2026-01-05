@@ -826,7 +826,7 @@ struct FeaturePreviewGIF: View {
     
     var body: some View {
         AnimatedGIFView(url: url)
-            .frame(height: 200)
+            .frame(maxWidth: 500, maxHeight: 200)
             .frame(maxWidth: .infinity, alignment: .center)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
@@ -853,11 +853,35 @@ struct FeaturePreviewGIF: View {
 struct AnimatedGIFView: NSViewRepresentable {
     let url: String
     
-    func makeNSView(context: Context) -> NSImageView {
+    func makeNSView(context: Context) -> NSView {
+        // Container view to properly constrain the image
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        
         let imageView = NSImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.animates = true
-        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.imageScaling = .scaleProportionallyDown  // Only scale DOWN, never up
         imageView.canDrawSubviewsIntoLayer = true
+        imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        
+        container.addSubview(imageView)
+        
+        // Center the image within the container and constrain its edges
+        NSLayoutConstraint.activate([
+            imageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            imageView.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor),
+            imageView.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
+            imageView.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor),
+            imageView.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor),
+        ])
+        
+        // Store imageView reference for loading
+        context.coordinator.imageView = imageView
         
         // Load GIF data asynchronously
         if let gifURL = URL(string: url) {
@@ -866,7 +890,7 @@ struct AnimatedGIFView: NSViewRepresentable {
                     let (data, _) = try await URLSession.shared.data(from: gifURL)
                     if let image = NSImage(data: data) {
                         await MainActor.run {
-                            imageView.image = image
+                            context.coordinator.imageView?.image = image
                         }
                     }
                 } catch {
@@ -875,12 +899,20 @@ struct AnimatedGIFView: NSViewRepresentable {
             }
         }
         
-        return imageView
+        return container
     }
     
-    func updateNSView(_ nsView: NSImageView, context: Context) {
+    func updateNSView(_ nsView: NSView, context: Context) {
         // Ensure animation is running
-        nsView.animates = true
+        context.coordinator.imageView?.animates = true
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    class Coordinator {
+        weak var imageView: NSImageView?
     }
 }
 
