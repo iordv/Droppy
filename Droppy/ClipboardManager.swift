@@ -14,11 +14,7 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var type: ClipboardType
     var content: String? // Text, URL string, or File path
-    var imageData: Data? { // For images - loaded on demand from disk
-        guard let path = imagePath else { return nil }
-        return try? Data(contentsOf: URL(fileURLWithPath: path))
-    }
-    var imagePath: String? // Path to image file on disk
+    var imageData: Data? // For images
     var date: Date = Date()
     var sourceApp: String?
     var isFavorite: Bool = false
@@ -29,20 +25,16 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     
     // Custom Codable for backwards compatibility
     enum CodingKeys: String, CodingKey {
-        case id, type, content, imagePath, rtfData, date, sourceApp, isFavorite, isConcealed, customTitle
+        case id, type, content, imageData, rtfData, date, sourceApp, isFavorite, isConcealed, customTitle
     }
     
-    private enum LegacyCodingKeys: String, CodingKey {
-        case imageData
-    }
-    
-    init(id: UUID = UUID(), type: ClipboardType, content: String? = nil, imagePath: String? = nil, rtfData: Data? = nil,
+    init(id: UUID = UUID(), type: ClipboardType, content: String? = nil, imageData: Data? = nil, rtfData: Data? = nil,
          date: Date = Date(), sourceApp: String? = nil, isFavorite: Bool = false, 
          isConcealed: Bool = false, customTitle: String? = nil) {
         self.id = id
         self.type = type
         self.content = content
-        self.imagePath = imagePath
+        self.imageData = imageData
         self.rtfData = rtfData
         self.date = date
         self.sourceApp = sourceApp
@@ -56,46 +48,13 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         id = try container.decode(UUID.self, forKey: .id)
         type = try container.decode(ClipboardType.self, forKey: .type)
         content = try container.decodeIfPresent(String.self, forKey: .content)
-        
-        // Handle migration from old imageData to new imagePath
-        if let path = try container.decodeIfPresent(String.self, forKey: .imagePath) {
-            self.imagePath = path
-        } else {
-            let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
-            if let legacyData = try legacyContainer.decodeIfPresent(Data.self, forKey: .imageData) {
-                // Migration: Save legacy data to disk
-                let filename = UUID().uuidString + ".migrated"
-                let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-                let cacheURL = paths[0].appendingPathComponent("Droppy/ClipboardCache", isDirectory: true)
-                try? FileManager.default.createDirectory(at: cacheURL, withIntermediateDirectories: true)
-                let fileURL = cacheURL.appendingPathComponent(filename)
-                try? legacyData.write(to: fileURL)
-                self.imagePath = fileURL.path
-            } else {
-                self.imagePath = nil
-            }
-        }
-        
+        imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
         rtfData = try container.decodeIfPresent(Data.self, forKey: .rtfData)
         date = try container.decode(Date.self, forKey: .date)
         sourceApp = try container.decodeIfPresent(String.self, forKey: .sourceApp)
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
-        isConcealed = try container.decodeIfPresent(Bool.self, forKey: .isConcealed) ?? false
+        isConcealed = try container.decodeIfPresent(Bool.self, forKey: .isConcealed) ?? false // Default for old data
         customTitle = try container.decodeIfPresent(String.self, forKey: .customTitle)
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(type, forKey: .type)
-        try container.encodeIfPresent(content, forKey: .content)
-        try container.encodeIfPresent(imagePath, forKey: .imagePath)
-        try container.encodeIfPresent(rtfData, forKey: .rtfData)
-        try container.encode(date, forKey: .date)
-        try container.encodeIfPresent(sourceApp, forKey: .sourceApp)
-        try container.encode(isFavorite, forKey: .isFavorite)
-        try container.encode(isConcealed, forKey: .isConcealed)
-        try container.encodeIfPresent(customTitle, forKey: .customTitle)
     }
     
     var title: String {
@@ -190,13 +149,6 @@ class ClipboardManager: ObservableObject {
     private var lastChangeCount: Int
     private var isMonitoring = false
     
-    private lazy var cacheURL: URL = {
-        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        let appSupport = paths[0].appendingPathComponent("Droppy/ClipboardCache", isDirectory: true)
-        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
-        return appSupport
-    }()
-    
     private lazy var persistenceURL: URL = {
         let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let appSupport = paths[0].appendingPathComponent("Droppy", isDirectory: true)
@@ -283,21 +235,7 @@ class ClipboardManager: ObservableObject {
     
     func enforceHistoryLimit() {
         if history.count > historyLimit {
-            let itemsToRemove = Array(history.suffix(from: historyLimit))
             history = Array(history.prefix(historyLimit))
-            
-            // Cleanup physical image files
-            for item in itemsToRemove {
-                cleanupImageFile(for: item)
-            }
-        }
-    }
-    
-    private func cleanupImageFile(for item: ClipboardItem) {
-        guard let path = item.imagePath else { return }
-        // Only delete if no other item in history uses the same path (unlikely with random IDs but safe)
-        if !history.contains(where: { $0.imagePath == path }) {
-            try? FileManager.default.removeItem(atPath: path)
         }
     }
 
@@ -356,15 +294,11 @@ class ClipboardManager: ObservableObject {
                 if let index = self.history.firstIndex(where: {
                     $0.type == item.type &&
                     $0.content == item.content &&
-                    $0.imagePath == item.imagePath
+                    $0.imageData == item.imageData
                 }) {
                     let existing = self.history[index]
                     item.isFavorite = existing.isFavorite
                     item.customTitle = existing.customTitle
-                    
-                    // If we found a duplicate, we can remove the old one. 
-                    // But wait, the NEW item already has its image saved. 
-                    // So we remove the old index, and the file cleanup will be handled by the fact that the NEW item now "owns" its file.
                     self.history.remove(at: index)
                 }
                 self.history.insert(item, at: 0)
@@ -399,22 +333,14 @@ class ClipboardManager: ObservableObject {
                     return
                 }
 
-                // 2) Image: save to disk immediately
+                // 2) Image: prefer storing raw data without re-encoding
                 if let tiff = item.data(forType: .tiff) {
-                    let filename = UUID().uuidString + ".tiff"
-                    let fileURL = cacheURL.appendingPathComponent(filename)
-                    if (try? tiff.write(to: fileURL)) != nil {
-                        results.append(ClipboardItem(type: .image, imagePath: fileURL.path, sourceApp: app, isConcealed: isConcealed))
-                        return
-                    }
+                    results.append(ClipboardItem(type: .image, imageData: tiff, sourceApp: app, isConcealed: isConcealed))
+                    return
                 }
                 if let png = item.data(forType: .png) {
-                    let filename = UUID().uuidString + ".png"
-                    let fileURL = cacheURL.appendingPathComponent(filename)
-                    if (try? png.write(to: fileURL)) != nil {
-                        results.append(ClipboardItem(type: .image, imagePath: fileURL.path, sourceApp: app, isConcealed: isConcealed))
-                        return
-                    }
+                    results.append(ClipboardItem(type: .image, imageData: png, sourceApp: app, isConcealed: isConcealed))
+                    return
                 }
 
                 // 3) URL
@@ -542,8 +468,7 @@ class ClipboardManager: ObservableObject {
     
     func delete(item: ClipboardItem) {
         if let index = history.firstIndex(where: { $0.id == item.id }) {
-            let removedItem = history.remove(at: index)
-            cleanupImageFile(for: removedItem)
+            history.remove(at: index)
         }
     }
     

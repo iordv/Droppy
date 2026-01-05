@@ -29,9 +29,6 @@ final class FloatingBasketWindowController: NSObject {
     /// Set once when basket appears to avoid layout recalculations
     private(set) var shouldExpandUpward: Bool = true
     
-    /// For debouncing movement animations
-    private var lastMovementTime: Date = .distantPast
-    
     private override init() {
         super.init()
     }
@@ -64,11 +61,6 @@ final class FloatingBasketWindowController: NSObject {
     
     /// Moves the basket to the current mouse location
     private func moveBasketToMouse() {
-        // Debounce: ignore movements happening too rapidly (within 150ms)
-        let now = Date()
-        guard now.timeIntervalSince(lastMovementTime) > 0.15 else { return }
-        lastMovementTime = now
-
         guard let panel = basketWindow else { return }
         
         let mouseLocation = NSEvent.mouseLocation
@@ -93,11 +85,8 @@ final class FloatingBasketWindowController: NSObject {
         let deltaY = abs(currentFrame.origin.y - newFrame.origin.y)
         if deltaX < 1.0 && deltaY < 1.0 { return }
         
-        // SMOOTH ANIMATION: Re-introducing animation context with stability focus.
-        // The crash was primarily due to window destruction during animation.
-        // Movement is safe; hideBasket still uses direct updates + delayed nil-ing.
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.4 // Slower for "woosh" / "fly" feel
+            context.duration = 0.4 // Slower for "woosh"
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().setFrame(newFrame, display: true)
         }, completionHandler: nil)
@@ -112,7 +101,7 @@ final class FloatingBasketWindowController: NSObject {
         // Defensive check: reclaim orphan window OR reuse existing hidden window
         if let panel = basketWindow ?? NSApp.windows.first(where: { $0 is BasketPanel }) as? NSPanel {
             basketWindow = panel
-            panel.alphaValue = 1.0 // Ensure visible
+            panel.animator().alphaValue = 1.0 // Ensure visible
             moveBasketToMouse()
             return
         }
@@ -187,10 +176,11 @@ final class FloatingBasketWindowController: NSObject {
         DroppyState.shared.isDropTargeted = false
         DroppyState.shared.isBasketVisible = true
         
-        // SMOOTH FADE-IN: Restoring visual polish
+        // Start invisible for fade-in animation
         panel.alphaValue = 0
         panel.orderFrontRegardless()
         
+        // Smooth fade-in animation
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -210,17 +200,16 @@ final class FloatingBasketWindowController: NSObject {
         DroppyState.shared.isBasketVisible = false
         DroppyState.shared.isBasketTargeted = false
         
-        // DIRECT HIDE: Avoid animator() and async completion handlers for window closing
-        // to prevent CA transition crashes.
-        panel.alphaValue = 0
-        panel.orderOut(nil)
-        
-        // CRITICAL: Delay nil-ing out the reference to allow the backing window objects 
-        // to finish their internal display cycle.
-        DispatchQueue.main.async { [weak self] in
+        // Smooth fade-out animation
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            panel.orderOut(nil)
             self?.basketWindow = nil
             self?.isShowingOrHiding = false
-        }
+        })
     }
 }
 

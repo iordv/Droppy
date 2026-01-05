@@ -10,34 +10,23 @@ struct RichLinkMetadata: Codable {
     var domain: String?
 }
 
-/// Wrapper class to make RichLinkMetadata compatible with NSCache
-class RichLinkMetadataBox: NSObject {
-    let metadata: RichLinkMetadata
-    init(_ metadata: RichLinkMetadata) {
-        self.metadata = metadata
-    }
-}
-
 /// Service for fetching and caching link previews for URLs
 class LinkPreviewService {
     static let shared = LinkPreviewService()
     
-    private let metadataCache = NSCache<NSString, RichLinkMetadataBox>()
-    private let imageCache = NSCache<NSString, NSImage>()
+    private var metadataCache: [String: RichLinkMetadata] = [:]
+    private var imageCache: [String: NSImage] = [:]
     private var pendingRequests: [String: Task<RichLinkMetadata?, Never>] = [:]
     
-    private init() {
-        metadataCache.countLimit = 100 // Cache up to 100 recent links
-        imageCache.countLimit = 50     // Cache up to 50 recent preview images
-    }
+    private init() {}
     
     // MARK: - Public API
     
     /// Fetch metadata for a URL using LinkPresentation and URLSession
     func fetchMetadata(for urlString: String) async -> RichLinkMetadata? {
         // Check cache first
-        if let cached = metadataCache.object(forKey: urlString as NSString) {
-            return cached.metadata
+        if let cached = metadataCache[urlString] {
+            return cached
         }
         
         // Check if there's already a pending request
@@ -79,7 +68,7 @@ class LinkPreviewService {
                 }
                 
                 _ = await MainActor.run {
-                    self.metadataCache.setObject(RichLinkMetadataBox(rich), forKey: urlString as NSString)
+                    self.metadataCache[urlString] = rich
                     self.pendingRequests.removeValue(forKey: urlString)
                 }
                 return rich
@@ -90,8 +79,7 @@ class LinkPreviewService {
                 print("LinkPreview Error: \(error.localizedDescription)")
                 
                 // Fallback: Just return basic info
-                let fallback = RichLinkMetadata(title: nil, description: nil, image: nil, icon: nil, domain: url.host)
-                return fallback
+                return RichLinkMetadata(title: nil, description: nil, image: nil, icon: nil, domain: url.host)
             }
         }
         
@@ -122,7 +110,7 @@ class LinkPreviewService {
     /// Fetch image directly from URL (for direct image links)
     func fetchImagePreview(for urlString: String) async -> NSImage? {
         // Check cache
-        if let cached = imageCache.object(forKey: urlString as NSString) {
+        if let cached = imageCache[urlString] {
             return cached
         }
         
@@ -139,7 +127,7 @@ class LinkPreviewService {
             // For AVIF/WEBP, we might need to rely on native support if available
             if let image = NSImage(data: data) {
                 _ = await MainActor.run {
-                    self.imageCache.setObject(image, forKey: urlString as NSString)
+                    self.imageCache[urlString] = image
                 }
                 return image
             }
@@ -158,7 +146,7 @@ class LinkPreviewService {
     
     /// Clear caches (for memory management if needed)
     func clearCache() {
-        metadataCache.removeAllObjects()
-        imageCache.removeAllObjects()
+        metadataCache.removeAll()
+        imageCache.removeAll()
     }
 }

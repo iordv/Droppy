@@ -1,9 +1,2 @@
-Droppy v3.3.8: Clipboard-to-Basket Dragging
-
-This update fixes the issue where the basket would not appear when dragging items directly from the Clipboard Manager.
-
-**Fixes & Improvements**
-- **Unified Drag Monitoring**: `DragMonitor` now listens for both local and global drag events. This ensures that jiggle detection works perfectly even when Droppy is the frontmost application (e.g., when the Clipboard is open).
-- **Z-Index Optimization**: Verified that the floating basket correctly appears on top of the Clipboard window for a seamless drag-and-drop experience.
-
-This release follows the stability and performance improvements made in v3.3.7.
+Fixes:
+- Fixed notch position not updating when docking/undocking MacBook (screen resolution changes)
