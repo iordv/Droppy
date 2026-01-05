@@ -151,11 +151,20 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-Droppy v3.3.5
+Droppy v3.3.6: Memory Optimization & Smooth UI
 
-🚀 Fixes & Improvements:
-- Stability Fix: Resolved a critical 'stepTransactionFlush' crash that occurred during window movements and animations.
-- Refined window lifecycle management to ensure crash-free operation on all macOS versions.
+This update focuses on making Droppy more efficient while refining the feel of the interface.
+
+**Memory Optimizations**
+- **Disk-Based Clipboard**: Large image data in your clipboard history is now offloaded to disk. This significantly reduces RAM usage, especially for high-resolution images. Existing history will be migrated automatically on first launch.
+- **Bounded Link Previews**: Optimized LinkPreviewService with NSCache to prevent unbounded memory growth over time.
+
+**UI & Animations**
+- **Smooth Basket Movement**: Re-introduced the "fly" animation for the floating basket. When you jiggle a file again, the basket now glides smoothly to the new position.
+- **Polished Transitions**: Restored the elegant fade-in effect when summoning the basket.
+
+**Stability**
+- Maintained window lifecycle stability fixes from v3.3.5 to prevent AppKit crashes during rapid interaction.
 <!-- CHANGELOG_END -->
 
 ---
