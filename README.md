@@ -163,22 +163,16 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy 4.3 — Polish & Fixes
+## Droppy 4.3.1 — Stability Hotfix
+
+### 🐛 Critical Fixes
+- **Fixed crash on scroll**: Replaced WebKit-based GIF previews with native NSImageView (no more objc_release crash)
+- **Menu bar icon sizing**: Adjusted to 20pt for better compatibility across M1 and M4 devices
+- **HUD animations**: Volume/brightness now shrink with the notch like the media player
 
 ### 🎨 Visual Improvements
-- **Media Progress Sliders**: Both compact and expanded sliders now match the HUD's Liquid Glass style
-  - Ultra-thin material background with concave lighting
-  - Inner glow and gradient with glow shadow
-- **HUD Height**: Slightly taller notch (~4%) for better visibility
-- **Unified HUD Animations**: All HUD elements now expand/collapse together as one unit
-
-### ⚡ Performance
-- **GIF Preview Caching**: Settings GIFs are pre-loaded at app launch for instant display
-- **Settings GIFs now auto-play and loop properly**
-
-### 🐛 Fixes
-- **Menu Bar Icon**: Fixed sizing for M4 MacBooks (now uses proper 18/36/54px variants)
-- Fixed swapped Basket/Clipboard preview GIFs
+- Removed white borders from Settings GIF previews for cleaner look
+- Reduced GIF preview height for less vertical space
 <!-- CHANGELOG_END -->
 
 ---
