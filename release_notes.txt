@@ -1,9 +1,4 @@
-## Droppy 4.3.3 — Menu Bar & Settings Fixes
+## Droppy 4.3.4 — Settings Polish
 
 ### 🔧 Fixes
-- **Menu bar icon**: Restored to original 44×44 Retina sizing (22×22 @1x, 44×44 @2x)
-  - Should now appear correctly on all displays (M1, M4, external monitors)
-- **Settings GIF previews**: Fixed broken layout
-  - Added proper aspect ratio constraints
-  - Restored subtle visual anchoring
-  - Improved centering and sizing
+- **GIF previews**: Reverted to original styling with white gradient border and 200px height
