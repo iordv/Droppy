@@ -241,33 +241,38 @@ class ClipboardManager: ObservableObject {
 
     private func checkForChanges() {
         guard isEnabled else { return }
-        let currentCount = NSPasteboard.general.changeCount
-        guard currentCount != lastChangeCount else { return }
-        
-        lastChangeCount = currentCount
-        
-        // Check if source app is excluded
-        if let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-           excludedApps.contains(bundleID) {
-            return // Skip recording from excluded apps
-        }
-        
+
+        // Snapshot pasteboard and frontmost app state once per cycle
         let pasteboard = NSPasteboard.general
-        
-        // Debugging: Show exactly what's happening (checking concealed status)
+        let currentCount = pasteboard.changeCount
+        guard currentCount != lastChangeCount else { return }
+        lastChangeCount = currentCount
+
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        let frontmostBundleID = frontmost?.bundleIdentifier
+        let frontmostAppName = frontmost?.localizedName
+
+        // Exclusion check using the snapshot value
+        if let bundleID = frontmostBundleID, excludedApps.contains(bundleID) {
+            return
+        }
+
+        // Snapshot types/items once so we don't race against pasteboard changes mid-read
+        let typesSnapshot = pasteboard.types ?? []
+        guard let itemsSnapshot = pasteboard.pasteboardItems, !itemsSnapshot.isEmpty else { return }
+
+        // Concealed/Transient checks from snapshot
         let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
         let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
-        
-        let hasConcealed = pasteboard.types?.contains(concealedType) == true
-        let hasTransient = pasteboard.types?.contains(transientType) == true
-        
+        let hasConcealed = typesSnapshot.contains(concealedType)
+        let hasTransient = typesSnapshot.contains(transientType)
+
         print("📋 Clipboard Change Detected!")
-        print("   - Types: \(pasteboard.types?.map { $0.rawValue } ?? [])")
+        print("   - Types: \(typesSnapshot.map { $0.rawValue })")
         print("   - Is Concealed: \(hasConcealed)")
         print("   - Is Transient: \(hasTransient)")
         print("   - Skip Setting: \(skipConcealedContent)")
-        
-        // Check for concealed/password content
+
         if skipConcealedContent {
             if hasConcealed { 
                 print("   🚫 SKIPPING: Content is Concealed")
@@ -278,123 +283,91 @@ class ClipboardManager: ObservableObject {
                 return 
             }
         }
-        
-        // Extract content (Supports Multiple Items now)
-        let newItems = extractItems(from: pasteboard)
-        
+
+        // Extract from the snapshot to avoid further pasteboard reads this cycle
+        let newItems = extractItems(from: pasteboard, itemsSnapshot: itemsSnapshot, appNameSnapshot: frontmostAppName)
         guard !newItems.isEmpty else { return }
-        
+
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            
-            // Insert in REVERSE order so the first item in pasteboard (index 0) ends up at the TOP of history
             for var item in newItems.reversed() {
-                // Check if this item already exists in history
-                if let index = self.history.firstIndex(where: { 
-                    $0.type == item.type && 
+                if let index = self.history.firstIndex(where: {
+                    $0.type == item.type &&
                     $0.content == item.content &&
                     $0.imageData == item.imageData
                 }) {
-                    // It exists!
-                    // 1. Preserve user customizations (Favorite status, Custom Title)
                     let existing = self.history[index]
                     item.isFavorite = existing.isFavorite
                     item.customTitle = existing.customTitle
-                    
-                    // 2. Remove the old one so we don't have duplicates
                     self.history.remove(at: index)
                 }
-                
-                // 3. Insert the new (or refreshed) item at the top
                 self.history.insert(item, at: 0)
             }
-            
-            // Limit history based on user setting
             self.enforceHistoryLimit()
         }
     }
     
-    private func extractItems(from pasteboard: NSPasteboard) -> [ClipboardItem] {
-        let app = NSWorkspace.shared.frontmostApplication?.localizedName
+    private func extractItems(from pasteboard: NSPasteboard, itemsSnapshot: [NSPasteboardItem], appNameSnapshot: String?) -> [ClipboardItem] {
+        let app = appNameSnapshot
         var results: [ClipboardItem] = []
-        
-        // Global Concealed Check (Applies to all items unless specific overrides happen, which is rare)
+
+        // Global type markers used per-item
         let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
         let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
         let transientTextType = NSPasteboard.PasteboardType("public.utf8-plain-text.transient")
-        let onePasswordType = NSPasteboard.PasteboardType("com.agilebits.onepassword") // Heuristic
-        
-        guard let items = pasteboard.pasteboardItems else { return [] }
-        
-        for item in items {
-            // Per-Item Concealed Check
-            var isConcealed = false
-            let types = item.types
-            if types.contains(concealedType) { isConcealed = true }
-            if types.contains(transientType) { isConcealed = true }
-            if types.contains(transientTextType) { isConcealed = true }
-            if types.contains(onePasswordType) { isConcealed = true }
-            
-            // 1. Check for File URL (Prioritize File over Image/Text if it is a file)
-            if let fileURLVal = item.string(forType: .fileURL),
-               let url = URL(string: fileURLVal) {
-                results.append(ClipboardItem(type: .file, content: url.path, sourceApp: app, isConcealed: isConcealed))
-                continue
-            }
-            
-            // 2. Check for Image (TIFF/PNG/JPEG)
-            // We check for image types directly on the item
-            if let tiffData = item.data(forType: .tiff) ?? item.data(forType: .png) {
-                 // Convert to TIFF for internal standardization if needed, or store as is
-                 // Here we store whatever data we got but marked as image.
-                 // Ideally we want TIFF for NSImage compatibility usually.
-                 // Let's rely on NSImage to parse it from the specific item data if possible
-                 if let image = NSImage(data: tiffData), let tiff = image.tiffRepresentation {
+        let onePasswordType = NSPasteboard.PasteboardType("com.agilebits.onepassword")
+
+        // Iterate using the snapshot to avoid mid-iteration pasteboard mutation
+        for item in itemsSnapshot {
+            autoreleasepool {
+                var isConcealed = false
+                let types = item.types
+                if types.contains(concealedType) { isConcealed = true }
+                if types.contains(transientType) { isConcealed = true }
+                if types.contains(transientTextType) { isConcealed = true }
+                if types.contains(onePasswordType) { isConcealed = true }
+
+                // 1) File URL
+                if let fileURLVal = item.string(forType: .fileURL), let url = URL(string: fileURLVal) {
+                    results.append(ClipboardItem(type: .file, content: url.path, sourceApp: app, isConcealed: isConcealed))
+                    return
+                }
+
+                // 2) Image: prefer storing raw data without re-encoding
+                if let tiff = item.data(forType: .tiff) {
                     results.append(ClipboardItem(type: .image, imageData: tiff, sourceApp: app, isConcealed: isConcealed))
-                    continue
-                 }
-            }
-            
-            // 3. Check for URL
-            if let urlStr = item.string(forType: .URL) {
-                // Ensure it's not just a file path masquerading as a URL (though usually fileURL catches that)
-                results.append(ClipboardItem(type: .url, content: urlStr, sourceApp: app, isConcealed: isConcealed))
-                continue
-            }
-            
-            // 4. Check for Text (Fallback)
-            if let str = item.string(forType: .string) {
-                // Avoid empty strings
-                if !str.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // HEURISTIC: Check if this string looks like a URL
-                    // This is for apps that put a URL as plain text but don't mark it as .URL type
+                    return
+                }
+                if let png = item.data(forType: .png) {
+                    results.append(ClipboardItem(type: .image, imageData: png, sourceApp: app, isConcealed: isConcealed))
+                    return
+                }
+
+                // 3) URL
+                if let urlStr = item.string(forType: .URL) {
+                    results.append(ClipboardItem(type: .url, content: urlStr, sourceApp: app, isConcealed: isConcealed))
+                    return
+                }
+
+                // 4) Text (with optional RTF/RTFD)
+                if let str = item.string(forType: .string) {
                     let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
-                    
-                    if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
-                        let matches = detector.matches(in: trimmed, options: [], range: NSRange(location: 0, length: trimmed.utf16.count))
-                        // If the entire string is a URL, treat it as a URL type
-                        if let firstMatch = matches.first, firstMatch.range.length == trimmed.utf16.count {
-                            results.append(ClipboardItem(type: .url, content: trimmed, sourceApp: app, isConcealed: isConcealed))
-                            continue
+                    if !trimmed.isEmpty {
+                        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+                            let matches = detector.matches(in: trimmed, options: [], range: NSRange(location: 0, length: trimmed.utf16.count))
+                            if let firstMatch = matches.first, firstMatch.range.length == trimmed.utf16.count {
+                                results.append(ClipboardItem(type: .url, content: trimmed, sourceApp: app, isConcealed: isConcealed))
+                                return
+                            }
                         }
+                        let rtf = item.data(forType: .rtf) ?? item.data(forType: .rtfd)
+                        results.append(ClipboardItem(type: .text, content: str, rtfData: rtf, sourceApp: app, isConcealed: isConcealed))
+                        return
                     }
-                    
-                    // Try to capture RTF data if available
-                    let rtf = item.data(forType: .rtf) ?? item.data(forType: .rtfd)
-                    results.append(ClipboardItem(type: .text, content: str, rtfData: rtf, sourceApp: app, isConcealed: isConcealed))
-                    continue
                 }
             }
         }
-        
-        // Fallback: If no items found via iteration (e.g. some legacy apps put data on root but not items? Rare),
-        // try the old 'best attempt' method only if results are empty.
-        if results.isEmpty {
-           // ... (Previous logic, but simplified)
-           // Actually, pasteboardItems should cover everything. 
-           // If we are here, it might be empty or custom types we don't handle.
-        }
-        
+
         return results
     }
     

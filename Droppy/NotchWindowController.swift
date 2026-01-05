@@ -121,6 +121,14 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Replaces the polling interactionTimer
         setupStateObservation()
         
+        // 3. React to Screen Changes (Docking/Undocking/Resolution)
+        NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.repositionWindow()
+            }
+            .store(in: &cancellables)
+            
         // Start fullscreen loop
         isFullscreenMonitoring = true
         fullscreenMonitorLoop()
@@ -195,6 +203,27 @@ final class NotchWindowController: NSObject, ObservableObject {
         guard let window = notchWindow else { return }
         window.handleGlobalMouseEvent(event)
     }
+    
+    /// Repositions the notch window to the top center of its current screen
+    private func repositionWindow() {
+        guard let window = notchWindow else { return }
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(window.frame.origin) }) ?? NSScreen.main else { return }
+        
+        let windowWidth: CGFloat = 500
+        let windowHeight: CGFloat = 200
+        
+        let xPosition = screen.frame.origin.x + (screen.frame.width - windowWidth) / 2
+        let yPosition = screen.frame.origin.y + screen.frame.height - windowHeight
+        
+        let newFrame = NSRect(
+            x: xPosition,
+            y: yPosition,
+            width: windowWidth,
+            height: windowHeight
+        )
+        
+        window.setFrame(newFrame, display: true)
+    }
 }
 
 // MARK: - Custom Window Configuration
@@ -204,13 +233,13 @@ class NotchWindow: NSWindow {
     /// Flag to indicate if the window is still valid for event handling
     var isValid: Bool = true
     private var notchRect: NSRect {
-        guard let screen = NSScreen.main else { return .zero }
+        guard let screen = self.screen ?? NSScreen.main else { return .zero }
         let notchWidth: CGFloat = 180
         let notchHeight: CGFloat = 32
-        let centerX = screen.frame.width / 2
+        let centerX = screen.frame.origin.x + screen.frame.width / 2
         return NSRect(
             x: centerX - notchWidth / 2,
-            y: screen.frame.height - notchHeight,
+            y: screen.frame.origin.y + screen.frame.height - notchHeight,
             width: notchWidth,
             height: notchHeight
         )
