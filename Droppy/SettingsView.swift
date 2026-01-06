@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
+    @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
     @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true
     @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Seconds (1-10)
 
@@ -179,7 +180,7 @@ struct SettingsView: View {
                 Toggle(isOn: $showInMenuBar) {
                     VStack(alignment: .leading) {
                         Text("Menu Bar Icon")
-                        Text("Show Droppy in the menu bar")
+                        Text("Display Droppy icon in the menu bar")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -208,7 +209,7 @@ struct SettingsView: View {
                 Toggle(isOn: $enableNotchShelf) {
                     VStack(alignment: .leading) {
                         Text("Notch Shelf")
-                        Text("Drop zone at the top of the screen near the notch")
+                        Text("Drop zone at the top of your screen")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -228,7 +229,7 @@ struct SettingsView: View {
                 Toggle(isOn: $enableFloatingBasket) {
                     VStack(alignment: .leading) {
                         Text("Floating Basket")
-                        Text("Appears when you jiggle files near the notch")
+                        Text("Appears when you jiggle files anywhere on screen")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -266,7 +267,7 @@ struct SettingsView: View {
                 Toggle(isOn: $hideNotchOnExternalDisplays) {
                     VStack(alignment: .leading) {
                         Text("Hide on External Displays")
-                        Text("Don't show the notch on non-built-in displays")
+                        Text("Disable notch shelf on external monitors")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -310,7 +311,7 @@ struct SettingsView: View {
                 Toggle(isOn: $showMediaPlayer) {
                     VStack(alignment: .leading) {
                         Text("Now Playing")
-                        Text("Show media controls in expanded notch")
+                        Text("Show current song in the notch")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -321,8 +322,17 @@ struct SettingsView: View {
                     
                     Toggle(isOn: $autoFadeMediaHUD) {
                         VStack(alignment: .leading) {
-                            Text("Auto-Fade Preview")
-                            Text("Hide mini player after 5 seconds")
+                            Text("Auto-Hide Preview")
+                            Text("Fade out mini player after 5 seconds")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Toggle(isOn: $debounceMediaChanges) {
+                        VStack(alignment: .leading) {
+                            Text("Stabilize Media")
+                            Text("Delay preview by 1 second to prevent flickering")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -337,7 +347,7 @@ struct SettingsView: View {
                 Toggle(isOn: $enableHUDReplacement) {
                     VStack(alignment: .leading) {
                         Text("Replace System HUD")
-                        Text("Show volume and brightness in the notch")
+                        Text("Display volume and brightness controls in the notch")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

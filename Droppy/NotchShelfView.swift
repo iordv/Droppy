@@ -24,6 +24,7 @@ struct NotchShelfView: View {
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
+    @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
     @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true
     @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Seconds (1-10)
     
@@ -42,6 +43,8 @@ struct NotchShelfView: View {
     @State private var autoShrinkWorkItem: DispatchWorkItem?  // Timer for auto-shrinking shelf
     @State private var isHoveringExpandedContent = false  // Tracks if mouse is over the expanded shelf
     @State private var isSongTransitioning = false  // Temporarily hide media during song transitions
+    @State private var mediaDebounceWorkItem: DispatchWorkItem?  // Debounce for media changes
+    @State private var isMediaStable = false  // Only show media HUD after debounce delay
     
     
     /// Animation state for the border dash
@@ -101,6 +104,8 @@ struct NotchShelfView: View {
         if autoFadeMediaHUD && mediaHUDFadedOut {
             return false
         }
+        // Only apply debounce check when setting is enabled
+        if debounceMediaChanges && !isMediaStable { return false }
         return showMediaPlayer && musicManager.isPlaying && !hudIsVisible && !state.isExpanded
     }
     
@@ -234,14 +239,13 @@ struct NotchShelfView: View {
                 
                 // MARK: - Media Player HUD (when music is playing)
                 // Only show if we have valid song info (not just isPlaying)
-                // Wait for songDuration > 0 to ensure complete metadata is loaded
                 // Hide during song transitions for collapse-expand effect
-                // Removed songDuration > 0 check - web sources often don't provide valid duration
-                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning {
+                // Debounce check only applies when setting is enabled
+                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
                     MediaHUDView(musicManager: musicManager)
                         .frame(width: hudWidth, height: hudHeight)
-                        // Match the exact notch collapse/expand animation
-                        .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+                        // Match exact notch collapse animation timing
+                        .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.7)))
                         .zIndex(3)
                 }
                 
@@ -305,10 +309,25 @@ struct NotchShelfView: View {
             }
         }
         .onChange(of: musicManager.isPlaying) { wasPlaying, isPlaying in
-            // When playback starts, reset fade state and start timer
+            // When playback starts, reset fade state and start debounce timer
             if isPlaying && !wasPlaying {
                 mediaHUDFadedOut = false
+                // Start debounce timer - only show HUD after media is stable for 1 second
+                mediaDebounceWorkItem?.cancel()
+                isMediaStable = false
+                let workItem = DispatchWorkItem { [self] in
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        isMediaStable = true
+                    }
+                }
+                mediaDebounceWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
                 startMediaFadeTimer()
+            }
+            // When playback stops, cancel debounce and hide immediately
+            if !isPlaying && wasPlaying {
+                mediaDebounceWorkItem?.cancel()
+                isMediaStable = false
             }
         }
         // MARK: - Auto-Shrink Timer Observers
