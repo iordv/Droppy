@@ -100,6 +100,8 @@ class AutoUpdater {
         rm -rf "\(appPath)"
         # Copy new app
         cp -R "/Volumes/DroppyUpdate/\(appName)" "\(appPath)"
+        # Remove quarantine attribute (fixes "damaged app" for unsigned apps)
+        xattr -rd com.apple.quarantine "\(appPath)" 2>/dev/null || true
         
         # 4. Cleanup
         echo -e "${CYAN}🧹 Cleaning up temporary files...${NC}"
