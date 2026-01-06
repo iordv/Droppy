@@ -163,16 +163,13 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-### Version 4.5.0
+## Features
+- **Auto-Shrink Shelf**: The notch shelf now automatically collapses after a configurable delay (3-30 seconds) when the mouse leaves the area. Enabled by default.
+- New "Shelf Behavior" section in Display settings to configure auto-shrink timing
 
-**Visual & Interface Refinements**
-- **MacBook Notch Compatibility**: Fixed an issue where volume percentage and media timestamps were partially obscured by the physical MacBook notch on supported displays.
-- **Instant Settings Previews**: Rewrote the GIF preview system in Settings to use a high-performance in-memory cache. Feature previews now load with zero latency when navigating settings.
-
-**Technical Improvements**
-- Improved `GIFPreloader` to decode assets on background threads at app startup.
-- Enhanced `AnimatedGIFView` to check for cached assets before attempting network requests.
-- Optimized horizontal padding in `NotchHUDView` and `MediaHUDView` for better visual balance on internal MacBook displays.
+## Fixes
+- Fixed Share submenu positioning in context menus
+- Silenced deprecation warnings for share services API (required for proper SwiftUI context menu integration)
 <!-- CHANGELOG_END -->
 
 ---
