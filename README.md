@@ -163,17 +163,10 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-v4.5.0 - User Feedback Release
+v4.4.7 - Visual Update
 
-Bug Fixes:
-- Fixed permission dialog showing every start (now caches grant status)
-- Added retry logic for Input Monitoring permission detection
-- Added volume control logging for debugging
-
-New Features:
-- Media Popup Delay: Prevents rapid popup when scrolling over video thumbnails (adjustable 0-2s)
-- Auto-Collapse Shelf: Automatically shrink shelf after timeout when mouse leaves (adjustable 0-30s)
-- Mini Media Indicator: Shows persistent album art + timestamp when full HUD fades
+Updates:
+- New clipboard manager preview GIF
 <!-- CHANGELOG_END -->
 
 ---
