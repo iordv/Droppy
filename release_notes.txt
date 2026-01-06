@@ -1,9 +1,9 @@
-# Droppy v4.4.2
+v4.4.3 - Code Quality Update
 
-## Critical Fix
-- **Clipboard History**: Fixed race condition that could cause clipboard history to be overwritten with empty data during app launch
+Improvements:
+- Resolved all compiler deprecation warnings for macOS 15 compatibility
+- Updated video compression to use modern AVURLAsset API
+- Cleaned up unused variables and optimized code
 
-## Improvements  
-- **Data Protection**: Clipboard now creates automatic backups before each save
-- **Empty Save Guard**: Prevents saving empty clipboard history (protects against bugs)
-- **Atomic Writes**: All clipboard saves now use atomic file operations for reliability
+Fixes:
+- Share menu now works correctly in context menus (shelf, basket)
