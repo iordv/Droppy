@@ -111,7 +111,7 @@ Drag files out of the shelf and drop into any app — email, Discord, Photoshop,
 ### The Clipboard Manager
 *Your history, beautifully organized. Search, Edit, and Drag & Drop.*
 <p align="center">
-  <img src="https://i.postimg.cc/X7VmqqYM/Schermopname2026-01-05om21-57-55-ezgif-com-video-to-gif-converter.gif" alt="Clipboard Manager Preview" width="100%">
+  <img src="https://i.postimg.cc/Kvc9c2Kr/Schermopname2026-01-06om18-05-02-ezgif-com-video-to-gif-converter.gif" alt="Clipboard Manager Preview" width="100%">
 </p>
 
 ### 🆕 Media Player
