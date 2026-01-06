@@ -45,10 +45,6 @@ struct NotchShelfView: View {
     // Global rename state
     @State private var renamingItemId: UUID?
     
-    // Background Hover Effect State
-    @State private var hoverLocation: CGPoint = .zero
-    @State private var isBgHovering: Bool = false
-    
     // Removed isDropTargeted state as we use shared state now
     
     /// Real MacBook notch dimensions
@@ -145,16 +141,6 @@ struct NotchShelfView: View {
                             .liquidGlass(shape: NotchShape(bottomRadius: state.isExpanded ? 20 : 16))
                     }
                 }
-                .overlay {
-                    HexagonDotsEffect(
-                        isExpanded: state.isExpanded,
-                        mouseLocation: hoverLocation,
-                        isHovering: isBgHovering
-                    )
-                    .clipShape(NotchShape(bottomRadius: state.isExpanded ? 20 : 16))
-                }
-                // Add glow only when dragging and not expanded
-                .shadow(radius: 0) // Ensure no shadow interferes
                 .overlay(
                    NotchOutlineShape(bottomRadius: state.isExpanded ? 20 : 16)
                        .trim(from: 0, to: 1) // Ensures full path
@@ -246,20 +232,6 @@ struct NotchShelfView: View {
              if newCount == 0 && state.isExpanded {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     state.isExpanded = false
-                }
-            }
-        }
-        .coordinateSpace(name: "shelfContainer")
-        .onContinuousHover(coordinateSpace: .named("shelfContainer")) { phase in
-            switch phase {
-            case .active(let location):
-                hoverLocation = location
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                    isBgHovering = true
-                }
-            case .ended:
-                withAnimation(.linear(duration: 0.2)) {
-                    isBgHovering = false
                 }
             }
         }
@@ -1324,7 +1296,6 @@ struct NotchControlButton: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(Color.white.opacity(0.1), lineWidth: 1)
                 )
-                .scaleEffect(isHovering ? 1.05 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { mirroring in
@@ -1451,7 +1422,6 @@ private struct NotchItemContent: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(isHovering && !isSelected ? Color.white.opacity(0.1) : Color.clear)
         )
-        .scaleEffect(isHovering && !isPoofing ? 1.05 : 1.0)
         .poofEffect(isPoofing: $isPoofing) {
             // Replace item when poof completes
             if let newItem = pendingConvertedItem {

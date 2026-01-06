@@ -27,54 +27,50 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             }
         )
         
-        let hostingController = NSHostingController(rootView: clipboardView)
+        // Use NSHostingView like SettingsWindowController for native sidebar appearance
+        let hostingView = NSHostingView(rootView: clipboardView)
         
-        // Borderless, transparent window, but RESIZABLE for manual resizing
-        // Removed .nonactivatingPanel to allow taking focus (Fixes "Enter" to paste)
-        window = ClipboardPanel(
+        // Use EXACT same window style as Settings for identical sidebar chrome
+        window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1040, height: 640),
-            styleMask: [.borderless, .fullSizeContentView, .resizable], 
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         
-        window.contentViewController = hostingController
+        window.center()
+        window.title = "Clipboard"
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .visible  // Same as Settings
+        
+        // Configure background and appearance - EXACTLY like Settings
+        // NOTE: Do NOT use isMovableByWindowBackground to avoid entries/buttons triggering window drag
+        window.isMovableByWindowBackground = false
         window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = true
-        window.isMovableByWindowBackground = false // Only header area should move window
+        window.isReleasedWhenClosed = false
         
-        // Ensure layer backing for smooth alpha animation
-        window.contentView?.wantsLayer = true
-        
-        // Use popUpMenu level to ensure it floats above almost everything (like Spotlight)
-        window.level = .popUpMenu 
-        
-        // ✅ FIX: Tell macOS this window won't interfere with password fields
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle] 
-        
-        // CRITICAL: Prevent window from vanishing instantly when clicking outside (resigning active)
-        window.hidesOnDeactivate = false
-        
-        // Auto-close behavior
         window.delegate = self
+        window.contentView = hostingView
+        
+        // Note: Removed level = .popUpMenu and custom collectionBehavior to match Settings
         
         // Allow clicking on it and becoming key
         window.ignoresMouseEvents = false
     }
 
     func resetWindowSize() {
-        if let screen = NSScreen.main {
-            let screenRect = screen.visibleFrame
-            let newRect = NSRect(
-                x: screenRect.midX - 520, 
-                y: screenRect.midY - 320, 
-                width: 1040, 
-                height: 640
-            )
-            DispatchQueue.main.async {
-                self.window.setFrame(newRect, display: true, animate: true)
-            }
+        guard let window = window, let screen = NSScreen.main else { return }
+        let screenRect = screen.visibleFrame
+        let newRect = NSRect(
+            x: screenRect.midX - 520, 
+            y: screenRect.midY - 320, 
+            width: 1040, 
+            height: 640
+        )
+        DispatchQueue.main.async {
+            window.setFrame(newRect, display: true, animate: true)
         }
     }
     
@@ -82,6 +78,11 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
     private var previousApp: NSRunningApplication?
 
     func toggle() {
+        guard let window = window else {
+            setupWindow()
+            show()
+            return
+        }
         if window.isVisible {
             close()
         } else {
@@ -93,7 +94,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
     private var localClickMonitor: Any?
 
     func show() {
-        guard !isAnimating else { return }
+        guard !isAnimating, let window = window else { return }
         
         // Save previous app
         if let frontmost = NSWorkspace.shared.frontmostApplication, 
@@ -134,7 +135,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
     }
 
     func close() {
-        guard window.isVisible && !isAnimating else { return }
+        guard let window = window, window.isVisible, !isAnimating else { return }
         
         // Stop monitoring immediately
         stopClickMonitoring()
@@ -148,9 +149,9 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         NSAnimationContext.current.timingFunction = CAMediaTimingFunction(name: .easeOut)
         NSAnimationContext.current.completionHandler = { [weak self] in
             // Only order out AFTER animation completes
-            self?.window.orderOut(nil)
+            self?.window?.orderOut(nil)
             self?.isAnimating = false
-            self?.window.alphaValue = 1.0 
+            self?.window?.alphaValue = 1.0 
         }
         window.animator().alphaValue = 0
         NSAnimationContext.endGrouping()
@@ -166,11 +167,11 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         // 1. Global Monitor (Clicks sent to OTHER apps)
         clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self = self, self.window.isVisible else { return }
+            guard let self = self, let window = self.window, window.isVisible else { return }
             
             // Check if click is outside our window frame
             let mouseLoc = NSEvent.mouseLocation
-            let windowFrame = self.window.frame
+            let windowFrame = window.frame
             
             if !windowFrame.contains(mouseLoc) {
                 print("🖱️ Droppy: Global Click Outside (Loc: \(mouseLoc) | Frame: \(windowFrame)) -> Closing")
@@ -182,14 +183,14 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         // 2. Local Monitor (Clicks sent to OUR app)
         localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self = self, self.window.isVisible else { return event }
+            guard let self = self, let window = self.window, window.isVisible else { return event }
             
             // Don't close if click is on the OCR window
             if let ocrWindow = OCRWindowController.shared.window, event.window == ocrWindow {
                 return event
             }
             
-            if event.window != self.window {
+            if event.window != window {
                 print("🖱️ Droppy: Local Click Outside (Window: \(String(describing: event.window))) -> Closing")
                 DispatchQueue.main.async {
                     self.close()
@@ -197,7 +198,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             } else {
                  // Click was inside the window, check coordinates just in case (e.g. slight border issues)
                  let mouseLoc = NSEvent.mouseLocation
-                 if !self.window.frame.contains(mouseLoc) {
+                 if !window.frame.contains(mouseLoc) {
                      // Can happen if event.window is set but coordinate is outside? Rare.
                      print("🖱️ Droppy: Local Click reported inside but coords outside -> Closing")
                      DispatchQueue.main.async { self.close() }
@@ -219,6 +220,8 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
     }
     
     func paste(_ item: ClipboardItem) {
+        guard let window = window else { return }
+        
         // Dismiss clipboard immediately
         isAnimating = true
         // Stop monitoring to prevent double-closes
@@ -228,7 +231,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             context.duration = 0.1
             window.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            self?.window.orderOut(nil)
+            self?.window?.orderOut(nil)
             self?.isAnimating = false
             
             // The Mirror Method (V12): Refined Sequence

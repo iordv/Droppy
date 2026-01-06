@@ -9,73 +9,65 @@ import SwiftUI
 
 struct UpdateView: View {
     @ObservedObject var checker = UpdateChecker.shared
-    @State private var hoverLocation: CGPoint = .zero
-    @State private var isBgHovering: Bool = false
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
     
-    // Matched state from Clipboard Preview
+    // Hover states
     @State private var isUpdateHovering = false
     @State private var isLaterHovering = false
     @State private var isOkHovering = false
     
-    // Computed properties for cleaner conditions
     private var isUpToDate: Bool { checker.showingUpToDate }
-    private var windowHeight: CGFloat { isUpToDate ? 200 : 450 }
     
     var body: some View {
-        VStack(spacing: isUpToDate ? 20 : 24) {
-            // Header
-            HStack(spacing: 16) {
+        VStack(spacing: 0) {
+            // Header with icon and version info
+            HStack(spacing: 14) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 64, height: 64)
-                    .liquidGlass(radius: 14, depth: 1.2)
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(isUpToDate ? "Droppy is up to date!" : "Update Available")
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
+                        .font(.headline)
                     
                     if isUpToDate {
                         Text("You're running the latest version (\(checker.currentVersion)).")
-                            .font(.body)
-                            .foregroundStyle(.white.opacity(0.8))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     } else if let newVersion = checker.latestVersion {
                         Text("Version \(newVersion) is available. You are on \(checker.currentVersion).")
-                            .font(.body)
-                            .foregroundStyle(.white.opacity(0.8))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .background(WindowDragArea())
+            .padding(20)
             
             // Release Notes - Only show when update available
             if !isUpToDate {
+                Divider()
+                    .padding(.horizontal, 20)
+                
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
                         if let notes = checker.releaseNotes {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(Array(notes.components(separatedBy: .newlines).enumerated()), id: \.offset) { _, line in
-                                    if !line.trimmingCharacters(in: .whitespaces).isEmpty {
-                                        if let attributed = try? AttributedString(markdown: line) {
-                                            Text(attributed)
-                                                .font(.system(size: 14))
-                                                .foregroundStyle(.white.opacity(0.9))
-                                                .textSelection(.enabled)
-                                        } else {
-                                            Text(line)
-                                                .font(.system(size: 14))
-                                                .foregroundStyle(.white.opacity(0.9))
-                                                .textSelection(.enabled)
-                                        }
+                            ForEach(Array(notes.components(separatedBy: .newlines).enumerated()), id: \.offset) { _, line in
+                                if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    if let attributed = try? AttributedString(markdown: line) {
+                                        Text(attributed)
+                                            .font(.system(size: 13))
+                                            .textSelection(.enabled)
                                     } else {
-                                        // Handle empty lines (spacing between paragraphs)
-                                        Spacer().frame(height: 8)
+                                        Text(line)
+                                            .font(.system(size: 13))
+                                            .textSelection(.enabled)
                                     }
+                                } else {
+                                    Spacer().frame(height: 6)
                                 }
                             }
                         } else {
@@ -83,126 +75,100 @@ struct UpdateView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(20)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
+                .frame(maxHeight: 200)
             }
             
-            // Actions
-            HStack(spacing: 12) {
+            Divider()
+                .padding(.horizontal, 20)
+            
+            // Action buttons
+            HStack(spacing: 10) {
                 if isUpToDate {
                     Spacer()
                     
-                    // Single "OK" button for up to date state
                     Button {
                         UpdateWindowController.shared.closeWindow()
                     } label: {
                         Text("OK")
                             .fontWeight(.semibold)
-                            .frame(width: 80)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 8)
                             .background(Color.blue.opacity(isOkHovering ? 1.0 : 0.8))
                             .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
-                            .scaleEffect(isOkHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
-                    .onHover { h in withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { isOkHovering = h } }
+                    .onHover { h in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isOkHovering = h
+                        }
+                    }
                 } else {
-                    // Secondary "Later" Button
                     Button {
                         UpdateWindowController.shared.closeWindow()
                     } label: {
                         Text("Later")
                             .fontWeight(.medium)
-                            .frame(width: 80)
-                            .padding(.vertical, 12)
-                            .background(Color.white.opacity(isLaterHovering ? 0.2 : 0.1))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.white.opacity(isLaterHovering ? 0.15 : 0.08))
+                            .foregroundStyle(.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
-                            .scaleEffect(isLaterHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
-                    .onHover { h in withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { isLaterHovering = h } }
+                    .onHover { h in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isLaterHovering = h
+                        }
+                    }
                     
                     Spacer()
                     
-                    // Primary "Update & Restart" Button
                     Button {
                         if let url = checker.downloadURL {
                             AutoUpdater.shared.installUpdate(from: url)
                             UpdateWindowController.shared.closeWindow()
                         }
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 12, weight: .semibold))
                             Text("Update & Restart")
                         }
                         .fontWeight(.semibold)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                         .background(Color.blue.opacity(isUpdateHovering ? 1.0 : 0.8))
                         .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
-                        .scaleEffect(isUpdateHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
-                    .onHover { h in withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { isUpdateHovering = h } }
+                    .onHover { h in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isUpdateHovering = h
+                        }
+                    }
                 }
             }
+            .padding(16)
         }
-        .padding(24)
-        .frame(width: 500, height: windowHeight)
-        .background(useTransparentBackground ? AnyShapeStyle(Color.clear) : AnyShapeStyle(Color.black))
-        .background {
-            if useTransparentBackground {
-                Color.clear
-                    .liquidGlass(shape: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            }
-        }
-        .overlay { 
-            HexagonDotsEffect(
-                mouseLocation: hoverLocation, 
-                isHovering: isBgHovering, 
-                coordinateSpaceName: "updateWindow"
-            ) 
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
-        )
-        .coordinateSpace(name: "updateWindow")
-        .onContinuousHover(coordinateSpace: .named("updateWindow")) { phase in
-            handleHover(phase)
-        }
-    }
-    
-    private func handleHover(_ phase: HoverPhase) {
-        switch phase {
-        case .active(let location):
-            hoverLocation = location
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { isBgHovering = true }
-        case .ended:
-            withAnimation(.linear(duration: 0.2)) { isBgHovering = false }
-        }
+        .frame(width: 400)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
     }
 }
-

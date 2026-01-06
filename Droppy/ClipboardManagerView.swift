@@ -5,8 +5,6 @@ import LinkPresentation
 struct ClipboardManagerView: View {
     @ObservedObject var manager = ClipboardManager.shared
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
-    @State private var hoverLocation: CGPoint = .zero
-    @State private var isBgHovering: Bool = false
     @State private var selectedItems: Set<UUID> = []
     @State private var isResetHovering = false
     @State private var scrollProxy: ScrollViewProxy?
@@ -20,6 +18,8 @@ struct ClipboardManagerView: View {
     @State private var searchText = ""
     @State private var isSearchVisible = false
     @FocusState private var isSearchFocused: Bool
+    
+
 
     
     /// Helper to get selected items as array, respecting visual order
@@ -59,28 +59,41 @@ struct ClipboardManagerView: View {
     }
     
     private var mainContentView: some View {
-        HStack(spacing: 0) {
-            sidebarView
-            Divider().overlay(Color.white.opacity(0.1))
-            previewPane
-        }
-        .frame(minWidth: 1040, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
-        .background(useTransparentBackground ? Color.clear : Color.black)
-        .background {
-            if useTransparentBackground {
-                Color.clear
-                    .liquidGlass(shape: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        ZStack {
+            NavigationSplitView {
+                // Sidebar with entries list
+                entriesListView
+                    .frame(minWidth: 400)
+                    .background(Color.clear)
+                    .toolbar {
+                        // Search button in sidebar, left of collapse button
+                        ToolbarItem(placement: .automatic) {
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    isSearchVisible.toggle()
+                                    if !isSearchVisible {
+                                        searchText = ""
+                                        isSearchFocused = false
+                                    } else {
+                                        isSearchFocused = true
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "magnifyingglass")
+                            }
+                            .keyboardShortcut("f", modifiers: .command)
+                            .help("Search (⌘F)")
+                        }
+                    }
+            } detail: {
+                // Detail view with preview pane
+                previewPane
             }
         }
-        .overlay { HexagonDotsEffect(mouseLocation: hoverLocation, isHovering: isBgHovering, coordinateSpaceName: "clipboardContainer") }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
-        .coordinateSpace(name: "clipboardContainer")
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .frame(minWidth: 1040, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
         .background(pasteShortcutButton)
         .background(navigationShortcutButtons)
-        .onContinuousHover(coordinateSpace: .named("clipboardContainer")) { phase in
-            handleHover(phase)
-        }
     }
     
     private var pasteShortcutButton: some View {
@@ -123,16 +136,6 @@ struct ClipboardManagerView: View {
         
         if selectedItems.isEmpty, let first = currentSorted.first {
             selectedItems.insert(first.id)
-        }
-    }
-    
-    private func handleHover(_ phase: HoverPhase) {
-        switch phase {
-        case .active(let location):
-            hoverLocation = location
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) { isBgHovering = true }
-        case .ended:
-            withAnimation(.linear(duration: 0.2)) { isBgHovering = false }
         }
     }
     
@@ -205,79 +208,8 @@ struct ClipboardManagerView: View {
         }
     }
     
-    var sidebarView: some View {
+    var entriesListView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Draggable header area for window repositioning
-            HStack {
-                Text("Clipboard")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                
-                Spacer()
-                
-                // Search Toggle Button
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        isSearchVisible.toggle()
-                        if !isSearchVisible {
-                            searchText = "" // Clear on close
-                            isSearchFocused = false
-                        } else {
-                            isSearchFocused = true
-                        }
-                    }
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isSearchHovering ? .white : .secondary)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(isSearchHovering ? Color.white.opacity(0.1) : Color.clear)
-                        )
-                        .overlay(
-                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.white.opacity(0.1), lineWidth: isSearchHovering ? 1 : 0)
-                        )
-                        .scaleEffect(isSearchHovering ? 1.1 : 1.0)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut("f", modifiers: .command) // Cmd+F support
-                .onHover { hovering in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isSearchHovering = hovering
-                    }
-                }
-                
-                // Reset Size Button - similar style to search
-                Button(action: onReset) {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isResetHovering ? .white : .secondary)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(isResetHovering ? Color.white.opacity(0.1) : Color.clear)
-                        )
-                        .overlay(
-                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.white.opacity(0.1), lineWidth: isResetHovering ? 1 : 0)
-                        )
-                        .scaleEffect(isResetHovering ? 1.1 : 1.0)
-                }
-                .buttonStyle(.plain)
-                .help("Reset Window Size")
-                .onHover { hovering in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        isResetHovering = hovering
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 6)
-            .background(WindowDragArea()) // Keep drag area behind
-            .contentShape(Rectangle())
             
             // Search Bar - Styled exactly like RenameTextField from FloatingBasketView
             if isSearchVisible {
@@ -480,7 +412,6 @@ struct ClipboardManagerView: View {
         }
         .frame(width: 400)
         .frame(maxHeight: .infinity) // Sidebar takes full height, but width fixed
-        .background(Color.black.opacity(0.3)) // Slight separation for sidebar
     }
     
     var accessibilityWarning: some View {
@@ -678,7 +609,6 @@ struct ClipboardManagerView: View {
         }
 
         .frame(minWidth: 504, maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.2))
     }
 }
 
@@ -694,16 +624,25 @@ struct ClipboardItemRow: View {
     @State private var dashPhase: CGFloat = 0
     
     var body: some View {
-        HStack {
-            // Icon
+        HStack(spacing: 10) {
+            // Icon/Thumbnail - smaller and shows real image for images
             ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.white.opacity(0.1))
-                    .frame(width: 48, height: 48)
+                    .frame(width: 32, height: 32)
                 
-                Image(systemName: iconName(for: item.type))
-                    .foregroundStyle(.white)
-                    .font(.system(size: 14))
+                // Show real image thumbnail for images, icon for others
+                if item.type == .image, let imageData = item.imageData, let nsImage = NSImage(data: imageData) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                } else {
+                    Image(systemName: iconName(for: item.type))
+                        .foregroundStyle(.white)
+                        .font(.system(size: 12))
+                }
             }
             
             // Title or rename field
@@ -715,13 +654,13 @@ struct ClipboardItemRow: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                     
-                    HStack {
+                    HStack(spacing: 4) {
                         if let app = item.sourceApp {
                             Text(app)
                                 .font(.system(size: 10))
@@ -740,19 +679,27 @@ struct ClipboardItemRow: View {
                 if item.isConcealed && !isRenaming {
                     Image(systemName: "key.fill")
                         .foregroundStyle(.secondary)
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                 }
                 if item.isFavorite && !isRenaming {
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)
-                        .font(.system(size: 10))
+                        .font(.system(size: 9))
                 }
             }
         }
-        .padding(8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(isSelected ? Color.blue.opacity(0.4) : (isHovering ? Color.white.opacity(0.12) : Color.white.opacity(0.06)))
+                .fill(isSelected 
+                      ? Color.blue.opacity(isHovering ? 1.0 : 0.8) 
+                      : Color.white.opacity(isHovering ? 0.15 : 0.08))
+        )
+        .foregroundStyle(isSelected ? .white : .primary)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
         .overlay {
             if isRenaming {
@@ -769,7 +716,7 @@ struct ClipboardItemRow: View {
                     .onAppear {
                         dashPhase = 0
                         withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                            dashPhase = 8 // Matches dash: [4, 4] -> total 8
+                            dashPhase = 8
                         }
                     }
                     .onChange(of: isRenaming) { _, renaming in
@@ -784,9 +731,7 @@ struct ClipboardItemRow: View {
         }
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                isHovering = hovering
-            }
+            isHovering = hovering
         }
     }
     
@@ -1216,7 +1161,6 @@ struct ClipboardPreviewView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
-                            .scaleEffect(isPasteHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "PrimaryAction", in: animationNamespace)
@@ -1243,14 +1187,13 @@ struct ClipboardPreviewView: View {
                         }
                         .frame(width: 70)
                         .padding(.vertical, 12)
-                        .background(showCopySuccess ? Color.green.opacity(0.15) : Color.white.opacity(isCopyHovering ? 0.2 : 0.1))
-                        .foregroundStyle(showCopySuccess ? .green : .white)
+                        .background(showCopySuccess ? Color.green.opacity(0.15) : Color.blue.opacity(isCopyHovering ? 1.0 : 0.8))
+                        .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(showCopySuccess ? Color.green.opacity(0.5) : Color.white.opacity(0.1), lineWidth: 1)
+                                .stroke(showCopySuccess ? Color.green.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
                         )
-                        .scaleEffect(isCopyHovering || showCopySuccess ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)
@@ -1397,7 +1340,6 @@ struct ClipboardPreviewView: View {
                             .background(Color.green.opacity(isSaveHovering ? 1.0 : 0.8))
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .scaleEffect(isSaveHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "PrimaryAction", in: animationNamespace)
@@ -1417,7 +1359,6 @@ struct ClipboardPreviewView: View {
                             .background(Color.red.opacity(isCancelHovering ? 1.0 : 0.8))
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .scaleEffect(isCancelHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)
@@ -1636,7 +1577,6 @@ struct MultiSelectPreviewView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
-                    .scaleEffect(isPasteHovering ? 1.02 : 1.0)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in
@@ -1662,7 +1602,6 @@ struct MultiSelectPreviewView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .stroke(Color.white.opacity(0.1), lineWidth: 1)
                     )
-                    .scaleEffect(isCopyHovering ? 1.02 : 1.0)
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in

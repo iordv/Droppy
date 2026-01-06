@@ -1,5 +1,10 @@
-# Droppy v4.3.7
+# Droppy v4.4.0
+
+## Improvements
+- **Redesigned Update Window**: Now matches Settings window styling with proper title bar, compact size, and refined layout
+- **Performance Optimizations**: Removed CPU-intensive HexagonDotsEffect and hover scale animations from multiple views
+- **Window Drag Fixes**: Fixed issue where dragging buttons or clipboard entries would move the entire window
 
 ## Fixes
-- **Fixed crash when pressing volume/brightness keys**: Resolved an objc_release crash in the MediaKeyInterceptor by properly managing NSEvent memory with autoreleasepool
-- **Fixed System HUD not being suppressed**: The MediaKeyInterceptor now properly starts by default for all users
+- **Clipboard Drag Behavior**: Dragging clipboard entries now only drags out the content as a file, no longer moves window
+- **Settings/Update Window Buttons**: Buttons no longer trigger window drag when clicked and dragged

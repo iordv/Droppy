@@ -369,7 +369,7 @@ struct SquarcleMediaButton: View {
                     radius: isPrimary ? 8 : 4,
                     y: isPrimary ? 4 : 2
                 )
-                .scaleEffect(isPressed ? 0.9 : (isHovering ? 1.05 : 1.0))
+                .scaleEffect(isPressed ? 0.9 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in

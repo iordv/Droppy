@@ -14,8 +14,6 @@ struct FloatingBasketView: View {
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
     
     @State private var dashPhase: CGFloat = 0
-    @State private var hoverLocation: CGPoint = .zero
-    @State private var isBgHovering: Bool = false
     
     // Drag-to-select state
     @State private var isDragSelecting = false
@@ -88,14 +86,6 @@ struct FloatingBasketView: View {
                                     .liquidGlass(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                             }
                         }
-                        .overlay {
-                            HexagonDotsEffect(
-                                mouseLocation: hoverLocation,
-                                isHovering: isBgHovering,
-                                coordinateSpaceName: "basketContainer"
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        }
                         .overlay(
                             RoundedRectangle(cornerRadius: cornerRadius - 8, style: .continuous)
                                 .stroke(
@@ -139,15 +129,6 @@ struct FloatingBasketView: View {
                 // Use same spring animation as shelf for row expansion
                 .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.basketItems.count)
                 .coordinateSpace(name: "basketContainer")
-                .onContinuousHover(coordinateSpace: .named("basketContainer")) { phase in
-                    switch phase {
-                    case .active(let location):
-                        hoverLocation = location
-                        isBgHovering = true
-                    case .ended:
-                        isBgHovering = false
-                    }
-                }
                 .onPreferenceChange(ItemFramePreferenceKey.self) { frames in
                     self.itemFrames = frames
                 }
@@ -257,7 +238,6 @@ struct FloatingBasketView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .stroke(Color.white.opacity(0.15), lineWidth: 1)
                     )
-                    .scaleEffect(isShelfButtonHovering ? 1.02 : 1.0)
                 }
                 .buttonStyle(.plain)
                 .onHover { isHovering in
@@ -280,7 +260,6 @@ struct FloatingBasketView: View {
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
                         )
-                        .scaleEffect(isCloseButtonHovering ? 1.05 : 1.0)
                 }
                 .buttonStyle(.plain)
                 .onHover { isHovering in
@@ -1012,7 +991,6 @@ private struct BasketItemContent: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(isHovering && !isSelected ? Color.white.opacity(0.1) : Color.clear)
         )
-        .scaleEffect(isHovering && !isPoofing ? 1.05 : 1.0)
         .poofEffect(isPoofing: $isPoofing) {
             // Replace item when poof completes
             if let newItem = pendingConvertedItem {

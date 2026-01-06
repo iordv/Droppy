@@ -109,13 +109,11 @@ struct LiquidButton: View {
                 isConcave: false
             )
             // Physical reaction to pressure
-            .scaleEffect(isPressed ? 0.96 : (isHovering ? 1.02 : 1.0))
-            // Inner Glow (Subsurface scattering)
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            // Inner Glow (Subsurface scattering) - lightweight version
             .overlay(
                 RoundedRectangle(cornerRadius: 99, style: .continuous)
-                    .stroke(.white.opacity(isHovering ? 0.5 : 0.0), lineWidth: 2)
-                    .blur(radius: 4)
-                    .mask(RoundedRectangle(cornerRadius: 99, style: .continuous))
+                    .stroke(.white.opacity(isHovering ? 0.3 : 0.0), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

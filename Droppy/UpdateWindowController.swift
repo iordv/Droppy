@@ -8,58 +8,77 @@
 import Cocoa
 import SwiftUI
 
-class UpdateWindowController: NSWindowController {
+class UpdateWindowController: NSObject, NSWindowDelegate {
     static let shared = UpdateWindowController()
     
-    private init() {
-        // Create the window
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 450),
-            styleMask: [.borderless, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        
-        // Configure window appearance
-        window.title = "Update Available"
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isMovableByWindowBackground = true
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        window.hasShadow = true
-        
-        // Setup content
-        let hostingController = NSHostingController(rootView: UpdateView())
-        window.contentViewController = hostingController
-        window.center()
-        
-        super.init(window: window)
+    /// The update window
+    private var window: NSWindow?
+    
+    private override init() {
+        super.init()
     }
     
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
+    /// Shows the update window, creating it if necessary
     func showWindow() {
-        // Ensure UI updates happen on main thread
         DispatchQueue.main.async { [weak self] in
-            guard let self = self, let window = self.window else { return }
+            guard let self = self else { return }
             
-            // Bring to front
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            
-            // Center if not visible
-            if !window.isVisible {
-                window.center()
+            // If window already exists, just bring it to front
+            if let window = self.window {
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+                return
             }
+            
+            // Create the SwiftUI view
+            let updateView = UpdateView()
+            let hostingView = NSHostingView(rootView: updateView)
+            
+            // Compact window size - height determined by content
+            let windowWidth: CGFloat = 400
+            let windowHeight: CGFloat = 150 // Initial size, will adjust to content
+            
+            // Create the window - IDENTICAL style to SettingsWindowController
+            let newWindow = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
+            
+            newWindow.center()
+            newWindow.title = "Check for Updates"
+            newWindow.titlebarAppearsTransparent = true
+            newWindow.titleVisibility = .visible
+            
+            // Configure background and appearance - IDENTICAL to SettingsWindowController
+            // NOTE: Do NOT use isMovableByWindowBackground to avoid buttons/entries triggering window drag
+            newWindow.isMovableByWindowBackground = false
+            newWindow.backgroundColor = .clear
+            newWindow.isOpaque = false
+            newWindow.hasShadow = true
+            newWindow.isReleasedWhenClosed = false
+            
+            newWindow.delegate = self
+            newWindow.contentView = hostingView
+            
+            self.window = newWindow
+            
+            // Bring to front and activate
+            NSApp.activate(ignoringOtherApps: true)
+            newWindow.makeKeyAndOrderFront(nil)
         }
     }
     
     func closeWindow() {
         DispatchQueue.main.async { [weak self] in
-            self?.close()
+            self?.window?.close()
         }
+    }
+    
+    // MARK: - NSWindowDelegate
+    
+    func windowWillClose(_ notification: Notification) {
+        window = nil
     }
 }

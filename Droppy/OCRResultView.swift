@@ -81,7 +81,7 @@ struct OCRResultView: View {
                         .padding(.vertical, 6)
                         .background(showCopiedFeedback ? Color.green.opacity(0.9) : Color.blue.opacity(isCopyHovering ? 1.0 : 0.8))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .scaleEffect(isCopyHovering ? 1.05 : 1.0)
+                        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCopyHovering)
                         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCopyHovering)
                         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: showCopiedFeedback)
                     }

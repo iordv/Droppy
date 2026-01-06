@@ -65,7 +65,7 @@ struct KeyShortcutRecorder: View {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
-                    .scaleEffect(isHovering ? 1.02 : 1.0)
+                    .animation(.easeInOut(duration: 0.15), value: isHovering)
             }
             .buttonStyle(.plain)
             .onHover { hovering in

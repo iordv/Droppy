@@ -17,10 +17,6 @@ struct SettingsView: View {
 
 
     
-    // Background Hover Effect State
-    @State private var hoverLocation: CGPoint = .zero
-    @State private var isHovering: Bool = false
-    
     @State private var dashPhase: CGFloat = 0
     @State private var isHistoryLimitEditing: Bool = false
     @State private var isUpdateHovering = false
@@ -31,16 +27,10 @@ struct SettingsView: View {
     @State private var hoverDisplay = false
     @State private var hoverAbout = false
     @State private var isCoffeeHovering = false
+    @State private var scrollOffset: CGFloat = 0
     
     var body: some View {
         ZStack {
-            // Interactive background effect
-            HexagonDotsEffect(
-                mouseLocation: hoverLocation,
-                isHovering: isHovering,
-                coordinateSpaceName: "settingsView"
-            )
-            
             NavigationSplitView {
                 VStack(spacing: 6) {
                     sidebarButton(title: "General", icon: "gear", tag: "General", isHovering: $hoverGeneral)
@@ -68,7 +58,6 @@ struct SettingsView: View {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
-                        .scaleEffect(isUpdateHovering ? 1.02 : 1.0)
                     }
                     .buttonStyle(.plain)
                     .onHover { hovering in
@@ -82,42 +71,65 @@ struct SettingsView: View {
                 .frame(minWidth: 200)
                 .background(Color.clear) 
             } detail: {
-                Form {
-                    if selectedTab == "General" {
-                        generalSettings
-                    } else if selectedTab == "Clipboard" {
-                        clipboardSettings
-                    } else if selectedTab == "Display" {
-                        displaySettings
+                ZStack(alignment: .top) {
+                    Form {
+                        if selectedTab == "General" {
+                            generalSettings
+                        } else if selectedTab == "Clipboard" {
+                            clipboardSettings
+                        } else if selectedTab == "Display" {
+                            displaySettings
 
-                    } else if selectedTab == "About Droppy" {
-                        aboutSettings
+                        } else if selectedTab == "About Droppy" {
+                            aboutSettings
+                        }
                     }
+                    .formStyle(.grouped)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(
+                                    key: ScrollOffsetPreferenceKey.self,
+                                    value: geo.frame(in: .named("settingsScroll")).minY
+                                )
+                        }
+                    )
+                    .coordinateSpace(name: "settingsScroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                        scrollOffset = value
+                    }
+                    
+                    // Beautiful gradient fade - only shows when scrolling
+                    VStack(spacing: 0) {
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 1), location: 0),
+                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 0.95), location: 0.3),
+                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 0.7), location: 0.6),
+                                .init(color: Color.clear, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 60)
+                        .allowsHitTesting(false)
+                        
+                        Spacer()
+                    }
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .opacity(scrollOffset < -10 ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.2), value: scrollOffset < -10)
                 }
-                .formStyle(.grouped)
-                // Fix: Use compatible background modifier
-                .background(Color.clear)
             }
         }
         .onTapGesture {
             isHistoryLimitEditing = false
         }
-        .coordinateSpace(name: "settingsView")
         // Fix: Replace visionOS glassEffect with macOS material
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-        .onContinuousHover(coordinateSpace: .named("settingsView")) { phase in
-            switch phase {
-            case .active(let location):
-                hoverLocation = location
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                    isHovering = true
-                }
-            case .ended:
-                withAnimation(.linear(duration: 0.2)) {
-                    isHovering = false
-                }
-            }
-        }
     }
     
     // MARK: - Sidebar Button Helper
@@ -137,17 +149,16 @@ struct SettingsView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(selectedTab == tag 
-                          ? Color.blue.opacity(0.9) 
+                          ? Color.blue.opacity(isHovering.wrappedValue ? 1.0 : 0.8) 
                           : Color.white.opacity(isHovering.wrappedValue ? 0.15 : 0.08))
             )
             .foregroundStyle(selectedTab == tag ? .white : .primary)
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.white.opacity(selectedTab == tag ? 0.2 : 0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
-            .scaleEffect(isHovering.wrappedValue ? 1.02 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -376,7 +387,6 @@ struct SettingsView: View {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                                 )
-                                .scaleEffect(isCoffeeHovering ? 1.02 : 1.0)
                             }
                             .buttonStyle(.plain)
                             .onHover { hovering in
@@ -946,5 +956,13 @@ class GIFPreloader {
                 }
             }.resume()
         }
+    }
+}
+
+// MARK: - Scroll Offset Preference Key
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

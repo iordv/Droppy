@@ -147,7 +147,6 @@ struct TargetSizeDialogView: View {
                             .padding(.vertical, 10)
                             .background(Color.white.opacity(isCancelButtonHovering ? 0.25 : 0.1))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .scaleEffect(isCancelButtonHovering ? 1.05 : 1.0)
                             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCancelButtonHovering)
                     }
                     .buttonStyle(.plain)
@@ -169,7 +168,6 @@ struct TargetSizeDialogView: View {
                             .padding(.vertical, 10)
                             .background(Color.blue.opacity(isCompressButtonHovering ? 1.0 : 0.8))
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .scaleEffect(isCompressButtonHovering ? 1.05 : 1.0)
                             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isCompressButtonHovering)
                     }
                     .buttonStyle(.plain)

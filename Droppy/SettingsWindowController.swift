@@ -44,7 +44,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         newWindow.titleVisibility = .visible
         
         // Configure background and appearance
-        newWindow.isMovableByWindowBackground = true
+        // NOTE: Do NOT use isMovableByWindowBackground to avoid buttons triggering window drag
+        newWindow.isMovableByWindowBackground = false
         newWindow.backgroundColor = .clear
         newWindow.isOpaque = false
         newWindow.hasShadow = true

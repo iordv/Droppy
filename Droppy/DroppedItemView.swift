@@ -86,7 +86,7 @@ struct DroppedItemView: View {
                         .strokeBorder(borderColor, lineWidth: isSelected ? 2 : 1)
                 }
         }
-        .scaleEffect(isPressed ? 0.95 : (isHovering ? 1.02 : 1.0))
+        .scaleEffect(isPressed ? 0.95 : 1.0)
         .shadow(color: .black.opacity(isHovering ? 0.15 : 0), radius: 8, y: 4)
         .onHover { hovering in
             withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
