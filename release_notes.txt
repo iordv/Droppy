@@ -1,15 +1,9 @@
-# v4.5.3 - Media Stability & Polish
+# Droppy v4.5.4 - Update Stability
 
-## 🎵 New Setting: Stabilize Media
-- Optional 1-second delay before showing Now Playing preview
-- Prevents flickering when scrolling through YouTube or video previews
-- Disabled by default (instant response like before)
+## 🐛 Fixes
 
-## ✨ Settings Polish
-- Improved English wording throughout settings
-- Floating Basket: "jiggle files anywhere on screen"
-- Better descriptions for all toggle options
+- **Fixed "App is damaged" error after updating** — The update process now removes the macOS quarantine attribute, preventing Gatekeeper from blocking the newly installed app.
 
-## 🔄 Animation Sync
-- Media HUD now collapses in perfect sync with notch shape
-- Unified spring animation timing (0.3s, 0.7 damping)
+---
+
+*If you previously had issues updating, this fix will apply once you install this version.*
