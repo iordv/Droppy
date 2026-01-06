@@ -1,8 +1,9 @@
-# Droppy v4.4.1
+# Droppy v4.4.2
 
-## Improvements
-- **Compress Dialog Window**: Now appears on top of all other windows including the basket
-- **Compress Dialog Padding**: Consistent padding between dashed outline and content (matches basket styling)
+## Critical Fix
+- **Clipboard History**: Fixed race condition that could cause clipboard history to be overwritten with empty data during app launch
 
-## Fixes
-- **Multi-File Clipboard Drag**: Fixed issue where dragging multiple selected clipboard items to basket/shelf only pasted one item (files with same name were overwriting each other)
+## Improvements  
+- **Data Protection**: Clipboard now creates automatic backups before each save
+- **Empty Save Guard**: Prevents saving empty clipboard history (protects against bugs)
+- **Atomic Writes**: All clipboard saves now use atomic file operations for reliability

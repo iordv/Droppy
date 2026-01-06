@@ -184,13 +184,26 @@ class ClipboardManager: ObservableObject {
     }
     
     private func saveToDisk() {
+        // Don't save empty history - this could indicate a bug
+        guard !history.isEmpty else {
+            print("⚠️ Refusing to save empty clipboard history")
+            return
+        }
+        
         // Run save on background thread to avoid blocking UI
         let historyToSave = history
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let url = self?.persistenceURL else { return }
             do {
+                // Create backup before overwriting
+                let backupURL = url.deletingLastPathComponent().appendingPathComponent("clipboard_history.backup.json")
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try? FileManager.default.removeItem(at: backupURL)
+                    try? FileManager.default.copyItem(at: url, to: backupURL)
+                }
+                
                 let data = try JSONEncoder().encode(historyToSave)
-                try data.write(to: url)
+                try data.write(to: url, options: .atomic)
             } catch {
                 print("Failed to save clipboard history: \(error)")
             }
@@ -198,15 +211,20 @@ class ClipboardManager: ObservableObject {
     }
     
     private func loadFromDisk() {
+        // CRITICAL: Set isLoading BEFORE any operation to prevent race condition
+        // where didSet triggers saveToDisk() with empty/partial data
+        isLoading = true
+        defer { isLoading = false }
+        
         guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
         do {
             let data = try Data(contentsOf: persistenceURL)
             let decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
-            isLoading = true
             self.history = decoded
-            isLoading = false
+            print("📋 Loaded \(decoded.count) clipboard items from disk")
         } catch {
-            print("Failed to load clipboard history: \(error)")
+            print("⚠️ Failed to load clipboard history: \(error)")
+            // Don't clear history on load failure - keep whatever is in memory
         }
     }
     
