@@ -92,13 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // Check for updates in background (notify only if update available)
-        Task {
-            await UpdateChecker.shared.checkForUpdates()
-            if UpdateChecker.shared.updateAvailable {
-                UpdateChecker.shared.showUpdateWindow()
-            }
-        }
+        // Start background update scheduler (checks once per day)
+        UpdateChecker.shared.startBackgroundChecking()
     }
     
     func applicationWillTerminate(_ notification: Notification) {

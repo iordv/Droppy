@@ -18,6 +18,15 @@ class UpdateChecker: ObservableObject {
     private let owner = "iordv"
     private let repo = "Droppy"
     
+    /// Background update check interval: 24 hours (industry standard)
+    private let checkInterval: TimeInterval = 86400
+    
+    /// Timer fires hourly to evaluate if a daily check is needed
+    private var backgroundTimer: Timer?
+    
+    /// UserDefaults key for last auto-check timestamp
+    private let lastCheckKey = "lastAutoUpdateCheck"
+    
     /// Current app version
     var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -31,6 +40,51 @@ class UpdateChecker: ObservableObject {
     @Published var isChecking = false
     
     private init() {}
+    
+    // MARK: - Background Update Scheduling
+    
+    /// Start the background update scheduler. Call once at app launch.
+    func startBackgroundChecking() {
+        print("UpdateChecker: Starting background update scheduler (interval: \(Int(checkInterval / 3600))h)")
+        
+        // Perform initial check if needed
+        checkIfDailyCheckNeeded()
+        
+        // Schedule hourly timer to evaluate if 24h have passed
+        backgroundTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            guard let checker = self else { return }
+            Task { @MainActor in
+                checker.checkIfDailyCheckNeeded()
+            }
+        }
+    }
+    
+    /// Evaluate if 24 hours have passed since last check
+    private func checkIfDailyCheckNeeded() {
+        let lastCheck = UserDefaults.standard.object(forKey: lastCheckKey) as? Date ?? .distantPast
+        let hoursSinceLastCheck = Date().timeIntervalSince(lastCheck) / 3600
+        
+        if hoursSinceLastCheck >= 24 {
+            print("UpdateChecker: Performing daily update check (last check: \(Int(hoursSinceLastCheck))h ago)")
+            performBackgroundCheck()
+        } else {
+            print("UpdateChecker: Skipping check, last check was \(Int(hoursSinceLastCheck))h ago")
+        }
+    }
+    
+    /// Perform background check and show update window if available
+    private func performBackgroundCheck() {
+        Task {
+            await checkForUpdates()
+            
+            // Record successful check
+            UserDefaults.standard.set(Date(), forKey: lastCheckKey)
+            
+            if updateAvailable {
+                showUpdateWindow()
+            }
+        }
+    }
     
     /// Check for updates from GitHub releases
     func checkForUpdates() async {
