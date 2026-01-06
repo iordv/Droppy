@@ -47,11 +47,17 @@ final class BrightnessManager: ObservableObject {
     // MARK: - Initialization
     private init() {
         loadFrameworks()
-        // Cache the main display ID on main thread to avoid thread-safety issues
-        if let screen = NSScreen.main,
-           let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
-            mainDisplayID = displayID
-        }
+        // Cache the built-in display ID on main thread for brightness control
+        // When docked, NSScreen.main may be the external display, so we specifically look for built-in
+        mainDisplayID = findBuiltInDisplayID() ?? {
+            // Fallback to main display if no built-in found
+            if let screen = NSScreen.main,
+               let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
+                return displayID
+            }
+            return nil
+        }()
+        
         if let brightness = getCurrentBrightness() {
             rawBrightness = brightness
             lastPolledBrightness = brightness
@@ -62,6 +68,21 @@ final class BrightnessManager: ObservableObject {
             print("BrightnessManager: Could not read brightness, isSupported: false")
             isSupported = false
         }
+    }
+    
+    /// Find the built-in (laptop) display ID for brightness control
+    private func findBuiltInDisplayID() -> CGDirectDisplayID? {
+        for screen in NSScreen.screens {
+            let name = screen.localizedName
+            // macOS reports built-in displays with "Built-in" or "Internal" in the name
+            if name.contains("Built-in") || name.contains("Internal") {
+                if let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
+                    print("BrightnessManager: Found built-in display: \(name)")
+                    return displayID
+                }
+            }
+        }
+        return nil
     }
     
     deinit {

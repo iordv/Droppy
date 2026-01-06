@@ -175,8 +175,18 @@ private func mediaKeyCallback(
         let keyCode = UInt32((data1 & 0xFFFF0000) >> 16)
         let keyFlags = UInt32(data1 & 0x0000FFFF)
         let keyState = ((keyFlags & 0xFF00) >> 8)
-        let keyDown = keyState == 0x0A // Key down
+        
+        // Key state interpretation:
+        // 0x0A = Key down
+        // 0x0B = Key up
+        // Some external keyboards may also send 0x08 or other values for key events
+        // We process on key down (0x0A) OR if it's a key repeat (indicated by bit 0)
+        let keyDown = keyState == 0x0A || keyState == 0x08 // Accept multiple keyDown states
+        let keyUp = keyState == 0x0B
         let keyRepeat = (keyFlags & 0x1) != 0
+        
+        // Process on key down OR key repeat, ignore key up
+        let shouldProcess = (keyDown || keyRepeat) && !keyUp
         
         // Check if this is a media key we handle
         let handledKeys: [UInt32] = [
@@ -193,7 +203,7 @@ private func mediaKeyCallback(
                 let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
                 
                 // Handle the key event
-                if interceptor.handleMediaKey(keyCode: keyCode, keyDown: keyDown || keyRepeat) {
+                if interceptor.handleMediaKey(keyCode: keyCode, keyDown: shouldProcess) {
                     shouldSuppress = true
                 }
             }

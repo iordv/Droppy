@@ -122,6 +122,8 @@ struct NotchShelfView: View {
         // Always show when expanded or during drag/hover (for drop indication)
         if state.isExpanded { return true }
         if dragMonitor.isDragging || state.isMouseHovering || state.isDropTargeted { return true }
+        // Always show when HUD is active (volume/brightness/media)
+        if hudIsVisible || shouldShowMediaHUD { return true }
         
         // Hide on external displays when setting is enabled (static state only)
         if hideNotchOnExternalDisplays && !isBuiltInDisplay {
