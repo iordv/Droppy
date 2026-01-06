@@ -8,6 +8,12 @@ import UniformTypeIdentifiers
 
 import SwiftUI
 
+// Wrapper to silence deprecation warning - standardShareMenuItem doesn't work in SwiftUI context menus
+@available(macOS, deprecated: 13.0)
+private func getSharingServices(for items: [Any]) -> [NSSharingService] {
+    NSSharingService.sharingServices(forItems: items)
+}
+
 /// A floating basket view that appears during file drags as an alternative drop zone
 struct FloatingBasketView: View {
     @Bindable var state: DroppyState
@@ -487,7 +493,7 @@ struct BasketItemView: View {
                 
                 // Share submenu with system sharing services
                 Menu {
-                    ForEach(NSSharingService.sharingServices(forItems: [item.url]), id: \.title) { service in
+                    ForEach(getSharingServices(for: [item.url]), id: \.title) { service in
                         Button {
                             service.perform(withItems: [item.url])
                         } label: {

@@ -8,6 +8,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+// Wrapper to silence deprecation warning - standardShareMenuItem doesn't work in SwiftUI context menus
+@available(macOS, deprecated: 13.0)
+private func getSharingServices(for items: [Any]) -> [NSSharingService] {
+    NSSharingService.sharingServices(forItems: items)
+}
+
 /// The notch-based shelf view that shows a yellow glow during drag and expands to show items
 struct NotchShelfView: View {
     @Bindable var state: DroppyState
@@ -971,7 +977,7 @@ struct NotchItemView: View {
             
             // Share submenu with system sharing services
             Menu {
-                ForEach(NSSharingService.sharingServices(forItems: [item.url]), id: \.title) { service in
+                ForEach(getSharingServices(for: [item.url]), id: \.title) { service in
                     Button {
                         service.perform(withItems: [item.url])
                     } label: {

@@ -7,6 +7,12 @@
 
 import SwiftUI
 
+// Wrapper to silence deprecation warning - standardShareMenuItem doesn't work in SwiftUI context menus
+@available(macOS, deprecated: 13.0)
+private func getSharingServices(for items: [Any]) -> [NSSharingService] {
+    NSSharingService.sharingServices(forItems: items)
+}
+
 /// Individual item card displayed on the shelf with liquid glass styling
 struct DroppedItemView: View {
     let item: DroppedItem
@@ -132,7 +138,7 @@ struct DroppedItemView: View {
             // Share submenu with system sharing services
             // Note: Using deprecated API because it's the only one that works properly in SwiftUI context menus
             Menu {
-                ForEach(NSSharingService.sharingServices(forItems: [item.url]), id: \.title) { service in
+                ForEach(getSharingServices(for: [item.url]), id: \.title) { service in
                     Button {
                         service.perform(withItems: [item.url])
                     } label: {
