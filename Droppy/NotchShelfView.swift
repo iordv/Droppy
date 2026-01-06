@@ -7,7 +7,6 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
-import Combine
 
 // Wrapper to silence deprecation warning - standardShareMenuItem doesn't work in SwiftUI context menus
 @available(macOS, deprecated: 13.0)
@@ -24,9 +23,6 @@ struct NotchShelfView: View {
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
-    @AppStorage("mediaChangeDelay") private var mediaChangeDelay: Double = 0.5 // Debounce for rapid media changes
-    @AppStorage("autoCollapseShelfTimeout") private var autoCollapseShelfTimeout: Double = 0 // 0 = disabled
-    @AppStorage("showMiniMediaIndicator") private var showMiniMediaIndicator = false // Mini album art + timestamp when collapsed
     
     // HUD State - Use @ObservedObject for singletons (they manage their own lifecycle)
     @ObservedObject private var volumeManager = VolumeManager.shared
@@ -42,12 +38,6 @@ struct NotchShelfView: View {
     @State private var mediaFadeWorkItem: DispatchWorkItem?
     @State private var isSongTransitioning = false  // Temporarily hide media during song transitions
     
-    // Media change debounce state
-    @State private var debouncedIsPlaying = false
-    @State private var mediaDebounceWorkItem: DispatchWorkItem?
-    
-    // Auto-collapse shelf state
-    @State private var autoCollapseWorkItem: DispatchWorkItem?
     
     /// Animation state for the border dash
     @State private var dashPhase: CGFloat = 0
@@ -62,7 +52,6 @@ struct NotchShelfView: View {
     @State private var renamingItemId: UUID?
     
     // Removed isDropTargeted state as we use shared state now
-
     
     /// Real MacBook notch dimensions
     private let notchWidth: CGFloat = 180
@@ -72,24 +61,16 @@ struct NotchShelfView: View {
     /// HUD dimensions (notch expands to show HUD)
     private let hudWidth: CGFloat = 350
     private let hudHeight: CGFloat = 73
-    /// Mini media indicator dimensions (regular notch height, slightly wider)
-    private let miniMediaWidth: CGFloat = 260 // Fits album art + timestamp
-    
-    /// Whether mini media indicator should be shown (when HUD has faded but music is still playing)
-    private var shouldShowMiniMedia: Bool {
-        showMiniMediaIndicator && debouncedIsPlaying && mediaHUDFadedOut && !hudIsVisible && !state.isExpanded && !dragMonitor.isDragging && !state.isMouseHovering
-    }
     
     /// Whether media player HUD should be shown
     private var shouldShowMediaHUD: Bool {
         // Don't show during song transitions (collapse-expand effect)
         if isSongTransitioning { return false }
-        // Don't show if auto-fade is enabled and it has faded out (but mini media may still show)
+        // Don't show if auto-fade is enabled and it has faded out
         if autoFadeMediaHUD && mediaHUDFadedOut {
             return false
         }
-        // Use debounced playing state to prevent rapid popup (e.g. scrolling over YouTube thumbnails)
-        return showMediaPlayer && debouncedIsPlaying && !hudIsVisible && !state.isExpanded
+        return showMediaPlayer && musicManager.isPlaying && !hudIsVisible && !state.isExpanded
     }
     
     /// Current notch width based on state
@@ -100,8 +81,6 @@ struct NotchShelfView: View {
             return hudWidth
         } else if dragMonitor.isDragging || state.isMouseHovering {
             return notchWidth + 20
-        } else if shouldShowMiniMedia {
-            return miniMediaWidth
         } else {
             return notchWidth
         }
@@ -116,7 +95,6 @@ struct NotchShelfView: View {
         } else if dragMonitor.isDragging || state.isMouseHovering {
             return notchHeight + 40
         } else {
-            // Mini media uses same height as regular notch
             return notchHeight
         }
     }
@@ -236,14 +214,6 @@ struct NotchShelfView: View {
                         .zIndex(3)
                 }
                 
-                // MARK: - Mini Media Indicator (persistent when HUD has faded)
-                if shouldShowMiniMedia && !musicManager.songTitle.isEmpty {
-                    MiniMediaIndicatorView(musicManager: musicManager)
-                        .frame(width: miniMediaWidth, height: notchHeight)
-                        .transition(.opacity.animation(.easeOut(duration: 0.3)))
-                        .zIndex(2)
-                }
-                
                 if state.isExpanded {
                     expandedShelfContent
                         .transition(.asymmetric(
@@ -304,44 +274,10 @@ struct NotchShelfView: View {
             }
         }
         .onChange(of: musicManager.isPlaying) { wasPlaying, isPlaying in
-            // Debounce media state changes to prevent rapid popup (e.g. scrolling over YouTube thumbnails)
-            mediaDebounceWorkItem?.cancel()
-            
-            if isPlaying {
-                // Delay showing media HUD to filter out rapid transient plays
-                let workItem = DispatchWorkItem { [self] in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        debouncedIsPlaying = true
-                    }
-                    // Also reset fade state when playback starts
-                    if !wasPlaying {
-                        mediaHUDFadedOut = false
-                        startMediaFadeTimer()
-                    }
-                }
-                mediaDebounceWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + mediaChangeDelay, execute: workItem)
-            } else {
-                // Hide immediately when playback stops
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    debouncedIsPlaying = false
-                }
-            }
-        }
-        .onChange(of: state.isMouseHovering) { wasHovering, isHovering in
-            // Auto-collapse shelf after timeout when mouse leaves
-            if !isHovering && state.isExpanded && autoCollapseShelfTimeout > 0 {
-                autoCollapseWorkItem?.cancel()
-                let workItem = DispatchWorkItem { [self] in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        state.isExpanded = false
-                    }
-                }
-                autoCollapseWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + autoCollapseShelfTimeout, execute: workItem)
-            } else if isHovering {
-                // Cancel auto-collapse when mouse enters
-                autoCollapseWorkItem?.cancel()
+            // When playback starts, reset fade state and start timer
+            if isPlaying && !wasPlaying {
+                mediaHUDFadedOut = false
+                startMediaFadeTimer()
             }
         }
         // HUD is now embedded in the notch content (see ZStack above)
@@ -1617,78 +1553,3 @@ private struct AutoSelectTextField: NSViewRepresentable {
     }
 }
 
-// MARK: - Mini Media Indicator View
-
-/// Compact media indicator showing album art and current timestamp
-/// Displayed in the collapsed notch when full media HUD has faded
-struct MiniMediaIndicatorView: View {
-    @ObservedObject var musicManager: MusicManager
-    
-    /// Timer for updating elapsed time display
-    @State private var updateTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    @State private var currentTime = Date()
-    
-    private func formatTime(_ seconds: Double) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
-    }
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            // Left: Mini album art
-            if musicManager.albumArt.size.width > 0 {
-                Image(nsImage: musicManager.albumArt)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 24, height: 24)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            } else {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 24, height: 24)
-                    .overlay(
-                        Image(systemName: "music.note")
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    )
-            }
-            
-            // Center: Elapsed time
-            Text(formatTime(musicManager.estimatedPlaybackPosition(at: currentTime)))
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.8))
-            
-            // Thin progress bar
-            if musicManager.songDuration > 0 {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        // Background track
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.15))
-                            .frame(height: 2)
-                        
-                        // Progress fill
-                        let progress = min(musicManager.estimatedPlaybackPosition(at: currentTime) / musicManager.songDuration, 1.0)
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.white.opacity(0.6))
-                            .frame(width: geo.size.width * CGFloat(progress), height: 2)
-                    }
-                }
-                .frame(height: 2)
-                .frame(maxWidth: 60)
-            }
-            
-            // Right: Duration
-            if musicManager.songDuration > 0 {
-                Text(formatTime(musicManager.songDuration))
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.5))
-            }
-        }
-        .padding(.horizontal, 12)
-        .onReceive(updateTimer) { _ in
-            currentTime = Date()
-        }
-    }
-}

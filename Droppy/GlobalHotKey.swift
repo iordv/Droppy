@@ -112,33 +112,12 @@ class GlobalHotKey {
         IOHIDManagerRegisterInputValueCallback(manager, HandleIOHIDValueCallback, context)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
         
-        // Try opening with retry logic (HID subsystem may be slow after sleep/boot)
-        tryOpenHIDManager(manager: manager, attempt: 1, maxAttempts: 3)
-    }
-    
-    private func tryOpenHIDManager(manager: IOHIDManager, attempt: Int, maxAttempts: Int) {
         let openRet = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         if openRet == kIOReturnSuccess {
-            print("✅ GlobalHotKey: IOHIDManager Monitoring Active (attempt \(attempt))")
+            print("✅ GlobalHotKey: IOHIDManager Monitoring Active")
             self.isInputMonitoringActive = true
-            // Cache successful permission grant
-            UserDefaults.standard.set(true, forKey: "inputMonitoringGranted")
-        } else if attempt < maxAttempts {
-            // Retry after delay (500ms, 1000ms, etc.)
-            let delay = Double(attempt) * 0.5
-            print("⚠️ GlobalHotKey: IOHIDManager retry \(attempt)/\(maxAttempts) in \(delay)s (Result: \(openRet))")
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.tryOpenHIDManager(manager: manager, attempt: attempt + 1, maxAttempts: maxAttempts)
-            }
         } else {
-            // All retries failed - check if we have cached permission
-            if UserDefaults.standard.bool(forKey: "inputMonitoringGranted") {
-                // Permission was granted before, likely just a temporary failure
-                print("⚠️ GlobalHotKey: IOHIDManager failed but permission was previously granted")
-                self.isInputMonitoringActive = true
-            } else {
-                print("❌ GlobalHotKey: IOHIDManager Setup Failed after \(maxAttempts) attempts (Result: \(openRet))")
-            }
+            print("⚠️ GlobalHotKey: IOHIDManager Setup Failed (Result: \(openRet))")
         }
     }
     

@@ -14,9 +14,6 @@ struct SettingsView: View {
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
-    @AppStorage("mediaChangeDelay") private var mediaChangeDelay: Double = 0.5
-    @AppStorage("autoCollapseShelfTimeout") private var autoCollapseShelfTimeout: Double = 0
-    @AppStorage("showMiniMediaIndicator") private var showMiniMediaIndicator = false
 
 
     
@@ -236,22 +233,6 @@ struct SettingsView: View {
             if enableFloatingBasket {
                 FeaturePreviewGIF(url: "https://i.postimg.cc/dtHH09fB/Schermopname2026-01-05om22-01-22-ezgif-com-video-to-gif-converter.gif")
             }
-            
-            // Auto-collapse shelf setting
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Auto-Collapse Shelf")
-                Text("Automatically shrink shelf after timeout when mouse leaves")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack {
-                    Slider(value: $autoCollapseShelfTimeout, in: 0...30, step: 5)
-                    Text(autoCollapseShelfTimeout == 0 ? "Disabled" : "\(Int(autoCollapseShelfTimeout))s")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 60)
-                }
-            }
-            .padding(.vertical, 4)
         } header: {
             Text("General")
         } footer: {
@@ -304,32 +285,6 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
-                    if autoFadeMediaHUD {
-                        Toggle(isOn: $showMiniMediaIndicator) {
-                            VStack(alignment: .leading) {
-                                Text("Show Mini Indicator")
-                                Text("Keep album art + timestamp visible when faded")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Media Popup Delay")
-                        Text("Prevents rapid popup when scrolling over video thumbnails")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack {
-                            Slider(value: $mediaChangeDelay, in: 0...2, step: 0.1)
-                            Text(mediaChangeDelay == 0 ? "Instant" : String(format: "%.1fs", mediaChangeDelay))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 50)
-                        }
-                    }
-                    .padding(.vertical, 4)
                 }
                 
                 Toggle(isOn: $enableHUDReplacement) {

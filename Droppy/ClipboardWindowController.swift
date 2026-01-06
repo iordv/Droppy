@@ -306,12 +306,10 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         // Accessibility Check
         let isAccessibilityTrusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
         
-        // Input Monitoring Check - also check cached permission (may fail temporarily on startup)
+        // Input Monitoring Check (Verified by IOHIDManager success)
         let isInputMonitoringActive = globalHotKey?.isInputMonitoringActive ?? false
-        let wasInputMonitoringGranted = UserDefaults.standard.bool(forKey: "inputMonitoringGranted")
-        let hasInputMonitoring = isInputMonitoringActive || wasInputMonitoringGranted
         
-        if isAccessibilityTrusted && hasInputMonitoring {
+        if isAccessibilityTrusted && isInputMonitoringActive {
             return
         }
         
@@ -321,7 +319,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         var missingPermissions: [String] = []
         if !isAccessibilityTrusted { missingPermissions.append("• Accessibility (for Paste)") }
-        if !hasInputMonitoring { missingPermissions.append("• Input Monitoring (for Global Hotkey)") }
+        if !isInputMonitoringActive { missingPermissions.append("• Input Monitoring (for Global Hotkey)") }
         
         alert.informativeText += missingPermissions.joined(separator: "\n")
         alert.informativeText += "\n\nPlease enable them in System Settings."
@@ -336,7 +334,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
-            if !hasInputMonitoring {
+            if !isInputMonitoringActive {
                 // Open Input Monitoring (Privacy_ListenEvent)
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
             } else {
