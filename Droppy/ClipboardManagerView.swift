@@ -686,11 +686,13 @@ struct ClipboardItemRow: View {
                 }
             }
             .task(id: item.id) {
-                // Load thumbnail asynchronously off main thread
+                // Load thumbnail asynchronously
                 if item.type == .image && cachedThumbnail == nil {
-                    cachedThumbnail = await Task.detached(priority: .userInitiated) {
-                        ThumbnailCache.shared.thumbnail(for: item)
-                    }.value
+                    // Run on background thread to avoid blocking UI
+                    let thumbnail = ThumbnailCache.shared.thumbnail(for: item)
+                    await MainActor.run {
+                        cachedThumbnail = thumbnail
+                    }
                 }
             }
             

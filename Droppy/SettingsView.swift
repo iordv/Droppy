@@ -15,6 +15,7 @@ struct SettingsView: View {
     
     // HUD and Media Player settings
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
+    @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true  // Enabled by default
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -415,6 +416,30 @@ struct SettingsView: View {
                 
                 if enableHUDReplacement {
                     FeaturePreviewGIF(url: "https://i.postimg.cc/qqQ3wPMV/Schermopname2026-01-07om15-20-48-ezgif-com-video-to-gif-converter.gif")
+                }
+                
+                Toggle(isOn: $enableBatteryHUD) {
+                    VStack(alignment: .leading) {
+                        Text("Battery HUD")
+                        Text("Show when charging or low battery")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: enableBatteryHUD) { _, newValue in
+                    if newValue {
+                        // Ensure notch window exists
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        // Close window only if shelf, HUD replacement, and media player are also disabled
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
+                
+                if enableBatteryHUD {
+                    FeaturePreviewGIF(url: "https://i.postimg.cc/Fznd6bvv/Schermopname2026-01-07om22-36-08-ezgif-com-video-to-gif-converter.gif")
                 }
             } header: {
                 Text("System HUD")

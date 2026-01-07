@@ -261,11 +261,11 @@ final class BrightnessManager: ObservableObject {
     private func startBrightnessPolling() {
         guard isSupported else { return }
         
-        print("BrightnessManager: Starting brightness polling")
+        print("BrightnessManager: Starting brightness polling (silent - HUD only on manual key press)")
         // CRITICAL: Poll on main thread to avoid XPC/DisplayServices thread safety crashes
         // DisplayServicesGetBrightness makes XPC calls that are not thread-safe
         let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + 0.5, repeating: .milliseconds(500)) // Reduced frequency to prevent XPC race conditions
+        timer.schedule(deadline: .now() + 0.5, repeating: .milliseconds(500))
         timer.setEventHandler { [weak self] in
             autoreleasepool {
                 guard let self = self else { return }
@@ -277,11 +277,12 @@ final class BrightnessManager: ObservableObject {
                 
                 if let current = self.getCurrentBrightness() {
                     self.pollFailCount = 0
-                    // Detect if brightness changed (with small threshold to avoid noise)
-                    if abs(current - self.lastPolledBrightness) > 0.01 {
-                        self.lastPolledBrightness = current
-                        self.lastChangeAt = Date()
+                    // SILENT update only - never trigger HUD from polling
+                    // HUD is only triggered via manual key presses (MediaKeyInterceptor)
+                    // This prevents false triggers from auto-brightness, environment changes, or power state
+                    if abs(current - self.rawBrightness) > 0.001 {
                         self.rawBrightness = current
+                        self.lastPolledBrightness = current
                     }
                 } else {
                     // Stop polling if we get too many failures

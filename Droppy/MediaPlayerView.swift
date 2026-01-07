@@ -66,9 +66,9 @@ struct MediaPlayerView: View {
         TimelineView(.animation(minimumInterval: 0.1, paused: !musicManager.isPlaying && !isDragging)) { context in
             let currentDate = context.date
             
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 // MARK: - Top Row: Album Art + Song Info + Visualizer
-                HStack(spacing: 16) {
+                HStack(spacing: 14) {
                     // Album Art
                     albumArtView
                     
@@ -92,13 +92,13 @@ struct MediaPlayerView: View {
                 }
                 
                 // MARK: - Middle Row: Time + Slider
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     // Current time
                     Text(elapsedTimeString(at: currentDate))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
+                        .frame(width: 40, alignment: .trailing)
                     
                     // Progress Slider
                     progressSliderView(at: currentDate)
@@ -108,13 +108,16 @@ struct MediaPlayerView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 36, alignment: .leading)
+                        .frame(width: 40, alignment: .leading)
                 }
                 
                 // MARK: - Bottom Row: Controls
                 controlsRow
+                    .padding(.top, 4)
             }
-            .padding(12) // Compact padding
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 14)
         }
     }
     

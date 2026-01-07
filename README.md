@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>The ultimate productivity tool for macOS.</strong><br>
-  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Volume & Brightness HUD</em><br>
+  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Volume & Brightness HUD • Battery HUD</em><br>
   <br>
   Designed with ❤️ and pixel-perfect polish. Now with buttery smooth custom HUDs!
 </p>
@@ -126,6 +126,12 @@ Drag files out of the shelf and drop into any app — email, Discord, Photoshop,
   <img src="https://i.postimg.cc/qqQ3wPMV/Schermopname2026-01-07om15-20-48-ezgif-com-video-to-gif-converter.gif" alt="HUD Preview" width="100%">
 </p>
 
+### 🆕 Battery Charging HUD
+*Elegant charging indicator that appears when you plug in or reach low battery.*
+<p align="center">
+  <img src="https://i.postimg.cc/Fznd6bvv/Schermopname2026-01-07om22-36-08-ezgif-com-video-to-gif-converter.gif" alt="Battery HUD Preview" width="100%">
+</p>
+
 ---
 
 ## 🛠️ Power User Tips
@@ -163,6 +169,28 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
+## Version 4.7.7 - Battery HUD & Auto-Update Improvements
+
+### ✨ New Features
+
+- **🔋 Battery Charging HUD**: Beautiful animated indicator appears when you plug in/unplug your charger or when battery is low. Green pulsing icon during charging, orange for low battery. Toggle in Settings > System HUD.
+
+### 🐛 Bug Fixes
+
+- **Fixed brightness HUD false triggers**: The brightness HUD no longer randomly appears during environment changes, power state changes, or auto-brightness adjustments. Now only triggers when you manually press brightness keys.
+- **Fixed auto-update failures**: Complete rewrite of the update script with:
+  - Proper process termination by PID (no more "can't delete old app" errors)
+  - Automatic admin privilege request if needed
+  - Friendly error messages with manual fallback instructions
+  - Reliable cleanup of temporary files
+
+### 🔧 Improvements
+
+- **Battery HUD sizing**: Perfectly aligned icon and percentage with consistent spacing matching volume/brightness HUD
+- **Swift 6 compatibility**: Fixed async/await warnings for Swift 6 language mode
+
+---
+
 ## Version 4.7.6 - Zero Obstruction Fix
 
 ### 🐛 Bug Fixes

@@ -23,6 +23,7 @@ struct NotchShelfView: View {
     @AppStorage("enableNotchShelf") private var enableNotchShelf = true
     @AppStorage("hideNotchOnExternalDisplays") private var hideNotchOnExternalDisplays = false
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
+    @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true  // Battery charging/low battery HUD
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -35,6 +36,7 @@ struct NotchShelfView: View {
     // HUD State - Use @ObservedObject for singletons (they manage their own lifecycle)
     @ObservedObject private var volumeManager = VolumeManager.shared
     @ObservedObject private var brightnessManager = BrightnessManager.shared
+    @ObservedObject private var batteryManager = BatteryManager.shared
     @ObservedObject private var musicManager = MusicManager.shared
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
@@ -42,6 +44,8 @@ struct NotchShelfView: View {
     @State private var hudType: HUDContentType = .volume
     @State private var hudValue: CGFloat = 0
     @State private var hudIsVisible = false
+    @State private var batteryHUDIsVisible = false  // Battery HUD visibility
+    @State private var batteryHUDWorkItem: DispatchWorkItem?  // Timer for battery HUD auto-hide
     @State private var mediaHUDFadedOut = false  // Tracks if media HUD has auto-faded
     @State private var mediaFadeWorkItem: DispatchWorkItem?
     @State private var autoShrinkWorkItem: DispatchWorkItem?  // Timer for auto-shrinking shelf
@@ -98,10 +102,14 @@ struct NotchShelfView: View {
     
     private let expandedWidth: CGFloat = 450
     
-    /// HUD dimensions - different sizes for volume/brightness vs media
+    /// HUD dimensions - different sizes for volume/brightness vs media vs battery
     /// Volume/Brightness HUD needs more width for icon + slider + percentage
     private var volumeHudWidth: CGFloat {
         max(350, notchWidth * 1.6)  // Wider to fit icon and percentage outside notch
+    }
+    /// Battery HUD - slightly narrower than volume, just needs icon + percentage
+    private var batteryHudWidth: CGFloat {
+        max(335, notchWidth * 1.5)  // Fits "100%" on one line
     }
     /// Media HUD has tighter wings for album art / visualizer
     private var hudWidth: CGFloat {
@@ -130,6 +138,8 @@ struct NotchShelfView: View {
             return expandedWidth
         } else if hudIsVisible {
             return volumeHudWidth  // Volume/Brightness HUD needs wider wings
+        } else if batteryHUDIsVisible && enableBatteryHUD {
+            return batteryHudWidth  // Battery HUD uses slightly narrower width than volume
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && (dragMonitor.isDragging || state.isMouseHovering) {
@@ -145,6 +155,8 @@ struct NotchShelfView: View {
             return currentExpandedHeight
         } else if hudIsVisible {
             return hudHeight // Volume/brightness HUD needs more space
+        } else if batteryHUDIsVisible && enableBatteryHUD {
+            return notchHeight  // Battery HUD just uses notch height (no slider)
         } else if shouldShowMediaHUD {
             // Grow when hovered OR when dragging files (peek effect with title)
             // Title row: 4px top + 20px title + 4px bottom = 28px
@@ -267,11 +279,27 @@ struct NotchShelfView: View {
                     .zIndex(3)
                 }
                 
+                // MARK: - Battery HUD (charging/unplugging/low battery)
+                // Takes priority over media HUD - briefly shows then returns to media
+                // Uses WIDER width than media HUD so percentage isn't cut off by notch
+                if batteryHUDIsVisible && enableBatteryHUD && !hudIsVisible && !state.isExpanded {
+                    BatteryHUDView(
+                        batteryManager: batteryManager,
+                        notchWidth: notchWidth,
+                        notchHeight: notchHeight,
+                        hudWidth: batteryHudWidth  // Slightly narrower than volume HUD
+                    )
+                    .frame(width: batteryHudWidth, height: notchHeight)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+                    .zIndex(4)  // Higher than media HUD
+                }
+                
                 // MARK: - Media Player HUD (when music is playing)
                 // Only show if we have valid song info (not just isPlaying)
                 // Hide during song transitions for collapse-expand effect
+                // Hide when battery HUD is visible (battery takes priority briefly)
                 // Debounce check only applies when setting is enabled
-                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
+                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !batteryHUDIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
                     MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth)
                         .frame(width: hudWidth, alignment: .top)
                         // Match exact notch collapse animation timing
@@ -324,6 +352,10 @@ struct NotchShelfView: View {
         .onChange(of: brightnessManager.lastChangeAt) { _, _ in
             guard enableHUDReplacement, !state.isExpanded else { return }
             triggerBrightnessHUD()
+        }
+        .onChange(of: batteryManager.lastChangeAt) { _, _ in
+            guard enableBatteryHUD, !state.isExpanded else { return }
+            triggerBatteryHUD()
         }
         // MARK: - Media HUD Auto-Fade
         .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
@@ -430,6 +462,21 @@ struct NotchShelfView: View {
         }
         hudWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + brightnessManager.visibleDuration, execute: workItem)
+    }
+    
+    private func triggerBatteryHUD() {
+        batteryHUDWorkItem?.cancel()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            batteryHUDIsVisible = true
+        }
+        
+        let workItem = DispatchWorkItem { [self] in
+            withAnimation(.easeOut(duration: 0.3)) {
+                batteryHUDIsVisible = false
+            }
+        }
+        batteryHUDWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + batteryManager.visibleDuration, execute: workItem)
     }
     
     private func startMediaFadeTimer() {
