@@ -11,113 +11,188 @@ import SwiftUI
 // HUDContentType is defined in LiquidSlider.swift
 
 /// Embedded HUD view that appears inside the expanded notch
-/// Icon on left, percentage on right, slider at bottom
+/// Icon on left wing, percentage on right wing, slider at bottom (full width)
+/// Layout matches MediaHUDView for consistent positioning
 struct NotchHUDView: View {
     @Binding var hudType: HUDContentType
     @Binding var value: CGFloat
+    var isActive: Bool = true // Whether value is currently changing (for slider thickening)
+    let notchWidth: CGFloat   // Physical notch width (passed from parent)
+    let notchHeight: CGFloat  // Physical notch height (passed from parent)
+    let hudWidth: CGFloat     // Total HUD width (passed from parent)
     var onValueChange: ((CGFloat) -> Void)?
     
+    /// Width of each "wing" (area left/right of physical notch)
+    private var wingWidth: CGFloat {
+        (hudWidth - notchWidth) / 2
+    }
+    
     var body: some View {
-        VStack(spacing: 6) {
-            // Top row: Icon ... Percentage
-            HStack(alignment: .center) {
-                // Left: Icon only (no label) - FIXED WIDTH to prevent layout jumping
-                Image(systemName: hudType.icon(for: value))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(hudType == .brightness ? .yellow : .white)
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolVariant(.fill)
-                    .frame(width: 28, height: 22) // Fixed size prevents jumping
-                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hudType.icon(for: value))
+        VStack(alignment: .center, spacing: 0) {
+            // Main HUD: Two wings separated by the notch space
+            // Same layout pattern as MediaHUDView
+            HStack(spacing: 0) {
+                // Left wing: Icon centered
+                HStack {
+                    Spacer(minLength: 0)
+                    Image(systemName: hudType.icon(for: value))
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(hudType == .brightness ? .yellow : .white)
+                        .contentTransition(.symbolEffect(.replace))
+                        .symbolVariant(.fill)
+                        .frame(width: 26, height: 26)
+                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hudType.icon(for: value))
+                    Spacer(minLength: 0)
+                }
+                .frame(width: wingWidth)
                 
+                // Camera notch area (spacer)
                 Spacer()
+                    .frame(width: notchWidth)
                 
-                // Right: Percentage with smooth number animation
-                Text("\(Int(value * 100))%")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .monospacedDigit()
-                    .contentTransition(.numericText(value: value))
-                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: value)
+                // Right wing: Percentage centered
+                HStack {
+                    Spacer(minLength: 0)
+                    Text("\(Int(value * 100))%")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: value))
+                        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: value)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: wingWidth)
             }
-            .padding(.horizontal, 4)
+            .frame(height: notchHeight) // Match physical notch for proper vertical centering
             
-            // Bottom: Slider
-            LiquidSlider(
+            // Below notch: Slider (same style as seek slider in expanded media player)
+            HUDSlider(
                 value: $value,
                 accentColor: hudType == .brightness ? .yellow : .white,
-                onChange: { newValue in
-                    onValueChange?(newValue)
-                },
-                onDragChange: { newValue in
-                    onValueChange?(newValue)
-                }
+                isActive: isActive,
+                onChange: onValueChange
             )
-            .frame(height: 6)
+            .frame(height: 20)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 4)
             .animation(.spring(response: 0.15, dampingFraction: 0.8), value: value)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
-        // Ensure all elements scale together during notch expansion
-        .geometryGroup()
+    }
+}
+
+// MARK: - HUD Slider (matches seek slider in expanded media player)
+
+/// Interactive slider matching MediaPlayerView's seek slider style
+/// Simple solid colors, 4px→6px height when active, subtle glow
+struct HUDSlider: View {
+    @Binding var value: CGFloat
+    var accentColor: Color = .white
+    var isActive: Bool = false
+    var onChange: ((CGFloat) -> Void)?
+    
+    @State private var isDragging = false
+    
+    /// Whether slider should be expanded (dragging OR externally active)
+    private var isExpanded: Bool { isDragging || isActive }
+    
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let progress = max(0, min(1, value))
+            let progressWidth = max(0, min(width, width * progress))
+            // Expand track height when active/dragging
+            let trackHeight: CGFloat = isExpanded ? 6 : 4
+            
+            ZStack(alignment: .leading) {
+                // Track background (dark gray, matches seek slider)
+                Capsule()
+                    .fill(accentColor.opacity(isExpanded ? 0.3 : 0.2))
+                    .frame(height: trackHeight)
+                
+                // Filled portion (solid color with glow when active)
+                if progress > 0 {
+                    Capsule()
+                        .fill(accentColor)
+                        .frame(width: max(trackHeight, progressWidth), height: trackHeight)
+                        .shadow(color: isExpanded ? accentColor.opacity(0.4) : .clear, radius: isExpanded ? 4 : 0)
+                }
+            }
+            .frame(height: trackHeight)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .scaleEffect(y: isExpanded ? 1.1 : 1.0, anchor: .center)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isExpanded)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isDragging = true
+                        }
+                        let fraction = max(0, min(1, gesture.location.x / width))
+                        value = fraction
+                        onChange?(fraction)
+                    }
+                    .onEnded { gesture in
+                        let fraction = max(0, min(1, gesture.location.x / width))
+                        value = fraction
+                        onChange?(fraction)
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            isDragging = false
+                        }
+                    }
+            )
+        }
+        .frame(height: 20)
     }
 }
 
 // MARK: - Media Player HUD
 
-/// Compact media HUD that matches volume/brightness style
-/// Album art on left, progress slider bottom, timestamp on right
+/// Compact media HUD that sits inside the notch
+/// Album art and visualizer are centered within each wing, with consistent padding
 struct MediaHUDView: View {
     @ObservedObject var musicManager: MusicManager
+    @Binding var isHovered: Bool
+    let notchWidth: CGFloat  // Physical notch width
+    let notchHeight: CGFloat // Physical notch height (for vertical centering)
+    let hudWidth: CGFloat    // Total HUD width
     
-    /// Compute estimated position at given date
-    private func estimatedPosition(at date: Date) -> Double {
-        musicManager.estimatedPlaybackPosition(at: date)
+    /// Combined song info for marquee
+    private var songInfo: String {
+        if musicManager.songTitle.isEmpty {
+            return "Not Playing"
+        }
+        return "\(musicManager.songTitle) - \(musicManager.artistName)"
     }
     
-    /// Progress as percentage (0.0 - 1.0)
-    private func progress(at date: Date) -> CGFloat {
-        guard musicManager.songDuration > 0 else { return 0 }
-        let pos = estimatedPosition(at: date)
-        return CGFloat(min(1, max(0, pos / musicManager.songDuration)))
+    /// Dominant color extracted from album art for visualizer
+    private var visualizerColor: Color {
+        if musicManager.albumArt.size.width > 0 {
+            return musicManager.albumArt.dominantColor()
+        }
+        return .white.opacity(0.7)
     }
     
-    /// Formatted elapsed time (mm:ss)
-    private func elapsedTimeString(at date: Date) -> String {
-        formatTime(estimatedPosition(at: date))
-    }
-    
-    /// Formatted remaining time (-mm:ss)
-    private func remainingTimeString(at date: Date) -> String {
-        let remaining = musicManager.songDuration - estimatedPosition(at: date)
-        return "-\(formatTime(max(0, remaining)))"
-    }
-    
-    private func formatTime(_ seconds: Double) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+    /// Width of each "wing" (area left/right of physical notch)
+    private var wingWidth: CGFloat {
+        (hudWidth - notchWidth) / 2
     }
     
     var body: some View {
-        // Use TimelineView for continuous updates while playing
-        TimelineView(.animation(minimumInterval: 0.1, paused: !musicManager.isPlaying)) { context in
-            let currentDate = context.date
-            
-            VStack(spacing: 6) {
-                // Top row: Album Art ... Timestamp
-                HStack(alignment: .center) {
-                    // Left: Album Art (small, rounded)
+        VStack(alignment: .center, spacing: 0) {
+            // Main HUD: Two wings separated by the notch space
+            HStack(spacing: 0) {
+                // Left wing: Album art centered
+                HStack {
+                    Spacer(minLength: 0)
                     Group {
                         if musicManager.albumArt.size.width > 0 {
                             Image(nsImage: musicManager.albumArt)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                         } else {
-                            // Placeholder
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.white.opacity(0.2))
                                 .overlay(
                                     Image(systemName: "music.note")
@@ -126,34 +201,118 @@ struct MediaHUDView: View {
                                 )
                         }
                     }
-                    .frame(width: 28, height: 28)
+                    .frame(width: 26, height: 26)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-                    
-                    Spacer()
-                    
-                    // Right: Timestamp - same font as volume percentage
-                    Text(elapsedTimeString(at: currentDate))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 4)
+                .frame(width: wingWidth)
                 
-                // Bottom: Progress Slider
-                ProgressSlider(
-                    progress: progress(at: currentDate),
-                    accentColor: Color(nsColor: musicManager.avgColor)
-                )
-                .frame(height: 6)
+                // Camera notch area (spacer)
+                Spacer()
+                    .frame(width: notchWidth)
+                
+                // Right wing: Visualizer centered
+                HStack {
+                    Spacer(minLength: 0)
+                    MiniAudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: wingWidth)
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
+            .frame(height: notchHeight) // Match physical notch for proper vertical centering
+            
+            // Hover: Scrolling song info (appears below album art / visualizer row)
+            if isHovered {
+                MarqueeText(text: songInfo, speed: 40)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(height: 20)
+                    .padding(.vertical, 4) // Equal spacing above and below title
+                    .padding(.horizontal, 8)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity.combined(with: .move(edge: .top))
+                    ))
+            }
         }
-        // Content geometry animation - all elements move together
-        .geometryGroup()
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isHovered)
+        .allowsHitTesting(true)
+        .onTapGesture {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                DroppyState.shared.isExpanded = true
+            }
+        }
+    }
+}
+
+/// Mini audio visualizer bars for compact HUD
+/// Uses BoringNotch-style CAShapeLayer animation with album art color
+struct MiniAudioVisualizerBars: View {
+    let isPlaying: Bool
+    var color: Color = .white
+    
+    var body: some View {
+        AudioSpectrumView(isPlaying: isPlaying, barCount: 5, barWidth: 3, spacing: 2, height: 18, color: color)
+            .frame(width: 5 * 3 + 4 * 2, height: 18) // 5 bars * 3px + 4 gaps * 2px = 23px
+    }
+}
+
+/// Scrolling marquee text view using TimelineView for efficiency
+struct MarqueeText: View {
+    let text: String
+    let speed: Double // Points per second
+    
+    @State private var textWidth: CGFloat = 0
+    @State private var containerWidth: CGFloat = 0
+    @State private var startTime: Date = Date()
+    
+    private var needsScroll: Bool {
+        textWidth > containerWidth && containerWidth > 0
+    }
+    
+    var body: some View {
+        GeometryReader { geo in
+            // Use native display refresh rate for smooth 120Hz ProMotion scrolling
+            TimelineView(.animation(paused: !needsScroll)) { timeline in
+                let totalDistance = textWidth + 50
+                let elapsed = timeline.date.timeIntervalSince(startTime)
+                let rawOffset = elapsed * speed
+                let offset = needsScroll ? -CGFloat(rawOffset.truncatingRemainder(dividingBy: Double(totalDistance))) : 0
+                
+                HStack(spacing: needsScroll ? 50 : 0) {
+                    Text(text)
+                        .fixedSize()
+                        .background(
+                            GeometryReader { textGeo in
+                                Color.clear.onAppear {
+                                    textWidth = textGeo.size.width
+                                }
+                                .onChange(of: text) { _, _ in
+                                    textWidth = textGeo.size.width
+                                    startTime = Date() // Reset scroll on text change
+                                }
+                            }
+                        )
+                    
+                    if needsScroll {
+                        Text(text)
+                            .fixedSize()
+                    }
+                }
+                .offset(x: offset)
+                // Center text when it fits, left-align when scrolling
+                .frame(maxWidth: .infinity, alignment: needsScroll ? .leading : .center)
+            }
+            .onAppear {
+                containerWidth = geo.size.width
+                startTime = Date()
+            }
+            .onChange(of: geo.size.width) { _, newWidth in
+                containerWidth = newWidth
+            }
+        }
+        .clipped()
     }
 }
 
@@ -402,7 +561,10 @@ class HUDStateManager {
                 .overlay {
                     NotchHUDView(
                         hudType: .constant(.volume),
-                        value: .constant(0.65)
+                        value: .constant(0.65),
+                        notchWidth: 180,
+                        notchHeight: 37,
+                        hudWidth: 280
                     )
                 }
             
@@ -414,7 +576,10 @@ class HUDStateManager {
                 .overlay {
                     NotchHUDView(
                         hudType: .constant(.brightness),
-                        value: .constant(0.4)
+                        value: .constant(0.4),
+                        notchWidth: 180,
+                        notchHeight: 37,
+                        hudWidth: 280
                     )
                 }
         }

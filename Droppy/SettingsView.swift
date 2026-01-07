@@ -94,7 +94,8 @@ struct SettingsView: View {
                         }
                     }
                     .formStyle(.grouped)
-                    .scrollContentBackground(.hidden)
+                    // In transparent mode, keep some section visibility; in dark mode, hide default background
+                    .scrollContentBackground(useTransparentBackground ? .visible : .hidden)
                     .background(Color.clear)
                     .background(
                         GeometryReader { geo in
@@ -137,7 +138,7 @@ struct SettingsView: View {
         .onTapGesture {
             isHistoryLimitEditing = false
         }
-        // Fix: Replace visionOS glassEffect with macOS material
+        // Apply transparent material or solid black
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
     }
     
@@ -224,7 +225,11 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        NotchWindowController.shared.closeWindow()
+                        // Only close if HUD replacement and Media Player are ALSO disabled
+                        // The notch window is still needed for HUD/Media features
+                        if !enableHUDReplacement && !showMediaPlayer {
+                            NotchWindowController.shared.closeWindow()
+                        }
                     }
                 }
                 
@@ -322,6 +327,17 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .onChange(of: showMediaPlayer) { _, newValue in
+                    if newValue {
+                        // Ensure notch window exists (needed even if shelf is disabled)
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        // Close window only if shelf and HUD are also disabled
+                        if !enableNotchShelf && !enableHUDReplacement {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
                 
                 if showMediaPlayer {
                     FeaturePreviewGIF(url: "https://i.postimg.cc/wM52HXm6/Schermopname2026-01-05om21-48-08-ezgif-com-video-to-gif-converter.gif")
@@ -360,9 +376,15 @@ struct SettingsView: View {
                 }
                 .onChange(of: enableHUDReplacement) { _, newValue in
                     if newValue {
+                        // Ensure notch window exists (needed even if shelf is disabled)
+                        NotchWindowController.shared.setupNotchWindow()
                         MediaKeyInterceptor.shared.start()
                     } else {
                         MediaKeyInterceptor.shared.stop()
+                        // Close window only if shelf and media player are also disabled
+                        if !enableNotchShelf && !showMediaPlayer {
+                            NotchWindowController.shared.closeWindow()
+                        }
                     }
                 }
                 

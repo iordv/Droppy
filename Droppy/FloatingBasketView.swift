@@ -20,6 +20,7 @@ struct FloatingBasketView: View {
     @Bindable var state: DroppyState
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
     @AppStorage("showClipboardButton") private var showClipboardButton = false
+    @AppStorage("enableNotchShelf") private var enableNotchShelf = true
     
     @State private var dashPhase: CGFloat = 0
     
@@ -85,31 +86,9 @@ struct FloatingBasketView: View {
             VStack(spacing: 12) {
             // Main Basket Content
             ZStack {
-                    // Background
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(useTransparentBackground ? Color.clear : Color.black)
-                        .frame(width: currentWidth, height: currentHeight)
-                        .background {
-                            if useTransparentBackground {
-                                Color.clear
-                                    .liquidGlass(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                            }
-                        }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: cornerRadius - 8, style: .continuous)
-                                .stroke(
-                                    state.isBasketTargeted ? Color.blue : Color.white.opacity(0.2),
-                                    style: StrokeStyle(
-                                        lineWidth: state.isBasketTargeted ? 2 : 1.5,
-                                        lineCap: .round,
-                                        dash: [6, 8],
-                                        dashPhase: dashPhase
-                                    )
-                                )
-                                .padding(12)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                        .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                    // Background (extracted to reduce type-checker complexity)
+                    basketBackground
+                    .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
 
                     
                     // Content
@@ -186,6 +165,15 @@ struct FloatingBasketView: View {
         } // Close ZStack
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()
+        // MARK: - Keyboard Shortcuts
+        .background {
+            // Hidden button for Cmd+A select all
+            Button("") {
+                state.selectAllBasket()
+            }
+            .keyboardShortcut("a", modifiers: .command)
+            .opacity(0)
+        }
     }
     
     private func updateSelectionFromRect() {
@@ -197,6 +185,33 @@ struct FloatingBasketView: View {
                 state.selectedBasketItems.insert(id)
             }
         }
+    }
+    
+    /// Basket background with glass effect and dashed border (extracted for type-checker)
+    private var basketBackground: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(useTransparentBackground ? Color.clear : Color.black)
+            .frame(width: currentWidth, height: currentHeight)
+            .background {
+                if useTransparentBackground {
+                    Color.clear
+                        .liquidGlass(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius - 8, style: .continuous)
+                    .stroke(
+                        state.isBasketTargeted ? Color.blue : Color.white.opacity(0.2),
+                        style: StrokeStyle(
+                            lineWidth: state.isBasketTargeted ? 2 : 1.5,
+                            lineCap: .round,
+                            dash: [6, 8],
+                            dashPhase: dashPhase
+                        )
+                    )
+                    .padding(12)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
     
     private var emptyContent: some View {
@@ -228,30 +243,32 @@ struct FloatingBasketView: View {
                 
                 Spacer()
                 
-                // Move to shelf button
-                Button {
-                    moveToShelf()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.to.line")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("To Shelf")
-                            .font(.system(size: 10, weight: .semibold))
+                // Move to shelf button (only when shelf is enabled)
+                if enableNotchShelf {
+                    Button {
+                        moveToShelf()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.to.line")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("To Shelf")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isShelfButtonHovering ? 1.0 : 0.8))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        )
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.blue.opacity(isShelfButtonHovering ? 1.0 : 0.8))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { isHovering in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        isShelfButtonHovering = isHovering
+                    .buttonStyle(.plain)
+                    .onHover { isHovering in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isShelfButtonHovering = isHovering
+                        }
                     }
                 }
                 
@@ -382,6 +399,7 @@ struct BasketItemView: View {
     @Binding var renamingItemId: UUID?
     let onRemove: () -> Void
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
+    @AppStorage("enableNotchShelf") private var enableNotchShelf = true
     
     @State private var thumbnail: NSImage?
     @State private var isHovering = false
@@ -617,12 +635,14 @@ struct BasketItemView: View {
                     }
                 }
                 
-                Button {
-                    // Move to shelf
-                    state.addItem(item)
-                    state.removeBasketItem(item)
-                } label: {
-                    Label("Move to Shelf", systemImage: "arrow.up.to.line")
+                // Move to Shelf (only when shelf is enabled)
+                if enableNotchShelf {
+                    Button {
+                        state.addItem(item)
+                        state.removeBasketItem(item)
+                    } label: {
+                        Label("Move to Shelf", systemImage: "arrow.up.to.line")
+                    }
                 }
                 
                 Divider()
@@ -634,7 +654,7 @@ struct BasketItemView: View {
                         onRemove()
                     }
                 } label: {
-                    Label("Remove", systemImage: "trash")
+                    Label("Remove from Basket", systemImage: "xmark")
                 }
             }
             .task {

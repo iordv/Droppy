@@ -183,6 +183,18 @@ If you enjoy using Droppy, consider buying me a coffee to support development!
 
 ---
 
+## ⭐ Star History
+
+<a href="https://star-history.com/#iordv/droppy&Timeline">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=iordv/droppy&type=Timeline&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=iordv/droppy&type=Timeline" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=iordv/droppy&type=Timeline" />
+ </picture>
+</a>
+
+---
+
 ## License
 MIT License. Free and Open Source forever.
 

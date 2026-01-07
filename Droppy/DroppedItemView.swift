@@ -160,7 +160,7 @@ struct DroppedItemView: View {
                     onRemove()
                 }
             } label: {
-                Label("Remove", systemImage: "trash")
+                Label("Remove from Shelf", systemImage: "xmark")
             }
         }
         .draggable(item)

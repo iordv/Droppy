@@ -20,6 +20,7 @@ struct NotchShelfView: View {
     @Bindable var state: DroppyState
     @ObservedObject var dragMonitor = DragMonitor.shared
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
+    @AppStorage("enableNotchShelf") private var enableNotchShelf = true
     @AppStorage("hideNotchOnExternalDisplays") private var hideNotchOnExternalDisplays = false
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
@@ -62,6 +63,9 @@ struct NotchShelfView: View {
     // Global rename state
     @State private var renamingItemId: UUID?
     
+    // Media HUD hover state - used to grow notch when showing song title
+    @State private var mediaHUDIsHovered: Bool = false
+    
     // Removed isDropTargeted state as we use shared state now
     
     /// Dynamic notch width based on screen's actual safe areas
@@ -70,13 +74,15 @@ struct NotchShelfView: View {
         guard let screen = NSScreen.main else { return 180 }
         
         // Use auxiliary areas to calculate true notch width
-        // These areas represent the usable space on either side of the notch
+        // The notch is the gap between the right edge of the left safe area
+        // and the left edge of the right safe area
         if let leftArea = screen.auxiliaryTopLeftArea,
            let rightArea = screen.auxiliaryTopRightArea {
-            // Notch width = screen width - left safe area - right safe area
-            let calculatedWidth = screen.frame.width - leftArea.width - rightArea.width
-            // Add small padding to ensure we fully cover the notch
-            return max(calculatedWidth + 4, 180)
+            // Correct calculation: the gap between the two auxiliary areas
+            // This is more accurate than (screen.width - leftWidth - rightWidth)
+            // which can have sub-pixel rounding errors on different display configurations
+            let notchGap = rightArea.minX - leftArea.maxX
+            return max(notchGap, 180)
         }
         
         // Fallback for screens without notch data
@@ -92,10 +98,14 @@ struct NotchShelfView: View {
     
     private let expandedWidth: CGFloat = 450
     
-    /// HUD dimensions - scales relative to notch width
+    /// HUD dimensions - different sizes for volume/brightness vs media
+    /// Volume/Brightness HUD needs more width for icon + slider + percentage
+    private var volumeHudWidth: CGFloat {
+        max(350, notchWidth * 1.6)  // Wider to fit icon and percentage outside notch
+    }
+    /// Media HUD has tighter wings for album art / visualizer
     private var hudWidth: CGFloat {
-        // HUD should be about 1.8x to 2x the notch width, but at least 350
-        max(350, notchWidth * 1.6)
+        max(300, notchWidth * 1.35)
     }
     private let hudHeight: CGFloat = 73
     
@@ -114,11 +124,13 @@ struct NotchShelfView: View {
     
     /// Current notch width based on state
     private var currentNotchWidth: CGFloat {
-        if state.isExpanded {
+        if state.isExpanded && enableNotchShelf {
             return expandedWidth
-        } else if hudIsVisible || shouldShowMediaHUD {
-            return hudWidth
-        } else if dragMonitor.isDragging || state.isMouseHovering {
+        } else if hudIsVisible {
+            return volumeHudWidth  // Volume/Brightness HUD needs wider wings
+        } else if shouldShowMediaHUD {
+            return hudWidth  // Media HUD uses tighter wings
+        } else if enableNotchShelf && (dragMonitor.isDragging || state.isMouseHovering) {
             return notchWidth + 20
         } else {
             return notchWidth
@@ -127,11 +139,16 @@ struct NotchShelfView: View {
     
     /// Current notch height based on state
     private var currentNotchHeight: CGFloat {
-        if state.isExpanded {
+        if state.isExpanded && enableNotchShelf {
             return currentExpandedHeight
-        } else if hudIsVisible || shouldShowMediaHUD {
-            return hudHeight
-        } else if dragMonitor.isDragging || state.isMouseHovering {
+        } else if hudIsVisible {
+            return hudHeight // Volume/brightness HUD needs more space
+        } else if shouldShowMediaHUD {
+            // Grow when hovered OR when dragging files (peek effect with title)
+            // Title row: 4px top + 20px title + 4px bottom = 28px
+            let shouldExpand = mediaHUDIsHovered || (enableNotchShelf && dragMonitor.isDragging)
+            return shouldExpand ? notchHeight + 28 : notchHeight
+        } else if enableNotchShelf && (dragMonitor.isDragging || state.isMouseHovering) {
             return notchHeight + 40
         } else {
             return notchHeight
@@ -143,8 +160,10 @@ struct NotchShelfView: View {
         let baseHeight = max(1, rowCount) * 110 + 54 // 110 per row + 54 header
         
         // Add extra height when showing media player to prevent overlap with header buttons
-        if state.items.isEmpty && showMediaPlayer && musicManager.isPlaying && !musicManager.isPlayerIdle {
-            return baseHeight + 50 // Extra space for media player content
+        // Also keep height when paused (wasRecentlyPlaying) so UI doesn't jump
+        let shouldShowPlayer = musicManager.isPlaying || musicManager.wasRecentlyPlaying
+        if state.items.isEmpty && showMediaPlayer && shouldShowPlayer && !musicManager.isPlayerIdle {
+            return baseHeight + 100 // Extra space for media player content with control buttons
         }
         return baseHeight
     }
@@ -158,17 +177,22 @@ struct NotchShelfView: View {
     }
     
     private var shouldShowVisualNotch: Bool {
-        // Always show when expanded or during drag/hover (for drop indication)
-        if state.isExpanded { return true }
-        if dragMonitor.isDragging || state.isMouseHovering || state.isDropTargeted { return true }
-        // Always show when HUD is active (volume/brightness/media)
+        // Always show when HUD is active (volume/brightness/media) - works independently of shelf
         if hudIsVisible || shouldShowMediaHUD { return true }
+        
+        // Shelf-specific triggers only apply when shelf is enabled
+        if enableNotchShelf {
+            if state.isExpanded { return true }
+            if dragMonitor.isDragging || state.isMouseHovering || state.isDropTargeted { return true }
+        }
         
         // Hide on external displays when setting is enabled (static state only)
         if hideNotchOnExternalDisplays && !isBuiltInDisplay {
             return false
         }
-        return true
+        
+        // Show idle notch only if shelf is enabled
+        return enableNotchShelf
     }
     
     var body: some View {
@@ -198,7 +222,7 @@ struct NotchShelfView: View {
                            )
                        )
                        .foregroundStyle(Color.blue)
-                       .opacity((shouldShowVisualNotch && !state.isExpanded && (dragMonitor.isDragging || state.isMouseHovering)) ? 1 : 0)
+                       .opacity((enableNotchShelf && shouldShowVisualNotch && !state.isExpanded && (dragMonitor.isDragging || state.isMouseHovering)) ? 1 : 0)
                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragMonitor.isDragging)
                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isMouseHovering)
                 )
@@ -211,7 +235,7 @@ struct NotchShelfView: View {
                 .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.items.count)
             
             // MARK: - Content Overlay
-            ZStack {
+            ZStack(alignment: .top) {
                 // Always have the drop zone / interaction layer at the top
                 // BUT disable hit testing when expanded so slider/buttons can receive gestures
                 dropZone
@@ -223,6 +247,10 @@ struct NotchShelfView: View {
                     NotchHUDView(
                         hudType: $hudType,
                         value: $hudValue,
+                        isActive: true, // Slider thickens while HUD is visible
+                        notchWidth: notchWidth,
+                        notchHeight: notchHeight,
+                        hudWidth: volumeHudWidth,
                         onValueChange: { newValue in
                             if hudType == .volume {
                                 volumeManager.setAbsolute(Float32(newValue))
@@ -231,7 +259,7 @@ struct NotchShelfView: View {
                             }
                         }
                     )
-                    .frame(width: hudWidth, height: hudHeight)
+                    .frame(width: volumeHudWidth, height: hudHeight)
                     // Match media player transition - scale with notch
                     .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                     .zIndex(3)
@@ -242,22 +270,22 @@ struct NotchShelfView: View {
                 // Hide during song transitions for collapse-expand effect
                 // Debounce check only applies when setting is enabled
                 if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
-                    MediaHUDView(musicManager: musicManager)
-                        .frame(width: hudWidth, height: hudHeight)
+                    MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth)
+                        .frame(width: hudWidth, alignment: .top)
                         // Match exact notch collapse animation timing
                         .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.7)))
                         .zIndex(3)
                 }
                 
-                if state.isExpanded {
+                if state.isExpanded && enableNotchShelf {
                     expandedShelfContent
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.92)).animation(.spring(response: 0.35, dampingFraction: 0.7)),
-                            removal: .opacity.combined(with: .scale(scale: 0.95)).animation(.spring(response: 0.3, dampingFraction: 0.8))
-                        ))
+                        // Use simple opacity transition to reduce animation overhead
+                        .transition(.opacity.animation(.spring(response: 0.3, dampingFraction: 0.8)))
                         .frame(width: expandedWidth, height: currentExpandedHeight)
                         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: currentExpandedHeight)
                         .clipShape(NotchShape(bottomRadius: 20))
+                        // Synchronize child view animations with the parent
+                        .geometryGroup()
                         .zIndex(2)
                 }
             }
@@ -275,6 +303,14 @@ struct NotchShelfView: View {
              if newCount == 0 && state.isExpanded {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     state.isExpanded = false
+                }
+            }
+        }
+        // Show media HUD title when dragging files while music is playing
+        .onChange(of: dragMonitor.isDragging) { _, isDragging in
+            if showMediaPlayer && musicManager.isPlaying && !state.isExpanded {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    mediaHUDIsHovered = isDragging
                 }
             }
         }
@@ -339,11 +375,22 @@ struct NotchShelfView: View {
                 // Shelf collapsed - cancel any pending timer and reset hover state
                 cancelAutoShrinkTimer()
                 isHoveringExpandedContent = false
+                mediaHUDIsHovered = false // Reset media HUD hover state
             }
         }
         // HUD is now embedded in the notch content (see ZStack above)
+        // MARK: - Keyboard Shortcuts
+        .background {
+            // Hidden button for Cmd+A select all
+            Button("") {
+                if state.isExpanded {
+                    state.selectAll()
+                }
+            }
+            .keyboardShortcut("a", modifiers: .command)
+            .opacity(0)
+        }
     }
-    
     // MARK: - HUD Overlay Content (Legacy - now embedded in notch)
     // Kept for reference but no longer used
     
@@ -443,34 +490,47 @@ struct NotchShelfView: View {
     private var dropZone: some View {
         // Dynamic hit area: tiny in idle, larger when active
         // This prevents blocking Safari URL bars, Outlook search fields, etc.
-        let isActive = state.isExpanded || state.isMouseHovering || dragMonitor.isDragging || state.isDropTargeted
+        let isActive = enableNotchShelf && (state.isExpanded || state.isMouseHovering || dragMonitor.isDragging || state.isDropTargeted)
         
         // Idle: just the notch itself (small area that doesn't extend below menu bar)
         // Active: larger area for comfortable interaction
         let dropAreaWidth: CGFloat = isActive ? (notchWidth + 80) : notchWidth
         let dropAreaHeight: CGFloat = isActive ? (notchHeight + 50) : notchHeight
         
-        return ZStack {
+        // Calculate indicator position: exactly below the current notch height with small gap
+        let indicatorOffset = currentNotchHeight + 20
+        
+        return ZStack(alignment: .top) {
             // Invisible hit area for hovering/clicking - SIZE CHANGES based on state
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.clear)
                 .frame(width: dropAreaWidth, height: dropAreaHeight)
                 .contentShape(Rectangle()) // Only THIS rectangle is interactive
             
-            // Beautiful drop indicator when hovering with files
-            if showDropIndicator && state.isDropTargeted && !state.isExpanded {
-                dropIndicator
-                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    .allowsHitTesting(false) // Don't let the badge capture clicks
+            // Beautiful drop indicator when hovering with files (only when shelf is enabled)
+            if enableNotchShelf && showDropIndicator && state.isDropTargeted && !state.isExpanded {
+                dropIndicatorContent
+                    .offset(y: indicatorOffset)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.7).combined(with: .opacity).combined(with: .offset(y: -10)),
+                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                    ))
+                    .allowsHitTesting(false)
             }
-            // "Open Shelf" indicator when hovering with mouse (no drag)
-            else if showOpenShelfIndicator && state.isMouseHovering && !dragMonitor.isDragging && !state.isExpanded {
-                openIndicator
-                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    .allowsHitTesting(false) // Don't let the badge capture clicks
+            // "Open Shelf" indicator when hovering with mouse (no drag) - only when shelf is enabled
+            else if enableNotchShelf && showOpenShelfIndicator && state.isMouseHovering && !dragMonitor.isDragging && !state.isExpanded {
+                openIndicatorContent
+                    .offset(y: indicatorOffset)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.7).combined(with: .opacity).combined(with: .offset(y: -10)),
+                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                    ))
+                    .allowsHitTesting(false)
             }
         }
         .onTapGesture {
+            // Only allow expanding shelf when shelf is enabled
+            guard enableNotchShelf else { return }
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                 state.isExpanded.toggle()
             }
@@ -478,8 +538,16 @@ struct NotchShelfView: View {
         .onHover { isHovering in
             // Only update hover state if not dragging (drag state handles its own)
             if !dragMonitor.isDragging {
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                    state.isMouseHovering = isHovering
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    // Only set mouse hovering if shelf is enabled
+                    if enableNotchShelf {
+                        state.isMouseHovering = isHovering
+                    }
+                    // Propagate hover to media HUD when music is playing (works independently)
+                    // Use simple check instead of shouldShowMediaHUD to avoid flickering
+                    if showMediaPlayer && musicManager.isPlaying && !state.isExpanded {
+                        mediaHUDIsHovered = isHovering
+                    }
                 }
             }
         }
@@ -489,7 +557,7 @@ struct NotchShelfView: View {
     
     // MARK: - Indicators
     
-    private var dropIndicator: some View {
+    private var dropIndicatorContent: some View {
         HStack(spacing: 8) {
             Image(systemName: "tray.and.arrow.down.fill")
                 .font(.system(size: 22, weight: .semibold))
@@ -504,10 +572,9 @@ struct NotchShelfView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(indicatorBackground)
-        .offset(y: notchHeight + 50)
     }
     
-    private var openIndicator: some View {
+    private var openIndicatorContent: some View {
         HStack(spacing: 8) {
             Image(systemName: "hand.tap.fill")
                 .font(.system(size: 18, weight: .semibold))
@@ -522,7 +589,6 @@ struct NotchShelfView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(indicatorBackground)
-        .offset(y: notchHeight + 50)
     }
     
     // NOTE: Part of shelf UI - always solid black (transparent setting doesn't apply)
@@ -546,6 +612,7 @@ struct NotchShelfView: View {
                 NotchControlButton(icon: "chevron.up") {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         state.isExpanded = false
+                        state.isMouseHovering = false // Reset to hide "Open Shelf" indicator
                     }
                 }
                 .padding(.leading, 16)
@@ -593,8 +660,8 @@ struct NotchShelfView: View {
                         .frame(height: currentExpandedHeight - 54)
                         .transition(.opacity.animation(.spring(response: 0.3, dampingFraction: 0.8)))
                 }
-                // Show media player when music is playing and NOT drop targeted
-                else if state.items.isEmpty && showMediaPlayer && musicManager.isPlaying && !musicManager.isPlayerIdle && !state.isDropTargeted {
+                // Show media player when music is playing (or recently paused) and NOT drop targeted
+                else if state.items.isEmpty && showMediaPlayer && (musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isPlayerIdle && !state.isDropTargeted {
                     MediaPlayerView(musicManager: musicManager)
                         .frame(height: currentExpandedHeight - 54)
                         .transition(.opacity.animation(.spring(response: 0.35, dampingFraction: 0.7)))
@@ -1034,7 +1101,8 @@ struct NotchItemView: View {
             }
         }
         .onHover { hovering in
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+            // Use fast easeOut instead of spring to reduce animation overhead
+            withAnimation(.easeOut(duration: 0.15)) {
                 isHovering = hovering
             }
         }
@@ -1193,7 +1261,7 @@ struct NotchItemView: View {
                      onRemove()
                  }
             }) {
-                Label("Remove", systemImage: "trash")
+                Label("Remove from Shelf", systemImage: "xmark")
             }
         }
         .task {

@@ -14,6 +14,7 @@ struct LiquidSlider: View {
     @Binding var value: CGFloat // 0.0 to 1.0
     var accentColor: Color = .white
     var showPercentage: Bool = false
+    var isActive: Bool = false // External active state (for keyboard-triggered thickening)
     var onChange: ((CGFloat) -> Void)?
     var onDragChange: ((CGFloat) -> Void)?
     
@@ -22,10 +23,13 @@ struct LiquidSlider: View {
     private let height: CGFloat = 6
     private let expandedHeight: CGFloat = 10
     
+    /// Whether the slider should be in expanded state (dragging OR externally active)
+    private var isExpanded: Bool { isDragging || isActive }
+    
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
-            let currentHeight = isDragging ? expandedHeight : height
+            let currentHeight = isExpanded ? expandedHeight : height
             let progress = max(0, min(1, value))
             let filledWidth = progress * width
             
@@ -85,8 +89,8 @@ struct LiquidSlider: View {
                     )
                     // Glow shadow
                     .shadow(
-                        color: accentColor.opacity(isDragging ? 0.5 : 0.3),
-                        radius: isDragging ? 8 : 4,
+                        color: accentColor.opacity(isExpanded ? 0.5 : 0.3),
+                        radius: isExpanded ? 8 : 4,
                         x: 2,
                         y: 0
                     )

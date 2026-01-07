@@ -149,7 +149,7 @@ final class MediaKeyInterceptor {
 }
 
 /// C callback function for CGEventTap
-/// Uses autoreleasepool to properly manage NSEvent memory
+/// Uses a safe pattern to extract NSEvent data without memory issues
 private func mediaKeyCallback(
     proxy: CGEventTapProxy,
     type: CGEventType,
@@ -170,69 +170,71 @@ private func mediaKeyCallback(
         return Unmanaged.passUnretained(event)
     }
     
-    // SAFETY: Create a copy of the event to avoid race conditions with HID queue
-    // The original event may be deallocated while we're processing
-    guard let eventCopy = event.copy() else {
-        return Unmanaged.passUnretained(event)
+    // Safely extract data from NSEvent - capture all needed values immediately
+    // This struct holds the extracted data as pure value types
+    struct MediaKeyData {
+        var isValid: Bool = false
+        var keyCode: UInt32 = 0
+        var shouldProcess: Bool = false
     }
     
-    // Use autoreleasepool to properly manage NSEvent memory
-    // This prevents objc_release crashes from CGEvent/NSEvent bridging
-    var shouldSuppress = false
-    
-    autoreleasepool {
-        // Convert to NSEvent to extract media key data
-        // SAFETY: Use eventCopy instead of original event
-        guard let nsEvent = NSEvent(cgEvent: eventCopy),
-              nsEvent.subtype.rawValue == 8 else { // NX_SUBTYPE_AUX_CONTROL_BUTTONS
-            return
+    // Extract data in a controlled scope - the NSEvent is released when scope ends
+    let keyData: MediaKeyData = {
+        guard let nsEvent = NSEvent(cgEvent: event) else {
+            return MediaKeyData()
         }
         
-        // Extract key data immediately before nsEvent is released
+        // NX_SUBTYPE_AUX_CONTROL_BUTTONS = 8
+        guard nsEvent.subtype.rawValue == 8 else {
+            return MediaKeyData()
+        }
+        
+        // Capture data1 immediately as a value type
         let data1 = nsEvent.data1
         let keyCode = UInt32((data1 & 0xFFFF0000) >> 16)
         let keyFlags = UInt32(data1 & 0x0000FFFF)
         let keyState = ((keyFlags & 0xFF00) >> 8)
         
-        // Key state interpretation:
-        // 0x0A = Key down
-        // 0x0B = Key up
-        // Some external keyboards may also send 0x08 or other values for key events
-        // We process on key down (0x0A) OR if it's a key repeat (indicated by bit 0)
-        let keyDown = keyState == 0x0A || keyState == 0x08 // Accept multiple keyDown states
+        // Key state interpretation
+        let keyDown = keyState == 0x0A || keyState == 0x08
         let keyUp = keyState == 0x0B
         let keyRepeat = (keyFlags & 0x1) != 0
-        
-        // Process on key down OR key repeat, ignore key up
         let shouldProcess = (keyDown || keyRepeat) && !keyUp
         
-        // Check if this is a media key we handle
-        let handledKeys: [UInt32] = [
-            NX_KEYTYPE_SOUND_UP,
-            NX_KEYTYPE_SOUND_DOWN,
-            NX_KEYTYPE_MUTE,
-            NX_KEYTYPE_BRIGHTNESS_UP,
-            NX_KEYTYPE_BRIGHTNESS_DOWN
-        ]
-        
-        if handledKeys.contains(keyCode) {
-            // Get the interceptor instance
-            if let userInfo = userInfo {
-                let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
-                
-                // Handle the key event
-                if interceptor.handleMediaKey(keyCode: keyCode, keyDown: shouldProcess) {
-                    shouldSuppress = true
-                }
-            }
-        }
+        return MediaKeyData(isValid: true, keyCode: keyCode, shouldProcess: shouldProcess)
+    }()
+    
+    // If extraction failed, pass through
+    guard keyData.isValid else {
+        return Unmanaged.passUnretained(event)
     }
     
-    // Return nil AFTER autoreleasepool to suppress system HUD
-    if shouldSuppress {
+    // Check if this is a media key we handle
+    let handledKeys: [UInt32] = [
+        NX_KEYTYPE_SOUND_UP,
+        NX_KEYTYPE_SOUND_DOWN,
+        NX_KEYTYPE_MUTE,
+        NX_KEYTYPE_BRIGHTNESS_UP,
+        NX_KEYTYPE_BRIGHTNESS_DOWN
+    ]
+    
+    guard handledKeys.contains(keyData.keyCode) else {
+        return Unmanaged.passUnretained(event)
+    }
+    
+    // Get the interceptor instance
+    guard let userInfo = userInfo else {
+        return Unmanaged.passUnretained(event)
+    }
+    
+    let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
+    
+    // Handle the key event
+    if interceptor.handleMediaKey(keyCode: keyData.keyCode, keyDown: keyData.shouldProcess) {
+        // Return nil to suppress system HUD
         return nil
     }
     
-    // Let other events pass through
+    // Let event pass through
     return Unmanaged.passUnretained(event)
 }

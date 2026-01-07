@@ -3,13 +3,13 @@
 //  Droppy
 //
 //  Created by Droppy on 05/01/2026.
-//  Liquid Glass styled media player for the expanded notch
+//  Native macOS-style media player for the expanded notch
 //
 
 import SwiftUI
 
 /// Full media player view for the expanded notch
-/// Features album art with blur background, playback controls, and progress slider
+/// Native macOS design with album art, visualizer, and control buttons
 struct MediaPlayerView: View {
     @ObservedObject var musicManager: MusicManager
     @State private var isDragging: Bool = false
@@ -17,6 +17,14 @@ struct MediaPlayerView: View {
     @State private var lastDragTime: Date = .distantPast
     @State private var isAlbumArtPressed: Bool = false
     @State private var isAlbumArtHovering: Bool = false
+    
+    /// Dominant color from album art for visualizer
+    private var visualizerColor: Color {
+        if musicManager.albumArt.size.width > 0 {
+            return musicManager.albumArt.dominantColor()
+        }
+        return .white.opacity(0.7)
+    }
     
     /// Compute estimated position at given date
     private func estimatedPosition(at date: Date) -> Double {
@@ -58,128 +66,104 @@ struct MediaPlayerView: View {
         TimelineView(.animation(minimumInterval: 0.1, paused: !musicManager.isPlaying && !isDragging)) { context in
             let currentDate = context.date
             
-            VStack(spacing: 16) {
-                // Top: Song Info + Album Art
+            VStack(spacing: 12) {
+                // MARK: - Top Row: Album Art + Song Info + Visualizer
                 HStack(spacing: 16) {
-                    // Album Art with lighting effect
+                    // Album Art
                     albumArtView
                     
-                    // Song info
+                    // Song info (title + artist)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                         
                         Text(musicManager.artistName.isEmpty ? "—" : musicManager.artistName)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // Audio Visualizer (right side, colored by album art)
+                    AudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
+                        .frame(width: 32, height: 20)
                 }
                 
-                // Progress Row: [Current Time] [Slider] [Total Time]
-                HStack(spacing: 12) {
+                // MARK: - Middle Row: Time + Slider
+                HStack(spacing: 16) {
                     // Current time
                     Text(elapsedTimeString(at: currentDate))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 50, alignment: .leading)
+                        .frame(width: 36, alignment: .trailing)
                     
-                    // Slider
+                    // Progress Slider
                     progressSliderView(at: currentDate)
                     
                     // Total time
                     Text(remainingTimeString())
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 50, alignment: .trailing)
+                        .frame(width: 36, alignment: .leading)
                 }
+                
+                // MARK: - Bottom Row: Controls
+                controlsRow
             }
-            .padding(24) // Equal padding all around
-            .padding(.top, 4) // Extra top for header icons
+            .padding(12) // Compact padding
         }
     }
     
     // MARK: - Album Art
     
     private var albumArtView: some View {
-        ZStack {
-            // Blur background glow
-            if musicManager.albumArt.size.width > 0 {
-                Image(nsImage: musicManager.albumArt)
-                    .resizable()
-                    .aspectRatio(1, contentMode: .fill)
-                    .frame(width: 120, height: 120)
-                    .scaleEffect(1.5)
-                    .blur(radius: 30)
-                    .opacity(musicManager.isPlaying ? 0.5 : 0.2)
-                    .animation(.easeInOut(duration: 0.3), value: musicManager.isPlaying)
-            }
-            
-            // Main album art
-            Button {
-                musicManager.openMusicApp()
-            } label: {
-                Group {
-                    if musicManager.albumArt.size.width > 0 {
-                        Image(nsImage: musicManager.albumArt)
-                            .resizable()
-                            .aspectRatio(1, contentMode: .fill)
-                    } else {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.1))
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(.white.opacity(0.4))
-                            )
-                    }
-                }
-                .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                // Liquid Glass border
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .white.opacity(isAlbumArtHovering ? 0.8 : 0.5), location: 0),
-                                    .init(color: .clear, location: 0.4),
-                                    .init(color: .black.opacity(0.2), location: 1)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: isAlbumArtHovering ? 1.5 : 1
+        Button {
+            musicManager.openMusicApp()
+        } label: {
+            Group {
+                if musicManager.albumArt.size.width > 0 {
+                    Image(nsImage: musicManager.albumArt)
+                        .resizable()
+                        .aspectRatio(1, contentMode: .fill)
+                } else {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.1))
+                        .overlay(
+                            Image(systemName: "music.note")
+                                .font(.system(size: 24))
+                                .foregroundStyle(.white.opacity(0.4))
                         )
-                )
-                .shadow(color: .black.opacity(0.4), radius: 10, y: 5)
-                // Glow on hover
-                .shadow(color: Color(nsColor: musicManager.avgColor).opacity(isAlbumArtHovering ? 0.6 : 0), radius: 15, y: 0)
+                }
             }
-            .buttonStyle(.plain)
-            .scaleEffect(isAlbumArtPressed ? 0.92 : (isAlbumArtHovering ? 1.03 : (musicManager.isPlaying ? 1 : 0.95)))
-            .animation(.spring(response: 0.25, dampingFraction: 0.65), value: isAlbumArtPressed)
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: isAlbumArtHovering)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: musicManager.isPlaying)
-            .onHover { hovering in
-                isAlbumArtHovering = hovering
-            }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        isAlbumArtPressed = true
-                    }
-                    .onEnded { _ in
-                        isAlbumArtPressed = false
-                    }
+            .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // Subtle border highlight
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
             )
+            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
         }
-        .frame(width: 80, height: 80)
+        .buttonStyle(.plain)
+        .scaleEffect(isAlbumArtPressed ? 0.95 : (isAlbumArtHovering ? 1.02 : 1.0))
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isAlbumArtPressed)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isAlbumArtHovering)
+        .onHover { hovering in
+            isAlbumArtHovering = hovering
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    isAlbumArtPressed = true
+                }
+                .onEnded { _ in
+                    isAlbumArtPressed = false
+                }
+        )
     }
     
     // MARK: - Progress Slider
@@ -189,89 +173,34 @@ struct MediaPlayerView: View {
             let width = geo.size.width
             let currentProgress = progress(at: date)
             let progressWidth = max(0, min(width, width * currentProgress))
-            let height: CGFloat = isDragging ? 10 : 6
-            let accentColor = Color(nsColor: musicManager.avgColor).ensureMinimumBrightness(factor: 0.6)
+            // Expand track height when dragging
+            let trackHeight: CGFloat = isDragging ? 6 : 4
             
             ZStack(alignment: .leading) {
-                // Track background - concave glass well (matches LiquidSlider)
+                // Track background (dark gray)
                 Capsule()
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        Capsule()
-                            .fill(Color.white.opacity(0.05))
-                    )
-                    // Concave lighting: shadow on top, highlight on bottom
-                    .overlay(
-                        Capsule()
-                            .stroke(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .black.opacity(0.3), location: 0),
-                                        .init(color: .clear, location: 0.3),
-                                        .init(color: .white.opacity(0.2), location: 1.0)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 0.5
-                            )
-                    )
-                    .frame(height: height)
+                    .fill(Color.white.opacity(isDragging ? 0.3 : 0.2))
+                    .frame(height: trackHeight)
                 
-                // Filled portion - gradient with glow (matches LiquidSlider)
+                // Filled portion (white with glow when dragging)
                 if currentProgress > 0 {
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    accentColor,
-                                    accentColor.opacity(0.6)
-                                ],
-                                startPoint: .trailing,
-                                endPoint: .leading
-                            )
-                        )
-                        .frame(width: max(height, progressWidth), height: height)
-                        // Inner glow
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    LinearGradient(
-                                        stops: [
-                                            .init(color: .white.opacity(0.6), location: 0),
-                                            .init(color: .clear, location: 0.5)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    ),
-                                    lineWidth: 0.5
-                                )
-                        )
-                        // Glow shadow
-                        .shadow(
-                            color: accentColor.opacity(isDragging ? 0.5 : 0.3),
-                            radius: isDragging ? 8 : 4,
-                            x: 2,
-                            y: 0
-                        )
-                }
-                
-                // Knob (only during drag)
-                if isDragging {
-                    Circle()
-                        .fill(.white)
-                        .frame(width: 14, height: 14)
-                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-                        .offset(x: progressWidth - 7)
+                        .fill(Color.white)
+                        .frame(width: max(trackHeight, progressWidth), height: trackHeight)
+                        .shadow(color: isDragging ? .white.opacity(0.4) : .clear, radius: isDragging ? 4 : 0)
                 }
             }
-            .frame(height: height)
+            .frame(height: trackHeight)
             .frame(maxHeight: .infinity, alignment: .center)
+            .scaleEffect(y: isDragging ? 1.1 : 1.0, anchor: .center)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isDragging)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        isDragging = true
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isDragging = true
+                        }
                         let fraction = max(0, min(1, value.location.x / width))
                         dragValue = Double(fraction) * musicManager.songDuration
                     }
@@ -279,117 +208,81 @@ struct MediaPlayerView: View {
                         let fraction = max(0, min(1, value.location.x / width))
                         let seekTime = Double(fraction) * musicManager.songDuration
                         musicManager.seek(to: seekTime)
-                        isDragging = false
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            isDragging = false
+                        }
                         lastDragTime = Date()
                     }
             )
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isDragging)
         }
-        .frame(height: 14)
+        .frame(height: 20)
     }
     
     // MARK: - Controls Row
     
     private var controlsRow: some View {
-        HStack(spacing: 24) {
-            Spacer()
-            
+        HStack(spacing: 32) {
             // Previous
-            SquarcleMediaButton(icon: "backward.fill", size: 32) {
+            MediaControlButton(icon: "backward.fill", size: 24) {
                 musicManager.previousTrack()
             }
             
             // Play/Pause (larger)
-            SquarcleMediaButton(
+            MediaControlButton(
                 icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
-                size: 44,
-                isPrimary: true
+                size: 32
             ) {
                 musicManager.togglePlay()
             }
             
             // Next
-            SquarcleMediaButton(icon: "forward.fill", size: 32) {
+            MediaControlButton(icon: "forward.fill", size: 24) {
                 musicManager.nextTrack()
             }
-            
-            Spacer()
         }
+        .allowsHitTesting(true)
     }
 }
 
-// MARK: - Squarcle Media Button
+// MARK: - Audio Visualizer Bars
 
-/// Media control button with squarcle (rounded square) Liquid Glass design
-struct SquarcleMediaButton: View {
+/// Animated audio visualizer bars (BoringNotch-style CAShapeLayer animation)
+struct AudioVisualizerBars: View {
+    let isPlaying: Bool
+    var color: Color = .white
+    
+    var body: some View {
+        AudioSpectrumView(isPlaying: isPlaying, barCount: 5, barWidth: 3, spacing: 2, height: 20, color: color)
+            .frame(width: 5 * 3 + 4 * 2, height: 20) // 5 bars * 3px + 4 gaps * 2px
+    }
+}
+
+// MARK: - Media Control Button (plain, no background)
+
+/// Simple media control button without background (for rewind/play/forward)
+struct MediaControlButton: View {
     let icon: String
     let size: CGFloat
-    var isPrimary: Bool = false
-    var action: () -> Void
+    let action: () -> Void
     
     @State private var isHovering = false
-    @State private var isPressed = false
-    
-    private var iconSize: CGFloat {
-        isPrimary ? size * 0.4 : size * 0.45
-    }
-    
-    private var cornerRadius: CGFloat {
-        size * 0.28  // Squarcle proportion
-    }
     
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: iconSize, weight: .semibold))
+                .font(.system(size: size, weight: .bold))
                 .foregroundStyle(.white)
-                .frame(width: size, height: size)
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .opacity(isPrimary ? 1 : (isHovering ? 1 : 0.6))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .white.opacity(isHovering ? 0.6 : 0.3), location: 0),
-                                    .init(color: .white.opacity(0.1), location: 0.4),
-                                    .init(color: .black.opacity(0.1), location: 1)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                )
-                .shadow(
-                    color: .black.opacity(isPrimary ? 0.3 : 0.2),
-                    radius: isPrimary ? 8 : 4,
-                    y: isPrimary ? 4 : 2
-                )
-                .scaleEffect(isPressed ? 0.9 : 1.0)
+                .frame(width: size + 16, height: size + 16)
+                .scaleEffect(isHovering ? 1.05 : 1.0)
+                .contentShape(Rectangle())
+                .contentTransition(.symbolEffect(.replace)) // Smooth icon morph
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering
             }
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    withAnimation(.interactiveSpring(response: 0.15)) {
-                        isPressed = true
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                        isPressed = false
-                    }
-                }
-        )
     }
 }
 
@@ -478,7 +371,7 @@ struct MusicVisualizerBars: View {
 #Preview("Media Player") {
     VStack {
         MediaPlayerView(musicManager: MusicManager.shared)
-            .frame(width: 350, height: 180)
+            .frame(width: 350, height: 200)
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 20))
     }

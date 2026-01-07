@@ -240,11 +240,17 @@ class NotchWindow: NSWindow {
         // Dynamic notch dimensions using auxiliary areas
         var notchWidth: CGFloat = 180
         var notchHeight: CGFloat = 32
+        var notchX: CGFloat = screen.frame.width / 2 - notchWidth / 2  // Fallback
         
-        // Calculate true notch width from safe areas
+        // Calculate true notch position and size from safe areas
+        // The notch is the gap between the right edge of the left safe area
+        // and the left edge of the right safe area
         if let leftArea = screen.auxiliaryTopLeftArea,
            let rightArea = screen.auxiliaryTopRightArea {
-            notchWidth = screen.frame.width - leftArea.width - rightArea.width + 4
+            // Correct calculation: the gap between the two auxiliary areas
+            notchWidth = max(rightArea.minX - leftArea.maxX, 180)
+            // Derive X position directly from auxiliary areas (more robust)
+            notchX = leftArea.maxX
         }
         
         // Get notch height from safe area insets
@@ -253,9 +259,8 @@ class NotchWindow: NSWindow {
             notchHeight = topInset
         }
         
-        let centerX = screen.frame.width / 2
         return NSRect(
-            x: centerX - notchWidth / 2,
+            x: notchX,
             y: screen.frame.height - notchHeight,
             width: notchWidth,
             height: notchHeight
@@ -491,8 +496,14 @@ class NotchDragContainer: NSView {
             let xRange = (centerX - expandedWidth/2)...(centerX + expandedWidth/2)
             
             // Height calculation from NotchShelfView (approx)
-             let rowCount = (Double(DroppyState.shared.items.count) / 5.0).rounded(.up)
-             let expandedHeight = max(1, rowCount) * 110 + 54
+            let rowCount = (Double(DroppyState.shared.items.count) / 5.0).rounded(.up)
+            var expandedHeight = max(1, rowCount) * 110 + 54
+            
+            // Add extra height for media player when shelf is empty but music is playing (or recently paused)
+            let shouldShowPlayer = MusicManager.shared.isPlaying || MusicManager.shared.wasRecentlyPlaying
+            if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
+                expandedHeight += 100
+            }
              
             // Y is from top (bounds.height) down to (bounds.height - expandedHeight)
             let yRange = (bounds.height - expandedHeight)...bounds.height

@@ -19,6 +19,9 @@ struct ClipboardManagerView: View {
     @State private var isSearchVisible = false
     @FocusState private var isSearchFocused: Bool
     
+    // Range selection anchor for Shift+Click
+    @State private var lastClickedItemId: UUID?
+    
 
 
     
@@ -302,16 +305,31 @@ struct ClipboardManagerView: View {
                                         return clipboardItemToPasteboardWritings(item)
                                     },
                                     onTap: { modifiers in
-                                        if modifiers.contains(.command) {
+                                        if modifiers.contains(.shift) {
+                                            // Shift+Click: range selection
+                                            if let anchorId = lastClickedItemId,
+                                               let anchorIndex = sortedHistory.firstIndex(where: { $0.id == anchorId }),
+                                               let clickedIndex = sortedHistory.firstIndex(where: { $0.id == item.id }) {
+                                                let range = min(anchorIndex, clickedIndex)...max(anchorIndex, clickedIndex)
+                                                for i in range {
+                                                    selectedItems.insert(sortedHistory[i].id)
+                                                }
+                                            } else {
+                                                selectedItems = [item.id]
+                                                lastClickedItemId = item.id
+                                            }
+                                        } else if modifiers.contains(.command) {
                                             // Cmd+Click: toggle selection
                                             if selectedItems.contains(item.id) {
                                                 selectedItems.remove(item.id)
                                             } else {
                                                 selectedItems.insert(item.id)
                                             }
+                                            lastClickedItemId = item.id
                                         } else {
                                             // Normal click: select only this
                                             selectedItems = [item.id]
+                                            lastClickedItemId = item.id
                                         }
                                     },
                                     onRightClick: {

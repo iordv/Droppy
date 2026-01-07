@@ -211,6 +211,11 @@ final class DroppyState {
         }
     }
     
+    /// Selects all basket items
+    func selectAllBasket() {
+        selectedBasketItems = Set(basketItems.map { $0.id })
+    }
+    
     /// Deselects all basket items
     func deselectAllBasket() {
         selectedBasketItems.removeAll()

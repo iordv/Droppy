@@ -66,10 +66,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Setup UI components on main thread
         DispatchQueue.main.async {
-            // 1. Notch Shelf
+            // 1. Notch Window (needed for Shelf, HUD replacement, and Media Player)
+            // The notch window is required for any of these features to work
             let enableNotch = UserDefaults.standard.bool(forKey: "enableNotchShelf")
-            let isSet = UserDefaults.standard.object(forKey: "enableNotchShelf") != nil
-            if enableNotch || !isSet {
+            let notchIsSet = UserDefaults.standard.object(forKey: "enableNotchShelf") != nil
+            let notchShelfEnabled = enableNotch || !notchIsSet  // Default true
+            
+            let hudEnabled = UserDefaults.standard.object(forKey: "enableHUDReplacement") == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: "enableHUDReplacement")
+            
+            let mediaEnabled = UserDefaults.standard.object(forKey: "showMediaPlayer") == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: "showMediaPlayer")
+            
+            // Create notch window if ANY of these features are enabled
+            if notchShelfEnabled || hudEnabled || mediaEnabled {
                 NotchWindowController.shared.setupNotchWindow()
             }
             
@@ -82,10 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // 3. Media Key Interceptor for HUD replacement
             // Start if HUD replacement is enabled to suppress system HUD
-            // Default to true if key is not set (matches @AppStorage default in SettingsView)
-            let hudEnabled = UserDefaults.standard.object(forKey: "enableHUDReplacement") == nil
-                ? true
-                : UserDefaults.standard.bool(forKey: "enableHUDReplacement")
+            // (hudEnabled already calculated above)
             if hudEnabled {
                 print("🎛️ Droppy: Starting Media Key Interceptor for HUD")
                 MediaKeyInterceptor.shared.start()

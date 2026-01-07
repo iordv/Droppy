@@ -59,13 +59,35 @@ final class MusicManager: ObservableObject {
     @Published private(set) var artistName: String = ""
     @Published private(set) var albumName: String = ""
     @Published private(set) var albumArt: NSImage = NSImage()
-    @Published private(set) var isPlaying: Bool = false
+    @Published private(set) var isPlaying: Bool = false {
+        didSet {
+            if oldValue && !isPlaying {
+                // Was playing, now paused - start the "recently playing" timer
+                wasRecentlyPlaying = true
+                recentlyPlayingTimer?.invalidate()
+                recentlyPlayingTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.wasRecentlyPlaying = false
+                    }
+                }
+            } else if isPlaying {
+                // Started playing again - cancel timer and keep visible
+                recentlyPlayingTimer?.invalidate()
+                recentlyPlayingTimer = nil
+                wasRecentlyPlaying = false
+            }
+        }
+    }
     @Published private(set) var songDuration: Double = 0
     @Published private(set) var elapsedTime: Double = 0
     @Published private(set) var playbackRate: Double = 1.0
     @Published private(set) var timestampDate: Date = .distantPast
     @Published private(set) var bundleIdentifier: String?
-    @Published private(set) var avgColor: NSColor = .gray
+
+    
+    /// Whether playback stopped recently (within 5 seconds) - keeps UI visible
+    @Published private(set) var wasRecentlyPlaying: Bool = false
+    private var recentlyPlayingTimer: Timer?
     
     /// Whether a player is active (even if paused)
     var isPlayerIdle: Bool {
@@ -332,7 +354,7 @@ final class MusicManager: ObservableObject {
            let artData = Data(base64Encoded: base64Art),
            let image = NSImage(data: artData) {
             albumArt = image
-            avgColor = image.dominantColor ?? .gray
+
         }
         
         // Debug: Log the update
@@ -606,67 +628,5 @@ final class MusicManager: ObservableObject {
         } else {
             return max(progressed, 0)
         }
-    }
-}
-
-// MARK: - NSImage Extension for Color Extraction
-
-extension NSImage {
-    /// Extract dominant color from image
-    var dominantColor: NSColor? {
-        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
-        }
-        
-        let width = min(cgImage.width, 50)
-        let height = min(cgImage.height, 50)
-        
-        guard let context = CGContext(
-            data: nil,
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: width * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-        
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        
-        guard let data = context.data else { return nil }
-        
-        let pointer = data.bindMemory(to: UInt8.self, capacity: width * height * 4)
-        
-        var totalR: CGFloat = 0
-        var totalG: CGFloat = 0
-        var totalB: CGFloat = 0
-        var count: CGFloat = 0
-        
-        for y in 0..<height {
-            for x in 0..<width {
-                let offset = (y * width + x) * 4
-                let r = CGFloat(pointer[offset]) / 255.0
-                let g = CGFloat(pointer[offset + 1]) / 255.0
-                let b = CGFloat(pointer[offset + 2]) / 255.0
-                
-                // Skip very dark or very light pixels
-                let brightness = (r + g + b) / 3
-                if brightness > 0.1 && brightness < 0.9 {
-                    totalR += r
-                    totalG += g
-                    totalB += b
-                    count += 1
-                }
-            }
-        }
-        
-        guard count > 0 else { return .gray }
-        
-        return NSColor(
-            red: totalR / count,
-            green: totalG / count,
-            blue: totalB / count,
-            alpha: 1.0
-        )
     }
 }

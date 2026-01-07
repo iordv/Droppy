@@ -1,5 +1,33 @@
-## Fixes
+# 🎉 Droppy 4.7 - Revamped HUDs & Enhanced Selection
 
-- Fixed volume keyboard buttons not working with USB audio devices (e.g., Jabra speakers)
-  - Droppy now detects if a device supports software volume control
-  - If not supported, volume keys pass through to macOS for native handling
+## Media Player
+- Completely revamped small media HUD with improved layout
+- Media seek slider now matches system HUD style
+- Smoother animations and transitions
+- Better album art and visualizer alignment
+
+## System HUD (Volume/Brightness)
+- Revamped volume and brightness HUD design
+- New slider style matching the media player seek slider
+- Slider thickens with subtle glow when adjusting values
+- Improved positioning to avoid notch overlap
+
+## Selection & Shortcuts
+- **Cmd+A** now selects all items in the Shelf
+- **Cmd+A** now selects all items in the Floating Basket
+- **Shift+Click** in Clipboard for fast range selection
+
+## Preferences & UI
+- Fixed transparency mode background bug in Settings
+- "To Shelf" button now hidden when Notch Shelf is disabled
+- "Move to Shelf" context menu hidden when Shelf is disabled
+- Renamed context menu items for clarity ("Remove from Shelf", "Remove from Basket")
+
+## Performance & Polish
+- Optimized shelf expansion animation for smoother performance
+- Simplified transitions to reduce CPU overhead
+- Fixed "Open Shelf" indicator staying visible after collapse
+- Fixed hover state management
+
+## Requirements
+- Requires macOS 15.0 (Sequoia) or later
