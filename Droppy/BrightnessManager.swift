@@ -43,6 +43,7 @@ final class BrightnessManager: ObservableObject {
     private var pollTimer: DispatchSourceTimer?
     private var lastPolledBrightness: Float = 0.5
     private var pollFailCount: Int = 0
+    private var isPollingInProgress = false // Mutex to prevent overlapping XPC calls
     
     // MARK: - Initialization
     private init() {
@@ -264,10 +265,15 @@ final class BrightnessManager: ObservableObject {
         // CRITICAL: Poll on main thread to avoid XPC/DisplayServices thread safety crashes
         // DisplayServicesGetBrightness makes XPC calls that are not thread-safe
         let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + 0.5, repeating: .milliseconds(250)) // Slower polling is acceptable
+        timer.schedule(deadline: .now() + 0.5, repeating: .milliseconds(500)) // Reduced frequency to prevent XPC race conditions
         timer.setEventHandler { [weak self] in
             autoreleasepool {
                 guard let self = self else { return }
+                
+                // Mutex: skip if previous poll still in progress (XPC safety)
+                guard !self.isPollingInProgress else { return }
+                self.isPollingInProgress = true
+                defer { self.isPollingInProgress = false }
                 
                 if let current = self.getCurrentBrightness() {
                     self.pollFailCount = 0

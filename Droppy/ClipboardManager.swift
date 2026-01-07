@@ -14,7 +14,8 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     var id: UUID = UUID()
     var type: ClipboardType
     var content: String? // Text, URL string, or File path
-    var imageData: Data? // For images
+    var imageData: Data? // LEGACY: For migration only, will be nil after migration
+    var imageFilePath: String? // NEW: Relative path to image file (e.g., "images/{uuid}.jpg")
     var date: Date = Date()
     var sourceApp: String?
     var isFavorite: Bool = false
@@ -25,16 +26,18 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     
     // Custom Codable for backwards compatibility
     enum CodingKeys: String, CodingKey {
-        case id, type, content, imageData, rtfData, date, sourceApp, isFavorite, isConcealed, customTitle
+        case id, type, content, imageData, imageFilePath, rtfData, date, sourceApp, isFavorite, isConcealed, customTitle
     }
     
-    init(id: UUID = UUID(), type: ClipboardType, content: String? = nil, imageData: Data? = nil, rtfData: Data? = nil,
+    init(id: UUID = UUID(), type: ClipboardType, content: String? = nil, imageData: Data? = nil, 
+         imageFilePath: String? = nil, rtfData: Data? = nil,
          date: Date = Date(), sourceApp: String? = nil, isFavorite: Bool = false, 
          isConcealed: Bool = false, customTitle: String? = nil) {
         self.id = id
         self.type = type
         self.content = content
         self.imageData = imageData
+        self.imageFilePath = imageFilePath
         self.rtfData = rtfData
         self.date = date
         self.sourceApp = sourceApp
@@ -49,12 +52,30 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         type = try container.decode(ClipboardType.self, forKey: .type)
         content = try container.decodeIfPresent(String.self, forKey: .content)
         imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+        imageFilePath = try container.decodeIfPresent(String.self, forKey: .imageFilePath)
         rtfData = try container.decodeIfPresent(Data.self, forKey: .rtfData)
         date = try container.decode(Date.self, forKey: .date)
         sourceApp = try container.decodeIfPresent(String.self, forKey: .sourceApp)
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         isConcealed = try container.decodeIfPresent(Bool.self, forKey: .isConcealed) ?? false // Default for old data
         customTitle = try container.decodeIfPresent(String.self, forKey: .customTitle)
+    }
+    
+    /// Get the full URL to the image file (lazy loading)
+    func getImageFileURL() -> URL? {
+        guard let relativePath = imageFilePath else { return nil }
+        return ClipboardManager.shared.imagesDirectory.appendingPathComponent(relativePath)
+    }
+    
+    /// Load image data from file (lazy - only when needed)
+    func loadImageData() -> Data? {
+        // First check if inline data exists (pre-migration)
+        if let data = imageData {
+            return data
+        }
+        // Otherwise load from file
+        guard let fileURL = getImageFileURL() else { return nil }
+        return try? Data(contentsOf: fileURL)
     }
     
     var title: String {
@@ -156,6 +177,14 @@ class ClipboardManager: ObservableObject {
         return appSupport.appendingPathComponent("clipboard_history.json")
     }()
     
+    /// Directory for storing clipboard images on disk (lazy loading)
+    lazy var imagesDirectory: URL = {
+        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+        let imagesDir = paths[0].appendingPathComponent("Droppy/images", isDirectory: true)
+        try? FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true)
+        return imagesDir
+    }()
+    
     init() {
         self.lastChangeCount = NSPasteboard.general.changeCount
         self.hasAccessibilityPermission = AXIsProcessTrusted()
@@ -219,13 +248,63 @@ class ClipboardManager: ObservableObject {
         guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
         do {
             let data = try Data(contentsOf: persistenceURL)
-            let decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+            var decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+            
+            // MIGRATION: Move inline imageData to files
+            var needsSave = false
+            for i in decoded.indices {
+                if decoded[i].type == .image,
+                   decoded[i].imageData != nil,
+                   decoded[i].imageFilePath == nil {
+                    // Migrate this item's image to file
+                    if let filePath = saveImageToFile(decoded[i].imageData!, id: decoded[i].id) {
+                        decoded[i].imageFilePath = filePath
+                        decoded[i].imageData = nil // Clear inline data to free memory
+                        needsSave = true
+                        print("📋 Migrated image \(decoded[i].id) to file")
+                    }
+                }
+            }
+            
             self.history = decoded
             print("📋 Loaded \(decoded.count) clipboard items from disk")
+            
+            // Save migrated data (without inline images)
+            if needsSave {
+                print("📋 Saving migrated history to disk...")
+                // Temporarily disable isLoading to allow save
+                isLoading = false
+                saveToDisk()
+                isLoading = true
+            }
         } catch {
             print("⚠️ Failed to load clipboard history: \(error)")
             // Don't clear history on load failure - keep whatever is in memory
         }
+    }
+    
+    // MARK: - Image File Management
+    
+    /// Save image data to file and return relative path
+    func saveImageToFile(_ data: Data, id: UUID) -> String? {
+        let filename = "\(id.uuidString).jpg"
+        let fileURL = imagesDirectory.appendingPathComponent(filename)
+        
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return filename // Return just the filename (relative path)
+        } catch {
+            print("❌ Failed to save image file: \(error)")
+            return nil
+        }
+    }
+    
+    /// Delete image file for an item
+    func deleteImageFile(for item: ClipboardItem) {
+        guard let relativePath = item.imageFilePath else { return }
+        let fileURL = imagesDirectory.appendingPathComponent(relativePath)
+        try? FileManager.default.removeItem(at: fileURL)
+        print("🗑️ Deleted image file: \(relativePath)")
     }
     
     func startMonitoring() {
@@ -259,6 +338,12 @@ class ClipboardManager: ObservableObject {
         // Calculate how many non-favorites we can keep
         let nonFavoriteLimit = max(0, historyLimit - favorites.count)
         let limitedNonFavorites = Array(nonFavorites.prefix(nonFavoriteLimit))
+        
+        // Identify items being removed and cleanup their image files
+        let keptIds = Set(favorites.map { $0.id } + limitedNonFavorites.map { $0.id })
+        for item in history where !keptIds.contains(item.id) {
+            deleteImageFile(for: item)
+        }
         
         // Rebuild history: favorites first (sorted by date), then non-favorites
         history = favorites.sorted { $0.date > $1.date } + limitedNonFavorites
@@ -327,15 +412,20 @@ class ClipboardManager: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             for var item in newItems.reversed() {
-                if let index = self.history.firstIndex(where: {
-                    $0.type == item.type &&
-                    $0.content == item.content &&
-                    $0.imageData == item.imageData
-                }) {
-                    let existing = self.history[index]
-                    item.isFavorite = existing.isFavorite
-                    item.customTitle = existing.customTitle
-                    self.history.remove(at: index)
+                // For images with files, skip duplicate detection (expensive to compare files)
+                // For text/url, check if content matches
+                if item.type != .image {
+                    if let index = self.history.firstIndex(where: {
+                        $0.type == item.type &&
+                        $0.content == item.content
+                    }) {
+                        let existing = self.history[index]
+                        item.isFavorite = existing.isFavorite
+                        item.customTitle = existing.customTitle
+                        // Delete old image file if being replaced
+                        self.deleteImageFile(for: existing)
+                        self.history.remove(at: index)
+                    }
                 }
                 self.history.insert(item, at: 0)
             }
@@ -369,13 +459,21 @@ class ClipboardManager: ObservableObject {
                     return
                 }
 
-                // 2) Image: prefer storing raw data without re-encoding
+                // 2) Image: Save to file to avoid memory bloat
                 if let tiff = item.data(forType: .tiff) {
-                    results.append(ClipboardItem(type: .image, imageData: tiff, sourceApp: app, isConcealed: isConcealed))
+                    let compressed = compressImageDataIfNeeded(tiff)
+                    let itemId = UUID()
+                    if let filePath = saveImageToFile(compressed, id: itemId) {
+                        results.append(ClipboardItem(id: itemId, type: .image, imageFilePath: filePath, sourceApp: app, isConcealed: isConcealed))
+                    }
                     return
                 }
                 if let png = item.data(forType: .png) {
-                    results.append(ClipboardItem(type: .image, imageData: png, sourceApp: app, isConcealed: isConcealed))
+                    let compressed = compressImageDataIfNeeded(png)
+                    let itemId = UUID()
+                    if let filePath = saveImageToFile(compressed, id: itemId) {
+                        results.append(ClipboardItem(id: itemId, type: .image, imageFilePath: filePath, sourceApp: app, isConcealed: isConcealed))
+                    }
                     return
                 }
 
@@ -441,7 +539,7 @@ class ClipboardManager: ObservableObject {
                 pasteboard.writeObjects([URL(fileURLWithPath: path) as NSURL])
             }
         case .image:
-            if let data = item.imageData, let img = NSImage(data: data) {
+            if let data = item.loadImageData(), let img = NSImage(data: data) {
                 pasteboard.writeObjects([img])
             }
         default: break
@@ -504,6 +602,8 @@ class ClipboardManager: ObservableObject {
     
     func delete(item: ClipboardItem) {
         if let index = history.firstIndex(where: { $0.id == item.id }) {
+            // Clean up image file if it exists
+            deleteImageFile(for: history[index])
             history.remove(at: index)
         }
     }
@@ -537,6 +637,42 @@ class ClipboardManager: ObservableObject {
     
     func isAppExcluded(_ bundleID: String) -> Bool {
         excludedApps.contains(bundleID)
+    }
+    
+    // MARK: - Image Compression (for NEW entries only)
+    
+    /// Compress large image data to reduce memory footprint
+    /// Only compresses images > 500KB, converts to JPEG at 80% quality
+    /// Maximum stored size: 1MB (further reduces quality if needed)
+    private func compressImageDataIfNeeded(_ data: Data) -> Data {
+        // Skip if already small enough
+        guard data.count > 500 * 1024 else { return data }
+        
+        // Try to create image
+        guard let image = NSImage(data: data),
+              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return data // Can't process, return original
+        }
+        
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+        
+        // Try progressively lower quality until under 1MB
+        for quality in stride(from: 0.8, through: 0.4, by: -0.1) {
+            if let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: quality]) {
+                if jpegData.count <= 1024 * 1024 {
+                    print("📋 Compressed image from \(data.count / 1024)KB to \(jpegData.count / 1024)KB (quality: \(quality))")
+                    return jpegData
+                }
+            }
+        }
+        
+        // Fallback: return lowest quality attempt or original
+        if let jpegData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.4]) {
+            print("📋 Compressed image from \(data.count / 1024)KB to \(jpegData.count / 1024)KB (quality: 0.4)")
+            return jpegData
+        }
+        
+        return data
     }
 }
 

@@ -22,31 +22,40 @@ struct ClipboardManagerView: View {
     // Range selection anchor for Shift+Click
     @State private var lastClickedItemId: UUID?
     
-
-
+    // Cached sorted/filtered history (updated only when needed)
+    @State private var cachedSortedHistory: [ClipboardItem] = []
     
     /// Helper to get selected items as array, respecting visual order
     private var selectedItemsArray: [ClipboardItem] {
-        sortedHistory.filter { selectedItems.contains($0.id) }
+        cachedSortedHistory.filter { selectedItems.contains($0.id) }
     }
     
-    /// History items sorted with favorites at the top and filtered by search
+    /// Alias for cached history (compatibility)
     private var sortedHistory: [ClipboardItem] {
-        // First filter if search is active
+        cachedSortedHistory
+    }
+    
+    /// Recompute sorted history (called only when history or search changes)
+    private func updateSortedHistory() {
+        let historySnapshot = manager.history
+        let searchSnapshot = searchText
+        
+        // Filter if search is active
         let filtered: [ClipboardItem]
-        if searchText.isEmpty {
-            filtered = manager.history
+        if searchSnapshot.isEmpty {
+            filtered = historySnapshot
         } else {
-            filtered = manager.history.filter { item in
-                item.title.localizedCaseInsensitiveContains(searchText) || 
-                (item.content ?? "").localizedCaseInsensitiveContains(searchText) || 
-                (item.sourceApp ?? "").localizedCaseInsensitiveContains(searchText)
+            filtered = historySnapshot.filter { item in
+                item.title.localizedCaseInsensitiveContains(searchSnapshot) ||
+                (item.content ?? "").localizedCaseInsensitiveContains(searchSnapshot) ||
+                (item.sourceApp ?? "").localizedCaseInsensitiveContains(searchSnapshot)
             }
         }
         
+        // Sort: favorites first
         let favorites = filtered.filter { $0.isFavorite }
         let others = filtered.filter { !$0.isFavorite }
-        return favorites + others
+        cachedSortedHistory = favorites + others
     }
     
     // Actions passed from Controller
@@ -57,8 +66,17 @@ struct ClipboardManagerView: View {
     var body: some View {
         mainContentView
             .overlay(alignment: .bottom) { feedbackToastView }
-            .onAppear { handleOnAppear() }
-            .onChange(of: manager.history) { _, new in handleHistoryChange(new) }
+            .onAppear { 
+                updateSortedHistory()
+                handleOnAppear() 
+            }
+            .onChange(of: manager.history) { _, new in 
+                updateSortedHistory()
+                handleHistoryChange(new) 
+            }
+            .onChange(of: searchText) { _, _ in
+                updateSortedHistory()
+            }
     }
     
     private var mainContentView: some View {
@@ -513,7 +531,7 @@ struct ClipboardManagerView: View {
                 return [URL(fileURLWithPath: path) as NSURL]
             }
         case .image:
-            if let data = item.imageData {
+            if let data = item.loadImageData() {
                 // Determine format and create appropriate file with unique suffix
                 let fileName = sanitizeFileName(item.title) + "_\(uniqueSuffix)"
                 let fileURL: URL
@@ -572,7 +590,7 @@ struct ClipboardManagerView: View {
                     urls.append(URL(fileURLWithPath: path))
                 }
             case .image:
-                if let data = item.imageData, let image = NSImage(data: data) {
+                if let data = item.loadImageData(), let image = NSImage(data: data) {
                     pasteboard.writeObjects([image])
                 }
             case .color:
@@ -644,6 +662,7 @@ struct ClipboardItemRow: View {
     
     @State private var isHovering = false
     @State private var dashPhase: CGFloat = 0
+    @State private var cachedThumbnail: NSImage? // Async-loaded thumbnail
     
     var body: some View {
         HStack(spacing: 10) {
@@ -653,9 +672,9 @@ struct ClipboardItemRow: View {
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 32, height: 32)
                 
-                // Show real image thumbnail for images, icon for others
-                if item.type == .image, let imageData = item.imageData, let nsImage = NSImage(data: imageData) {
-                    Image(nsImage: nsImage)
+                // Show cached thumbnail for images, icon for others
+                if item.type == .image, let thumbnail = cachedThumbnail {
+                    Image(nsImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 32, height: 32)
@@ -664,6 +683,14 @@ struct ClipboardItemRow: View {
                     Image(systemName: iconName(for: item.type))
                         .foregroundStyle(.white)
                         .font(.system(size: 12))
+                }
+            }
+            .task(id: item.id) {
+                // Load thumbnail asynchronously off main thread
+                if item.type == .image && cachedThumbnail == nil {
+                    cachedThumbnail = await Task.detached(priority: .userInitiated) {
+                        ThumbnailCache.shared.thumbnail(for: item)
+                    }.value
                 }
             }
             
@@ -895,7 +922,7 @@ struct ClipboardPreviewView: View {
         NSPasteboard.general.clearContents()
         if let str = item.content {
             NSPasteboard.general.setString(str, forType: .string)
-        } else if let imgData = item.imageData {
+        } else if let imgData = item.loadImageData() {
             NSPasteboard.general.setData(imgData, forType: .tiff)
         }
         
@@ -949,7 +976,7 @@ struct ClipboardPreviewView: View {
         do {
             switch item.type {
             case .image:
-                if let data = item.imageData,
+                if let data = item.loadImageData(),
                    let nsImage = NSImage(data: data),
                    let tiffData = nsImage.tiffRepresentation,
                    let bitmap = NSBitmapImageRep(data: tiffData),
@@ -1417,6 +1444,13 @@ struct ClipboardPreviewView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
+        .onDisappear {
+            // Release cached images when view disappears to free memory
+            cachedImage = nil
+            cachedAttributedText = nil
+            linkPreviewImage = nil
+            linkPreviewIcon = nil
+        }
         .task(id: item.id) {
             // Asynchronously load and process preview content
             isLoadingPreview = true
@@ -1430,7 +1464,7 @@ struct ClipboardPreviewView: View {
             
             switch item.type {
             case .image:
-                if let data = item.imageData {
+                if let data = item.loadImageData() {
                     cachedImage = await Task.detached(priority: .userInitiated) {
                         NSImage(data: data)
                     }.value

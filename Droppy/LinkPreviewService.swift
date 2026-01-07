@@ -10,23 +10,38 @@ struct RichLinkMetadata: Codable {
     var domain: String?
 }
 
+/// Wrapper class for NSCache (requires class type)
+private class CachedMetadata: NSObject {
+    let metadata: RichLinkMetadata
+    init(_ metadata: RichLinkMetadata) {
+        self.metadata = metadata
+    }
+}
+
 /// Service for fetching and caching link previews for URLs
 class LinkPreviewService {
     static let shared = LinkPreviewService()
     
-    private var metadataCache: [String: RichLinkMetadata] = [:]
-    private var imageCache: [String: NSImage] = [:]
+    // Use NSCache for automatic memory pressure eviction (instead of unbounded Dictionary)
+    private let metadataCache = NSCache<NSString, CachedMetadata>()
+    private let imageCache = NSCache<NSString, NSImage>()
     private var pendingRequests: [String: Task<RichLinkMetadata?, Never>] = [:]
     
-    private init() {}
+    private init() {
+        // Limit caches to prevent unbounded growth
+        metadataCache.countLimit = 50  // ~50 URLs cached
+        imageCache.countLimit = 30     // Images are larger, keep fewer
+    }
     
     // MARK: - Public API
     
     /// Fetch metadata for a URL using LinkPresentation and URLSession
     func fetchMetadata(for urlString: String) async -> RichLinkMetadata? {
+        let cacheKey = urlString as NSString
+        
         // Check cache first
-        if let cached = metadataCache[urlString] {
-            return cached
+        if let cached = metadataCache.object(forKey: cacheKey) {
+            return cached.metadata
         }
         
         // Check if there's already a pending request
@@ -68,7 +83,7 @@ class LinkPreviewService {
                 }
                 
                 _ = await MainActor.run {
-                    self.metadataCache[urlString] = rich
+                    self.metadataCache.setObject(CachedMetadata(rich), forKey: cacheKey)
                     self.pendingRequests.removeValue(forKey: urlString)
                 }
                 return rich
@@ -109,8 +124,10 @@ class LinkPreviewService {
     
     /// Fetch image directly from URL (for direct image links)
     func fetchImagePreview(for urlString: String) async -> NSImage? {
+        let cacheKey = urlString as NSString
+        
         // Check cache
-        if let cached = imageCache[urlString] {
+        if let cached = imageCache.object(forKey: cacheKey) {
             return cached
         }
         
@@ -127,7 +144,7 @@ class LinkPreviewService {
             // For AVIF/WEBP, we might need to rely on native support if available
             if let image = NSImage(data: data) {
                 _ = await MainActor.run {
-                    self.imageCache[urlString] = image
+                    self.imageCache.setObject(image, forKey: cacheKey)
                 }
                 return image
             }
@@ -146,7 +163,7 @@ class LinkPreviewService {
     
     /// Clear caches (for memory management if needed)
     func clearCache() {
-        metadataCache.removeAll()
-        imageCache.removeAll()
+        metadataCache.removeAllObjects()
+        imageCache.removeAllObjects()
     }
 }
