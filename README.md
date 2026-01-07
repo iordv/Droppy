@@ -169,21 +169,14 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Version 4.8.2 - USB Audio Device Hotfix
+# Version 4.8.3 - USB Audio Hotfix (Write-Verify)
 
 ## 🐛 Bug Fixes
 
-### 🔊 Fixed Volume Control for USB Audio Devices
-Volume slider now works correctly with USB audio devices like Jabra speakers and USB DACs:
-
-- **AppleScript fallback** - Uses macOS system-level volume control when CoreAudio fails
-- **Universal compatibility** - Works with any USB audio device that macOS can control
-- **Seamless experience** - Automatically tries CoreAudio first, falls back to AppleScript
-
-**Technical Details:**
-- Uses `set volume output volume` AppleScript command as fallback
-- Uses `output volume of (get volume settings)` to read USB device volume
-- CoreAudio VirtualMainVolume is tried first for best performance
+### 🔊 Improved USB Volume Control Reliability
+- **Write-verify pattern** - After setting volume via CoreAudio, verify it actually changed
+- **Automatic fallback** - If CoreAudio silently fails (some USB devices return "success" but don't apply), automatically falls back to AppleScript
+- **Reliable for all devices** - Works with Jabra, USB DACs, and other USB audio devices
 <!-- CHANGELOG_END -->
 
 ---
