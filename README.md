@@ -169,9 +169,11 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Version 4.7.8 - Native Update Experience
+# Version 4.7.9 - Testing the New Updater
 
-## ✨ Improvements
+> **Note:** This release is pushed specifically for testing purposes. If you're reading this after updating, the new native updater worked! 🎉
+
+## ✨ What's New
 
 ### 🎨 Native DroppyUpdater Helper
 The update process now uses a beautiful native macOS window instead of Terminal:
@@ -186,6 +188,10 @@ The update process now uses a beautiful native macOS window instead of Terminal:
 - Located at `Droppy.app/Contents/Helpers/DroppyUpdater`
 - Falls back to Terminal script if helper is unavailable
 - Same robust update logic: PID termination, admin fallback, error handling
+
+---
+
+**If you updated from 4.7.8 → 4.7.9 and saw the new beautiful update window, it worked!**
 <!-- CHANGELOG_END -->
 
 ---
