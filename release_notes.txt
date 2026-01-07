@@ -1,5 +1,29 @@
-## v4.6 - Appearance Consistency Update
+## v4.6 - Settings & Accessibility Update
 
-### Fixed
-- Transparent background setting now only applies to windows (Settings, Clipboard, Update) and not the shelf/notch, which always stays solid black for a cleaner look
-- Updated setting description to clarify behavior: "Use glass effect for windows (not shelf)"
+### ✨ New Features
+
+#### Accessibility Settings Tab
+- **New Accessibility section** in Settings for visual hints and quick-access options
+- **Open Shelf Indicator** toggle - Show/hide "Open Shelf" tooltip when hovering over notch
+- **Drop Indicator** toggle - Show/hide "Drop!" tooltip when dragging files
+- **Clipboard Button** toggle - Quick-access button in shelf and basket headers
+
+### 🎨 Improvements
+
+#### Transparent Background Refined
+- Glass effect now only applies to windows (Settings, Clipboard, Update) 
+- Shelf/notch always stays solid black for a cleaner, more polished look
+- Setting description updated for clarity: "Use glass effect for windows (not shelf)"
+
+#### Display Compatibility  
+- Improved resolution independence across all display settings
+- Better support for "More Space" and scaled resolution modes
+- Notch properly adapts to different screen configurations
+
+### 🐛 Fixes
+- Fixed transparent background looking inconsistent on shelf area
+- Security hotfix for auto-updates (quarantine attribute handling)
+- Background update checks now run daily without requiring restart
+
+---
+*Includes improvements from v4.5.3 and v4.5.4*

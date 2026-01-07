@@ -102,7 +102,18 @@ final class MediaKeyInterceptor {
     
     /// Handle a media key event
     /// Returns true if the event was handled (should be suppressed)
+    /// Returns false if the event should pass through to the system
     fileprivate func handleMediaKey(keyCode: UInt32, keyDown: Bool) -> Bool {
+        // Check if this is a volume key and device doesn't support software control
+        let isVolumeKey = keyCode == NX_KEYTYPE_SOUND_UP ||
+                          keyCode == NX_KEYTYPE_SOUND_DOWN ||
+                          keyCode == NX_KEYTYPE_MUTE
+        
+        if isVolumeKey && !VolumeManager.shared.supportsVolumeControl {
+            // Let the system handle volume for USB devices without software volume control
+            return false
+        }
+        
         // Only act on key down events
         guard keyDown else { return true }
         

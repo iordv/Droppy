@@ -42,6 +42,35 @@ final class VolumeManager: NSObject, ObservableObject {
         Date().timeIntervalSince(lastChangeAt) < visibleDuration
     }
     
+    /// Whether the current output device supports volume control via CoreAudio
+    /// USB devices that only support hardware volume control will return false
+    var supportsVolumeControl: Bool {
+        let deviceID = systemOutputDeviceID()
+        guard deviceID != kAudioObjectUnknown else { return false }
+        
+        // Check if master volume or any channel supports volume control
+        let candidateElements: [UInt32] = [kAudioObjectPropertyElementMain, 1, 2]
+        
+        for element in candidateElements {
+            var addr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyVolumeScalar,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: element
+            )
+            
+            if AudioObjectHasProperty(deviceID, &addr) {
+                // Verify the property is actually readable/writable
+                var sizeNeeded: UInt32 = 0
+                if AudioObjectGetPropertyDataSize(deviceID, &addr, 0, nil, &sizeNeeded) == noErr,
+                   sizeNeeded == UInt32(MemoryLayout<Float32>.size) {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
+    
     // MARK: - Public Control API
     
     /// Increase volume by one step
