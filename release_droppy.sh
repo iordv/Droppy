@@ -89,6 +89,41 @@ rm -rf "$APP_BUILD_PATH"
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme Droppy -configuration Release -derivedDataPath "$APP_BUILD_PATH" -destination 'generic/platform=macOS' ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO -quiet || error "Build failed"
 step "Build Successful"
 
+# Build and Bundle Helper
+info "Building DroppyUpdater Helper"
+HELPER_SRC="$MAIN_REPO/DroppyUpdater/main.swift"
+if [ -f "$HELPER_SRC" ]; then
+    # Build for ARM64
+    swiftc -o "$APP_BUILD_PATH/DroppyUpdater-arm64" \
+        "$HELPER_SRC" \
+        -framework AppKit \
+        -framework SwiftUI \
+        -O \
+        -target arm64-apple-macos14.0 || error "Helper build (ARM64) failed"
+    
+    # Build for x86_64
+    swiftc -o "$APP_BUILD_PATH/DroppyUpdater-x86_64" \
+        "$HELPER_SRC" \
+        -framework AppKit \
+        -framework SwiftUI \
+        -O \
+        -target x86_64-apple-macos14.0 || error "Helper build (x86_64) failed"
+    
+    # Create universal binary
+    lipo -create -output "$APP_BUILD_PATH/DroppyUpdater" \
+        "$APP_BUILD_PATH/DroppyUpdater-arm64" \
+        "$APP_BUILD_PATH/DroppyUpdater-x86_64"
+    rm -f "$APP_BUILD_PATH/DroppyUpdater-arm64" "$APP_BUILD_PATH/DroppyUpdater-x86_64"
+    
+    # Copy helper to app bundle
+    HELPERS_DIR="$APP_BUILD_PATH/Build/Products/Release/Droppy.app/Contents/Helpers"
+    mkdir -p "$HELPERS_DIR"
+    cp "$APP_BUILD_PATH/DroppyUpdater" "$HELPERS_DIR/"
+    step "Universal helper bundled at Contents/Helpers/DroppyUpdater"
+else
+    warning "DroppyUpdater source not found, skipping helper"
+fi
+
 # Packaging
 info "Packaging DMG"
 cd "$MAIN_REPO" || exit
