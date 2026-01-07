@@ -169,29 +169,33 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Version 4.7.9 - Testing the New Updater
+# Version 4.8 - Native Update Experience
 
-> **Note:** This release is pushed specifically for testing purposes. If you're reading this after updating, the new native updater worked! 🎉
-
-## ✨ What's New
+## ✨ New Features
 
 ### 🎨 Native DroppyUpdater Helper
 The update process now uses a beautiful native macOS window instead of Terminal:
 
 - **Droppy-styled UI** - Matches the update window you already know and love
 - **Animated progress** - Smooth step-by-step progress with checkmarks
+- **Confetti celebration** - Festive confetti when update completes!
 - **Clean and professional** - No more Terminal window with ASCII art
 - **Auto-launches** - When update completes, Droppy starts automatically
 
-### 🔧 Technical Details
+### 🎵 Media Player Polish
+- **Consistent edge padding** - Album art, timestamps, and controls now align perfectly
+- **Smooth transitions** - Symmetric animations between media player and drop zone
+
+## 🐛 Bug Fixes
+
+- Fixed "Cleaning up" spinner staying visible after update completion
+- Fixed inconsistent animation when pausing media in expanded view
+
+## 🔧 Technical Details
 - Helper bundled as universal binary (ARM64 + x86_64)
 - Located at `Droppy.app/Contents/Helpers/DroppyUpdater`
 - Falls back to Terminal script if helper is unavailable
-- Same robust update logic: PID termination, admin fallback, error handling
-
----
-
-**If you updated from 4.7.8 → 4.7.9 and saw the new beautiful update window, it worked!**
+- Optimized confetti animation using Canvas for smooth 60fps
 <!-- CHANGELOG_END -->
 
 ---
