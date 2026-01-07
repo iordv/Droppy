@@ -384,9 +384,13 @@ final class VolumeManager: NSObject, ObservableObject {
     private func writeVolumeViaOsascript(_ value: Float32) {
         let volumePercent = Int(value * 100)
         
+        // First unmute (some USB devices like Jabra get stuck in muted state)
+        // Then set volume - both in one script call for efficiency
+        let script = "set volume without output muted\nset volume output volume \(volumePercent)"
+        
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", "set volume output volume \(volumePercent)"]
+        process.arguments = ["-e", script]
         
         // Run synchronously (fast operation)
         do {
