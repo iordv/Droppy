@@ -1,6 +1,8 @@
-# Droppy 4.7.2 - Smoother Shelf Animation
+# Droppy 4.7.3 - Precise Drop Zone
 
-## Animation Improvements
-- Shelf closing animation now matches the HUD's smooth shrinking effect
-- Content scales down while fading for cohesive "shrinking into notch" feel
-- Applies to all shelf states: files, empty, and media player
+## Bug Fixes
+- **Fixed drop zone blocking bookmark bar**: The shelf's drop zone now only activates when hovering directly over the real hardware notch. Previously, the drop zone extended too far below the notch, preventing users from dragging files/URLs to browser bookmark bars and other UI elements near the top of the screen.
+- **Fixed invisible indicator text**: The "Drop!" and "Open Shelf" indicator text is now always white, ensuring visibility regardless of transparency mode settings.
+
+## Improvements
+- **Subtler notch expansion**: Reduced the notch expansion height when dragging files from 40px to 16px for a more refined, less intrusive visual effect.

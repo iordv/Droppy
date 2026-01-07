@@ -151,7 +151,7 @@ struct NotchShelfView: View {
             let shouldExpand = mediaHUDIsHovered || (enableNotchShelf && dragMonitor.isDragging)
             return shouldExpand ? notchHeight + 28 : notchHeight
         } else if enableNotchShelf && (dragMonitor.isDragging || state.isMouseHovering) {
-            return notchHeight + 40
+            return notchHeight + 16  // Subtle expansion, not too tall
         } else {
             return notchHeight
         }
@@ -568,7 +568,7 @@ struct NotchShelfView: View {
             
             Text("Drop!")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .shadow(radius: 2)
         }
         .padding(.horizontal, 20)
@@ -585,7 +585,7 @@ struct NotchShelfView: View {
             
             Text("Open Shelf")
                 .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .shadow(radius: 2)
         }
         .padding(.horizontal, 20)

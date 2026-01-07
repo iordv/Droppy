@@ -267,6 +267,11 @@ class NotchWindow: NSWindow {
         )
     }
     
+    /// Public accessor for the real hardware notch rect in screen coordinates
+    func getNotchRect() -> NSRect {
+        return notchRect
+    }
+    
     override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
         super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
         
@@ -513,19 +518,22 @@ class NotchDragContainer: NSView {
             }
         }
         
-        // IfDragging, we want the drop zone active
+        // If dragging, ONLY intercept if mouse is directly over the REAL hardware notch
+        // This prevents blocking bookmark bars and other UI elements below the notch
         if isDragging {
-             // Drop zone is roughly 260px wide, 82px high (notch + padding)
-             let dropWidth: CGFloat = 260
-             let dropHeight: CGFloat = 100 // generous for drop
-             
-             let centerX = bounds.midX
-             let xRange = (centerX - dropWidth/2)...(centerX + dropWidth/2)
-             let yRange = (bounds.height - dropHeight)...bounds.height
-             
-             if xRange.contains(localPoint.x) && yRange.contains(localPoint.y) {
-                  return super.hitTest(point)
-             }
+            // Get actual mouse position in screen coordinates
+            let mouseScreenPos = NSEvent.mouseLocation
+            
+            // Get the real hardware notch rect (calculated by NotchWindow)
+            guard let notchWindow = self.window as? NotchWindow else { return nil }
+            let realNotchRect = notchWindow.getNotchRect()
+            
+            // Only accept drags that are directly over the real notch
+            if realNotchRect.contains(mouseScreenPos) {
+                return super.hitTest(point)
+            }
+            // Outside the real notch - let the drag pass through to other apps
+            return nil
         }
         
         // If Idle (just hovering to open), strict notch area
@@ -562,7 +570,26 @@ class NotchDragContainer: NSView {
     
     // MARK: - NSDraggingDestination Methods
     
+    /// Helper to check if a drag location is over the real hardware notch
+    private func isDragOverNotch(_ sender: NSDraggingInfo) -> Bool {
+        guard let notchWindow = self.window as? NotchWindow else { return false }
+        let notchRect = notchWindow.getNotchRect()
+        let dragLocation = sender.draggingLocation
+        
+        // Convert from window coordinates to screen coordinates
+        guard let windowFrame = self.window?.frame else { return false }
+        let screenLocation = NSPoint(x: windowFrame.origin.x + dragLocation.x, 
+                                     y: windowFrame.origin.y + dragLocation.y)
+        
+        return notchRect.contains(screenLocation)
+    }
+    
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // ONLY accept drags that are directly over the real hardware notch
+        guard isDragOverNotch(sender) else {
+            return [] // Reject - let drag pass through to other apps
+        }
+        
         // Highlight UI
         DispatchQueue.main.async {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -570,6 +597,22 @@ class NotchDragContainer: NSView {
             }
         }
         return .copy
+    }
+    
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // Continuously check if we're still over the notch as the user drags
+        let overNotch = isDragOverNotch(sender)
+        
+        DispatchQueue.main.async {
+            let shouldBeTargeted = overNotch && !DroppyState.shared.isExpanded
+            if DroppyState.shared.isDropTargeted != shouldBeTargeted {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    DroppyState.shared.isDropTargeted = shouldBeTargeted
+                }
+            }
+        }
+        
+        return overNotch ? .copy : []
     }
     
     override func draggingExited(_ sender: NSDraggingInfo?) {
@@ -591,6 +634,12 @@ class NotchDragContainer: NSView {
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // Only accept drops over the real notch OR when shelf is already expanded
+        // (expanded shelf has its own larger drop area for adding more items)
+        if !DroppyState.shared.isExpanded && !isDragOverNotch(sender) {
+            return false // Reject - let other apps handle the drop
+        }
+        
         // Remove highlight
         DispatchQueue.main.async {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
