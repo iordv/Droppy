@@ -163,19 +163,12 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy 4.7.1 - macOS 14 (Sonoma) Support
+# Droppy 4.7.2 - Smoother Shelf Animation
 
-## Compatibility
-- Now supports macOS 14.0 (Sonoma) and later
-- Media Player features require macOS 15.0 (Sequoia)
-- All other features work on macOS 14: Shelf, Basket, Clipboard, Volume/Brightness HUDs
-
-## What's New for macOS 14 Users
-- Settings shows clear "Requires macOS 15" indicator for Media Player
-- Graceful degradation - no crashes or errors on older systems
-
-## Full Feature Support (macOS 15+)
-- All features including Media Player work as intended
+## Animation Improvements
+- Shelf closing animation now matches the HUD's smooth shrinking effect
+- Content scales down while fading for cohesive "shrinking into notch" feel
+- Applies to all shelf states: files, empty, and media player
 <!-- CHANGELOG_END -->
 
 ---
