@@ -195,7 +195,7 @@ brew install --cask iordv/tap/droppy
 - Fixed hover state management
 
 ## Requirements
-- Requires macOS 14.0 (Sonoma) or later
+- Requires macOS 15.0 (Sequoia) or later
 <!-- CHANGELOG_END -->
 
 ---
