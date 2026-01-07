@@ -1,8 +1,8 @@
 cask "droppy" do
-  version "4.7"
-  sha256 "e4295891f3c0bee52325981fb6c3608479332819eb92fcabfd14ba6985e4c77d"
+  version "4.7.1"
+  sha256 "b4a503c2ebb955ac9a40716e42e42c49ace641e5eb80e00b10b23d1e272df51d"
 
-  url "https://raw.githubusercontent.com/iordv/Droppy/main/Droppy-4.7.dmg"
+  url "https://raw.githubusercontent.com/iordv/Droppy/main/Droppy-4.7.1.dmg"
   name "Droppy"
   desc "Drag and drop file shelf for macOS"
   homepage "https://github.com/iordv/Droppy"

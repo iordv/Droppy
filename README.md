@@ -163,40 +163,19 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# 🎉 Droppy 4.7 - Revamped HUDs & Enhanced Selection
+# Droppy 4.7.1 - macOS 14 (Sonoma) Support
 
-## Media Player
-- Completely revamped small media HUD with improved layout
-- Media seek slider now matches system HUD style
-- Smoother animations and transitions
-- Better album art and visualizer alignment
+## Compatibility
+- Now supports macOS 14.0 (Sonoma) and later
+- Media Player features require macOS 15.0 (Sequoia)
+- All other features work on macOS 14: Shelf, Basket, Clipboard, Volume/Brightness HUDs
 
-## System HUD (Volume/Brightness)
-- Revamped volume and brightness HUD design
-- New slider style matching the media player seek slider
-- Slider thickens with subtle glow when adjusting values
-- Improved positioning to avoid notch overlap
+## What's New for macOS 14 Users
+- Settings shows clear "Requires macOS 15" indicator for Media Player
+- Graceful degradation - no crashes or errors on older systems
 
-## Selection & Shortcuts
-- **Cmd+A** now selects all items in the Shelf
-- **Cmd+A** now selects all items in the Floating Basket
-- **Shift+Click** in Clipboard for fast range selection
-
-## Preferences & UI
-- Fixed transparency mode background bug in Settings
-- "To Shelf" button now hidden when Notch Shelf is disabled
-- "Move to Shelf" context menu hidden when Shelf is disabled
-- Renamed context menu items for clarity ("Remove from Shelf", "Remove from Basket")
-
-## Performance & Polish
-- Optimized shelf expansion animation for smoother performance
-- Simplified transitions to reduce CPU overhead
-- Fixed "Open Shelf" indicator staying visible after collapse
-- Fixed hover state management
-
-## Requirements
-- Requires macOS 14.0 (Sonoma) or later
-- Media Player features require macOS 15.0 (Sequoia) or later
+## Full Feature Support (macOS 15+)
+- All features including Media Player work as intended
 <!-- CHANGELOG_END -->
 
 ---
