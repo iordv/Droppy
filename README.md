@@ -169,14 +169,14 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Version 4.8.3 - USB Audio Hotfix (Write-Verify)
+# Version 4.8.4 - USB Audio Hotfix (osascript)
 
 ## 🐛 Bug Fixes
 
-### 🔊 Improved USB Volume Control Reliability
-- **Write-verify pattern** - After setting volume via CoreAudio, verify it actually changed
-- **Automatic fallback** - If CoreAudio silently fails (some USB devices return "success" but don't apply), automatically falls back to AppleScript
-- **Reliable for all devices** - Works with Jabra, USB DACs, and other USB audio devices
+### 🔊 Improved USB Volume Control
+- **osascript via Process** - Now uses osascript command-line tool instead of NSAppleScript
+- **Same as macOS** - osascript is the exact tool macOS uses internally for scripting
+- **Better compatibility** - May have different execution context that works with more devices
 <!-- CHANGELOG_END -->
 
 ---
