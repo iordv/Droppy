@@ -163,14 +163,44 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy 4.7.3 - Precise Drop Zone
+# Droppy 4.7.5 - Memory & Performance Optimization
 
-## Bug Fixes
-- **Fixed drop zone blocking bookmark bar**: The shelf's drop zone now only activates when hovering directly over the real hardware notch. Previously, the drop zone extended too far below the notch, preventing users from dragging files/URLs to browser bookmark bars and other UI elements near the top of the screen.
-- **Fixed invisible indicator text**: The "Drop!" and "Open Shelf" indicator text is now always white, ensuring visibility regardless of transparency mode settings.
+## 🚀 Major Performance Improvements
 
-## Improvements
-- **Subtler notch expansion**: Reduced the notch expansion height when dragging files from 40px to 16px for a more refined, less intrusive visual effect.
+### Memory Usage (Up to 95% Reduction)
+- **Disk-based image storage**: Clipboard images are now stored on disk instead of in RAM
+  - Before: All images loaded in memory (~2-3GB with 50+ images)
+  - After: Only thumbnails loaded on-demand (~100-250MB typical)
+- **Automatic migration**: Existing clipboard entries are automatically migrated on first launch
+- **No data loss**: All existing clipboard history is preserved
+
+### CPU Optimization (Smoother Scrolling)
+- **Async thumbnail loading**: Thumbnails now load in background threads, eliminating scroll lag
+- **Cached sorted history**: Filter/sort operations now run only when data changes, not on every frame
+- **Reduced main thread blocking**: Image decoding moved off the main thread
+
+## 🔧 Technical Improvements
+
+### Clipboard System
+- New `ThumbnailCache` system using NSCache for efficient memory management
+- Image files stored in `~/Library/Application Support/Droppy/images/`
+- Automatic cleanup when items are deleted or history limit is reached
+- Image compression for new entries (JPEG 80% quality, max 1MB)
+
+### Link Preview Service
+- Converted Dictionary caches to NSCache with automatic eviction
+- Limits: 50 metadata entries, 30 images (auto-evicts under memory pressure)
+
+### Brightness Manager
+- Increased polling interval from 250ms to 500ms
+- Added mutex to prevent XPC race conditions and crashes
+
+## 📋 What's Changed
+- Added: `ThumbnailCache.swift` - New thumbnail caching system
+- Modified: `ClipboardManager.swift` - Disk-based image storage & migration
+- Modified: `ClipboardManagerView.swift` - Async thumbnails & cached sorted history
+- Modified: `LinkPreviewService.swift` - NSCache for memory efficiency
+- Modified: `BrightnessManager.swift` - Improved polling stability
 <!-- CHANGELOG_END -->
 
 ---
