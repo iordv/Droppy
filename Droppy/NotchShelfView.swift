@@ -707,29 +707,42 @@ struct NotchShelfView: View {
                 if state.isDropTargeted && state.items.isEmpty {
                     emptyShelfContent
                         .frame(height: currentExpandedHeight - 54)
-                        .transition(.opacity.animation(.spring(response: 0.3, dampingFraction: 0.8)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                            removal: .opacity.combined(with: .scale(scale: 0.95))
+                        ))
                 }
                 // Show media player when music is playing (or recently paused) and NOT drop targeted
                 else if state.items.isEmpty && showMediaPlayer && (musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isPlayerIdle && !state.isDropTargeted {
                     MediaPlayerView(musicManager: musicManager)
                         .frame(height: currentExpandedHeight - 54)
-                        .transition(.opacity.animation(.spring(response: 0.35, dampingFraction: 0.7)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                            removal: .opacity.combined(with: .scale(scale: 0.95))
+                        ))
                 }
                 // Show empty shelf when no items and no music
                 else if state.items.isEmpty {
                     emptyShelfContent
                         .frame(height: currentExpandedHeight - 54)
-                        .transition(.opacity.animation(.spring(response: 0.35, dampingFraction: 0.7)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                            removal: .opacity.combined(with: .scale(scale: 0.95))
+                        ))
                 }
                 // Show items grid when items exist
                 else {
                     itemsGridView
                         .frame(height: currentExpandedHeight - 54)
-                        .transition(.opacity.animation(.spring(response: 0.35, dampingFraction: 0.7)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                            removal: .opacity.combined(with: .scale(scale: 0.95))
+                        ))
                 }
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.isDropTargeted)
-            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: musicManager.isPlaying)
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: state.isDropTargeted)
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: musicManager.isPlaying)
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: musicManager.wasRecentlyPlaying)
         }
         .onHover { isHovering in
             // Track hover state for the auto-shrink timer

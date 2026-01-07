@@ -92,32 +92,35 @@ struct MediaPlayerView: View {
                 }
                 
                 // MARK: - Middle Row: Time + Slider
-                HStack(spacing: 12) {
-                    // Current time
+                HStack(spacing: 0) {
+                    // Current time - aligned to left edge (same as album art)
                     Text(elapsedTimeString(at: currentDate))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 40, alignment: .trailing)
+                        .frame(width: 40, alignment: .leading)
+                    
+                    Spacer().frame(width: 8)
                     
                     // Progress Slider
                     progressSliderView(at: currentDate)
                     
-                    // Total time
+                    Spacer().frame(width: 8)
+                    
+                    // Total time - aligned to right edge (same as visualizer)
                     Text(remainingTimeString())
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
-                        .frame(width: 40, alignment: .leading)
+                        .frame(width: 40, alignment: .trailing)
                 }
                 
                 // MARK: - Bottom Row: Controls
                 controlsRow
-                    .padding(.top, 4)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 14)
+            .padding(.bottom, 0)
         }
     }
     
