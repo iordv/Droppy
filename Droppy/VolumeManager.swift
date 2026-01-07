@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import AudioToolbox
 import Combine
 import CoreAudio
 import Foundation
@@ -43,12 +44,27 @@ final class VolumeManager: NSObject, ObservableObject {
     }
     
     /// Whether the current output device supports volume control via CoreAudio
-    /// USB devices that only support hardware volume control will return false
+    /// Checks both VirtualMainVolume (preferred, works with USB devices) and VolumeScalar
     var supportsVolumeControl: Bool {
         let deviceID = systemOutputDeviceID()
         guard deviceID != kAudioObjectUnknown else { return false }
         
-        // Check if master volume or any channel supports volume control
+        // First check VirtualMainVolume (works with more devices including USB)
+        var virtualAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        if AudioObjectHasProperty(deviceID, &virtualAddr) {
+            var sizeNeeded: UInt32 = 0
+            if AudioObjectGetPropertyDataSize(deviceID, &virtualAddr, 0, nil, &sizeNeeded) == noErr,
+               sizeNeeded == UInt32(MemoryLayout<Float32>.size) {
+                return true
+            }
+        }
+        
+        // Fall back to checking VolumeScalar on master or channels
         let candidateElements: [UInt32] = [kAudioObjectPropertyElementMain, 1, 2]
         
         for element in candidateElements {
@@ -59,7 +75,6 @@ final class VolumeManager: NSObject, ObservableObject {
             )
             
             if AudioObjectHasProperty(deviceID, &addr) {
-                // Verify the property is actually readable/writable
                 var sizeNeeded: UInt32 = 0
                 if AudioObjectGetPropertyDataSize(deviceID, &addr, 0, nil, &sizeNeeded) == noErr,
                    sizeNeeded == UInt32(MemoryLayout<Float32>.size) {
@@ -153,27 +168,52 @@ final class VolumeManager: NSObject, ObservableObject {
         let deviceID = systemOutputDeviceID()
         guard deviceID != kAudioObjectUnknown else { return }
         
-        var volumes: [Float32] = []
-        let candidateElements: [UInt32] = [kAudioObjectPropertyElementMain, 1, 2, 3, 4]
+        var fetchedVolume: Float32? = nil
         
-        for element in candidateElements {
-            if let v = readValidatedScalar(deviceID: deviceID, element: element) {
-                volumes.append(v)
+        // First try VirtualMainVolume (works with USB devices like Jabra)
+        var virtualAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        if AudioObjectHasProperty(deviceID, &virtualAddr) {
+            var vol = Float32(0)
+            var size = UInt32(MemoryLayout<Float32>.size)
+            if AudioObjectGetPropertyData(deviceID, &virtualAddr, 0, nil, &size, &vol) == noErr {
+                fetchedVolume = vol
             }
         }
         
-        if !volumes.isEmpty {
-            let avg = max(0, min(1, volumes.reduce(0, +) / Float32(volumes.count)))
+        // Fall back to VolumeScalar
+        if fetchedVolume == nil {
+            var volumes: [Float32] = []
+            let candidateElements: [UInt32] = [kAudioObjectPropertyElementMain, 1, 2, 3, 4]
+            
+            for element in candidateElements {
+                if let v = readValidatedScalar(deviceID: deviceID, element: element) {
+                    volumes.append(v)
+                }
+            }
+            
+            if !volumes.isEmpty {
+                fetchedVolume = volumes.reduce(0, +) / Float32(volumes.count)
+            }
+        }
+        
+        if let avg = fetchedVolume {
+            let clampedAvg = max(0, min(1, avg))
             DispatchQueue.main.async {
-                if self.rawVolume != avg {
+                if self.rawVolume != clampedAvg {
                     if self.didInitialFetch {
                         self.lastChangeAt = Date()
                     }
                 }
-                self.rawVolume = avg
+                self.rawVolume = clampedAvg
                 self.didInitialFetch = true
             }
         }
+
         
         // Check mute state
         var muteAddr = AudioObjectPropertyAddress(
@@ -258,6 +298,22 @@ final class VolumeManager: NSObject, ObservableObject {
         let deviceID = systemOutputDeviceID()
         if deviceID == kAudioObjectUnknown { return nil }
         
+        // First try VirtualMainVolume (works with USB devices like Jabra)
+        var virtualAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        if AudioObjectHasProperty(deviceID, &virtualAddr) {
+            var vol = Float32(0)
+            var size = UInt32(MemoryLayout<Float32>.size)
+            if AudioObjectGetPropertyData(deviceID, &virtualAddr, 0, nil, &size, &vol) == noErr {
+                return vol
+            }
+        }
+        
+        // Fall back to VolumeScalar (for devices that don't support VirtualMainVolume)
         var collected: [Float32] = []
         for el in [kAudioObjectPropertyElementMain, UInt32(1), UInt32(2), UInt32(3), UInt32(4)] {
             if let v = readValidatedScalar(deviceID: deviceID, element: el) {
@@ -273,6 +329,22 @@ final class VolumeManager: NSObject, ObservableObject {
         if deviceID == kAudioObjectUnknown { return }
         let newVal = max(0, min(1, value))
         
+        // First try VirtualMainVolume (works with USB devices like Jabra)
+        var virtualAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwareServiceDeviceProperty_VirtualMainVolume,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        if AudioObjectHasProperty(deviceID, &virtualAddr) {
+            var vol = newVal
+            let size = UInt32(MemoryLayout<Float32>.size)
+            if AudioObjectSetPropertyData(deviceID, &virtualAddr, 0, nil, size, &vol) == noErr {
+                return
+            }
+        }
+        
+        // Fall back to VolumeScalar
         if writeValidatedScalar(deviceID: deviceID, element: kAudioObjectPropertyElementMain, value: newVal) {
             return
         }
