@@ -166,9 +166,9 @@ final class VolumeManager: NSObject, ObservableObject {
             }
         }
         
-        // Final fallback: AppleScript
+        // Final fallback: osascript
         if fetchedVolume == nil {
-            fetchedVolume = readVolumeViaAppleScript()
+            fetchedVolume = readVolumeViaOsascript()
         }
         
         if let avg = fetchedVolume {
@@ -295,21 +295,30 @@ final class VolumeManager: NSObject, ObservableObject {
             }
         }
         
-        // Final fallback: AppleScript (works for USB devices that CoreAudio can't read)
-        return readVolumeViaAppleScript()
+        // Final fallback: osascript (works for USB devices that CoreAudio can't read)
+        return readVolumeViaOsascript()
     }
     
-    /// Read volume using AppleScript - works for USB devices where CoreAudio fails
-    private func readVolumeViaAppleScript() -> Float32? {
-        let script = "output volume of (get volume settings)"
+    /// Read volume using osascript - the same method macOS uses for system volume control
+    private func readVolumeViaOsascript() -> Float32? {
+        let process = Process()
+        let pipe = Pipe()
         
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: script) {
-            let output = scriptObject.executeAndReturnError(&error)
-            if error == nil {
-                let volumePercent = output.int32Value
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "output volume of (get volume settings)"]
+        process.standardOutput = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               let volumePercent = Int(output) {
                 return Float32(volumePercent) / 100.0
             }
+        } catch {
+            print("[VolumeManager] osascript read failed: \(error)")
         }
         return nil
     }
@@ -367,21 +376,24 @@ final class VolumeManager: NSObject, ObservableObject {
             }
         }
         
-        // Final fallback: AppleScript (works for USB devices that CoreAudio can't control)
-        writeVolumeViaAppleScript(newVal)
+        // Final fallback: osascript (same as macOS system volume control)
+        writeVolumeViaOsascript(newVal)
     }
     
-    /// Write volume using AppleScript - works for USB devices where CoreAudio fails
-    private func writeVolumeViaAppleScript(_ value: Float32) {
+    /// Write volume using osascript - the same method macOS uses for system volume control
+    private func writeVolumeViaOsascript(_ value: Float32) {
         let volumePercent = Int(value * 100)
-        let script = "set volume output volume \(volumePercent)"
         
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: script) {
-            scriptObject.executeAndReturnError(&error)
-            if error != nil {
-                print("[VolumeManager] AppleScript volume set failed: \(error!)")
-            }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", "set volume output volume \(volumePercent)"]
+        
+        // Run synchronously (fast operation)
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            print("[VolumeManager] osascript failed: \(error)")
         }
     }
     
