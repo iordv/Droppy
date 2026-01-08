@@ -191,27 +191,90 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy v4.9.3 - Integrations Update
+# 🚀 Droppy v4.9.5 — "Universal Integrations" Update
 
-## 🔌 New Integrations Tab
-- Dedicated **Integrations** tab in Settings for cleaner organization
-- One-click install buttons for Alfred and Raycast
-
-## 🛠️ Alfred Workflow Fix
-- Fixed Alfred 5 compatibility (was showing "incompatible workflow" error)
-- Changed to Universal Actions trigger for proper integration
-- Actions now appear in Alfred's → menu correctly
-
-## 🔧 Raycast Extension
-- Bundled extension installs to `~/.config/raycast/extensions/droppy`
-- Smooth one-click installation from Settings
-
-## 🐛 Bug Fixes
-- **Fixed permission prompts after reboot** - No longer prompts for Accessibility when already granted
-- Cleaned up Settings organization
+This is a massive update that brings deep integrations, email drag support, and major accessibility improvements!
 
 ---
-*Full changelog at https://github.com/iordv/Droppy/releases*
+
+## ✨ New Features
+
+### 🔗 Alfred Integration (First-Class Support)
+- **Native Alfred Workflow** — Download the `.alfredworkflow` from Settings → Integrations
+- **URL Scheme Support** — Use `droppy://shelf?file=...` or `droppy://basket?file=...` from any automation tool
+- **Multiple File Support** — Pass comma-separated paths for batch operations
+- **Clipboard Text Capture** — Send text snippets directly to shelf/basket
+
+### 📧 Mail.app Email Drag Support
+- **Drag emails directly** from Apple Mail to the Notch Shelf or Floating Basket
+- **Full .eml export** — Emails are saved as complete RFC 822 `.eml` files (not just links!)
+- **Uses AppleScript** — Bypasses unreliable file promises for reliable email capture
+- **Automation permission prompt** — Droppy will ask for permission to communicate with Mail on first use
+
+### 🧭 New Onboarding Wizard
+- **Beautiful guided setup** — First-launch experience walks you through all features
+- **Permission requests** — Explains Accessibility and Automation permissions clearly
+- **Feature discovery** — Shows the Notch Shelf, Floating Basket, and Clipboard History
+- **Reset via Settings** — Re-trigger the wizard anytime from Settings → About → "Show Introduction"
+
+### ⚙️ Finder Services Quick Setup
+- **"Add to Droppy Shelf"** and **"Add to Droppy Basket"** in Finder right-click menu
+- **Guided setup flow** — Deep-links to System Settings for easy enablement
+- **Visual instructions** — Clear step-by-step guide if manual setup is needed
+
+---
+
+## 🎨 UI/UX Improvements
+
+### 🔒 Screenshot Privacy
+- **Hide from screenshots** — New toggle to exclude the Notch Shelf from screenshots and screen recordings
+- **Perfect for demos** — Keep your shelf contents private during presentations
+- Located in Settings → Accessibility → "Hide from Screenshots"
+
+### ♿ Accessibility Settings Overhaul
+- **Renamed section** — "Visual Hints" is now "Accessibility" for clearer organization
+- **Screenshot visibility** — New option added alongside indicator toggles
+- **Cohesive grouping** — Related visual and privacy options in one place
+
+### 👁️ Quick Look Toggle
+- **Spacebar toggles** — Press spacebar once to preview, press again to close
+- **Fluid interaction** — No need to click outside or press Escape
+
+### 🧹 Improved Clear Actions
+- **New "eraser" icon** — Clear buttons now use `eraser.fill` for clearer semantics
+- **State reset** — Clearing the shelf properly resets expansion and hover states
+
+---
+
+## 🔧 Fixes & Optimizations
+
+### 🐛 Bug Fixes
+- **Accessibility prompt loop fixed** — No longer repeatedly prompts after permissions are granted
+- **Keyboard shortcut cleanup** — Removed duplicate Cmd+S shortcut in clipboard search
+- **Unused variable warnings** — Cleaned up compiler warnings throughout codebase
+- **GitHub Releases URLs** — Fixed download URLs to use proper Releases endpoints
+
+### ⚡ Performance
+- **Memory optimization** — Improved temporary file management and cleanup
+- **Drag detection** — Streamlined drag monitoring for better responsiveness
+
+---
+
+## 📋 Technical Details
+
+### New Files
+- `MailHelper.swift` — AppleScript-based email export from Mail.app
+- `OnboardingView.swift` — First-launch onboarding wizard
+- `FinderServicesSetupView.swift` — Guided Finder Services enablement
+- `QuickLookHelper.swift` — Toggle-based Quick Look preview management
+- `DroppyAlertView.swift` — Unified alert dialogs
+
+### Info.plist Updates
+- `NSAppleEventsUsageDescription` — Explains Mail.app communication permission
+
+---
+
+**Full Changelog**: https://github.com/iordv/Droppy/compare/v4.9.3...v4.9.5
 <!-- CHANGELOG_END -->
 
 ---
