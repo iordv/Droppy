@@ -31,6 +31,10 @@ final class VolumeManager: NSObject, ObservableObject {
     private var previousVolumeBeforeMute: Float32 = 0.2
     private var softwareMuted: Bool = false
     
+    // osascript debouncing - coalesce rapid volume changes to avoid delay
+    private var osascriptWorkItem: DispatchWorkItem?
+    private let osascriptDebounceDelay: TimeInterval = 0.05 // 50ms debounce
+    
     // MARK: - Initialization
     private override init() {
         super.init()
@@ -381,24 +385,40 @@ final class VolumeManager: NSObject, ObservableObject {
     }
     
     /// Write volume using osascript - the same method macOS uses for system volume control
+    /// Uses debouncing to coalesce rapid key presses and avoid delay buildup
     private func writeVolumeViaOsascript(_ value: Float32) {
         let volumePercent = Int(value * 100)
         
-        // First unmute (some USB devices like Jabra get stuck in muted state)
-        // Then set volume - both in one script call for efficiency
-        let script = "set volume without output muted\nset volume output volume \(volumePercent)"
+        // Cancel any pending osascript execution
+        osascriptWorkItem?.cancel()
         
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-e", script]
-        
-        // Run synchronously (fast operation)
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            print("[VolumeManager] osascript failed: \(error)")
+        // Create new work item with the latest volume value
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self, !(self.osascriptWorkItem?.isCancelled ?? true) else { return }
+            
+            // First unmute (some USB devices like Jabra get stuck in muted state)
+            // Then set volume - both in one script call for efficiency
+            let script = "set volume without output muted\nset volume output volume \(volumePercent)"
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", script]
+            
+            do {
+                try process.run()
+                process.waitUntilExit()
+            } catch {
+                print("[VolumeManager] osascript failed: \(error)")
+            }
         }
+        
+        osascriptWorkItem = workItem
+        
+        // Execute after debounce delay on background queue
+        DispatchQueue.global(qos: .userInteractive).asyncAfter(
+            deadline: .now() + osascriptDebounceDelay,
+            execute: workItem
+        )
     }
     
     private func isMutedInternal() -> Bool {
