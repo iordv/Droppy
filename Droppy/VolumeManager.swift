@@ -304,7 +304,13 @@ final class VolumeManager: NSObject, ObservableObject {
     }
     
     /// Read volume using osascript - the same method macOS uses for system volume control
+    /// Note: This runs synchronously but is only called as a fallback when CoreAudio fails
     private func readVolumeViaOsascript() -> Float32? {
+        // Don't block main thread - return cached value instead
+        if Thread.isMainThread {
+            return nil // Let caller use rawVolume instead
+        }
+        
         let process = Process()
         let pipe = Pipe()
         
@@ -394,7 +400,7 @@ final class VolumeManager: NSObject, ObservableObject {
         
         // Create new work item with the latest volume value
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self, !(self.osascriptWorkItem?.isCancelled ?? true) else { return }
+            guard self != nil else { return }
             
             // First unmute (some USB devices like Jabra get stuck in muted state)
             // Then set volume - both in one script call for efficiency
