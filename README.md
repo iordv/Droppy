@@ -192,71 +192,16 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# 🚀 Droppy v5.0 — "Liquid Previews" Update
+## Droppy v5.1 - UX Improvements
 
-This release completely overhauls the Settings and Onboarding experience with beautiful native SwiftUI previews!
+### ✨ Features
+- **Single-click shelf opening**: Click the notch or Dynamic Island once to instantly open the shelf - no double-click required!
+- **Improved hover detection**: Extended detection zone to the screen's top edge for fast cursor movements
+- **Basket snap positions**: New setting to snap the floating basket to screen edges (left, right, or bottom-center) instead of following the mouse
 
----
-
-## ✨ New Features
-
-### 🔮 Dynamic Island Mode (Non-Notch Macs)
-- **Universal compatibility** — Droppy now works on ANY Mac, not just those with a notch!
-- **Beautiful pill-shaped UI** — Macs without a physical notch get a sleek Dynamic Island-style interface
-- **Display mode picker** — Choose between Notch or Dynamic Island styling in Settings
-- **Same powerful features** — All shelf, HUD, and media player functionality works identically
-
-### 🎨 Completely Revamped Settings (SwiftUI Previews)
-- **Real SwiftUI demos** — All feature previews are now native SwiftUI components, not external images
-- **Pixel-perfect accuracy** — Previews use the actual production components (NotchShape, HUDSlider, AudioSpectrumView, MarqueeText)
-- **Live animations** — Volume slider, battery charging, and media player previews animate in real-time
-- **Zero network requests** — Settings now loads instantly without waiting for external GIFs
-
-### 🧭 Enhanced Onboarding Wizard
-- **Native SwiftUI demos** — All onboarding pages now use real SwiftUI components
-- **Real HUD preview** — System HUDs page shows actual animated VolumeHUDPreview
-- **Floating Basket preview** — Real dashed-border animation with mock file items
-- **Notch Shelf preview** — Authentic "Drop!" indicator with blue marching ants
-- **Clipboard preview** — Split-view design matching the real clipboard window
-
----
-
-## 🎯 UI/UX Improvements
-
-### 📦 Settings Preview Components
-| Preview | Real Components Used |
-|---------|---------------------|
-| **NotchShelfPreview** | NotchShape, blue marching ants, real "Drop!" indicator |
-| **FloatingBasketPreview** | Animated dashed border, mock file items, symmetrical layout |
-| **VolumeHUDPreview** | NotchShape, HUDSlider, wing-based layout, animated value |
-| **BatteryHUDPreview** | Dynamic battery icons, charging animation, color transitions |
-| **MediaPlayerPreview** | AudioSpectrumView, MarqueeText, album art preview |
-| **ClipboardPreview** | Split-view design, mock history items, paste button |
-| **OpenShelfIndicatorPreview** | Real hand.tap icon with bounce effect |
-| **DropIndicatorPreview** | Real tray icon with green foreground |
-
-### 🧹 Code Cleanup
-- **Removed GIFPreloader** — Entire class deleted (~60 lines), no longer needed
-- **Removed external GIF URLs** — All preview images replaced with native SwiftUI
-- **Simplified AnimatedGIFView** — Removed cache lookup, simplified to async loading
-
----
-
-## 🔧 Technical Improvements
-
-### ⚡ Performance
-- **Faster Settings load** — No network requests for previews
-- **Reduced memory** — No GIF caching or preloading at app startup
-- **Instant previews** — SwiftUI renders immediately
-
-### 🔗 Alfred Integration
-- **First-class support** — Native Alfred workflow for file operations
-- **URL scheme** — `droppy://shelf?file=...` and `droppy://basket?file=...`
-- **Batch operations** — Pass comma-separated paths
-
----
-
-**Full Changelog**: https://github.com/iordv/Droppy/compare/v4.9.5...v5.0
+### 🐛 Fixes
+- Hover detection no longer blocks areas below the notch (like Chrome's bookmark bar)
+- Detection works reliably when slamming the cursor to the top of the screen
 <!-- CHANGELOG_END -->
 
 ---
