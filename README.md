@@ -24,7 +24,7 @@
 ---
 
 <p align="center">
-  <video src="assets/Droppy demo.mp4" autoplay loop muted playsinline width="100%"></video>
+  <img src="assets/droppy_demo.gif" alt="Droppy Demo" width="100%">
 </p>
 
 ---
