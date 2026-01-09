@@ -5,8 +5,7 @@
 <h1 align="center">Droppy</h1>
 
 <p align="center">
-  <strong>Your files. Everywhere. Instantly.</strong><br>
-  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Custom HUDs</em>
+  <strong>Your files. Everywhere. Instantly.</strong>
 </p>
 
 <p align="center">
@@ -17,35 +16,57 @@
 
 <p align="center">
   <a href="#-installation">Install</a> •
-  <a href="#-features">Features</a> •
-  <a href="#-visual-tour">Screenshots</a> •
+  <a href="#-capabilities">Features</a> •
+  <a href="#-how-to-use">Usage</a> •
   <a href="#-whats-new">Changelog</a>
 </p>
 
 ---
 
-## What is Droppy?
-
-**Droppy turns your Mac's notch into a powerful file shelf** — and so much more.
-
-Drop files into your notch. Shake your mouse to summon a floating basket. Access your entire clipboard history. Control your music. Replace the ugly system volume HUD. All in one beautifully designed app.
-
-> **Works on ANY Mac** — non-notch displays get a gorgeous Dynamic Island-style pill interface!
+<p align="center">
+  <video src="assets/Droppy demo.mp4" autoplay loop muted playsinline width="100%"></video>
+</p>
 
 ---
 
-## ✨ Features
+<p align="center">
+  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Custom HUDs</em>
+</p>
 
-### Core Tools
+---
 
-| | Feature | Description |
-|:--|:--------|:------------|
-| 🗂️ | **Notch Shelf** | Drag files to your notch — they vanish into a sleek shelf, ready when you need them |
-| 🧺 | **Floating Basket** | Jiggle your mouse while dragging to summon a basket anywhere on screen |
-| 📋 | **Clipboard Manager** | Full history with search, favorites, OCR text extraction, and drag-out support |
-| 🎵 | **Media Player** | Now Playing controls in your notch with album art and seek slider |
-| 🔊 | **Custom HUDs** | Beautiful volume, brightness, battery, and Caps Lock overlays that replace system HUDs |
-| 🔮 | **Alfred Integration** | Push files to Droppy from Alfred with a quick action |
+## ✨ Capabilities
+
+<table>
+<tr>
+<td width="50%">
+
+### 🗂️ Notch Shelf
+Drag files to your notch — they vanish into a sleek shelf, ready when you need them.
+
+### 🧺 Floating Basket
+Jiggle your mouse while dragging to summon a basket anywhere on screen.
+
+### 📋 Clipboard Manager
+Full history with search, favorites, OCR text extraction, and drag-out support.
+
+</td>
+<td width="50%">
+
+### 🎵 Media Player
+Now Playing controls in your notch with album art and seek slider.
+
+### 🔊 Custom HUDs
+Beautiful volume, brightness, battery, and Caps Lock overlays that replace system HUDs.
+
+### 🔮 Alfred Integration
+Push files to Droppy from Alfred with a quick action.
+
+</td>
+</tr>
+</table>
+
+---
 
 ### Power Features
 
@@ -82,7 +103,7 @@ brew install --cask iordv/tap/droppy
 >
 > Alternatively, use **Homebrew** which handles this automatically.
 
-
+---
 
 ## 🕹️ How to Use
 
@@ -112,46 +133,6 @@ Drag files out of the shelf and drop into any app. The file moves and vanishes f
 | Favorite | Click ⭐ |
 
 > Works everywhere — even in password fields and Terminal.
-
----
-
-## 🎨 Visual Tour
-
-### The Notch Shelf
-*Your files, hidden in plain sight.*
-<p align="center">
-  <img src="https://i.postimg.cc/jqkPwkRp/Schermopname2026-01-05om22-04-43-ezgif-com-video-to-gif-converter.gif" alt="Notch Shelf" width="100%">
-</p>
-
-### The Floating Basket
-*Summoned anywhere with a quick jiggle.*
-<p align="center">
-  <img src="https://i.postimg.cc/dtHH09fB/Schermopname2026-01-05om22-01-22-ezgif-com-video-to-gif-converter.gif" alt="Floating Basket" width="100%">
-</p>
-
-### Clipboard Manager
-*Your history, beautifully organized.*
-<p align="center">
-  <img src="https://i.postimg.cc/Kvc9c2Kr/Schermopname2026-01-06om18-05-02-ezgif-com-video-to-gif-converter.gif" alt="Clipboard Manager" width="100%">
-</p>
-
-### Media Player
-*Now Playing, right in your notch.*
-<p align="center">
-  <img src="https://i.postimg.cc/SKjDMGrP/Schermopname2026-01-07om15-17-29-ezgif-com-video-to-gif-converter.gif" alt="Media Player" width="100%">
-</p>
-
-### Volume & Brightness HUD
-*Beautiful replacements for the system HUDs.*
-<p align="center">
-  <img src="https://i.postimg.cc/qqQ3wPMV/Schermopname2026-01-07om15-20-48-ezgif-com-video-to-gif-converter.gif" alt="Volume HUD" width="100%">
-</p>
-
-### Battery HUD
-*Elegant charging indicator.*
-<p align="center">
-  <img src="https://i.postimg.cc/Fznd6bvv/Schermopname2026-01-07om22-36-08-ezgif-com-video-to-gif-converter.gif" alt="Battery HUD" width="100%">
-</p>
 
 ---
 
