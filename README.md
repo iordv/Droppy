@@ -192,36 +192,46 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-# Droppy v5.2 - Dynamic Island Refinements
+# Droppy v5.3 - Basket Peek & Reliability Update
 
 ## ✨ New Features
 
-### Floating Dynamic Island
-- Dynamic Island now floats **4px below the screen edge** for an authentic iPhone-like appearance
-- Creates a natural "floating pill" effect that looks more premium and polished
-
-### Auto-Hide Now Fully Hides Island
-- When "Auto-Hide Preview" is enabled in Dynamic Island mode, the **entire island disappears** after 5 seconds
-- Previously, it would leave an empty black pill - now it's completely invisible
-- Hover over the island area to reveal it again
-
-### Instant Auto-Hide Response
-- Toggling "Auto-Hide Preview" now takes effect **immediately**
-- If music is playing when you enable it, the 5-second countdown starts right away
-- Previously required skipping to the next song to activate
-
-## 🎨 Design Improvements
-
-### Standardized HUD Sizes
-All HUDs in Dynamic Island mode now use consistent sizing:
-- Unified 18px icons, 13pt text, 14px horizontal padding
-- Volume/Brightness, Battery, and Media HUDs now look cohesive
-- Slider in Volume/Brightness HUD now expands to fill available space
+### Auto-Hide Basket with Peek
+- **Basket Auto-Hide**: The floating basket can now automatically slide to the edge of the screen when not in use
+- **Peek Reveal**: Basket peeks out when you move your cursor to the edge, with a smooth 3D Stage Manager-style tilt animation
+- **Configurable Edge**: Choose to hide the basket on the Left, Right, or Bottom edge of your screen
+- **Settings Integration**: New Auto-Hide toggle and edge picker in both Settings and Onboarding wizard
 
 ## 🐛 Bug Fixes
 
-- Fixed hover detection zone to properly cover the gap above the floating island
-- Improved Fitt's Law compliance - hovering at screen top edge still triggers the island
+### Ghost File Fix
+- **Fixed**: Dragging files from the shelf to folders with duplicate names (choosing "Keep Both") no longer leaves ghost items
+- Files that no longer exist on disk are automatically cleaned up when the shelf or basket becomes visible
+
+### Clipboard Panel 2-Click Bug
+- **Fixed**: After using media player controls, the clipboard panel now responds to single clicks immediately
+- Changed to use `ClipboardPanel` with proper focus handling (`canBecomeKey`, `canBecomeMain`)
+
+### Notch Detection Improvements
+- **Improved**: Click detection zone expanded for more reliable single-click shelf opening
+- ±10px horizontal expansion around the notch/island area
+- Upward expansion to absolute screen top (Fitt's Law compliance)
+- Bottom edge remains precise - no false triggers on content below the notch
+
+## 💅 UI Improvements
+
+### Onboarding Wizard Polish
+- **Consistent Layouts**: All pages now use unified spacing (`VStack(spacing: 16)`)
+- **Removed Status Text**: "X is enabled/disabled" text removed - toggle state is now self-evident
+- **Fully Clickable Buttons**: All option buttons (`contentShape(Rectangle())`) are now clickable on their entire area
+- **Compact Auto-Hide Settings**: Inline toggle and edge picker for cleaner basket page layout
+- **Fixed Edge Picker**: Resolved vertical "E d g e" text rendering issue
+
+## 🔧 Technical Improvements
+
+- Added `validateItems()` and `validateBasketItems()` methods for automatic ghost file cleanup
+- Improved window focus handling with `becomesKeyOnlyIfNeeded = false`
+- Enhanced click monitoring with expanded hit zones for reliability
 <!-- CHANGELOG_END -->
 
 ---
