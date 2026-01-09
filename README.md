@@ -1,3 +1,5 @@
+
+https://github.com/user-attachments/assets/4e97c39a-ea28-4734-89a3-66fa55a23e0a
 <p align="center">
   <img src="https://i.postimg.cc/9FxZhRf3/1024-mac.webp" alt="Droppy Icon" width="128">
 </p>
@@ -26,7 +28,7 @@
 
 <div align="center">
 
-https://github.com/user-attachments/assets/4e60de85-6bfd-4313-ab88-302b5d78f4f3
+![Demo Droppy!](https://github.com/user-attachments/assets/59ed67af-6719-4f83-918d-ed6d10183782)
 
 </div>
 
