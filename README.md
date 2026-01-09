@@ -9,9 +9,10 @@
 </p>
 
 <p align="center">
-    <img src="https://img.shields.io/github/v/release/iordv/Droppy?style=flat-square&color=007AFF" alt="Latest Release">
+    <a href="https://github.com/iordv/Droppy/releases/latest"><img src="https://img.shields.io/github/v/release/iordv/Droppy?style=flat-square&color=007AFF" alt="Latest Release"></a>
+    <a href="https://github.com/iordv/Droppy/releases/latest"><img src="https://img.shields.io/badge/⬇_Download-DMG-success?style=flat-square" alt="Download"></a>
     <img src="https://img.shields.io/badge/platform-macOS_14+-lightgrey?style=flat-square" alt="Platform">
-    <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
@@ -32,7 +33,7 @@ https://github.com/user-attachments/assets/4e60de85-6bfd-4313-ab88-302b5d78f4f3
 ---
 
 <p align="center">
-  <em>Notch Shelf • Floating Basket • Clipboard Manager • Media Player • Custom HUDs</em>
+  <strong>Works on ANY Mac</strong> — non-notch displays get a gorgeous Dynamic Island-style pill interface!
 </p>
 
 ---
@@ -106,13 +107,13 @@ Drag files out of the shelf and drop into any app. The file moves and vanishes f
 
 ### Clipboard Manager
 
-| Action | Shortcut |
-|:-------|:---------|
-| Open | `⌘ + Shift + Space` |
-| Navigate | `↑` `↓` Arrow keys |
-| Paste | `Enter` |
-| Search | `⌘ + F` |
-| Favorite | Click ⭐ |
+| Action | Shortcut | Description |
+|:-------|:---------|:------------|
+| Open | `⌘ + Shift + Space` | Opens the clipboard history panel from anywhere |
+| Navigate | `↑` `↓` | Move through your clipboard history |
+| Paste | `Enter` | Paste the selected item and close |
+| Search | `⌘ + F` | Filter items by text content |
+| Favorite | `⭐` | Pin important items to the top |
 
 > Works everywhere — even in password fields and Terminal.
 
