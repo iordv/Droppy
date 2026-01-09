@@ -23,11 +23,11 @@
 
 ---
 
-<p align="center">
+<div align="center">
 
 https://github.com/user-attachments/assets/4e60de85-6bfd-4313-ab88-302b5d78f4f3
 
-</p>
+</div>
 
 ---
 
@@ -39,44 +39,24 @@ https://github.com/user-attachments/assets/4e60de85-6bfd-4313-ab88-302b5d78f4f3
 
 ## ✨ Capabilities
 
-<table>
-<tr>
-<td width="50%">
-
-### 🗂️ Notch Shelf
-Drag files to your notch — they vanish into a sleek shelf, ready when you need them.
-
-### 🧺 Floating Basket
-Jiggle your mouse while dragging to summon a basket anywhere on screen.
-
-### 📋 Clipboard Manager
-Full history with search, favorites, OCR text extraction, and drag-out support.
-
-</td>
-<td width="50%">
-
-### 🎵 Media Player
-Now Playing controls in your notch with album art and seek slider.
-
-### 🔊 Custom HUDs
-Beautiful volume, brightness, battery, and Caps Lock overlays that replace system HUDs.
-
-### 🔮 Alfred Integration
-Push files to Droppy from Alfred with a quick action.
-
-</td>
-</tr>
-</table>
+| | Feature | Description |
+|:--|:--------|:------------|
+| 🗂️ | **Notch Shelf** | Drag files to your notch — they vanish into a sleek shelf, ready when you need them |
+| 🧺 | **Floating Basket** | Jiggle your mouse while dragging to summon a basket anywhere on screen |
+| 📋 | **Clipboard Manager** | Full history with search, favorites, OCR text extraction, and drag-out support |
+| 🎵 | **Media Player** | Now Playing controls in your notch with album art and seek slider |
+| 🔊 | **Custom HUDs** | Beautiful volume, brightness, battery, and Caps Lock overlays |
+| 🔮 | **Alfred Integration** | Push files to Droppy from Alfred with a quick action |
 
 ---
 
-### Power Features
+### ⚡ Power Features
 
 | | Feature | Description |
 |:--|:--------|:------------|
 | 📦 | **Move To...** | Send files directly to saved folder locations (like your NAS) |
 | 📉 | **Smart Compression** | Compress images, PDFs, and videos with auto or target size options |
-| ⚡ | **Fast Actions** | Convert images, extract text (OCR), create ZIPs, rename — all from the shelf |
+| ✏️ | **Fast Actions** | Convert images, extract text (OCR), create ZIPs, rename — all from the shelf |
 | 🙈 | **Auto-Hide Basket** | Basket slides to screen edge when idle, peeks out on hover |
 | 🖥️ | **Multi-Monitor** | Works on external displays with smart fullscreen detection |
 | 🏝️ | **Dynamic Island** | Non-notch Macs get a beautiful floating pill interface |
