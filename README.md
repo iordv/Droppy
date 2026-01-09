@@ -185,20 +185,32 @@ Enable in Settings → Basket → **Auto-Hide**. The basket slides to the screen
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-### v5.3 — Basket Peek & Reliability
+# Droppy v5.4 - Caps Lock HUD & Enhanced Media Integration
 
-**New:**
-- 🧺 **Auto-Hide Basket** — Slides to screen edge when not in use with 3D peek animation
-- Choose Left, Right, or Bottom edge
+## ✨ New Features
 
-**Fixed:**
-- Ghost file bug when using "Keep Both" on duplicate filenames
-- Clipboard panel 2-click issue after media player interaction
-- Improved notch click detection reliability
+### Caps Lock HUD
+- **Beautiful ON/OFF indicator** - Shows in the notch when you toggle Caps Lock
+- **Green glow when active** - Matches the premium Battery HUD style
+- **Animated preview in Settings** - See exactly how it looks before enabling
+- **Onboarding integration** - Configure during first-time setup
 
-**Polished:**
-- Onboarding wizard redesigned with consistent layouts
-- All buttons now fully clickable
+## 🎯 Improvements
+
+### Media Player Source Opening
+- **Zen Browser support** - Now properly activates Firefox-based Zen browser
+- **Brave Browser support** - Full AppleScript tab matching
+- **Microsoft Edge support** - Full AppleScript tab matching
+- **Improved fallback logic** - Apps activate even without URL lookup
+
+### Performance Optimizations
+- **Faster file drops** - UTType-based icon loading (~100x faster for bulk drops)
+- **O(1) window focus checks** - Replaced O(n) window iteration in NotchWindowController
+
+## 🔧 Fixes
+- Fixed deprecated `activateIgnoringOtherApps` warnings (macOS 14+ compatibility)
+- Fixed potential HUD overlap when Caps Lock and Media Player both active
+- Improved notch wing visibility calculation for all HUD types
 <!-- CHANGELOG_END -->
 
 ---
