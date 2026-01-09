@@ -62,9 +62,68 @@ final class FloatingBasketWindowController: NSObject {
         }
     }
     
-    /// Moves the basket to the current mouse location
+    // MARK: - Position Calculation (v5.2)
+    
+    /// Calculates the basket position based on the user's snap position preference
+    private func calculateBasketPosition() -> NSRect {
+        let windowWidth: CGFloat = 500
+        let windowHeight: CGFloat = 600
+        let snapPosition = UserDefaults.standard.string(forKey: "basketSnapPosition") ?? "mouse"
+        
+        guard let screen = NSScreen.main else {
+            // Fallback to mouse position
+            let mouseLocation = NSEvent.mouseLocation
+            return NSRect(x: mouseLocation.x - windowWidth/2, y: mouseLocation.y - windowHeight/2, width: windowWidth, height: windowHeight)
+        }
+        
+        let padding: CGFloat = 40 // Distance from screen edge
+        
+        switch snapPosition {
+        case "left":
+            // Snap to left edge, vertically centered
+            return NSRect(
+                x: screen.frame.minX + padding,
+                y: (screen.frame.height - windowHeight) / 2 + screen.frame.minY,
+                width: windowWidth,
+                height: windowHeight
+            )
+        case "right":
+            // Snap to right edge, vertically centered
+            return NSRect(
+                x: screen.frame.maxX - windowWidth - padding,
+                y: (screen.frame.height - windowHeight) / 2 + screen.frame.minY,
+                width: windowWidth,
+                height: windowHeight
+            )
+        case "bottom-center":
+            // Snap to bottom center
+            return NSRect(
+                x: (screen.frame.width - windowWidth) / 2 + screen.frame.minX,
+                y: screen.frame.minY + padding,
+                width: windowWidth,
+                height: windowHeight
+            )
+        default: // "mouse"
+            // Follow mouse (original behavior)
+            let mouseLocation = NSEvent.mouseLocation
+            return NSRect(
+                x: mouseLocation.x - windowWidth/2,
+                y: mouseLocation.y - windowHeight/2,
+                width: windowWidth,
+                height: windowHeight
+            )
+        }
+    }
+    
+    /// Moves the basket to the calculated position (based on snap setting)
     private func moveBasketToMouse() {
         guard let panel = basketWindow else { return }
+        
+        let snapPosition = UserDefaults.standard.string(forKey: "basketSnapPosition") ?? "mouse"
+        
+        // For fixed snap positions, don't move on subsequent jiggles
+        // Only move if mode is "mouse" (follow cursor)
+        guard snapPosition == "mouse" else { return }
         
         let mouseLocation = NSEvent.mouseLocation
         let windowWidth: CGFloat = 500
@@ -111,27 +170,22 @@ final class FloatingBasketWindowController: NSObject {
 
         isShowingOrHiding = true
         
-        let mouseLocation = NSEvent.mouseLocation
-        // Use large window to accommodate dynamic SwiftUI content resizing
-        let windowWidth: CGFloat = 500
-        let windowHeight: CGFloat = 600
+        // Calculate window position based on snap preference (v5.2)
+        let windowFrame = calculateBasketPosition()
         
         // Store initial position for expand direction logic
+        let mouseLocation = NSEvent.mouseLocation
         initialBasketOrigin = CGPoint(x: mouseLocation.x, y: mouseLocation.y)
         
         // Calculate expand direction once (basket expands upward if low on screen, downward if high)
         if let screen = NSScreen.main {
             let screenMidY = screen.frame.height / 2
-            shouldExpandUpward = mouseLocation.y < screenMidY
+            // Use actual window position for expand direction
+            shouldExpandUpward = windowFrame.midY < screenMidY
         } else {
             shouldExpandUpward = true
         }
-        
-        // Position window so basket CENTER appears exactly at jiggle location
-        let xPosition = mouseLocation.x - windowWidth / 2
-        let yPosition = mouseLocation.y - windowHeight / 2
-        
-        let windowFrame = NSRect(x: xPosition, y: yPosition, width: windowWidth, height: windowHeight)
+
         
         // Use custom BasketPanel for floating utility window that can still accept text input
         let panel = BasketPanel(

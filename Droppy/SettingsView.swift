@@ -8,6 +8,7 @@ struct SettingsView: View {
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
     @AppStorage("enableNotchShelf") private var enableNotchShelf = true
     @AppStorage("enableFloatingBasket") private var enableFloatingBasket = true
+    @AppStorage("basketSnapPosition") private var basketSnapPosition = "mouse"  // "mouse", "left", "right", "bottom-center"
     @AppStorage("showClipboardButton") private var showClipboardButton = false
     @AppStorage("showOpenShelfIndicator") private var showOpenShelfIndicator = true
     @AppStorage("showDropIndicator") private var showDropIndicator = true
@@ -277,6 +278,21 @@ struct SettingsView: View {
                 
                 if enableFloatingBasket {
                     FloatingBasketPreview()
+                    
+                    Picker(selection: $basketSnapPosition) {
+                        Text("Follow Mouse").tag("mouse")
+                        Text("Snap to Left Edge").tag("left")
+                        Text("Snap to Right Edge").tag("right")
+                        Text("Snap to Bottom Center").tag("bottom-center")
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text("Position")
+                            Text("Where the basket appears when triggered")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .pickerStyle(.menu)
                 }
             } header: {
                 Text("Drop Zones")

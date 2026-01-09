@@ -25,6 +25,9 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Monitor for mouse movement when window is not key or mouse is outside
     private var globalMouseMonitor: Any?
     
+    /// Monitor for global click events (single-click shelf opening)
+    private var globalClickMonitor: Any?
+    
     /// Monitor for mouse movement when window is active
     private var localMonitor: Any?
     
@@ -185,9 +188,57 @@ final class NotchWindowController: NSObject, ObservableObject {
             self?.handleMouseEvent(event)
         }
         
-        // Local monitor catches movement when mouse is over the Notch window
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
-            self?.handleMouseEvent(event)
+        // GLOBAL CLICK MONITOR (v5.2) - Enables true single-click shelf opening
+        // This catches clicks even when Droppy isn't focused, enabling instant shelf opening
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+            guard let self = self,
+                  let notchWindow = self.notchWindow,
+                  UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return }
+            
+            // Get the notch rect
+            let notchRect = notchWindow.getNotchRect()
+            let mouseLocation = NSEvent.mouseLocation
+            
+            // Only handle clicks directly over the notch
+            if notchRect.contains(mouseLocation) {
+                DispatchQueue.main.async {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        DroppyState.shared.isExpanded.toggle()
+                    }
+                }
+            }
+        }
+        
+        // Local monitor catches movement AND clicks when mouse is over the Notch window
+        // Global monitor only catches events from OTHER apps - we need local for our own window
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+            guard let self = self else { return event }
+            
+            // Handle mouse movement
+            if event.type == .mouseMoved {
+                self.handleMouseEvent(event)
+                return event
+            }
+            
+            // Handle click - single-click shelf toggle
+            if event.type == .leftMouseDown {
+                guard let notchWindow = self.notchWindow,
+                      UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return event }
+                
+                let notchRect = notchWindow.getNotchRect()
+                let mouseLocation = NSEvent.mouseLocation
+                
+                // Only handle clicks directly over the notch
+                if notchRect.contains(mouseLocation) {
+                    DispatchQueue.main.async {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            DroppyState.shared.isExpanded.toggle()
+                        }
+                    }
+                    return nil  // Consume the click event
+                }
+            }
+            
             return event
         }
         
@@ -243,6 +294,11 @@ final class NotchWindowController: NSObject, ObservableObject {
         if let monitor = globalMouseMonitor {
             NSEvent.removeMonitor(monitor)
             globalMouseMonitor = nil
+        }
+        
+        if let monitor = globalClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalClickMonitor = nil
         }
         
         if let monitor = localMonitor {
@@ -392,13 +448,43 @@ class NotchWindow: NSWindow {
             mouseLocation = NSEvent.mouseLocation
         }
         
-        // Check if mouse is over the notch area
-        let isOverNotch = notchRect.contains(mouseLocation)
+        // PRECISE HOVER DETECTION (v5.2)
+        // The hardware notch is small (~180x32px). Fast cursor movements can skip over it.
+        // Extend detection zone UPWARD to the screen's top edge (Fitt's Law - screen edge is "infinite")
+        // but NOT downward (to avoid blocking bookmark bars, menu items, etc.)
+        // Horizontal: small expansion for fast side-to-side movements
+        let screenTopY = NSScreen.main?.frame.maxY ?? notchRect.maxY
+        let upwardExpansion = (screenTopY - notchRect.maxY) + 5  // +5px buffer to capture absolute edge
+        
+        let expandedNotchRect = NSRect(
+            x: notchRect.origin.x - 20,                     // 20px expansion on left
+            y: notchRect.origin.y,                          // Keep bottom edge exact (no downward expansion)
+            width: notchRect.width + 40,                    // 20px expansion on each side = 40px total
+            height: notchRect.height + upwardExpansion      // Extend to screen top edge + buffer
+        )
+        let isOverExactNotch = notchRect.contains(mouseLocation)
+        var isOverExpandedZone = expandedNotchRect.contains(mouseLocation)
+        
+        // Special case: If cursor is at/near the absolute top of the screen and within notch X range,
+        // always treat it as hovering. The tolerance needs to be generous because:
+        // 1. When cursor hits screen edge, no more mouseMoved events are generated
+        // 2. The last event before hitting the edge might have a Y slightly below maxY
+        // 3. Menu bar is ~24px, notch is within that space, so 10px tolerance is safe
+        if let screen = NSScreen.main {
+            let isAtScreenTop = mouseLocation.y >= screen.frame.maxY - 10  // Within 10px of absolute top
+            let isWithinNotchX = mouseLocation.x >= notchRect.minX - 20 && mouseLocation.x <= notchRect.maxX + 20
+            if isAtScreenTop && isWithinNotchX {
+                isOverExpandedZone = true
+            }
+        }
+        
+        // Use expanded zone to START hovering, exact zone to MAINTAIN hover
+        // This ensures fast cursor movements are caught, but exit detection remains precise
+        let currentlyHovering = DroppyState.shared.isMouseHovering
+        let isOverNotch = currentlyHovering ? isOverExactNotch : isOverExpandedZone
         
         // Only update if not dragging (drag monitor handles that)
         if !DragMonitor.shared.isDragging {
-            let currentlyHovering = DroppyState.shared.isMouseHovering
-            
             if isOverNotch && !currentlyHovering {
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
@@ -415,6 +501,7 @@ class NotchWindow: NSWindow {
             }
         }
     }
+
     
     func updateMouseEventHandling() {
         // Critical: Early exit if window is being deallocated
@@ -548,6 +635,47 @@ class NotchDragContainer: NSView {
         super.mouseExited(with: event)
         // Global monitor in NotchWindow handles hover detection
         // We don't update state here to avoid conflicts
+    }
+    
+    // MARK: - Single-Click Handling (v5.2)
+    // Handle direct clicks on the notch to open shelf with single click
+    // This bypasses the issue where first click focuses app and second opens shelf
+    override func mouseDown(with event: NSEvent) {
+        // Only proceed if notch shelf is enabled
+        guard UserDefaults.standard.bool(forKey: "enableNotchShelf") else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        // Only handle clicks when user is already hovering (intentional interaction)
+        // This ensures we don't block clicks that should pass through to other apps
+        guard DroppyState.shared.isMouseHovering else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        // Verify click is over the actual notch area (not the expanded detection zone)
+        guard let notchWindow = self.window as? NotchWindow else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        let mouseLocation = NSEvent.mouseLocation
+        let notchRect = notchWindow.getNotchRect()
+        
+        // Use exact notch rect for click handling to avoid blocking bookmark bars etc
+        guard notchRect.contains(mouseLocation) else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        // Toggle the shelf expansion
+        DispatchQueue.main.async {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                DroppyState.shared.isExpanded.toggle()
+            }
+        }
+        // Don't call super - we consumed this click
     }
     
     // We don't need to handle mouseEntered/Exited/Moved here specifically if the SwiftUI view handles it,
