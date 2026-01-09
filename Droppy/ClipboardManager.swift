@@ -86,7 +86,12 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
         // Otherwise generate from content
         switch type {
         case .text:
-            return content?.trimmingCharacters(in: .whitespacesAndNewlines).prefix(50).description ?? "Text"
+            // PERFORMANCE: Only process first 100 chars to avoid O(n) on large content
+            if let content = content {
+                let preview = String(content.prefix(100))
+                return preview.trimmingCharacters(in: .whitespacesAndNewlines).prefix(50).description
+            }
+            return "Text"
         case .image:
             return "Image"
         case .file:
@@ -100,6 +105,21 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
             return "Color"
         }
     }
+    
+    // MARK: - Hashable & Equatable (PERFORMANCE CRITICAL)
+    // Use ID-only comparison to avoid hashing multi-MB content strings
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: ClipboardItem, rhs: ClipboardItem) -> Bool {
+        // Compare by ID for identity, plus key properties for state changes
+        lhs.id == rhs.id &&
+        lhs.isFavorite == rhs.isFavorite &&
+        lhs.customTitle == rhs.customTitle &&
+        lhs.isConcealed == rhs.isConcealed
+    }
 }
 
 class ClipboardManager: ObservableObject {
@@ -111,7 +131,7 @@ class ClipboardManager: ObservableObject {
         didSet {
             // Don't save during initial load
             guard !isLoading else { return }
-            saveToDisk()
+            scheduleSave() // Debounced save for performance
         }
     }
     @Published var hasAccessibilityPermission: Bool = false
@@ -170,6 +190,9 @@ class ClipboardManager: ObservableObject {
     private var lastChangeCount: Int
     private var isMonitoring = false
     
+    /// Debounce timer for save operations (prevents rapid saves with large content)
+    private var saveDebounceTimer: Timer?
+    
     private lazy var persistenceURL: URL = {
         let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let appSupport = paths[0].appendingPathComponent("Droppy", isDirectory: true)
@@ -209,6 +232,15 @@ class ClipboardManager: ObservableObject {
             DispatchQueue.main.async {
                 self.hasAccessibilityPermission = trusted
             }
+        }
+    }
+    
+    /// Schedules a debounced save operation
+    /// Coalesces rapid changes into single save after 0.5s of inactivity
+    private func scheduleSave() {
+        saveDebounceTimer?.invalidate()
+        saveDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            self?.saveToDisk()
         }
     }
     

@@ -24,6 +24,7 @@ struct NotchShelfView: View {
     @AppStorage("hideNotchOnExternalDisplays") private var hideNotchOnExternalDisplays = false
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true  // Battery charging/low battery HUD
+    @AppStorage("enableCapsLockHUD") private var enableCapsLockHUD = true  // Caps Lock ON/OFF HUD
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -39,6 +40,7 @@ struct NotchShelfView: View {
     @ObservedObject private var volumeManager = VolumeManager.shared
     @ObservedObject private var brightnessManager = BrightnessManager.shared
     @ObservedObject private var batteryManager = BatteryManager.shared
+    @ObservedObject private var capsLockManager = CapsLockManager.shared
     @ObservedObject private var musicManager = MusicManager.shared
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
@@ -48,6 +50,8 @@ struct NotchShelfView: View {
     @State private var hudIsVisible = false
     @State private var batteryHUDIsVisible = false  // Battery HUD visibility
     @State private var batteryHUDWorkItem: DispatchWorkItem?  // Timer for battery HUD auto-hide
+    @State private var capsLockHUDIsVisible = false  // Caps Lock HUD visibility
+    @State private var capsLockHUDWorkItem: DispatchWorkItem?  // Timer for Caps Lock HUD auto-hide
     @State private var mediaHUDFadedOut = false  // Tracks if media HUD has auto-faded
     @State private var mediaFadeWorkItem: DispatchWorkItem?
     @State private var autoShrinkWorkItem: DispatchWorkItem?  // Timer for auto-shrinking shelf
@@ -128,27 +132,35 @@ struct NotchShelfView: View {
     
     private let expandedWidth: CGFloat = 450
     
-    /// HUD dimensions - different sizes for volume/brightness vs media vs battery
-    /// Dynamic Island uses smaller widths since there's no physical notch taking up space
+    /// Fixed wing sizes (area left/right of notch for content)  
+    /// Using fixed sizes ensures consistent content positioning across all screen resolutions
+    private let volumeWingWidth: CGFloat = 68   // For volume/brightness icons + percentage
+    private let batteryWingWidth: CGFloat = 55  // For battery icon + percentage  
+    private let mediaWingWidth: CGFloat = 50    // For album art + visualizer
+    
+    /// HUD dimensions calculated as notchWidth + (2 * wingWidth)
+    /// This ensures wings are FIXED size regardless of notch size
     private var volumeHudWidth: CGFloat {
         if isDynamicIslandMode {
             return 280  // Smaller for Dynamic Island
         }
-        return max(350, notchWidth * 1.6)  // Wider to fit icon and percentage outside notch
+        return notchWidth + (volumeWingWidth * 2)
     }
-    /// Battery HUD - slightly narrower than volume, just needs icon + percentage
+    
+    /// Battery HUD - slightly narrower wings
     private var batteryHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 100  // Compact for Dynamic Island - just icon + percentage
+            return 100  // Compact for Dynamic Island
         }
-        return max(335, notchWidth * 1.5)  // Fits "100%" on one line
+        return notchWidth + (batteryWingWidth * 2)
     }
-    /// Media HUD has tighter wings for album art / visualizer
+    
+    /// Media HUD - compact wings for album art / visualizer
     private var hudWidth: CGFloat {
         if isDynamicIslandMode {
             return 260  // Smaller for Dynamic Island
         }
-        return max(300, notchWidth * 1.35)
+        return notchWidth + (mediaWingWidth * 2)
     }
     private let hudHeight: CGFloat = 73
     
@@ -164,6 +176,8 @@ struct NotchShelfView: View {
         }
         // Only apply debounce check when setting is enabled
         if debounceMediaChanges && !isMediaStable { return false }
+        // Don't show when battery or caps lock HUD is visible (they take priority)
+        if batteryHUDIsVisible || capsLockHUDIsVisible { return false }
         return showMediaPlayer && musicManager.isPlaying && !hudIsVisible && !state.isExpanded
     }
     
@@ -175,6 +189,8 @@ struct NotchShelfView: View {
             return volumeHudWidth  // Volume/Brightness HUD needs wider wings
         } else if batteryHUDIsVisible && enableBatteryHUD {
             return batteryHudWidth  // Battery HUD uses slightly narrower width than volume
+        } else if capsLockHUDIsVisible && enableCapsLockHUD {
+            return batteryHudWidth  // Caps Lock HUD uses same width as battery HUD
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && (dragMonitor.isDragging || state.isMouseHovering) {
@@ -192,6 +208,8 @@ struct NotchShelfView: View {
             return hudHeight // Volume/brightness HUD needs more space
         } else if batteryHUDIsVisible && enableBatteryHUD {
             return notchHeight  // Battery HUD just uses notch height (no slider)
+        } else if capsLockHUDIsVisible && enableCapsLockHUD {
+            return notchHeight  // Caps Lock HUD just uses notch height (no slider)
         } else if shouldShowMediaHUD {
             // Dynamic Island stays fixed height - no vertical extension
             if isDynamicIslandMode {
@@ -256,6 +274,8 @@ struct NotchShelfView: View {
             if state.isExpanded { return true }
             // Show when battery HUD is visible
             if batteryHUDIsVisible && enableBatteryHUD { return true }
+            // Show when caps lock HUD is visible
+            if capsLockHUDIsVisible && enableCapsLockHUD { return true }
             // Otherwise hide - Dynamic Island is invisible when idle
             return false
         }
@@ -413,12 +433,26 @@ struct NotchShelfView: View {
                     .zIndex(4)  // Higher than media HUD
                 }
                 
+                // MARK: - Caps Lock HUD (ON/OFF indicator)
+                // Takes priority over media HUD - briefly shows then returns to media
+                if capsLockHUDIsVisible && enableCapsLockHUD && !hudIsVisible && !batteryHUDIsVisible && !state.isExpanded {
+                    CapsLockHUDView(
+                        capsLockManager: capsLockManager,
+                        notchWidth: notchWidth,
+                        notchHeight: notchHeight,
+                        hudWidth: batteryHudWidth  // Same width as battery HUD
+                    )
+                    .frame(width: batteryHudWidth, height: notchHeight)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+                    .zIndex(5)  // Higher than battery HUD
+                }
+                
                 // MARK: - Media Player HUD (when music is playing)
                 // Only show if we have valid song info (not just isPlaying)
                 // Hide during song transitions for collapse-expand effect
-                // Hide when battery HUD is visible (battery takes priority briefly)
+                // Hide when battery/caps lock HUD is visible (they take priority briefly)
                 // Debounce check only applies when setting is enabled
-                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !batteryHUDIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
+                if showMediaPlayer && musicManager.isPlaying && !musicManager.songTitle.isEmpty && !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !state.isExpanded && !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning && (!debounceMediaChanges || isMediaStable) {
                     MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth)
                         .frame(width: hudWidth, alignment: .top)
                         // Match exact notch collapse animation timing
@@ -477,6 +511,10 @@ struct NotchShelfView: View {
         .onChange(of: batteryManager.lastChangeAt) { _, _ in
             guard enableBatteryHUD, !state.isExpanded else { return }
             triggerBatteryHUD()
+        }
+        .onChange(of: capsLockManager.lastChangeAt) { _, _ in
+            guard enableCapsLockHUD, !state.isExpanded else { return }
+            triggerCapsLockHUD()
         }
         // MARK: - Media HUD Auto-Fade
         .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
@@ -613,6 +651,21 @@ struct NotchShelfView: View {
         }
         batteryHUDWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + batteryManager.visibleDuration, execute: workItem)
+    }
+    
+    private func triggerCapsLockHUD() {
+        capsLockHUDWorkItem?.cancel()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            capsLockHUDIsVisible = true
+        }
+        
+        let workItem = DispatchWorkItem { [self] in
+            withAnimation(.easeOut(duration: 0.3)) {
+                capsLockHUDIsVisible = false
+            }
+        }
+        capsLockHUDWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + capsLockManager.visibleDuration, execute: workItem)
     }
     
     private func startMediaFadeTimer() {
@@ -900,11 +953,6 @@ struct NotchShelfView: View {
     }
     
     private var itemsGridView: some View {
-        let items = state.items
-        let chunkedItems = stride(from: 0, to: items.count, by: 5).map {
-            Array(items[$0..<min($0 + 5, items.count)])
-        }
-        
         return ScrollView(.vertical, showsIndicators: false) {
             ZStack {
                 // Background tap handler - acts as a "canvas" to catch clicks
@@ -951,27 +999,21 @@ struct NotchShelfView: View {
                              }
                     )
                 
-                VStack(spacing: 12) {
-                    ForEach(Array(chunkedItems.enumerated()), id: \.offset) { index, rowItems in
-                        HStack(spacing: 10) {
-                            // Center items: add spacer if row is not full?
-                            // Actually, plain HStack with spacing centers by default if not strictly aligned leading
-                            // But we want "always center".
-                            // If we just do HStack, it centers in the container view.
-                            ForEach(rowItems) { item in
-                                NotchItemView(
-                                    item: item,
-                                    state: state,
-                                    renamingItemId: $renamingItemId,
-                                    onRemove: {
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                            state.removeItem(item)
-                                        }
-                                    }
-                                )
+                // Items grid using LazyVGrid for efficient rendering
+                let columns = Array(repeating: GridItem(.fixed(80), spacing: 10), count: 5)
+                
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(state.items) { item in
+                        NotchItemView(
+                            item: item,
+                            state: state,
+                            renamingItemId: $renamingItemId,
+                            onRemove: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    state.removeItem(item)
+                                }
                             }
-                        }
-                        .frame(maxWidth: .infinity) // Ensures HStack takes full width to center content
+                        )
                     }
                 }
                 .padding(.horizontal, 8)
@@ -1506,7 +1548,12 @@ struct NotchItemView: View {
             }
         }
         .task {
-            thumbnail = await item.generateThumbnail(size: CGSize(width: 120, height: 120))
+            // Use cached thumbnail if available, otherwise load async
+            if let cached = ThumbnailCache.shared.cachedThumbnail(for: item) {
+                thumbnail = cached
+            } else {
+                thumbnail = await ThumbnailCache.shared.loadThumbnailAsync(for: item, size: CGSize(width: 120, height: 120))
+            }
         }
     }
     
@@ -1515,17 +1562,20 @@ struct NotchItemView: View {
     private func extractText() {
         guard !isExtractingText else { return }
         isExtractingText = true
+        state.beginFileOperation()
         
         Task {
             do {
                 let text = try await OCRService.shared.extractText(from: item.url)
                 await MainActor.run {
                     isExtractingText = false
+                    state.endFileOperation()
                     OCRWindowController.shared.show(with: text)
                 }
             } catch {
                 await MainActor.run {
                     isExtractingText = false
+                    state.endFileOperation()
                     OCRWindowController.shared.show(with: "Error extracting text: \(error.localizedDescription)")
                 }
             }
@@ -1537,6 +1587,7 @@ struct NotchItemView: View {
     private func convertFile(to format: ConversionFormat) {
         guard !isConverting else { return }
         isConverting = true
+        state.beginFileOperation()
         
         Task {
             if let convertedURL = await FileConverter.convert(item.url, to: format) {
@@ -1545,6 +1596,7 @@ struct NotchItemView: View {
                 
                 await MainActor.run {
                     isConverting = false
+                    state.endFileOperation()
                     pendingConvertedItem = newItem
                     // Trigger poof animation
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -1554,6 +1606,7 @@ struct NotchItemView: View {
             } else {
                 await MainActor.run {
                     isConverting = false
+                    state.endFileOperation()
                 }
             }
         }
@@ -1573,6 +1626,7 @@ struct NotchItemView: View {
         }
         
         isCreatingZIP = true
+        state.beginFileOperation()
         
         Task {
             // Generate archive name based on item count
@@ -1586,15 +1640,17 @@ struct NotchItemView: View {
                 
                 await MainActor.run {
                     isCreatingZIP = false
+                    // Keep isFileOperationInProgress = true since we auto-start renaming
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         state.replaceItems(itemsToZip, with: newItem)
                     }
-                    // Auto-start renaming the new zip file
+                    // Auto-start renaming the new zip file (flag stays true)
                     renamingItemId = newItem.id
                 }
             } else {
                 await MainActor.run {
                     isCreatingZIP = false
+                    state.endFileOperation()
                 }
                 print("ZIP creation failed")
             }
@@ -1606,6 +1662,7 @@ struct NotchItemView: View {
     private func compressFile(mode explicitMode: CompressionMode? = nil) {
         guard !isCompressing else { return }
         isCompressing = true
+        state.beginFileOperation()
         
         Task {
             // Determine compression mode
@@ -1616,7 +1673,10 @@ struct NotchItemView: View {
             } else {
                 // No explicit mode means request Target Size (for images)
                 guard let currentSize = FileCompressor.fileSize(url: item.url) else {
-                    await MainActor.run { isCompressing = false }
+                    await MainActor.run {
+                        isCompressing = false
+                        state.endFileOperation()
+                    }
                     return
                 }
                 
@@ -1625,7 +1685,10 @@ struct NotchItemView: View {
                     fileName: item.name
                 ) else {
                     // User cancelled
-                    await MainActor.run { isCompressing = false }
+                    await MainActor.run {
+                        isCompressing = false
+                        state.endFileOperation()
+                    }
                     return
                 }
                 
@@ -1638,6 +1701,7 @@ struct NotchItemView: View {
                 
                 await MainActor.run {
                     isCompressing = false
+                    state.endFileOperation()
                     pendingConvertedItem = newItem
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         isPoofing = true
@@ -1654,6 +1718,7 @@ struct NotchItemView: View {
             } else {
                 await MainActor.run {
                     isCompressing = false
+                    state.endFileOperation()
                     // Trigger Feedback: Shake + Shield
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         isShakeAnimating = true
@@ -1682,6 +1747,7 @@ struct NotchItemView: View {
     
     private func startRenaming() {
         // Set the text to filename without extension for easier editing
+        state.beginFileOperation()
         renamingItemId = item.id
     }
     
@@ -1690,6 +1756,7 @@ struct NotchItemView: View {
         guard !trimmedName.isEmpty else {
             print("Rename: Empty name, cancelling")
             renamingItemId = nil
+            state.endFileOperation()
             return
         }
         
@@ -1704,6 +1771,7 @@ struct NotchItemView: View {
             print("Rename: Failed - renamed() returned nil")
         }
         renamingItemId = nil
+        state.endFileOperation()
     }
 }
 
@@ -1827,7 +1895,10 @@ private struct NotchItemContent: View {
                     // Pass a binding derived from the ID check
                     isRenaming: Binding(
                         get: { renamingItemId == item.id },
-                        set: { if !$0 { renamingItemId = nil } }
+                        set: { if !$0 { 
+                            renamingItemId = nil
+                            state.endFileOperation()
+                        } }
                     ),
                     onRename: onRename
                 )

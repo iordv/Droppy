@@ -237,11 +237,6 @@ struct FloatingBasketView: View {
     }
     
     private var itemsContent: some View {
-        let items = state.basketItems
-        let chunkedItems = stride(from: 0, to: items.count, by: columnsPerRow).map {
-            Array(items[$0..<min($0 + columnsPerRow, items.count)])
-        }
-        
         return VStack(spacing: 8) {
             // Header
             HStack {
@@ -349,20 +344,21 @@ struct FloatingBasketView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         state.deselectAllBasket()
+                        // If rename was active, end the file operation lock
+                        if renamingItemId != nil {
+                            state.endFileOperation()
+                        }
                         renamingItemId = nil
                     }
                 
-                // Items grid - vertical layout with rows of 4, centered
-                VStack(spacing: itemSpacing) {
-                    ForEach(Array(chunkedItems.enumerated()), id: \.offset) { _, rowItems in
-                        HStack(spacing: itemSpacing) {
-                            ForEach(rowItems) { item in
-                                BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
-                                    state.removeBasketItem(item)
-                                }
-                            }
+                // Items grid using LazyVGrid for efficient rendering
+                let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: itemSpacing), count: columnsPerRow)
+                
+                LazyVGrid(columns: columns, spacing: itemSpacing) {
+                    ForEach(state.basketItems) { item in
+                        BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
+                            state.removeBasketItem(item)
                         }
-                        .frame(maxWidth: .infinity) // Centers the HStack content
                     }
                 }
             }
@@ -666,7 +662,12 @@ struct BasketItemView: View {
                 }
             }
             .task {
-                thumbnail = await item.generateThumbnail(size: CGSize(width: 120, height: 120))
+                // Use cached thumbnail if available, otherwise load async
+                if let cached = ThumbnailCache.shared.cachedThumbnail(for: item) {
+                    thumbnail = cached
+                } else {
+                    thumbnail = await ThumbnailCache.shared.loadThumbnailAsync(for: item, size: CGSize(width: 120, height: 120))
+                }
             }
         }
         .background(GeometryReader { geo in
@@ -765,6 +766,7 @@ struct BasketItemView: View {
     private func convertFile(to format: ConversionFormat) {
         guard !isConverting else { return }
         isConverting = true
+        state.beginFileOperation()
         
         Task {
             if let convertedURL = await FileConverter.convert(item.url, to: format) {
@@ -773,6 +775,7 @@ struct BasketItemView: View {
                 
                 await MainActor.run {
                     isConverting = false
+                    state.endFileOperation()
                     pendingConvertedItem = newItem
                     // Trigger poof animation
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -782,6 +785,7 @@ struct BasketItemView: View {
             } else {
                 await MainActor.run {
                     isConverting = false
+                    state.endFileOperation()
                 }
                 print("Conversion failed")
             }
@@ -791,17 +795,20 @@ struct BasketItemView: View {
     private func extractText() {
         guard !isExtractingText else { return }
         isExtractingText = true
+        state.beginFileOperation()
         
         Task {
             do {
                 let text = try await OCRService.shared.extractText(from: item.url)
                 await MainActor.run {
                     isExtractingText = false
+                    state.endFileOperation()
                     OCRWindowController.shared.show(with: text)
                 }
             } catch {
                 await MainActor.run {
                     isExtractingText = false
+                    state.endFileOperation()
                     OCRWindowController.shared.show(with: "Error extracting text: \(error.localizedDescription)")
                 }
             }
@@ -822,6 +829,7 @@ struct BasketItemView: View {
         }
         
         isCreatingZIP = true
+        state.beginFileOperation()
         
         Task {
             // Generate archive name based on item count
@@ -835,15 +843,18 @@ struct BasketItemView: View {
                 
                 await MainActor.run {
                     isCreatingZIP = false
+                    // Keep isFileOperationInProgress = true since we auto-start renaming
+                    // The flag will be reset when rename completes or is cancelled
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         state.replaceBasketItems(itemsToZip, with: newItem)
                     }
-                    // Auto-start renaming the new zip file
+                    // Auto-start renaming the new zip file (flag stays true)
                     renamingItemId = newItem.id
                 }
             } else {
                 await MainActor.run {
                     isCreatingZIP = false
+                    state.endFileOperation()
                 }
                 print("ZIP creation failed")
             }
@@ -855,6 +866,7 @@ struct BasketItemView: View {
     private func compressFile(mode explicitMode: CompressionMode? = nil) {
         guard !isCompressing else { return }
         isCompressing = true
+        state.beginFileOperation()
         
         Task {
             // Determine compression mode
@@ -865,7 +877,10 @@ struct BasketItemView: View {
             } else {
                 // No explicit mode means request Target Size
                 guard let currentSize = FileCompressor.fileSize(url: item.url) else {
-                    await MainActor.run { isCompressing = false }
+                    await MainActor.run {
+                        isCompressing = false
+                        state.endFileOperation()
+                    }
                     return
                 }
                 
@@ -874,7 +889,10 @@ struct BasketItemView: View {
                     fileName: item.name
                 ) else {
                     // User cancelled
-                    await MainActor.run { isCompressing = false }
+                    await MainActor.run {
+                        isCompressing = false
+                        state.endFileOperation()
+                    }
                     return
                 }
                 
@@ -887,6 +905,7 @@ struct BasketItemView: View {
                 
                 await MainActor.run {
                     isCompressing = false
+                    state.endFileOperation()
                     pendingConvertedItem = newItem
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         isPoofing = true
@@ -895,6 +914,7 @@ struct BasketItemView: View {
             } else {
                 await MainActor.run {
                     isCompressing = false
+                    state.endFileOperation()
                     // Trigger Feedback: Shake + Shield
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         isShakeAnimating = true
@@ -923,6 +943,7 @@ struct BasketItemView: View {
     
     private func startRenaming() {
         // Use async to ensure context menu is fully closed before showing rename field
+        state.beginFileOperation()
         DispatchQueue.main.async {
             renamingItemId = item.id
         }
@@ -933,6 +954,7 @@ struct BasketItemView: View {
         guard !trimmedName.isEmpty else {
             print("Rename: Empty name, cancelling")
             renamingItemId = nil
+            state.endFileOperation()
             return
         }
         
@@ -947,6 +969,7 @@ struct BasketItemView: View {
             print("Rename: Failed - renamed() returned nil")
         }
         renamingItemId = nil
+        state.endFileOperation()
     }
 }
 
@@ -1028,7 +1051,10 @@ private struct BasketItemContent: View {
                     // Pass a binding derived from the ID check
                     isRenaming: Binding(
                         get: { renamingItemId == item.id },
-                        set: { if !$0 { renamingItemId = nil } }
+                        set: { if !$0 { 
+                            renamingItemId = nil
+                            state.endFileOperation()
+                        } }
                     ),
                     onRename: onRename
                 )

@@ -129,65 +129,19 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
             guard let self = self else { return nil }
             let dragItem = NSDraggingItem(pasteboardWriter: writer)
             
-            // Try to generate a preview icon if it looks like a file
+            // Use fast cached icons instead of loading full images (PERFORMANCE CRITICAL)
             var usedImage: NSImage?
-            var frameSize: CGSize = .zero
+            let frameSize = CGSize(width: 64, height: 64)
             
             if let url = writer as? NSURL, let path = url.path {
-                let fileURL = URL(fileURLWithPath: path)
-                
-                // Try to get a thumbnail if it's an image
-                var thumbnail: NSImage?
-                if let typeID = try? fileURL.resourceValues(forKeys: [.typeIdentifierKey]).typeIdentifier,
-                   let utType = UTType(typeID),
-                   utType.conforms(to: .image) {
-                    // Start simple: try to load the image directly if it's not huge
-                    // For a robust solution we might want QuickLook, but NSImage(contentsOf:) works for standard formats
-                    if let image = NSImage(contentsOf: fileURL) {
-                         // Resize to thumbnail
-                        let maxDimension: CGFloat = 72
-                        let scale = min(maxDimension/image.size.width, maxDimension/image.size.height)
-                        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-                        
-                        let resized = NSImage(size: newSize)
-                        resized.lockFocus()
-                        
-                        // Rounded clipping path
-                        let rect = NSRect(origin: .zero, size: newSize)
-                        let path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
-                        path.addClip()
-                        
-                        // Draw image
-                        image.draw(in: rect)
-                        
-                        // Draw border
-                        NSColor.white.withAlphaComponent(0.2).setStroke()
-                        path.lineWidth = 2
-                        path.stroke()
-                        
-                        resized.unlockFocus()
-                        
-                        thumbnail = resized
-                        frameSize = newSize
-                    }
-                }
-                
-                if let thumb = thumbnail {
-                    usedImage = thumb
-                } else {
-                    // Fallback to system icon
-                    let icon = NSWorkspace.shared.icon(forFile: path)
-                    let previewSize = CGSize(width: 64, height: 64)
-                    icon.size = previewSize
-                    usedImage = icon
-                    frameSize = previewSize
-                }
+                // Use cached icon for instant performance
+                usedImage = ThumbnailCache.shared.cachedIcon(forPath: path)
+                usedImage?.size = frameSize
             } else {
-                // Fallback to view snapshot
+                // Fallback to view snapshot for non-file items
                 if let bitmap = self.hostingView.bitmapImageRepForCachingDisplay(in: self.hostingView.bounds),
                    let cgImage = bitmap.cgImage {
                     usedImage = NSImage(cgImage: cgImage, size: self.hostingView.bounds.size)
-                    frameSize = self.hostingView.bounds.size
                 }
             }
             

@@ -65,8 +65,12 @@ class UpdateWindowController: NSObject, NSWindowDelegate {
             self.window = newWindow
             
             // Bring to front and activate
-            NSApp.activate(ignoringOtherApps: true)
-            newWindow.makeKeyAndOrderFront(nil)
+            // Use orderFront first, then async makeKey to ensure NotchWindow's canBecomeKey updates
+            newWindow.orderFront(nil)
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                newWindow.makeKeyAndOrderFront(nil)
+            }
         }
     }
     

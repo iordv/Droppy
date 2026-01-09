@@ -210,8 +210,13 @@ class DroppyAlertController {
             panel.contentView = hostingView
             
             self.window = panel
-            NSApp.activate(ignoringOtherApps: true)
-            panel.makeKeyAndOrderFront(nil)
+            
+            // Use deferred makeKey to avoid NotchWindow conflicts
+            panel.orderFront(nil)
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                panel.makeKeyAndOrderFront(nil)
+            }
         }
     }
     

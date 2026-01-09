@@ -637,9 +637,22 @@ class NotchWindow: NSWindow {
         }
     }
     
-    // Ensure the window can become key to receive input
+    // Ensure the window can become key to receive input - but only when appropriate
+    // Don't steal key window status from other Droppy windows (Settings, Clipboard, etc.)
+    // OPTIMIZED: Check specific singletons instead of iterating all windows (O(1) vs O(n))
     override var canBecomeKey: Bool {
-        return true
+        // Fast check: if another Droppy window is the current key window, yield
+        if let keyWindow = NSApp.keyWindow, keyWindow !== self {
+            // Check if current key window is one of our important windows
+            if keyWindow is ClipboardPanel || keyWindow is BasketPanel || 
+               keyWindow.title == "Settings" || keyWindow.title.contains("Update") ||
+               keyWindow.title == "Welcome to Droppy" {
+                return false
+            }
+        }
+        
+        // Only become key when shelf is expanded and needs interaction
+        return DroppyState.shared.isExpanded || DroppyState.shared.isMouseHovering
     }
 }
 
@@ -696,6 +709,44 @@ class NotchDragContainer: NSView {
         let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect]
         trackingArea = NSTrackingArea(rect: self.bounds, options: options, owner: self, userInfo: nil)
         addTrackingArea(trackingArea!)
+    }
+    
+    // MARK: - First Mouse Activation (v5.8.9)
+    // Enable immediate interaction with shelf items without requiring window activation first.
+    // This allows dragging files from the shelf even when another app is frontmost.
+    // IMPORTANT: Only enable when shelf is expanded AND no other Droppy windows are visible
+    // to prevent blocking interaction with Settings, Clipboard, etc.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        // Only accept first mouse when shelf is expanded (has items to interact with)
+        guard DroppyState.shared.isExpanded else {
+            return false
+        }
+        
+        // OPTIMIZED: Check key window instead of iterating all windows (O(1) vs O(n))
+        // If another important Droppy window is the key window, don't steal first mouse
+        if let keyWindow = NSApp.keyWindow, keyWindow !== self.window {
+            if keyWindow is ClipboardPanel || keyWindow is BasketPanel ||
+               keyWindow.title == "Settings" || keyWindow.title.contains("Update") ||
+               keyWindow.title == "Welcome to Droppy" {
+                return false
+            }
+        }
+        
+        // Verify the click is actually within the expanded shelf area
+        guard let event = event else { return true }
+        let locationInWindow = event.locationInWindow
+        let locationInView = convert(locationInWindow, from: nil)
+        
+        // Check if within expanded shelf bounds (approximate)
+        let expandedWidth: CGFloat = 450
+        let centerX = bounds.midX
+        let xRange = (centerX - expandedWidth/2)...(centerX + expandedWidth/2)
+        
+        if xRange.contains(locationInView.x) {
+            return true
+        }
+        
+        return false
     }
     
     // MARK: - Mouse Tracking Methods

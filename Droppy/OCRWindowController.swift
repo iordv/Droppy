@@ -48,10 +48,13 @@ final class OCRWindowController: NSObject {
         
         newWindow.contentView = hostingView
         
-        // Fade in
+        // Fade in - use deferred makeKey to avoid NotchWindow conflicts
         newWindow.alphaValue = 0
-        NSApp.activate(ignoringOtherApps: true)
-        newWindow.makeKeyAndOrderFront(nil)
+        newWindow.orderFront(nil)
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            newWindow.makeKeyAndOrderFront(nil)
+        }
         
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.25

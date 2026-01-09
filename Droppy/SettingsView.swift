@@ -22,6 +22,7 @@ struct SettingsView: View {
     // HUD and Media Player settings
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true  // Enabled by default
+    @AppStorage("enableCapsLockHUD") private var enableCapsLockHUD = true  // Caps Lock indicator
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -439,6 +440,30 @@ struct SettingsView: View {
                 
                 if enableBatteryHUD {
                     BatteryHUDPreview()
+                }
+                
+                Toggle(isOn: $enableCapsLockHUD) {
+                    VStack(alignment: .leading) {
+                        Text("Caps Lock HUD")
+                        Text("Show when Caps Lock is toggled")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: enableCapsLockHUD) { _, newValue in
+                    if newValue {
+                        // Ensure notch window exists
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        // Close window only if all HUD features are disabled
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
+                
+                if enableCapsLockHUD {
+                    CapsLockHUDPreview()
                 }
             } header: {
                 Text("System HUDs")
@@ -1885,6 +1910,79 @@ struct BatteryHUDPreview: View {
                     } else {
                         batteryLevel = 75 // Reset
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Caps Lock HUD Preview - animated ON/OFF state toggle
+struct CapsLockHUDPreview: View {
+    @State private var isCapsLockOn = true
+    
+    // Match real notch dimensions
+    private let hudWidth: CGFloat = 280
+    private let notchWidth: CGFloat = 180
+    private let notchHeight: CGFloat = 32
+    
+    private var wingWidth: CGFloat { (hudWidth - notchWidth) / 2 }
+    
+    private var capsLockIcon: String {
+        isCapsLockOn ? "capslock.fill" : "capslock"
+    }
+    
+    private var accentColor: Color {
+        isCapsLockOn ? .green : .white
+    }
+    
+    var body: some View {
+        ZStack {
+            // Notch background with proper rounded corners
+            NotchShape(bottomRadius: 16)
+                .fill(Color.black)
+                .frame(width: hudWidth, height: notchHeight)
+                .overlay(
+                    NotchShape(bottomRadius: 16)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+            
+            // Wings: Caps Lock (left) | Camera Gap | ON/OFF (right)
+            HStack(spacing: 0) {
+                // Left wing - Caps Lock icon with animation
+                HStack {
+                    Spacer(minLength: 0)
+                    Image(systemName: capsLockIcon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(accentColor)
+                        .contentTransition(.symbolEffect(.replace))
+                        .symbolEffect(.pulse, options: .repeating, isActive: isCapsLockOn)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: wingWidth)
+                
+                // Camera notch gap
+                Spacer().frame(width: notchWidth)
+                
+                // Right wing - ON/OFF text
+                HStack {
+                    Spacer(minLength: 0)
+                    Text(isCapsLockOn ? "ON" : "OFF")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(accentColor)
+                        .contentTransition(.interpolate)
+                    Spacer(minLength: 0)
+                }
+                .frame(width: wingWidth)
+            }
+            .frame(width: hudWidth, height: notchHeight)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .onAppear {
+            // Animate ON/OFF state
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    isCapsLockOn.toggle()
                 }
             }
         }

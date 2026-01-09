@@ -47,6 +47,26 @@ final class DroppyState {
     /// Whether files are being hovered over the basket
     var isBasketTargeted: Bool = false
     
+    /// Counter for file operations in progress (zip, compress, convert, rename)
+    /// Used to prevent auto-hide during these operations
+    /// Auto-hide is blocked when this is > 0
+    private(set) var fileOperationCount: Int = 0
+    
+    /// Increment the file operation counter (called at start of operation)
+    func beginFileOperation() {
+        fileOperationCount += 1
+    }
+    
+    /// Decrement the file operation counter (called at end of operation)
+    func endFileOperation() {
+        fileOperationCount = max(0, fileOperationCount - 1)
+    }
+    
+    /// Convenience property to check if any operation is in progress
+    var isFileOperationInProgress: Bool {
+        return fileOperationCount > 0
+    }
+    
     /// Pending converted file ready to download (temp URL, original filename)
     var pendingConversion: (tempURL: URL, filename: String)?
     
@@ -174,22 +194,28 @@ final class DroppyState {
     }
     
     /// Removes multiple items and adds a new item in their place (for ZIP creation)
+    /// PERFORMANCE: Atomic replacement prevents momentary empty state that could trigger hide
     func replaceItems(_ oldItems: [DroppedItem], with newItem: DroppedItem) {
-        for oldItem in oldItems {
-            items.removeAll { $0.id == oldItem.id }
-            selectedItems.remove(oldItem.id)
-        }
-        items.append(newItem)
+        let idsToRemove = Set(oldItems.map { $0.id })
+        // Build new array atomically - never empty if newItem is added
+        var newItems = items.filter { !idsToRemove.contains($0.id) }
+        newItems.append(newItem)
+        items = newItems
+        // Update selection
+        selectedItems.subtract(idsToRemove)
         selectedItems.insert(newItem.id)
     }
     
     /// Removes multiple basket items and adds a new item in their place (for ZIP creation)
+    /// PERFORMANCE: Atomic replacement prevents momentary empty state that could trigger hide
     func replaceBasketItems(_ oldItems: [DroppedItem], with newItem: DroppedItem) {
-        for oldItem in oldItems {
-            basketItems.removeAll { $0.id == oldItem.id }
-            selectedBasketItems.remove(oldItem.id)
-        }
-        basketItems.append(newItem)
+        let idsToRemove = Set(oldItems.map { $0.id })
+        // Build new array atomically - never empty if newItem is added
+        var newBasketItems = basketItems.filter { !idsToRemove.contains($0.id) }
+        newBasketItems.append(newItem)
+        basketItems = newBasketItems
+        // Update selection
+        selectedBasketItems.subtract(idsToRemove)
         selectedBasketItems.insert(newItem.id)
     }
     
@@ -203,11 +229,15 @@ final class DroppyState {
     }
     
     /// Adds multiple items to the basket from file URLs
+    /// PERFORMANCE: Batched to trigger single state update instead of N updates
     func addBasketItems(from urls: [URL]) {
-        for url in urls {
-            let item = DroppedItem(url: url)
-            addBasketItem(item)
+        let existingURLs = Set(basketItems.map { $0.url })
+        let newItems = urls.compactMap { url -> DroppedItem? in
+            guard !existingURLs.contains(url) else { return nil }
+            return DroppedItem(url: url)
         }
+        guard !newItems.isEmpty else { return }
+        basketItems.append(contentsOf: newItems)
     }
     
     /// Removes an item from the basket

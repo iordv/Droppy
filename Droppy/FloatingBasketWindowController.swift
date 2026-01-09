@@ -69,10 +69,15 @@ final class FloatingBasketWindowController: NSObject {
     func onDragEnded() {
         guard basketWindow != nil, !isShowingOrHiding else { return }
         
+        // Don't hide during file operations
+        guard !DroppyState.shared.isFileOperationInProgress else { return }
+        
         // Delay to allow drop operation to complete before checking
         // 300ms gives enough time for file URLs to be processed
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self, self.basketWindow != nil else { return }
+            // Don't hide during file operations (check again after delay)
+            guard !DroppyState.shared.isFileOperationInProgress else { return }
             // Only hide if basket is empty
             if DroppyState.shared.basketItems.isEmpty {
                 self.hideBasket()
@@ -217,6 +222,7 @@ final class FloatingBasketWindowController: NSObject {
         // Start invisible for fade-in animation
         panel.alphaValue = 0
         panel.orderFrontRegardless()
+        panel.makeKey() // Make key window so keyboard shortcuts work
         
         // Smooth fade-in animation
         NSAnimationContext.runAnimationGroup({ context in
@@ -265,6 +271,11 @@ final class FloatingBasketWindowController: NSObject {
     /// Hides and closes the basket window with smooth animation
     func hideBasket() {
         guard let panel = basketWindow, !isShowingOrHiding else { return }
+        
+        // Block hiding during file operations UNLESS basket is empty (user cleared it manually)
+        if DroppyState.shared.isFileOperationInProgress && !DroppyState.shared.basketItems.isEmpty {
+            return 
+        }
         
         isShowingOrHiding = true
         
@@ -346,6 +357,9 @@ final class FloatingBasketWindowController: NSObject {
                 revealFromEdge()
             }
         } else {
+            // Skip auto-hide logic during file operations
+            guard !DroppyState.shared.isFileOperationInProgress else { return }
+            
             // Mouse left basket - start hide timer if not already peeking
             if !isInPeekMode && !DroppyState.shared.basketItems.isEmpty {
                 startHideTimer()
@@ -356,6 +370,9 @@ final class FloatingBasketWindowController: NSObject {
     /// Starts the delayed hide timer (0.5 second delay)
     func startHideTimer() {
         guard isAutoHideEnabled, !isInPeekMode else { return }
+        
+        // Don't start hide timer during file operations (zip, compress, convert, rename)
+        guard !DroppyState.shared.isFileOperationInProgress else { return }
         
         cancelHideTimer()
         
@@ -375,6 +392,10 @@ final class FloatingBasketWindowController: NSObject {
     /// Slides the basket to the configured edge in peek mode
     func slideToEdge() {
         guard let panel = basketWindow, !isInPeekMode, !isShowingOrHiding else { return }
+        
+        // Don't slide away during file operations
+        guard !DroppyState.shared.isFileOperationInProgress else { return }
+        
         guard let screen = NSScreen.main else { return }
         guard let contentView = panel.contentView else { return }
         
@@ -435,7 +456,7 @@ final class FloatingBasketWindowController: NSObject {
             
             panel.animator().setFrame(peekFrame, display: true)
             layer.transform = transform
-        } completionHandler: { [weak self] in
+        } completionHandler: {
             // Reset rasterization after animation to save memory
             layer.shouldRasterize = false
         }
@@ -482,6 +503,10 @@ final class FloatingBasketWindowController: NSObject {
     /// Called when cursor exits the basket area (from FloatingBasketView)
     func onBasketHoverExit() {
         guard isAutoHideEnabled, !DroppyState.shared.basketItems.isEmpty else { return }
+        
+        // Don't trigger hide during file operations
+        guard !DroppyState.shared.isFileOperationInProgress else { return }
+        
         if !isInPeekMode {
             startHideTimer()
         }
@@ -536,6 +561,9 @@ class BasketDragContainer: NSView {
     
     override func draggingEnded(_ sender: NSDraggingInfo) {
         DroppyState.shared.isBasketTargeted = false
+        
+        // Don't hide during file operations
+        guard !DroppyState.shared.isFileOperationInProgress else { return }
         
         // Only hide if NO drop occurred during this drag session
         // and basket is still empty

@@ -57,8 +57,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.window = newWindow
         
         // Bring to front and activate
-        NSApp.activate(ignoringOtherApps: true)
-        newWindow.makeKeyAndOrderFront(nil)
+        // Use slight delay to ensure NotchWindow's canBecomeKey has time to update
+        // after detecting this window is visible
+        newWindow.orderFront(nil)
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            newWindow.makeKeyAndOrderFront(nil)
+        }
     }
     
     // MARK: - NSWindowDelegate

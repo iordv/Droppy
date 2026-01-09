@@ -196,9 +196,12 @@ final class FinderServicesSetupWindowController: NSObject, NSWindowDelegate {
             
             self.window = newWindow
             
-            // Bring to front and activate
-            NSApp.activate(ignoringOtherApps: true)
-            newWindow.makeKeyAndOrderFront(nil)
+            // Bring to front and activate - use deferred makeKey to avoid NotchWindow conflicts
+            newWindow.orderFront(nil)
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                newWindow.makeKeyAndOrderFront(nil)
+            }
         }
     }
     

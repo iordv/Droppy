@@ -117,8 +117,12 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         window.alphaValue = 0
         
         // ✅ Restore Focus to allow Keyboard Navigation (Arrows + Enter)
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        // Use orderFront first, then async makeKey to ensure NotchWindow's canBecomeKey updates
+        window.orderFront(nil)
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
         
         // Start monitoring for clicks outside to auto-close (since we are not Key)
         startClickMonitoring()

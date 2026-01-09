@@ -459,20 +459,37 @@ final class MusicManager: ObservableObject {
             return
         }
         
+        // Normalize bundle ID to lowercase for reliable matching
+        let bundleLower = bundleId.lowercased()
+        
         // For browsers, try to find and activate the tab playing the media
         if bundleId == "com.apple.Safari" {
             activateSafariTab()
-        } else if bundleId == "com.google.Chrome" {
-            activateChromeTab()
-        } else if bundleId.contains("firefox") || bundleId == "org.mozilla.firefox" {
-            activateFirefoxTab()
-        } else if bundleId.contains("arc") || bundleId == "company.thebrowser.Browser" {
+        } else if bundleLower.contains("chrome") || bundleLower.contains("chromium") {
+            activateChromeTab(bundleId: bundleId)
+        } else if bundleLower.contains("firefox") || bundleLower.contains("zen") {
+            // Zen browser is Firefox-based, both use same AppleScript (limited support)
+            activateFirefoxTab(bundleId: bundleId)
+        } else if bundleLower.contains("arc") || bundleId == "company.thebrowser.Browser" {
             activateArcTab()
+        } else if bundleLower.contains("brave") {
+            activateBraveTab(bundleId: bundleId)
+        } else if bundleLower.contains("edge") {
+            activateEdgeTab(bundleId: bundleId)
         } else {
-            // For non-browser apps, just open the app
+            // For non-browser apps (Spotify, SoundCloud app, etc.), just open the app
+            // This works universally for any bundle ID
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
                 print("MusicManager: Opening source app: \(bundleId)")
                 NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+            } else {
+                // Last resort: try to find running app by bundle ID and activate it
+                if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+                    print("MusicManager: Activating running app: \(bundleId)")
+                    app.activate()
+                } else {
+                    print("MusicManager: Could not find app with bundleId: \(bundleId)")
+                }
             }
         }
     }
@@ -522,12 +539,16 @@ final class MusicManager: ObservableObject {
     }
     
     /// Activate Chrome tab matching the current song title or artist
-    private func activateChromeTab() {
+    /// Works for Google Chrome and other Chromium-based browsers with similar AppleScript support
+    private func activateChromeTab(bundleId: String = "com.google.Chrome") {
         let titleMatch = escapeForAppleScript(songTitle)
         let artistMatch = escapeForAppleScript(artistName)
         
+        // Determine app name from bundle ID for AppleScript
+        let appName = getAppName(from: bundleId) ?? "Google Chrome"
+        
         let script = """
-        tell application "Google Chrome"
+        tell application "\(appName)"
             activate
             
             -- First try to match by song title
@@ -562,17 +583,30 @@ final class MusicManager: ObservableObject {
         end tell
         """
         
-        print("MusicManager: Chrome AppleScript searching for title='\(titleMatch)' or artist='\(artistMatch)'")
-        runAppleScript(script, appName: "Google Chrome")
+        print("MusicManager: \(appName) AppleScript searching for title='\(titleMatch)' or artist='\(artistMatch)'")
+        runAppleScript(script, appName: appName, bundleId: bundleId)
     }
     
-    /// Activate Firefox tab matching the current song title
-    private func activateFirefoxTab() {
-        // Firefox doesn't have great AppleScript support, just activate the app
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "org.mozilla.firefox") {
-            print("MusicManager: Activating Firefox (limited tab support)")
+    /// Activate Firefox/Zen tab - limited AppleScript support, just activate the app
+    private func activateFirefoxTab(bundleId: String = "org.mozilla.firefox") {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            let appName = getAppName(from: bundleId) ?? "Firefox"
+            print("MusicManager: Activating \(appName) (limited tab support)")
             NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+        } else if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+            print("MusicManager: Activating running Firefox-based browser: \(bundleId)")
+            app.activate()
         }
+    }
+    
+    /// Activate Brave tab (Chromium-based, same AppleScript as Chrome)
+    private func activateBraveTab(bundleId: String = "com.brave.Browser") {
+        activateChromeTab(bundleId: bundleId)
+    }
+    
+    /// Activate Edge tab (Chromium-based, same AppleScript as Chrome)
+    private func activateEdgeTab(bundleId: String = "com.microsoft.edgemac") {
+        activateChromeTab(bundleId: bundleId)
     }
     
     /// Activate Arc tab matching the current song title
@@ -608,8 +642,16 @@ final class MusicManager: ObservableObject {
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
     
+    /// Get the app name from a bundle identifier (for AppleScript)
+    private func getAppName(from bundleId: String) -> String? {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            return url.deletingPathExtension().lastPathComponent
+        }
+        return nil
+    }
+    
     /// Run AppleScript asynchronously with fallback to just opening the app
-    private func runAppleScript(_ source: String, appName: String) {
+    private func runAppleScript(_ source: String, appName: String, bundleId: String? = nil) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var error: NSDictionary?
             if let script = NSAppleScript(source: source) {
@@ -619,9 +661,13 @@ final class MusicManager: ObservableObject {
                     print("MusicManager: AppleScript error for \(appName): \(error)")
                     // Fallback: just activate the app
                     DispatchQueue.main.async {
-                        if let bundleId = self?.bundleIdentifier,
-                           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                            NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+                        let targetBundleId = bundleId ?? self?.bundleIdentifier
+                        if let bundleId = targetBundleId {
+                            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                                NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+                            } else if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+                                app.activate()
+                            }
                         }
                     }
                 } else {

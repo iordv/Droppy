@@ -46,8 +46,10 @@ struct ClipboardManagerView: View {
             filtered = historySnapshot
         } else {
             filtered = historySnapshot.filter { item in
-                item.title.localizedCaseInsensitiveContains(searchSnapshot) ||
-                (item.content ?? "").localizedCaseInsensitiveContains(searchSnapshot) ||
+                // PERFORMANCE: Limit content search to first 10K chars for large text
+                let contentPreview = String((item.content ?? "").prefix(10000))
+                return item.title.localizedCaseInsensitiveContains(searchSnapshot) ||
+                contentPreview.localizedCaseInsensitiveContains(searchSnapshot) ||
                 (item.sourceApp ?? "").localizedCaseInsensitiveContains(searchSnapshot)
             }
         }
@@ -445,6 +447,8 @@ struct ClipboardManagerView: View {
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 20)
+                        // Animation for list changes (favorites, add/remove)
+                        // PERFORMANCE: ID-only Hashable makes this comparison fast
                         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: sortedHistory)
                     }
                     .onAppear {
@@ -888,11 +892,7 @@ struct ClipboardPreviewView: View {
     
     @ObservedObject private var manager = ClipboardManager.shared
     
-    /// Get live item from manager to reflect immediate changes
-    private var liveItem: ClipboardItem {
-        manager.history.first(where: { $0.id == item.id }) ?? item
-    }
-    
+
     @State private var isPasteHovering = false
     @State private var isCopyHovering = false
     @State private var isStarHovering = false
@@ -1050,7 +1050,14 @@ struct ClipboardPreviewView: View {
                                     .controlSize(.small)
                                     .padding()
                             } else {
-                                Text(liveItem.content ?? "")
+                                // Truncate very long content for performance
+                                let content = item.content ?? ""
+                                let maxPreviewLength = 50000
+                                let truncatedContent = content.count > maxPreviewLength 
+                                    ? String(content.prefix(maxPreviewLength)) + "\n\n[Content truncated - \(content.count) characters total]"
+                                    : content
+                                
+                                Text(truncatedContent)
                                     .font(.body)
                                     .foregroundStyle(.white)
                                     .padding()
@@ -1326,13 +1333,13 @@ struct ClipboardPreviewView: View {
                     ZStack {
                         // Background glow when favorited
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.yellow.opacity(liveItem.isFavorite ? 0.2 : 0))
+                            .fill(Color.yellow.opacity(item.isFavorite ? 0.2 : 0))
                             .blur(radius: 8)
-                            .scaleEffect(liveItem.isFavorite ? 1.2 : 0.8)
+                            .scaleEffect(item.isFavorite ? 1.2 : 0.8)
                         
-                        Image(systemName: liveItem.isFavorite ? "star.fill" : "star")
+                        Image(systemName: item.isFavorite ? "star.fill" : "star")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(liveItem.isFavorite ? .yellow : (isStarHovering ? .yellow.opacity(0.7) : .secondary))
+                            .foregroundStyle(item.isFavorite ? .yellow : (isStarHovering ? .yellow.opacity(0.7) : .secondary))
                             .symbolEffect(.bounce, value: starAnimationTrigger)
                     }
                     .frame(width: 44, height: 44)

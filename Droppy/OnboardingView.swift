@@ -95,6 +95,7 @@ struct OnboardingView: View {
     // HUD settings
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true
+    @AppStorage("enableCapsLockHUD") private var enableCapsLockHUD = true
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     
@@ -605,6 +606,7 @@ struct OnboardingView: View {
                     // HUD toggles grid
                     HStack(spacing: 24) {
                         hudToggle(icon: "battery.100", title: "Battery", isOn: $enableBatteryHUD, color: .green)
+                        hudToggle(icon: "capslock.fill", title: "Caps Lock", isOn: $enableCapsLockHUD, color: .green)
                         hudToggle(icon: "play.fill", title: "Media", isOn: $showMediaPlayer, color: .pink)
                         hudToggle(icon: "clock", title: "Auto-fade", isOn: $autoFadeMediaHUD, color: .blue)
                     }
@@ -1103,9 +1105,13 @@ final class OnboardingWindowController: NSObject {
         window?.center()
         window?.level = .floating
         
-        // Fade in
+        // Fade in - use deferred makeKey to avoid NotchWindow conflicts
         window?.alphaValue = 0
-        window?.makeKeyAndOrderFront(nil)
+        window?.orderFront(nil)
+        DispatchQueue.main.async { [weak self] in
+            NSApp.activate(ignoringOtherApps: true)
+            self?.window?.makeKeyAndOrderFront(nil)
+        }
         
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.3

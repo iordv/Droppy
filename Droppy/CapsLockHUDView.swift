@@ -1,17 +1,17 @@
 //
-//  BatteryHUDView.swift
+//  CapsLockHUDView.swift
 //  Droppy
 //
-//  Created by Droppy on 07/01/2026.
-//  Beautiful battery HUD matching MediaHUDView style
+//  Created by Droppy on 09/01/2026.
+//  Beautiful Caps Lock HUD matching BatteryHUDView style exactly
 //
 
 import SwiftUI
 
-/// Compact battery HUD that sits inside the notch
-/// Matches MediaHUDView layout: icon on left wing, percentage on right wing
-struct BatteryHUDView: View {
-    @ObservedObject var batteryManager: BatteryManager
+/// Compact Caps Lock HUD that sits inside the notch
+/// Matches BatteryHUDView layout exactly: icon on left wing, ON/OFF on right wing
+struct CapsLockHUDView: View {
+    @ObservedObject var capsLockManager: CapsLockManager
     let notchWidth: CGFloat   // Physical notch width
     let notchHeight: CGFloat  // Physical notch height
     let hudWidth: CGFloat     // Total HUD width
@@ -21,32 +21,14 @@ struct BatteryHUDView: View {
         (hudWidth - notchWidth) / 2
     }
     
-    /// Accent color based on battery state
+    /// Accent color based on Caps Lock state (matches battery green/white scheme)
     private var accentColor: Color {
-        if batteryManager.isCharging || batteryManager.isPluggedIn {
-            return .green
-        } else if batteryManager.isLowBattery {
-            return .orange
-        } else {
-            return .white
-        }
+        capsLockManager.isCapsLockOn ? .green : .white
     }
     
-    /// Dynamic battery icon based on level and charging state
-    private var batteryIcon: String {
-        if batteryManager.isCharging || batteryManager.isPluggedIn {
-            return "battery.100.bolt"
-        }
-        let level = batteryManager.batteryLevel
-        if level >= 75 {
-            return "battery.100"
-        } else if level >= 50 {
-            return "battery.75"
-        } else if level >= 25 {
-            return "battery.50"
-        } else {
-            return "battery.25"
-        }
+    /// Caps Lock icon - use filled variant when ON
+    private var capsLockIcon: String {
+        capsLockManager.isCapsLockOn ? "capslock.fill" : "capslock"
     }
     
     /// Whether we're in Dynamic Island mode
@@ -63,40 +45,41 @@ struct BatteryHUDView: View {
             if isDynamicIslandMode {
                 // DYNAMIC ISLAND: Compact horizontal layout
                 // Standardized sizing: 18px icons, 13pt text, 14px horizontal padding
+                // EXACT COPY of BatteryHUDView Dynamic Island layout
                 HStack(spacing: 12) {
-                    // Battery icon
-                    Image(systemName: batteryIcon)
+                    // Caps Lock icon
+                    Image(systemName: capsLockIcon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(accentColor)
-                        .symbolEffect(.pulse, options: .repeating, value: batteryManager.isCharging)
+                        .symbolEffect(.pulse, options: .repeating, value: capsLockManager.isCapsLockOn)
                         .contentTransition(.symbolEffect(.replace))
                         .symbolVariant(.fill)
                         .frame(width: 20, height: 20)
-                        .shadow(color: accentColor.opacity(0.4), radius: batteryManager.isCharging ? 4 : 0)
+                        .shadow(color: accentColor.opacity(capsLockManager.isCapsLockOn ? 0.4 : 0), radius: 4)
                     
-                    // Percentage
-                    Text("\(batteryManager.batteryLevel)%")
+                    // ON/OFF text
+                    Text(capsLockManager.isCapsLockOn ? "ON" : "OFF")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(accentColor)
                         .monospacedDigit()
-                        .contentTransition(.numericText(value: Double(batteryManager.batteryLevel)))
+                        .contentTransition(.interpolate)
                 }
                 .padding(.horizontal, 14)
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space
-                // Icon and percentage positioned near outer edges with 8px padding
+                // EXACT COPY of BatteryHUDView Notch Mode layout
                 HStack(spacing: 0) {
-                    // Left wing: Battery icon near left edge
+                    // Left wing: Caps Lock icon near left edge
                     HStack {
-                        Image(systemName: batteryIcon)
+                        Image(systemName: capsLockIcon)
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(accentColor)
-                            .symbolEffect(.pulse, options: .repeating, value: batteryManager.isCharging)
+                            .symbolEffect(.pulse, options: .repeating, value: capsLockManager.isCapsLockOn)
                             .contentTransition(.symbolEffect(.replace))
                             .symbolVariant(.fill)
                             .frame(width: 26, height: 26)
-                            .shadow(color: accentColor.opacity(0.4), radius: batteryManager.isCharging ? 6 : 0)
+                            .shadow(color: accentColor.opacity(capsLockManager.isCapsLockOn ? 0.4 : 0), radius: 6)
                             .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                         Spacer(minLength: 0)
                     }
@@ -107,15 +90,15 @@ struct BatteryHUDView: View {
                     Spacer()
                         .frame(width: notchWidth)
                     
-                    // Right wing: Percentage near right edge
+                    // Right wing: ON/OFF near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        Text("\(batteryManager.batteryLevel)%")
+                        Text(capsLockManager.isCapsLockOn ? "ON" : "OFF")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(accentColor)
                             .monospacedDigit()
-                            .contentTransition(.numericText(value: Double(batteryManager.batteryLevel)))
-                            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: batteryManager.batteryLevel)
+                            .contentTransition(.interpolate)
+                            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: capsLockManager.isCapsLockOn)
                     }
                     .padding(.trailing, 8)  // Balanced with vertical padding
                     .frame(width: wingWidth)
@@ -129,8 +112,8 @@ struct BatteryHUDView: View {
 #Preview {
     ZStack {
         Color.black
-        BatteryHUDView(
-            batteryManager: BatteryManager.shared,
+        CapsLockHUDView(
+            capsLockManager: CapsLockManager.shared,
             notchWidth: 180,
             notchHeight: 32,
             hudWidth: 300

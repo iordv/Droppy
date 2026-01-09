@@ -72,10 +72,10 @@ struct NotchHUDView: View {
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Main HUD - Two wings separated by the notch space
+                // Icons use fixed 16px padding to align with slider edges below
                 HStack(spacing: 0) {
-                    // Left wing: Icon centered
+                    // Left wing: Icon aligned with slider left edge
                     HStack {
-                        Spacer(minLength: 0)
                         Image(systemName: hudType.icon(for: value))
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(hudType == .brightness ? .yellow : .white)
@@ -86,13 +86,14 @@ struct NotchHUDView: View {
                             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hudType.icon(for: value))
                         Spacer(minLength: 0)
                     }
+                    .padding(.leading, 16)  // Align with slider's 16px left padding
                     .frame(width: wingWidth)
                     
                     // Camera notch area (spacer)
                     Spacer()
                         .frame(width: notchWidth)
                     
-                    // Right wing: Percentage centered
+                    // Right wing: Percentage aligned with slider right edge
                     HStack {
                         Spacer(minLength: 0)
                         Text("\(Int(value * 100))%")
@@ -101,11 +102,11 @@ struct NotchHUDView: View {
                             .monospacedDigit()
                             .contentTransition(.numericText(value: value))
                             .animation(.spring(response: 0.2, dampingFraction: 0.8), value: value)
-                        Spacer(minLength: 0)
                     }
+                    .padding(.trailing, 16)  // Align with slider's 16px right padding
                     .frame(width: wingWidth)
                 }
-                .frame(height: notchHeight) // Match physical notch for proper vertical centering
+                .frame(height: notchHeight)
                 
                 // Below notch: Slider (same style as seek slider in expanded media player)
                 HUDSlider(
@@ -281,10 +282,11 @@ struct MediaHUDView: View {
                 .padding(.horizontal, 14)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space
+                // Album art and visualizer positioned near outer edges
+                // Horizontal padding matches vertical: (notchHeight - 26) / 2 ≈ 3-5px
                 HStack(spacing: 0) {
-                    // Left wing: Album art centered
+                    // Left wing: Album art near left edge
                     HStack {
-                        Spacer(minLength: 0)
                         Group {
                             if musicManager.albumArt.size.width > 0 {
                                 Image(nsImage: musicManager.albumArt)
@@ -305,21 +307,22 @@ struct MediaHUDView: View {
                         .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                         Spacer(minLength: 0)
                     }
+                    .padding(.leading, 8)  // Balanced with vertical padding
                     .frame(width: wingWidth)
                     
                     // Camera notch area (spacer)
                     Spacer()
                         .frame(width: notchWidth)
                     
-                    // Right wing: Visualizer centered
+                    // Right wing: Visualizer near right edge
                     HStack {
                         Spacer(minLength: 0)
                         MiniAudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
-                        Spacer(minLength: 0)
                     }
+                    .padding(.trailing, 8)  // Balanced with vertical padding
                     .frame(width: wingWidth)
                 }
-                .frame(height: notchHeight) // Match physical notch for proper vertical centering
+                .frame(height: notchHeight)
             }
             
             // Hover: Scrolling song info (appears below album art / visualizer row)
@@ -329,7 +332,7 @@ struct MediaHUDView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.9))
                     .frame(height: 20)
-                    .padding(.vertical, 4) // Equal spacing above and below title
+                    .padding(.vertical, 4)
                     .padding(.horizontal, 8)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .top)),
