@@ -192,16 +192,36 @@ brew install --cask iordv/tap/droppy
 
 ## 🆕 What's New
 <!-- CHANGELOG_START -->
-## Droppy v5.1 - UX Improvements
+# Droppy v5.2 - Dynamic Island Refinements
 
-### ✨ Features
-- **Single-click shelf opening**: Click the notch or Dynamic Island once to instantly open the shelf - no double-click required!
-- **Improved hover detection**: Extended detection zone to the screen's top edge for fast cursor movements
-- **Basket snap positions**: New setting to snap the floating basket to screen edges (left, right, or bottom-center) instead of following the mouse
+## ✨ New Features
 
-### 🐛 Fixes
-- Hover detection no longer blocks areas below the notch (like Chrome's bookmark bar)
-- Detection works reliably when slamming the cursor to the top of the screen
+### Floating Dynamic Island
+- Dynamic Island now floats **4px below the screen edge** for an authentic iPhone-like appearance
+- Creates a natural "floating pill" effect that looks more premium and polished
+
+### Auto-Hide Now Fully Hides Island
+- When "Auto-Hide Preview" is enabled in Dynamic Island mode, the **entire island disappears** after 5 seconds
+- Previously, it would leave an empty black pill - now it's completely invisible
+- Hover over the island area to reveal it again
+
+### Instant Auto-Hide Response
+- Toggling "Auto-Hide Preview" now takes effect **immediately**
+- If music is playing when you enable it, the 5-second countdown starts right away
+- Previously required skipping to the next song to activate
+
+## 🎨 Design Improvements
+
+### Standardized HUD Sizes
+All HUDs in Dynamic Island mode now use consistent sizing:
+- Unified 18px icons, 13pt text, 14px horizontal padding
+- Volume/Brightness, Battery, and Media HUDs now look cohesive
+- Slider in Volume/Brightness HUD now expands to fill available space
+
+## 🐛 Bug Fixes
+
+- Fixed hover detection zone to properly cover the gap above the floating island
+- Improved Fitt's Law compliance - hovering at screen top edge still triggers the island
 <!-- CHANGELOG_END -->
 
 ---
