@@ -191,9 +191,12 @@ extension NSImage {
         for x in stride(from: 0, to: width, by: step) {
             for y in stride(from: 0, to: height, by: step) {
                 if let color = bitmap.colorAt(x: x, y: y) {
-                    let r = color.redComponent
-                    let g = color.greenComponent
-                    let b = color.blueComponent
+                    // Convert to RGB color space to safely access components
+                    guard let rgbColor = color.usingColorSpace(.deviceRGB) else { continue }
+                    
+                    let r = rgbColor.redComponent
+                    let g = rgbColor.greenComponent
+                    let b = rgbColor.blueComponent
                     
                     // Weight by saturation - prefer colorful pixels
                     let maxC = max(r, g, b)

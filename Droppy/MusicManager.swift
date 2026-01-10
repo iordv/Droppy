@@ -88,6 +88,37 @@ final class MusicManager: ObservableObject {
     @Published private(set) var timestampDate: Date = .distantPast
     @Published private(set) var bundleIdentifier: String?
 
+    // MARK: - Spotify Integration
+    
+    /// Whether the current media source is Spotify
+    var isSpotifySource: Bool {
+        bundleIdentifier == SpotifyController.spotifyBundleId
+    }
+    
+    /// Spotify controller for app-specific features (shuffle, repeat, like)
+    var spotifyController: SpotifyController {
+        SpotifyController.shared
+    }
+    
+    /// Temporarily suppress timing updates after Spotify commands to avoid stale data
+    private var suppressTimingUpdatesUntil: Date = .distantPast
+    
+    /// Call this before executing Spotify commands that affect playback position
+    func suppressTimingUpdates(for seconds: Double = 0.5) {
+        suppressTimingUpdatesUntil = Date().addingTimeInterval(seconds)
+    }
+    
+    /// Whether timing updates should currently be suppressed
+    var isTimingSuppressed: Bool {
+        Date() < suppressTimingUpdatesUntil
+    }
+    
+    /// Force set elapsed time (used after Spotify seek commands)
+    func forceElapsedTime(_ time: Double) {
+        elapsedTime = time
+        timestampDate = Date()
+        suppressTimingUpdatesUntil = .distantPast // Clear suppression
+    }
 
     
     /// Whether playback stopped recently (within 5 seconds) - keeps UI visible
@@ -300,6 +331,10 @@ final class MusicManager: ObservableObject {
             if title != songTitle {
                 songDuration = 0
                 elapsedTime = 0
+                // Notify Spotify controller of track change
+                if isSpotifySource {
+                    SpotifyController.shared.onTrackChange()
+                }
             }
             songTitle = title
         }
@@ -320,35 +355,37 @@ final class MusicManager: ObservableObject {
             }
         }
         if let elapsed = payload.elapsedTime {
-            // Store the raw elapsed time from adapter
-            let rawElapsedTime = elapsed
+            // SIMPLE TIMING LOGIC:
+            // 
+            // For Spotify: IGNORE all MediaRemote timing - we use AppleScript polling instead
+            // For other sources: Just accept what MediaRemote sends
             
-            // Parse ISO 8601 timestamp to get when this elapsed time was captured
-            if let ts = payload.timestamp {
-                let formatter = ISO8601DateFormatter()
-                if let captureDate = formatter.date(from: ts) {
-                    // Calculate how much time has passed since the timestamp was captured
-                    let timeSinceCapture = Date().timeIntervalSince(captureDate)
-                    let rate = payload.playbackRate ?? 1.0
-                    
-                    // Allow adjustment for up to 5 minutes (300s) if playing
-                    // Web sources send stale timestamps on cold start, but if rate > 0 we can extrapolate
-                    if timeSinceCapture >= 0 && timeSinceCapture < 300 && rate > 0 {
-                        elapsedTime = rawElapsedTime + (timeSinceCapture * rate)
-                        print("MusicManager: Adjusted elapsed by \(timeSinceCapture)s: \(rawElapsedTime) -> \(elapsedTime)")
-                    } else {
-                        elapsedTime = rawElapsedTime
-                        if timeSinceCapture >= 300 {
-                            print("MusicManager: Timestamp too old (\(Int(timeSinceCapture))s), using raw elapsed")
+            // Check if this update is from Spotify (check payload directly, not stored value)
+            let isFromSpotify = payload.launchableBundleIdentifier == SpotifyController.spotifyBundleId ||
+                                (payload.launchableBundleIdentifier == nil && isSpotifySource)
+            
+            if isFromSpotify {
+                // SPOTIFY: Ignore MediaRemote timing completely
+                // SpotifyController handles timing via AppleScript polling every 1 second
+            } else {
+                // OTHER SOURCES: Accept MediaRemote timing directly
+                var newElapsedTime = elapsed
+                
+                // Adjust for timestamp age if available
+                if let ts = payload.timestamp {
+                    let formatter = ISO8601DateFormatter()
+                    if let captureDate = formatter.date(from: ts) {
+                        let timeSinceCapture = Date().timeIntervalSince(captureDate)
+                        let rate = payload.playbackRate ?? 1.0
+                        
+                        // Only adjust if timestamp is recent and we're playing
+                        if timeSinceCapture >= 0 && timeSinceCapture < 5 && rate > 0 {
+                            newElapsedTime = elapsed + (timeSinceCapture * rate)
                         }
                     }
-                    timestampDate = Date()
-                } else {
-                    elapsedTime = rawElapsedTime
-                    timestampDate = Date()
                 }
-            } else {
-                elapsedTime = rawElapsedTime
+                
+                elapsedTime = newElapsedTime
                 timestampDate = Date()
             }
         }
@@ -356,7 +393,12 @@ final class MusicManager: ObservableObject {
             playbackRate = rate
         }
         if let bundle = payload.launchableBundleIdentifier {
+            let wasSpotify = isSpotifySource
             bundleIdentifier = bundle
+            // Refresh Spotify state when source changes to Spotify
+            if isSpotifySource && !wasSpotify {
+                SpotifyController.shared.refreshState()
+            }
         }
         
         // Always update isPlaying from playbackRate (computed property)

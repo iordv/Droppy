@@ -32,6 +32,9 @@ struct URLSchemeHandler {
         switch host.lowercased() {
         case "add":
             handleAddAction(url: url)
+        case "spotify-callback":
+            // Handle Spotify OAuth callback
+            handleSpotifyCallback(url: url)
         default:
             print("⚠️ URLSchemeHandler: Unknown action '\(host)'")
         }
@@ -94,6 +97,18 @@ struct URLSchemeHandler {
             }
             
             print("✅ URLSchemeHandler: Added \(paths.count) file(s) to shelf")
+        }
+    }
+    
+    /// Handles Spotify OAuth callback
+    /// URL Format: droppy://spotify-callback?code=xxx
+    private static func handleSpotifyCallback(url: URL) {
+        print("🎵 URLSchemeHandler: Received Spotify OAuth callback")
+        
+        if SpotifyAuthManager.shared.handleCallback(url: url) {
+            print("✅ URLSchemeHandler: Spotify authentication successful")
+        } else {
+            print("⚠️ URLSchemeHandler: Spotify authentication failed")
         }
     }
 }

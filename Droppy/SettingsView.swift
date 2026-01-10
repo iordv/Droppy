@@ -484,7 +484,7 @@ struct SettingsView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Alfred Integration")
@@ -543,7 +543,7 @@ struct SettingsView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Finder Integration")
@@ -588,6 +588,70 @@ struct SettingsView: View {
                 Text("Finder")
             } footer: {
                 Text("Requires one-time setup in System Settings.")
+            }
+            
+            // MARK: Spotify Integration
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 14) {
+                        // Official Spotify icon (bundled asset)
+                        Image("SpotifyIcon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Spotify Integration")
+                                .font(.headline)
+                            
+                            Text("Extra controls appear in the media player when playing from Spotify: shuffle, repeat, and replay from the start.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            // Status indicator
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(SpotifyController.shared.isSpotifyRunning ? Color(red: 0.11, green: 0.73, blue: 0.33) : Color.gray.opacity(0.5))
+                                    .frame(width: 8, height: 8)
+                                Text(SpotifyController.shared.isSpotifyRunning ? "Spotify is running" : "Spotify is not running")
+                                    .font(.caption)
+                                    .foregroundStyle(SpotifyController.shared.isSpotifyRunning ? .primary : .secondary)
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
+                    
+                    // Like feature note (OAuth currently blocked by Spotify)
+                    if !SpotifyAuthManager.shared.hasValidClientId {
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "heart.slash")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 20)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Like Songs")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                
+                                Text("The ability to like songs directly from Droppy is temporarily unavailable. Spotify has paused new developer app registrations.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+            } header: {
+                Text("Spotify")
+            } footer: {
+                Text("No setup required. Controls appear automatically when Spotify is the active player.")
             }
         }
     }

@@ -131,23 +131,31 @@ struct MediaPlayerView: View {
         Button {
             musicManager.openMusicApp()
         } label: {
-            Group {
-                if musicManager.albumArt.size.width > 0 {
-                    Image(nsImage: musicManager.albumArt)
-                        .resizable()
-                        .aspectRatio(1, contentMode: .fill)
-                } else {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.1))
-                        .overlay(
-                            Image(systemName: "music.note")
-                                .font(.system(size: 24))
-                                .foregroundStyle(.white.opacity(0.4))
-                        )
+            ZStack(alignment: .bottomTrailing) {
+                Group {
+                    if musicManager.albumArt.size.width > 0 {
+                        Image(nsImage: musicManager.albumArt)
+                            .resizable()
+                            .aspectRatio(1, contentMode: .fill)
+                    } else {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.1))
+                            .overlay(
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(.white.opacity(0.4))
+                            )
+                    }
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                
+                // Spotify badge (bottom-right corner)
+                if musicManager.isSpotifySource {
+                    SpotifyBadge()
+                        .offset(x: 4, y: 4)
                 }
             }
-            .frame(width: 64, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             // Subtle border highlight
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -227,24 +235,66 @@ struct MediaPlayerView: View {
     
     // MARK: - Controls Row
     
+    @ViewBuilder
     private var controlsRow: some View {
-        HStack(spacing: 32) {
-            // Previous
-            MediaControlButton(icon: "backward.fill", size: 24) {
-                musicManager.previousTrack()
+        let isSpotify = musicManager.isSpotifySource
+        let spotify = musicManager.spotifyController
+        
+        // Spotify's signature green
+        let spotifyGreen = Color(red: 0.11, green: 0.73, blue: 0.33)
+        
+        HStack(spacing: 0) {
+            // Left side: Shuffle (Spotify only) or spacer
+            if isSpotify {
+                SpotifyControlButton(
+                    icon: "shuffle",
+                    isActive: spotify.shuffleEnabled,
+                    accentColor: spotifyGreen
+                ) {
+                    spotify.toggleShuffle()
+                }
+            } else {
+                Spacer()
+                    .frame(width: 40)
             }
             
-            // Play/Pause (larger)
-            MediaControlButton(
-                icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
-                size: 32
-            ) {
-                musicManager.togglePlay()
+            Spacer()
+            
+            // Center: Core playback controls
+            HStack(spacing: 32) {
+                // Previous
+                MediaControlButton(icon: "backward.fill", size: 24) {
+                    musicManager.previousTrack()
+                }
+                
+                // Play/Pause (larger)
+                MediaControlButton(
+                    icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
+                    size: 32
+                ) {
+                    musicManager.togglePlay()
+                }
+                
+                // Next
+                MediaControlButton(icon: "forward.fill", size: 24) {
+                    musicManager.nextTrack()
+                }
             }
             
-            // Next
-            MediaControlButton(icon: "forward.fill", size: 24) {
-                musicManager.nextTrack()
+            Spacer()
+            
+            // Right side: Repeat (Spotify only) or spacer
+            if isSpotify {
+                SpotifyControlButton(
+                    icon: spotify.repeatMode.iconName,
+                    isActive: spotify.repeatMode != .off,
+                    accentColor: spotifyGreen
+                ) {
+                    spotify.cycleRepeatMode()
+                }
+            } else {
+                Spacer()
+                    .frame(width: 40)
             }
         }
         .allowsHitTesting(true)
@@ -264,6 +314,20 @@ struct AudioVisualizerBars: View {
     }
 }
 
+// MARK: - Spotify Badge
+
+/// Small Spotify logo badge for album art overlay
+struct SpotifyBadge: View {
+    var body: some View {
+        Image("SpotifyIcon")
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 20, height: 20)
+            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+    }
+}
+
 // MARK: - Media Control Button (plain, no background)
 
 /// Simple media control button without background (for rewind/play/forward)
@@ -280,16 +344,90 @@ struct MediaControlButton: View {
                 .font(.system(size: size, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: size + 16, height: size + 16)
-                .scaleEffect(isHovering ? 1.05 : 1.0)
                 .contentShape(Rectangle())
-                .contentTransition(.symbolEffect(.replace)) // Smooth icon morph
+                .contentTransition(.symbolEffect(.replace))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MediaButtonStyle(isHovering: isHovering))
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering
             }
         }
+    }
+}
+
+/// Custom button style for media controls with press animation
+struct MediaButtonStyle: ButtonStyle {
+    var isHovering: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : (isHovering ? 1.05 : 1.0))
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .animation(.easeInOut(duration: 0.15), value: isHovering)
+    }
+}
+
+// MARK: - Spotify Control Button
+
+/// Spotify-specific control button with active state highlighting
+/// Styled to match MediaControlButton with additional active state support
+struct SpotifyControlButton: View {
+    let icon: String
+    var isActive: Bool = false
+    var isLoading: Bool = false
+    var accentColor: Color = .white
+    let action: () -> Void
+    
+    @State private var isHovering = false
+    
+    private var foregroundColor: Color {
+        if isActive {
+            return accentColor.ensureMinimumBrightness(factor: 0.7)
+        }
+        return .white.opacity(0.6)
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .progressViewStyle(.circular)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(foregroundColor)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+            }
+            .frame(width: 40, height: 40)  // Larger tap target
+            .background(
+                Circle()
+                    .fill(isActive ? accentColor.opacity(0.15) : Color.white.opacity(isHovering ? 0.08 : 0))
+            )
+            .contentShape(Circle())
+        }
+        .buttonStyle(SpotifyButtonStyle(isHovering: isHovering))
+        .disabled(isLoading)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+/// Custom button style for Spotify controls with press animation
+struct SpotifyButtonStyle: ButtonStyle {
+    var isHovering: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : (isHovering ? 1.05 : 1.0))
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
 }
 

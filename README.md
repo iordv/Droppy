@@ -90,10 +90,11 @@ Beautiful volume, brightness, battery, and Caps Lock overlays.
 
 ---
 
-## ⚡ More Features
+## More Features
 
 | Feature | Description |
 |:--------|:------------|
+| <img src="assets/spotify_icon.png" alt="Spotify" width="18" height="18"> **Native Spotify** | Shuffle, repeat, and rock-solid playback timing directly from Spotify |
 | **Quick Actions** | Right-click any file for compress, convert, OCR, move, share, and more |
 | **Move To...** | Send files directly to saved folder locations like your NAS or cloud drives |
 | **Smart Compression** | Compress images, PDFs, and videos with auto or target size options |
