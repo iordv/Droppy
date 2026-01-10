@@ -22,7 +22,7 @@
 
 <div align="center">
 
-![Droppy Demo](assets/droppy-demo.gif)
+<img src="assets/droppy-demo.gif" alt="Droppy Demo" width="100%">
 
 **See the interactive demo on our website!**
 
