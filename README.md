@@ -198,11 +198,14 @@ Enable in Settings → Basket → **Auto-Hide**. The basket slides to the screen
 
 ## ❤️ Support Droppy
 
-If Droppy saves you time, consider buying me a coffee!
+<p align="center">
+  <strong>Droppy is 100% free and open source — no ads, no subscriptions, ever.</strong><br>
+  If it saves you time, consider fueling future development with a coffee!
+</p>
 
 <p align="center">
   <a href="https://buymeacoffee.com/droppy">
-    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="200">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="220">
   </a>
 </p>
 
