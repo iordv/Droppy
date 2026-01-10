@@ -86,7 +86,7 @@ Now Playing controls with album art, seek slider, and native Spotify support.
 ## 🎛️ All Features
 
 <table width="100%">
-<tr><td><strong>The Shelf</strong></td><td>Drag files to your notch — they vanish into a sleek shelf</td></tr>
+<tr><td width="25%"><strong>The Shelf</strong></td><td width="75%">Drag files to your notch — they vanish into a sleek shelf</td></tr>
 <tr><td><strong>Floating Basket</strong></td><td>Jiggle your cursor while dragging to summon a basket anywhere</td></tr>
 <tr><td><strong>Clipboard Manager</strong></td><td>Full history with search, favorites, OCR, and drag-out</td></tr>
 <tr><td><strong>Media Player</strong></td><td>Now Playing controls with album art and seek slider</td></tr>
