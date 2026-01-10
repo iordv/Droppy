@@ -85,20 +85,20 @@ Now Playing controls with album art, seek slider, and native Spotify support.
 
 ## 🎛️ All Features
 
-<table width="100%">
-<tr><td width="25%"><strong>The Shelf</strong></td><td width="75%">Drag files to your notch — they vanish into a sleek shelf</td></tr>
-<tr><td><strong>Floating Basket</strong></td><td>Jiggle your cursor while dragging to summon a basket anywhere</td></tr>
-<tr><td><strong>Clipboard Manager</strong></td><td>Full history with search, favorites, OCR, and drag-out</td></tr>
-<tr><td><strong>Media Player</strong></td><td>Now Playing controls with album art and seek slider</td></tr>
-<tr><td><strong>Native Spotify</strong></td><td>Shuffle, repeat, and rock-solid playback timing</td></tr>
-<tr><td><strong>Quick Actions</strong></td><td>Right-click for compress, convert, OCR, move, share</td></tr>
-<tr><td><strong>Custom HUDs</strong></td><td>Beautiful volume, brightness, battery overlays</td></tr>
-<tr><td><strong>OCR & Vision</strong></td><td>Extract text from any image instantly</td></tr>
-<tr><td><strong>Auto-Hide & Peek</strong></td><td>Basket slides to edge, peeks on hover</td></tr>
-<tr><td><strong>Alfred Integration</strong></td><td>Push files from Alfred workflows</td></tr>
-<tr><td><strong>Dynamic Island</strong></td><td>Non-notch Macs get a beautiful pill interface</td></tr>
-<tr><td><strong>Multi-Monitor</strong></td><td>Works on external displays with fullscreen detection</td></tr>
-</table>
+| Feature | Description |
+|:---|:---|
+| **The Shelf** | Drag files to your notch — they vanish into a sleek shelf |
+| **Floating Basket** | Jiggle your cursor while dragging to summon a basket anywhere |
+| **Clipboard Manager** | Full history with search, favorites, OCR, and drag-out |
+| **Media Player** | Now Playing controls with album art and seek slider |
+| **Native Spotify** | Shuffle, repeat, and rock-solid playback timing |
+| **Quick Actions** | Right-click for compress, convert, OCR, move, share |
+| **Custom HUDs** | Beautiful volume, brightness, battery overlays |
+| **OCR & Vision** | Extract text from any image instantly |
+| **Auto-Hide & Peek** | Basket slides to edge, peeks on hover |
+| **Alfred Integration** | Push files from Alfred workflows |
+| **Dynamic Island** | Non-notch Macs get a beautiful pill interface |
+| **Multi-Monitor** | Works on external displays with fullscreen detection |
 
 ---
 
