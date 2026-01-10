@@ -37,7 +37,7 @@
 ## ✨ Features at a Glance
 
 <p align="center">
-  <img src="assets/features-overview.png" alt="Features Overview" width="700">
+  <img src="assets/features-overview.png" alt="Features Overview">
 </p>
 
 ---
