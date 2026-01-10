@@ -206,7 +206,8 @@ struct NotchShelfView: View {
         if state.isExpanded && enableNotchShelf {
             return currentExpandedHeight
         } else if hudIsVisible {
-            return hudHeight // Volume/brightness HUD needs more space
+            // Dynamic Island: keep compact height matching media HUD
+            return isDynamicIslandMode ? notchHeight : hudHeight
         } else if batteryHUDIsVisible && enableBatteryHUD {
             return notchHeight  // Battery HUD just uses notch height (no slider)
         } else if capsLockHUDIsVisible && enableCapsLockHUD {
@@ -267,12 +268,15 @@ struct NotchShelfView: View {
                     return true
                 }
             }
-            // Show when hovering (to access shelf)
-            if state.isMouseHovering || state.isDropTargeted { return true }
-            // Show when dragging files
-            if dragMonitor.isDragging { return true }
-            // Show when expanded
-            if state.isExpanded { return true }
+            // Shelf-specific triggers only apply when shelf is enabled
+            if enableNotchShelf {
+                // Show when hovering (to access shelf)
+                if state.isMouseHovering || state.isDropTargeted { return true }
+                // Show when dragging files
+                if dragMonitor.isDragging { return true }
+                // Show when expanded
+                if state.isExpanded { return true }
+            }
             // Show when battery HUD is visible
             if batteryHUDIsVisible && enableBatteryHUD { return true }
             // Show when caps lock HUD is visible
