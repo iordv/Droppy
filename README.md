@@ -48,14 +48,14 @@ Droppy transforms your Mac's notch (or Dynamic Island) into a powerful file stag
 
 <table align="center">
 <tr>
-<td align="center" width="50%" valign="top">
+<td align="center" width="50%" valign="middle">
 
 ### 📁 The Shelf
 
 Drag any file to your notch — it vanishes into a sleek shelf, ready when you need it.
 
 </td>
-<td align="center" width="50%" valign="top">
+<td align="center" width="50%" valign="middle">
 
 ### 🧺 Floating Basket
 
@@ -64,14 +64,14 @@ Jiggle your mouse while dragging to summon a basket anywhere on screen.
 </td>
 </tr>
 <tr>
-<td align="center" width="50%" valign="top">
+<td align="center" width="50%" valign="middle">
 
 ### 📋 Clipboard Manager
 
 Full history with search, favorites, OCR, and drag-out. Press `⌘⇧Space` to open.
 
 </td>
-<td align="center" width="50%" valign="top">
+<td align="center" width="50%" valign="middle">
 
 ### 🎵 Media Player
 
