@@ -8,6 +8,71 @@
 
 import SwiftUI
 
+// MARK: - Inline HUD Type
+
+/// Universal HUD types for the expanded media player
+/// To add a new HUD: 1) Add case here, 2) Add observer in MediaPlayerView
+enum InlineHUDType: Equatable {
+    case volume
+    case brightness
+    case battery
+    case capsLock
+    // Add new HUD types here
+    
+    /// Icon for this HUD type based on current value
+    func icon(for value: CGFloat) -> String {
+        switch self {
+        case .volume:
+            if value <= 0 { return "speaker.slash.fill" }
+            else if value < 0.33 { return "speaker.wave.1.fill" }
+            else if value < 0.66 { return "speaker.wave.2.fill" }
+            else { return "speaker.wave.3.fill" }
+        case .brightness:
+            return value < 0.5 ? "sun.min.fill" : "sun.max.fill"
+        case .battery:
+            if value <= 0.1 { return "battery.0percent" }
+            else if value <= 0.25 { return "battery.25percent" }
+            else if value <= 0.5 { return "battery.50percent" }
+            else if value <= 0.75 { return "battery.75percent" }
+            else { return "battery.100percent" }
+        case .capsLock:
+            return value > 0 ? "capslock.fill" : "capslock"
+        }
+    }
+    
+    /// Accent color for this HUD type
+    var accentColor: Color {
+        switch self {
+        case .volume: return .white
+        case .brightness: return .yellow
+        case .battery: return .green
+        case .capsLock: return .white
+        }
+    }
+    
+    /// Display text for this HUD type
+    func displayText(for value: CGFloat) -> String {
+        switch self {
+        case .volume, .brightness:
+            let percent = Int(value * 100)
+            return percent >= 100 ? "MAX" : "\(percent)%"
+        case .battery:
+            let percent = Int(value * 100)
+            return percent >= 100 ? "MAX" : "\(percent)%"
+        case .capsLock:
+            return value > 0 ? "ON" : "OFF"
+        }
+    }
+    
+    /// Whether to show the slider bar
+    var showsSlider: Bool {
+        switch self {
+        case .volume, .brightness, .battery: return true
+        case .capsLock: return false
+        }
+    }
+}
+
 /// Full media player view for the expanded notch
 /// Native macOS design with album art, visualizer, and control buttons
 struct MediaPlayerView: View {
@@ -18,10 +83,17 @@ struct MediaPlayerView: View {
     @State private var isAlbumArtPressed: Bool = false
     @State private var isAlbumArtHovering: Bool = false
     
-    // Volume morph state
-    @State private var showVolumeIndicator: Bool = false
-    @State private var volumeLevel: CGFloat = 0.5
-    @State private var volumeHideWorkItem: DispatchWorkItem?
+    // MARK: - Observed Managers for Fast HUD Updates
+    @ObservedObject private var volumeManager = VolumeManager.shared
+    @ObservedObject private var brightnessManager = BrightnessManager.shared
+    @ObservedObject private var batteryManager = BatteryManager.shared
+    @ObservedObject private var capsLockManager = CapsLockManager.shared
+    
+    // MARK: - Universal Inline HUD State
+    // Handles all HUD types: volume, brightness, battery, caps lock, etc.
+    @State private var inlineHUDType: InlineHUDType? = nil
+    @State private var inlineHUDValue: CGFloat = 0.5
+    @State private var inlineHUDHideWorkItem: DispatchWorkItem?
     
     /// Dominant color from album art for visualizer
     private var visualizerColor: Color {
@@ -127,33 +199,57 @@ struct MediaPlayerView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-            // MARK: - Volume Morph Observer
-            .onChange(of: VolumeManager.shared.lastChangeAt) { _, _ in
-                triggerVolumeIndicator()
-            }
+        }
+        // MARK: - Universal Inline HUD Observers
+        // Uses local @ObservedObject references for snappy updates
+        .onChange(of: volumeManager.lastChangeAt) { _, _ in
+            triggerInlineHUD(.volume, value: CGFloat(volumeManager.rawVolume))
+        }
+        .onChange(of: brightnessManager.lastChangeAt) { _, _ in
+            triggerInlineHUD(.brightness, value: CGFloat(brightnessManager.rawBrightness))
+        }
+        .onChange(of: batteryManager.lastChangeAt) { _, _ in
+            triggerInlineHUD(.battery, value: CGFloat(batteryManager.batteryLevel) / 100.0)
+        }
+        .onChange(of: capsLockManager.lastChangeAt) { _, _ in
+            triggerInlineHUD(.capsLock, value: capsLockManager.isCapsLockOn ? 1.0 : 0.0)
         }
     }
     
-    // MARK: - Volume Indicator Trigger
+    // MARK: - Universal Inline HUD Trigger
     
-    private func triggerVolumeIndicator() {
+    /// Trigger any inline HUD type in the media player
+    /// Matches exact timing from NotchShelfView's triggerVolumeHUD
+    private func triggerInlineHUD(_ type: InlineHUDType, value: CGFloat) {
         // Cancel any pending hide
-        volumeHideWorkItem?.cancel()
+        inlineHUDHideWorkItem?.cancel()
         
-        // Update volume level and show indicator
-        volumeLevel = CGFloat(VolumeManager.shared.rawVolume)
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-            showVolumeIndicator = true
+        // Update type and value INSTANTLY (no animation - matches regular HUD)
+        inlineHUDType = type
+        inlineHUDValue = value
+        
+        // Animate visibility on (same as regular HUD: spring 0.3, 0.7)
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            // Already set, but this triggers the animation
         }
         
-        // Hide after 2 seconds
+        // Get visible duration from the appropriate manager (matches regular HUD)
+        let duration: TimeInterval
+        switch type {
+        case .volume: duration = volumeManager.visibleDuration
+        case .brightness: duration = brightnessManager.visibleDuration
+        case .battery: duration = batteryManager.visibleDuration
+        case .capsLock: duration = capsLockManager.visibleDuration
+        }
+        
+        // Hide after duration (same as regular HUD: easeOut 0.3)
         let workItem = DispatchWorkItem { [self] in
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                showVolumeIndicator = false
+            withAnimation(.easeOut(duration: 0.3)) {
+                inlineHUDType = nil
             }
         }
-        volumeHideWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: workItem)
+        inlineHUDHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: workItem)
     }
     
     // MARK: - Album Art
@@ -331,81 +427,84 @@ struct MediaPlayerView: View {
                         .frame(width: 40)
                 }
             }
-            .opacity(showVolumeIndicator ? 0 : 1)
-            .scaleEffect(showVolumeIndicator ? 0.9 : 1)
+            .opacity(inlineHUDType != nil ? 0 : 1)
+            .scaleEffect(inlineHUDType != nil ? 0.9 : 1)
             
-            // MARK: - Inline Volume Indicator (morphs in when volume changes)
-            if showVolumeIndicator {
-                InlineVolumeView(volume: volumeLevel)
+            // MARK: - Universal Inline HUD (morphs in for any HUD type)
+            if let hudType = inlineHUDType {
+                InlineHUDView(type: hudType, value: inlineHUDValue)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.85).combined(with: .opacity),
                         removal: .scale(scale: 0.9).combined(with: .opacity)
                     ))
             }
         }
-        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: showVolumeIndicator)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: inlineHUDType != nil)
         .allowsHitTesting(true)
     }
 }
 
-// MARK: - Inline Volume View
+// MARK: - Universal Inline HUD View
 
-/// Beautiful inline volume indicator that morphs into the controls row
-/// Matches Droppy's liquid glass design language
-struct InlineVolumeView: View {
-    let volume: CGFloat
-    
-    /// Speaker icon based on volume level
-    private var speakerIcon: String {
-        if volume <= 0 {
-            return "speaker.slash.fill"
-        } else if volume < 0.33 {
-            return "speaker.wave.1.fill"
-        } else if volume < 0.66 {
-            return "speaker.wave.2.fill"
-        } else {
-            return "speaker.wave.3.fill"
-        }
-    }
+/// Universal inline HUD that morphs into the controls row
+/// Supports all HUD types: volume, brightness, battery, caps lock, etc.
+/// Uses same animations as HUDSlider for consistency
+struct InlineHUDView: View {
+    let type: InlineHUDType
+    let value: CGFloat
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Speaker icon
-            Image(systemName: speakerIcon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 28)
+        // Equal spacing: Icon (32px) | 10px | Slider | 10px | Text (32px)
+        HStack(spacing: 10) {
+            // Icon with smooth symbol transition
+            Image(systemName: type.icon(for: value))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(type.accentColor)
+                .frame(width: 32, alignment: .trailing) // Same width as text for symmetry
                 .contentTransition(.symbolEffect(.replace))
+                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: type.icon(for: value))
             
-            // Volume slider (visual only, non-interactive)
-            GeometryReader { geo in
-                let width = geo.size.width
-                let fillWidth = max(4, width * volume)
-                
-                ZStack(alignment: .leading) {
-                    // Track background
-                    Capsule()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(height: 6)
+            // Slider (visual only) - matches HUDSlider style
+            if type.showsSlider {
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    let progress = max(0, min(1, value))
+                    let fillWidth = max(5, width * progress)
+                    let trackHeight: CGFloat = 5
                     
-                    // Filled portion with glow
-                    Capsule()
-                        .fill(Color.white)
-                        .frame(width: fillWidth, height: 6)
-                        .shadow(color: .white.opacity(0.3), radius: 4)
+                    ZStack(alignment: .leading) {
+                        // Track background
+                        Capsule()
+                            .fill(type.accentColor.opacity(0.2))
+                            .frame(height: trackHeight)
+                        
+                        // Filled portion with glow
+                        if progress > 0 {
+                            Capsule()
+                                .fill(type.accentColor)
+                                .frame(width: fillWidth, height: trackHeight)
+                                .shadow(color: type.accentColor.opacity(0.4), radius: 4)
+                        }
+                    }
+                    .frame(height: trackHeight)
+                    .frame(maxHeight: .infinity, alignment: .center)
+                    .animation(.spring(response: 0.15, dampingFraction: 0.8), value: value)
                 }
-                .frame(maxHeight: .infinity, alignment: .center)
+                .frame(height: 28)
             }
-            .frame(height: 32)
             
-            // Percentage
-            Text("\(Int(volume * 100))%")
-                .font(.system(size: 16, weight: .semibold))
+            // Value text - MUST stay on one line
+            Text(type.displayText(for: value))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white)
                 .monospacedDigit()
-                .frame(width: 48, alignment: .trailing)
+                .lineLimit(1)
+                .frame(width: 32, alignment: .leading) // Same width as icon for symmetry
+                .contentTransition(.numericText(value: value))
+                .animation(.spring(response: 0.2, dampingFraction: 0.8), value: value)
         }
-        .padding(.horizontal, 20)
+        // Match width of center controls
+        .frame(width: type.showsSlider ? 160 : 80)
     }
 }
 

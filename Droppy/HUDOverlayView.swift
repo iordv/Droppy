@@ -10,6 +10,12 @@ import SwiftUI
 
 // HUDContentType is defined in LiquidSlider.swift
 
+/// Helper to format HUD percentage - shows "MAX" instead of "100%"
+private func hudPercentageText(_ value: CGFloat) -> String {
+    let percent = Int(value * 100)
+    return percent >= 100 ? "MAX" : "\(percent)%"
+}
+
 /// Embedded HUD view that appears inside the expanded notch
 /// Icon on left wing, percentage on right wing, slider at bottom (full width)
 /// Layout matches MediaHUDView for consistent positioning
@@ -61,7 +67,7 @@ struct NotchHUDView: View {
                     .frame(height: 16)
                     
                     // Percentage
-                    Text("\(Int(value * 100))%")
+                    Text(hudPercentageText(value))
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
                         .monospacedDigit()
@@ -96,7 +102,7 @@ struct NotchHUDView: View {
                     // Right wing: Percentage aligned with slider right edge
                     HStack {
                         Spacer(minLength: 0)
-                        Text("\(Int(value * 100))%")
+                        Text(hudPercentageText(value))
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
                             .monospacedDigit()
@@ -551,7 +557,7 @@ struct HUDOverlayView: View {
             .frame(width: 160)
             
             // Percentage
-            Text("\(Int(value * 100))%")
+            Text(hudPercentageText(value))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.gray)
                 .monospacedDigit()
