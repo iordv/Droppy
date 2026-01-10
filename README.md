@@ -52,14 +52,14 @@ Droppy transforms your Mac's notch (or Dynamic Island) into a powerful file stag
 
 ### 📁 The Shelf
 
-Drag any file to your notch — it vanishes into a sleek shelf, ready when you need it.
+Drag files to your notch — they vanish into a sleek shelf, ready when you need them.
 
 </td>
 <td align="center" width="50%" valign="middle">
 
 ### 🧺 Floating Basket
 
-Jiggle your mouse while dragging to summon a basket anywhere on screen.
+Jiggle your mouse while dragging to summon a basket anywhere on your screen.
 
 </td>
 </tr>
@@ -75,7 +75,7 @@ Full history with search, favorites, OCR, and drag-out. Press `⌘⇧Space` to o
 
 ### 🎵 Media Player
 
-Now Playing controls with album art, seek slider, and native Spotify support.
+Now Playing controls with album art, seek slider, and native Spotify integration.
 
 </td>
 </tr>
