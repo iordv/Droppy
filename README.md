@@ -44,7 +44,7 @@
 
 ## 🚀 What is Droppy?
 
-Droppy transforms your Mac's notch (or Dynamic Island) into a powerful file staging area. Drag files to your notch to temporarily hold them, jiggle your cursor to summon a floating basket, and access a full clipboard manager — all in one beautiful, native app.
+Droppy transforms your Mac's notch into a powerful file staging area. **No notch? No problem** — Droppy creates a beautiful Dynamic Island-style pill on any Mac. Drag files to stash them, jiggle your cursor to summon a floating basket, and access a full clipboard manager — all in one beautiful, native app.
 
 <table align="center">
 <tr>
