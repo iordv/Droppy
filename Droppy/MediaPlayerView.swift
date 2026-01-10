@@ -18,6 +18,11 @@ struct MediaPlayerView: View {
     @State private var isAlbumArtPressed: Bool = false
     @State private var isAlbumArtHovering: Bool = false
     
+    // Volume morph state
+    @State private var showVolumeIndicator: Bool = false
+    @State private var volumeLevel: CGFloat = 0.5
+    @State private var volumeHideWorkItem: DispatchWorkItem?
+    
     /// Dominant color from album art for visualizer
     private var visualizerColor: Color {
         if musicManager.albumArt.size.width > 0 {
@@ -122,7 +127,33 @@ struct MediaPlayerView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            // MARK: - Volume Morph Observer
+            .onChange(of: VolumeManager.shared.lastChangeAt) { _, _ in
+                triggerVolumeIndicator()
+            }
         }
+    }
+    
+    // MARK: - Volume Indicator Trigger
+    
+    private func triggerVolumeIndicator() {
+        // Cancel any pending hide
+        volumeHideWorkItem?.cancel()
+        
+        // Update volume level and show indicator
+        volumeLevel = CGFloat(VolumeManager.shared.rawVolume)
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+            showVolumeIndicator = true
+        }
+        
+        // Hide after 2 seconds
+        let workItem = DispatchWorkItem { [self] in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                showVolumeIndicator = false
+            }
+        }
+        volumeHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: workItem)
     }
     
     // MARK: - Album Art
@@ -243,61 +274,138 @@ struct MediaPlayerView: View {
         // Spotify's signature green
         let spotifyGreen = Color(red: 0.11, green: 0.73, blue: 0.33)
         
-        HStack(spacing: 0) {
-            // Left side: Shuffle (Spotify only) or spacer
-            if isSpotify {
-                SpotifyControlButton(
-                    icon: "shuffle",
-                    isActive: spotify.shuffleEnabled,
-                    accentColor: spotifyGreen
-                ) {
-                    spotify.toggleShuffle()
-                }
-            } else {
-                Spacer()
-                    .frame(width: 40)
-            }
-            
-            Spacer()
-            
-            // Center: Core playback controls
-            HStack(spacing: 32) {
-                // Previous
-                MediaControlButton(icon: "backward.fill", size: 24) {
-                    musicManager.previousTrack()
+        // ZStack for morphing between controls and volume indicator
+        ZStack {
+            // MARK: - Playback Controls (hide when volume shown)
+            HStack(spacing: 0) {
+                // Left side: Shuffle (Spotify only) or spacer
+                if isSpotify {
+                    SpotifyControlButton(
+                        icon: "shuffle",
+                        isActive: spotify.shuffleEnabled,
+                        accentColor: spotifyGreen
+                    ) {
+                        spotify.toggleShuffle()
+                    }
+                } else {
+                    Spacer()
+                        .frame(width: 40)
                 }
                 
-                // Play/Pause (larger)
-                MediaControlButton(
-                    icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
-                    size: 32
-                ) {
-                    musicManager.togglePlay()
+                Spacer()
+                
+                // Center: Core playback controls
+                HStack(spacing: 32) {
+                    // Previous
+                    MediaControlButton(icon: "backward.fill", size: 24) {
+                        musicManager.previousTrack()
+                    }
+                    
+                    // Play/Pause (larger)
+                    MediaControlButton(
+                        icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
+                        size: 32
+                    ) {
+                        musicManager.togglePlay()
+                    }
+                    
+                    // Next
+                    MediaControlButton(icon: "forward.fill", size: 24) {
+                        musicManager.nextTrack()
+                    }
                 }
                 
-                // Next
-                MediaControlButton(icon: "forward.fill", size: 24) {
-                    musicManager.nextTrack()
+                Spacer()
+                
+                // Right side: Repeat (Spotify only) or spacer
+                if isSpotify {
+                    SpotifyControlButton(
+                        icon: spotify.repeatMode.iconName,
+                        isActive: spotify.repeatMode != .off,
+                        accentColor: spotifyGreen
+                    ) {
+                        spotify.cycleRepeatMode()
+                    }
+                } else {
+                    Spacer()
+                        .frame(width: 40)
                 }
             }
+            .opacity(showVolumeIndicator ? 0 : 1)
+            .scaleEffect(showVolumeIndicator ? 0.9 : 1)
             
-            Spacer()
-            
-            // Right side: Repeat (Spotify only) or spacer
-            if isSpotify {
-                SpotifyControlButton(
-                    icon: spotify.repeatMode.iconName,
-                    isActive: spotify.repeatMode != .off,
-                    accentColor: spotifyGreen
-                ) {
-                    spotify.cycleRepeatMode()
-                }
-            } else {
-                Spacer()
-                    .frame(width: 40)
+            // MARK: - Inline Volume Indicator (morphs in when volume changes)
+            if showVolumeIndicator {
+                InlineVolumeView(volume: volumeLevel)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85).combined(with: .opacity),
+                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                    ))
             }
         }
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: showVolumeIndicator)
         .allowsHitTesting(true)
+    }
+}
+
+// MARK: - Inline Volume View
+
+/// Beautiful inline volume indicator that morphs into the controls row
+/// Matches Droppy's liquid glass design language
+struct InlineVolumeView: View {
+    let volume: CGFloat
+    
+    /// Speaker icon based on volume level
+    private var speakerIcon: String {
+        if volume <= 0 {
+            return "speaker.slash.fill"
+        } else if volume < 0.33 {
+            return "speaker.wave.1.fill"
+        } else if volume < 0.66 {
+            return "speaker.wave.2.fill"
+        } else {
+            return "speaker.wave.3.fill"
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Speaker icon
+            Image(systemName: speakerIcon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28)
+                .contentTransition(.symbolEffect(.replace))
+            
+            // Volume slider (visual only, non-interactive)
+            GeometryReader { geo in
+                let width = geo.size.width
+                let fillWidth = max(4, width * volume)
+                
+                ZStack(alignment: .leading) {
+                    // Track background
+                    Capsule()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(height: 6)
+                    
+                    // Filled portion with glow
+                    Capsule()
+                        .fill(Color.white)
+                        .frame(width: fillWidth, height: 6)
+                        .shadow(color: .white.opacity(0.3), radius: 4)
+                }
+                .frame(maxHeight: .infinity, alignment: .center)
+            }
+            .frame(height: 32)
+            
+            // Percentage
+            Text("\(Int(volume * 100))%")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .monospacedDigit()
+                .frame(width: 48, alignment: .trailing)
+        }
+        .padding(.horizontal, 20)
     }
 }
 

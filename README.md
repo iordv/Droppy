@@ -101,7 +101,7 @@ Beautiful volume, brightness, battery, and Caps Lock overlays.
 | **Auto-Hide Basket** | Basket slides to screen edge when idle, peeks out on hover |
 | **Multi-Monitor** | Works on external displays with smart fullscreen detection |
 | **Dynamic Island** | Non-notch Macs get a beautiful floating pill interface |
-| **Alfred Integration** | Push files to Droppy from Alfred with a quick action |
+| <img src="assets/alfred_icon.png" alt="Alfred" width="18" height="18"> **Alfred Integration** | Push files to Droppy from Alfred with a quick action |
 
 ---
 
