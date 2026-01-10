@@ -46,32 +46,36 @@
 
 Droppy transforms your Mac's notch (or Dynamic Island) into a powerful file staging area. Drag files to your notch to temporarily hold them, jiggle your cursor to summon a floating basket, and access a full clipboard manager — all in one beautiful, native app.
 
-<table>
+<table align="center">
 <tr>
-<td width="50%">
+<td align="center" width="50%" valign="top">
 
 ### 📁 The Shelf
-Drag any file to your notch — it vanishes into a sleek shelf, ready when you need it. Supports unlimited files with smooth, fluid animations.
+
+Drag any file to your notch — it vanishes into a sleek shelf, ready when you need it.
 
 </td>
-<td width="50%">
+<td align="center" width="50%" valign="top">
 
 ### 🧺 Floating Basket
-Jiggle your mouse while dragging to summon a basket anywhere on screen. Enable auto-hide for a clean desktop experience.
+
+Jiggle your mouse while dragging to summon a basket anywhere on screen.
 
 </td>
 </tr>
 <tr>
-<td width="50%">
+<td align="center" width="50%" valign="top">
 
 ### 📋 Clipboard Manager
-Full history with search, favorites, OCR text extraction, and drag-out support. Access from anywhere with `⌘ + Shift + Space`.
+
+Full history with search, favorites, OCR, and drag-out. Press `⌘⇧Space` to open.
 
 </td>
-<td width="50%">
+<td align="center" width="50%" valign="top">
 
 ### 🎵 Media Player
-Now Playing controls live in your notch with album art, seek slider, and native Spotify integration.
+
+Now Playing controls with album art, seek slider, and native Spotify support.
 
 </td>
 </tr>
