@@ -6,9 +6,10 @@
 //
 
 import Foundation
-import Vision
+@preconcurrency import Vision
 import CoreImage
 import AppKit
+import Combine
 
 /// Manages AI-powered background removal using Apple Vision framework
 /// Uses VNGenerateForegroundInstanceMaskRequest (macOS 14+) for subject isolation
@@ -62,24 +63,17 @@ final class BackgroundRemovalManager: ObservableObject {
     /// Remove background from a CIImage
     /// - Parameter image: Source CIImage
     /// - Returns: CIImage with transparent background
-    func removeBackground(from image: CIImage) async throws -> CIImage {
+    nonisolated func removeBackground(from image: CIImage) async throws -> CIImage {
         // Create foreground mask request
         let request = VNGenerateForegroundInstanceMaskRequest()
         
         // Create request handler
         let handler = VNImageRequestHandler(ciImage: image, options: [:])
         
-        // Perform request
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    try handler.perform([request])
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        // Perform request synchronously on background thread
+        try await Task.detached {
+            try handler.perform([request])
+        }.value
         
         // Get the mask observation
         guard let observation = request.results?.first else {
