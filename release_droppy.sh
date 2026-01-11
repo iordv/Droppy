@@ -312,10 +312,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 brew install --cask iordv/tap/droppy
 ```
 
-**Manual Install:** Download the DMG below, drag Droppy to Applications, then run:
+**Manual Install:** Download the DMG below, then run this before opening:
 ```bash
-xattr -rd com.apple.quarantine /Applications/Droppy.app
+xattr -rd com.apple.quarantine ~/Downloads/Droppy-*.dmg
 ```
+Then open the DMG and drag Droppy to Applications.
 INSTALL_FOOTER
     
     gh release create "v$VERSION" "$DMG_NAME" --title "v$VERSION" --notes-file "$TEMP_NOTES"
