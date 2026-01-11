@@ -129,48 +129,120 @@ info "Packaging DMG"
 cd "$MAIN_REPO" || exit
 rm -f Droppy*.dmg
 
-# Use create-dmg for a beautiful installer with custom background
+# Build DroppyInstaller
+info "Building DroppyInstaller"
+INSTALLER_SRC="$MAIN_REPO/DroppyInstaller/main.swift"
+INSTALLER_APP="$APP_BUILD_PATH/DroppyInstaller.app"
+if [ -f "$INSTALLER_SRC" ]; then
+    # Build for ARM64
+    swiftc -o "$APP_BUILD_PATH/DroppyInstaller-arm64" \
+        "$INSTALLER_SRC" \
+        -framework AppKit \
+        -framework SwiftUI \
+        -O \
+        -target arm64-apple-macos14.0 || error "Installer build (ARM64) failed"
+    
+    # Build for x86_64
+    swiftc -o "$APP_BUILD_PATH/DroppyInstaller-x86_64" \
+        "$INSTALLER_SRC" \
+        -framework AppKit \
+        -framework SwiftUI \
+        -O \
+        -target x86_64-apple-macos14.0 || error "Installer build (x86_64) failed"
+    
+    # Create universal binary
+    lipo -create -output "$APP_BUILD_PATH/DroppyInstaller" \
+        "$APP_BUILD_PATH/DroppyInstaller-arm64" \
+        "$APP_BUILD_PATH/DroppyInstaller-x86_64"
+    rm -f "$APP_BUILD_PATH/DroppyInstaller-arm64" "$APP_BUILD_PATH/DroppyInstaller-x86_64"
+    
+    # Create proper .app bundle for installer
+    mkdir -p "$INSTALLER_APP/Contents/MacOS"
+    mkdir -p "$INSTALLER_APP/Contents/Resources"
+    cp "$APP_BUILD_PATH/DroppyInstaller" "$INSTALLER_APP/Contents/MacOS/"
+    
+    # Copy Droppy's icon to installer
+    cp "$APP_BUILD_PATH/Build/Products/Release/Droppy.app/Contents/Resources/AppIcon.icns" "$INSTALLER_APP/Contents/Resources/" 2>/dev/null || true
+    
+    # Create Info.plist
+    cat > "$INSTALLER_APP/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>DroppyInstaller</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.iordv.DroppyInstaller</string>
+    <key>CFBundleName</key>
+    <string>Install Droppy</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSUIElement</key>
+    <false/>
+</dict>
+</plist>
+PLIST
+    step "DroppyInstaller.app built"
+else
+    warning "DroppyInstaller source not found"
+fi
+
+# Packaging DMG with both apps
+info "Packaging DMG"
 APP_PATH="$APP_BUILD_PATH/Build/Products/Release/Droppy.app"
 DMG_BACKGROUND="$MAIN_REPO/assets/dmg/background.png"
 
-if [ -f "$DMG_BACKGROUND" ] && command -v create-dmg &> /dev/null; then
-    # Beautiful DMG with custom background
-    # Background is 660x480 at 72 DPI, window size must match
-    if create-dmg \
-        --volname "Droppy" \
-        --background "$DMG_BACKGROUND" \
-        --window-pos 200 120 \
-        --window-size 660 480 \
-        --icon-size 128 \
-        --icon "Droppy.app" 180 200 \
-        --hide-extension "Droppy.app" \
-        --app-drop-link 480 200 \
-        --no-internet-enable \
-        "$DMG_NAME" \
-        "$APP_PATH" 2>/dev/null; then
-        success "$DMG_NAME created (beautiful installer)"
+# Create temp folder with both apps
+mkdir -p dmg_root
+cp -R "$APP_PATH" dmg_root/
+
+if [ -d "$INSTALLER_APP" ]; then
+    cp -R "$INSTALLER_APP" "dmg_root/Install Droppy.app"
+    
+    # Simple DMG with installer as focus
+    if [ -f "$DMG_BACKGROUND" ]; then
+        # Use create-dmg with installer focus
+        if command -v create-dmg &> /dev/null && create-dmg \
+            --volname "Droppy" \
+            --background "$DMG_BACKGROUND" \
+            --window-pos 200 120 \
+            --window-size 660 480 \
+            --icon-size 96 \
+            --icon "Install Droppy.app" 330 200 \
+            --hide-extension "Install Droppy.app" \
+            --hide-extension "Droppy.app" \
+            --icon "Droppy.app" 330 350 \
+            --no-internet-enable \
+            "$DMG_NAME" \
+            "dmg_root" 2>/dev/null; then
+            success "$DMG_NAME created (native installer)"
+        else
+            # Fallback
+            warning "create-dmg failed, using fallback"
+            rm -f "$DMG_NAME" rw.*.dmg 2>/dev/null
+            hdiutil create -volname Droppy -srcfolder dmg_root -ov -format UDZO "$DMG_NAME" -quiet || error "DMG creation failed"
+            success "$DMG_NAME created (basic)"
+        fi
     else
-        # Fallback if create-dmg fails (AppleScript timeout)
-        warning "create-dmg failed, using fallback method"
-        rm -f "$DMG_NAME" rw.*.dmg 2>/dev/null
-        mkdir -p dmg_root
-        cp -R "$APP_PATH" dmg_root/
-        ln -s /Applications dmg_root/Applications
         hdiutil create -volname Droppy -srcfolder dmg_root -ov -format UDZO "$DMG_NAME" -quiet || error "DMG creation failed"
-        rm -rf dmg_root
         success "$DMG_NAME created (basic)"
     fi
 else
-    # Fallback to basic DMG creation
-    warning "create-dmg not found or background missing, using fallback"
-    mkdir -p dmg_root
-    cp -R "$APP_PATH" dmg_root/
+    # Fallback to old style without installer
     ln -s /Applications dmg_root/Applications
     hdiutil create -volname Droppy -srcfolder dmg_root -ov -format UDZO "$DMG_NAME" -quiet || error "DMG creation failed"
-    rm -rf dmg_root
-    success "$DMG_NAME created (basic)"
+    success "$DMG_NAME created (drag-to-apps)"
 fi
-rm -rf build
+rm -rf dmg_root
 
 # Checksum
 info "Generating Integrity Checksum"
