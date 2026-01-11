@@ -564,10 +564,16 @@ class Installer {
         setStep(.checking)
         Thread.sleep(forTimeInterval: 0.5)
         
-        // Find Droppy.app in the installer bundle or same directory
+        // Find Droppy.app in the hidden .payload folder
         let bundlePath = appBundle.bundlePath
         let parentDir = (bundlePath as NSString).deletingLastPathComponent
-        let droppyAppPath = (parentDir as NSString).appendingPathComponent("Droppy.app")
+        let payloadDir = (parentDir as NSString).appendingPathComponent(".payload")
+        var droppyAppPath = (payloadDir as NSString).appendingPathComponent("Droppy.app")
+        
+        // Fallback: check same directory (for development/testing)
+        if !FileManager.default.fileExists(atPath: droppyAppPath) {
+            droppyAppPath = (parentDir as NSString).appendingPathComponent("Droppy.app")
+        }
         
         if !FileManager.default.fileExists(atPath: droppyAppPath) {
             setError("Droppy.app not found. Please run the installer from the disk image.")
@@ -600,7 +606,14 @@ class Installer {
     func performInstallAfterReplace() {
         let bundlePath = appBundle.bundlePath
         let parentDir = (bundlePath as NSString).deletingLastPathComponent
-        let droppyAppPath = (parentDir as NSString).appendingPathComponent("Droppy.app")
+        let payloadDir = (parentDir as NSString).appendingPathComponent(".payload")
+        var droppyAppPath = (payloadDir as NSString).appendingPathComponent("Droppy.app")
+        
+        // Fallback: check same directory
+        if !FileManager.default.fileExists(atPath: droppyAppPath) {
+            droppyAppPath = (parentDir as NSString).appendingPathComponent("Droppy.app")
+        }
+        
         let targetPath = "/Applications/Droppy.app"
         
         // Step 3: Install

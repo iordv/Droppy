@@ -201,26 +201,24 @@ info "Packaging DMG"
 APP_PATH="$APP_BUILD_PATH/Build/Products/Release/Droppy.app"
 DMG_BACKGROUND="$MAIN_REPO/assets/dmg/background.png"
 
-# Create temp folder with both apps
-mkdir -p dmg_root
-cp -R "$APP_PATH" dmg_root/
+# Create temp folder - hide Droppy.app in .payload folder so only installer is visible
+mkdir -p dmg_root/.payload
+cp -R "$APP_PATH" "dmg_root/.payload/"
 
 if [ -d "$INSTALLER_APP" ]; then
     cp -R "$INSTALLER_APP" "dmg_root/Install Droppy.app"
     
-    # Simple DMG with installer as focus
+    # DMG with only installer visible (Droppy.app is hidden in .payload)
     if [ -f "$DMG_BACKGROUND" ]; then
-        # Use create-dmg with installer focus
+        # Use create-dmg - only show installer centered
         if command -v create-dmg &> /dev/null && create-dmg \
             --volname "Droppy" \
             --background "$DMG_BACKGROUND" \
             --window-pos 200 120 \
             --window-size 660 480 \
-            --icon-size 96 \
-            --icon "Install Droppy.app" 330 200 \
+            --icon-size 128 \
+            --icon "Install Droppy.app" 330 180 \
             --hide-extension "Install Droppy.app" \
-            --hide-extension "Droppy.app" \
-            --icon "Droppy.app" 330 350 \
             --no-internet-enable \
             "$DMG_NAME" \
             "dmg_root" 2>/dev/null; then
