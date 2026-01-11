@@ -192,6 +192,8 @@ struct NotchShelfView: View {
             return expandedWidth
         } else if hudIsVisible {
             return volumeHudWidth  // Volume/Brightness HUD needs wider wings
+        } else if airPodsHUDIsVisible && enableAirPodsHUD {
+            return hudWidth  // AirPods HUD uses same width as Media HUD
         } else if batteryHUDIsVisible && enableBatteryHUD {
             return batteryHudWidth  // Battery HUD uses slightly narrower width than volume
         } else if capsLockHUDIsVisible && enableCapsLockHUD {
@@ -213,8 +215,8 @@ struct NotchShelfView: View {
             // Dynamic Island: keep compact height matching media HUD
             return isDynamicIslandMode ? notchHeight : hudHeight
         } else if airPodsHUDIsVisible && enableAirPodsHUD {
-            // AirPods HUD expands like volume HUD for prominent display
-            return isDynamicIslandMode ? notchHeight : hudHeight
+            // AirPods HUD stays at notch height like media player (horizontal expansion only)
+            return notchHeight
         } else if batteryHUDIsVisible && enableBatteryHUD {
             return notchHeight  // Battery HUD just uses notch height (no slider)
         } else if capsLockHUDIsVisible && enableCapsLockHUD {
@@ -465,10 +467,10 @@ struct NotchShelfView: View {
                     AirPodsHUDView(
                         airPods: airPods,
                         notchWidth: notchWidth,
-                        notchHeight: isDynamicIslandMode ? notchHeight : hudHeight,  // Use expanded height like volume HUD
+                        notchHeight: notchHeight,  // Same height as media player mini HUD
                         hudWidth: hudWidth  // Same as Media HUD for consistent sizing
                     )
-                    .frame(width: hudWidth, height: isDynamicIslandMode ? notchHeight : hudHeight)
+                    .frame(width: hudWidth, height: notchHeight)
                     .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                     .zIndex(6)  // Highest priority - connection events
                 }
