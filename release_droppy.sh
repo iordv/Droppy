@@ -312,7 +312,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 brew install --cask iordv/tap/droppy
 ```
 
-**Manual Install:** Download the DMG below, then run this before opening:
+<img src="https://raw.githubusercontent.com/iordv/Droppy/main/docs/assets/macos-disk-icon.png" height="24"> **Manual Install:** Download the DMG below, then run this before opening:
 ```bash
 xattr -rd com.apple.quarantine ~/Downloads/Droppy-*.dmg
 ```
