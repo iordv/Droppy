@@ -209,31 +209,10 @@
                     <!-- Manual Download Card -->
                     <div
                         class="flex w-full max-w-md flex-col items-center justify-center rounded-[32px] bg-slate-800/50 pb-8 pt-6">
-                        <!-- macOS Disk Icon -->
+                        <!-- macOS Disk Icon (official macOS 26 style) -->
                         <div class="mb-4 size-32 relative">
-                            <svg class="size-full" viewBox="0 0 120 120" fill="none">
-                                <!-- Disk base -->
-                                <rect x="10" y="25" width="100" height="70" rx="8" fill="#3B82F6" />
-                                <!-- Disk shine gradient -->
-                                <rect x="10" y="25" width="100" height="70" rx="8" fill="url(#diskGradient)" />
-                                <!-- Disk label area -->
-                                <rect x="20" y="35" width="80" height="40" rx="4" fill="#1E3A5F" />
-                                <!-- Droppy icon in center -->
-                                <image href="https://i.postimg.cc/9FxZhRf3/1024-mac.webp" x="42" y="40" width="36"
-                                    height="36" clip-path="url(#iconClip)" />
-                                <!-- Disk bottom edge -->
-                                <rect x="10" y="85" width="100" height="10" rx="0 0 8 8" fill="#2563EB" />
-                                <defs>
-                                    <linearGradient id="diskGradient" x1="60" y1="25" x2="60" y2="95"
-                                        gradientUnits="userSpaceOnUse">
-                                        <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.4" />
-                                        <stop offset="100%" stop-color="#1E40AF" stop-opacity="0.2" />
-                                    </linearGradient>
-                                    <clipPath id="iconClip">
-                                        <rect x="42" y="40" width="36" height="36" rx="8" />
-                                    </clipPath>
-                                </defs>
-                            </svg>
+                            <img src="assets/macos-disk-icon.png" alt="macOS Disk"
+                                class="size-full object-contain select-none" draggable="false">
                         </div>
                         <p class="text-2xl font-bold text-slate-100">Direct Download</p>
                         <p class="text-base font-semibold text-slate-400">Manual Install</p>
