@@ -1276,6 +1276,7 @@ struct NotchItemView: View {
     @State private var isExtractingText = false
     @State private var isCreatingZIP = false
     @State private var isCompressing = false
+    @State private var isRemovingBackground = false
     @State private var isPoofing = false
     @State private var pendingConvertedItem: DroppedItem?
     // Removed local isRenaming
@@ -1565,17 +1566,11 @@ struct NotchItemView: View {
             // Remove Background - only for images
             if item.isImage {
                 Button {
-                    Task {
-                        do {
-                            let outputURL = try await item.removeBackground()
-                            NSWorkspace.shared.selectFile(outputURL.path, inFileViewerRootedAtPath: outputURL.deletingLastPathComponent().path)
-                        } catch {
-                            print("Background removal failed: \(error.localizedDescription)")
-                        }
-                    }
+                    removeBackground()
                 } label: {
                     Label("Remove Background", systemImage: "person.and.background.dotted")
                 }
+                .disabled(isRemovingBackground)
             }
             
             // Create ZIP option
@@ -1825,6 +1820,50 @@ struct NotchItemView: View {
                     }
                 }
                 print("Compression failed or no size reduction (Size Guard)")
+            }
+        }
+    }
+    
+    // MARK: - Background Removal
+    
+    private func removeBackground() {
+        guard !isRemovingBackground else { return }
+        isRemovingBackground = true
+        state.beginFileOperation()
+        
+        Task {
+            do {
+                let outputURL = try await item.removeBackground()
+                let newItem = DroppedItem(url: outputURL, isTemporary: true)
+                
+                await MainActor.run {
+                    isRemovingBackground = false
+                    state.endFileOperation()
+                    pendingConvertedItem = newItem
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        isPoofing = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isRemovingBackground = false
+                    state.endFileOperation()
+                    print("Background removal failed: \(error.localizedDescription)")
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        isShakeAnimating = true
+                    }
+                    Task {
+                        for _ in 0..<3 {
+                            withAnimation(.linear(duration: 0.05)) { shakeOffset = -4 }
+                            try? await Task.sleep(nanoseconds: 50_000_000)
+                            withAnimation(.linear(duration: 0.05)) { shakeOffset = 4 }
+                            try? await Task.sleep(nanoseconds: 50_000_000)
+                        }
+                        withAnimation { shakeOffset = 0 }
+                        try? await Task.sleep(nanoseconds: 1_200_000_000)
+                        withAnimation { isShakeAnimating = false }
+                    }
+                }
             }
         }
     }
