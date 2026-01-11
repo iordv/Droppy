@@ -30,6 +30,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
 
+    <!-- Droppy Version Config - Single source of truth -->
+    <script>
+        const DROPPY_VERSION = '6.3';
+        const DROPPY_DMG_URL = `https://github.com/iordv/Droppy/releases/latest/download/Droppy-${DROPPY_VERSION}.dmg`;
+    </script>
+
     <!-- Block copy/zoom keyboard shortcuts -->
     <script>
         document.addEventListener('keydown', function (e) {
@@ -140,7 +146,7 @@
                     <a href="https://github.com/iordv/Droppy/releases"
                         class="group ml-2 mt-2.5 flex items-center justify-center self-start whitespace-nowrap rounded-lg border-[1.5px] border-slate-600 bg-slate-800 px-1.5 py-0.5 text-center text-xs font-bold text-slate-400"
                         target="_blank">
-                        v6.2.1
+                        <span class="droppy-version">v6.3</span>
                     </a>
                 </div>
             </div>
@@ -184,7 +190,8 @@
                         <p class="text-base font-semibold text-slate-400">Recommended Install</p>
                         <p class="inline-flex items-center text-sm font-semibold text-slate-500">
                             Auto-updates <span
-                                class="mx-1.5 mt-px inline-block size-[3px] rounded-full bg-slate-500"></span> v6.2.1
+                                class="mx-1.5 mt-px inline-block size-[3px] rounded-full bg-slate-500"></span> <span
+                                class="droppy-version">v6.3</span>
                         </p>
 
                         <!-- Command Box - Fully Clickable -->
@@ -218,11 +225,12 @@
                         <p class="text-base font-semibold text-slate-400">Manual Install</p>
                         <p class="inline-flex items-center text-sm font-semibold text-slate-500">
                             DMG Installer <span
-                                class="mx-1.5 mt-px inline-block size-[3px] rounded-full bg-slate-500"></span> v6.2.1
+                                class="mx-1.5 mt-px inline-block size-[3px] rounded-full bg-slate-500"></span> <span
+                                class="droppy-version">v6.3</span>
                         </p>
 
                         <!-- Download Button - matching main page style -->
-                        <a href="https://github.com/iordv/Droppy/releases/latest/download/Droppy-6.2.1.dmg"
+                        <a id="dmg-download-link" href="#"
                             class="group relative mt-6 flex w-[calc(100%-2rem)] max-h-[3.75rem] items-center justify-center rounded-[28px] px-5 py-4 text-lg font-bold outline-none transition duration-300 bg-slate-100 text-slate-900 shadow-xl shadow-black/30 hover:bg-white pl-[3.25rem]">
                             <div
                                 class="ease absolute left-5 translate-x-0 opacity-100 transition duration-300 group-hover:-translate-x-full group-hover:scale-x-50 group-hover:opacity-0 group-hover:blur-sm">
@@ -417,6 +425,19 @@
                 header.classList.add('shadow-lg', 'shadow-droppy-950/5');
             } else {
                 header.classList.remove('shadow-lg', 'shadow-droppy-950/5');
+            }
+        });
+
+        // Initialize version numbers from central config
+        document.addEventListener('DOMContentLoaded', () => {
+            // Update all version display spans
+            document.querySelectorAll('.droppy-version').forEach(el => {
+                el.textContent = 'v' + DROPPY_VERSION;
+            });
+            // Set DMG download link
+            const dmgLink = document.getElementById('dmg-download-link');
+            if (dmgLink) {
+                dmgLink.href = DROPPY_DMG_URL;
             }
         });
     </script>
