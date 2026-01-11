@@ -24,6 +24,7 @@ struct SettingsView: View {
     @AppStorage("enableHUDReplacement") private var enableHUDReplacement = true
     @AppStorage("enableBatteryHUD") private var enableBatteryHUD = true  // Enabled by default
     @AppStorage("enableCapsLockHUD") private var enableCapsLockHUD = true  // Caps Lock indicator
+    @AppStorage("showAirPodsHUD") private var showAirPodsHUD = true  // AirPods connection HUD
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -477,6 +478,27 @@ struct SettingsView: View {
                 
                 if enableCapsLockHUD {
                     CapsLockHUDPreview()
+                }
+                
+                Toggle(isOn: $showAirPodsHUD) {
+                    VStack(alignment: .leading) {
+                        Text("AirPods HUD")
+                        Text("Show when AirPods connect")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: showAirPodsHUD) { _, newValue in
+                    if newValue {
+                        AirPodsManager.shared.startMonitoring()
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        AirPodsManager.shared.stopMonitoring()
+                        // Close window only if all HUD features are disabled
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
                 }
             } header: {
                 Text("System HUDs")

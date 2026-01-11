@@ -43,6 +43,8 @@ struct NotchShelfView: View {
     @ObservedObject private var batteryManager = BatteryManager.shared
     @ObservedObject private var capsLockManager = CapsLockManager.shared
     @ObservedObject private var musicManager = MusicManager.shared
+    private var airPodsManager = AirPodsManager.shared
+    @AppStorage("showAirPodsHUD") private var showAirPodsHUD = true
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
     @State private var hudWorkItem: DispatchWorkItem?
@@ -450,6 +452,20 @@ struct NotchShelfView: View {
                     .frame(width: batteryHudWidth, height: notchHeight)
                     .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                     .zIndex(5)  // Higher than battery HUD
+                }
+                
+                // MARK: - AirPods HUD (when AirPods connect)
+                // Takes highest priority - shows briefly when AirPods connect
+                if showAirPodsHUD && airPodsManager.isHUDVisible, let airpods = airPodsManager.connectedAirPods {
+                    AirPodsHUDView(
+                        airpods: airpods,
+                        notchWidth: notchWidth,
+                        notchHeight: notchHeight,
+                        hudWidth: hudWidth
+                    )
+                    .frame(width: hudWidth, height: notchHeight)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.75)))
+                    .zIndex(6)  // Highest priority
                 }
                 
                 // MARK: - Media Player HUD (when music is playing)
