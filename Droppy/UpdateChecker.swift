@@ -122,11 +122,11 @@ class UpdateChecker: ObservableObject {
             latestVersion = remoteVersion
             releaseNotes = json["body"] as? String
             
-            // Find DMG download URL from assets
+            // Find ZIP download URL from assets (we now distribute as ZIP, not DMG)
             if let assets = json["assets"] as? [[String: Any]] {
                 for asset in assets {
                     if let name = asset["name"] as? String,
-                       name.lowercased().hasSuffix(".dmg"),
+                       name.lowercased().hasSuffix(".zip"),
                        let urlString = asset["browser_download_url"] as? String,
                        let assetURL = URL(string: urlString) {
                         downloadURL = assetURL
