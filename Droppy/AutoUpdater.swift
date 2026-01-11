@@ -14,17 +14,17 @@ class AutoUpdater {
     
     private init() {}
     
-    /// Downloads and installs the update from the given URL
+    /// Downloads and installs the update from the given URL (ZIP file)
     func installUpdate(from url: URL) {
         Task {
-            // 1. Download DMG
-            guard let dmgURL = await downloadDMG(from: url) else {
+            // 1. Download ZIP
+            guard let extractedAppPath = await downloadAndExtractZIP(from: url) else {
                 return
             }
             
             // 2. Install and Restart using helper app
             do {
-                try launchUpdaterHelper(dmgPath: dmgURL.path)
+                try launchUpdaterHelper(appPath: extractedAppPath)
             } catch {
                 print("AutoUpdater: Installation failed: \(error)")
                 await DroppyAlertController.shared.showError(
@@ -35,19 +35,49 @@ class AutoUpdater {
         }
     }
     
-    private func downloadDMG(from url: URL) async -> URL? {
-        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyUpdate.dmg")
+    private func downloadAndExtractZIP(from url: URL) async -> String? {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyUpdate")
+        let zipURL = tempDir.appendingPathComponent("update.zip")
         
         do {
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
+            // Clean up any previous attempt
+            if FileManager.default.fileExists(atPath: tempDir.path) {
+                try FileManager.default.removeItem(at: tempDir)
+            }
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            
+            // Download ZIP
+            let (data, _) = try await URLSession.shared.data(from: url)
+            try data.write(to: zipURL)
+            
+            // Extract ZIP using ditto (preserves permissions and attributes)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            process.arguments = ["-xk", zipURL.path, tempDir.path]
+            try process.run()
+            process.waitUntilExit()
+            
+            // Find Droppy.app in .payload folder
+            let payloadAppPath = tempDir.appendingPathComponent(".payload/Droppy.app").path
+            if FileManager.default.fileExists(atPath: payloadAppPath) {
+                return payloadAppPath
             }
             
-            let (data, _) = try await URLSession.shared.data(from: url)
-            try data.write(to: destinationURL)
-            return destinationURL
+            // Fallback: look for Droppy.app directly
+            let directAppPath = tempDir.appendingPathComponent("Droppy.app").path
+            if FileManager.default.fileExists(atPath: directAppPath) {
+                return directAppPath
+            }
+            
+            print("AutoUpdater: Could not find Droppy.app in extracted ZIP")
+            await DroppyAlertController.shared.showError(
+                title: "Update Failed",
+                message: "Could not find Droppy.app in the update package."
+            )
+            return nil
+            
         } catch {
-            print("AutoUpdater: Download failed: \(error)")
+            print("AutoUpdater: Download/extract failed: \(error)")
             await DroppyAlertController.shared.showError(
                 title: "Update Failed",
                 message: "Could not download the update. Please try again later."
@@ -56,66 +86,27 @@ class AutoUpdater {
         }
     }
     
-    private func launchUpdaterHelper(dmgPath: String) throws {
-        let appPath = Bundle.main.bundlePath
+    /// Launch the updater helper with the extracted app path
+    private func launchUpdaterHelper(appPath newAppPath: String) throws {
+        let currentAppPath = Bundle.main.bundlePath
         let pid = ProcessInfo.processInfo.processIdentifier
         
-        // Look for the helper in the app bundle
-        let helperInBundle = Bundle.main.bundlePath + "/Contents/Helpers/DroppyUpdater"
-        
-        // Fallback to temp directory (for development)
-        let helperInTemp = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyUpdater").path
-        
-        // Determine which helper to use
-        let helperPath: String
-        if FileManager.default.fileExists(atPath: helperInBundle) {
-            helperPath = helperInBundle
-        } else if FileManager.default.fileExists(atPath: helperInTemp) {
-            helperPath = helperInTemp
-        } else {
-            // Fallback: Copy helper from source location to temp
-            let sourceHelper = (Bundle.main.bundlePath as NSString)
-                .deletingLastPathComponent
-                .appending("/DroppyUpdater/DroppyUpdater")
-            
-            if FileManager.default.fileExists(atPath: sourceHelper) {
-                try? FileManager.default.copyItem(atPath: sourceHelper, toPath: helperInTemp)
-                helperPath = helperInTemp
-            } else {
-                // Ultimate fallback: Use Terminal script
-                try fallbackToTerminalScript(dmgPath: dmgPath, appPath: appPath, pid: pid)
-                return
-            }
-        }
-        
-        // Launch the helper
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: helperPath)
-        process.arguments = [dmgPath, appPath, String(pid)]
-        
-        try process.run()
-        
-        // Terminate current app
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NSApplication.shared.terminate(nil)
-        }
+        // For ZIP-based updates, we can use a simpler inline approach
+        // since the app is already extracted
+        try performZIPUpdate(newAppPath: newAppPath, currentAppPath: currentAppPath, pid: pid)
     }
     
-    /// Fallback to Terminal script if helper is not available
-    private func fallbackToTerminalScript(dmgPath: String, appPath: String, pid: Int32) throws {
+    /// Perform update from extracted ZIP (no DMG mounting needed)
+    private func performZIPUpdate(newAppPath: String, currentAppPath: String, pid: Int32) throws {
         let scriptPath = FileManager.default.temporaryDirectory.appendingPathComponent("update_droppy.command").path
-        let appName = "Droppy.app"
         
         let script = """
         #!/bin/bash
         
         # Colors
         BLUE='\\033[0;34m'
-        PURPLE='\\033[0;35m'
-        CYAN='\\033[0;36m'
         GREEN='\\033[0;32m'
-        RED='\\033[0;31m'
-        YELLOW='\\033[0;33m'
+        CYAN='\\033[0;36m'
         BOLD='\\033[1m'
         NC='\\033[0m'
         
@@ -127,12 +118,11 @@ class AutoUpdater {
         echo " / /_/ / _, _/ /_/ / ____/ ____/ / /  "
         echo "/_____/_/ |_|\\____/_/   /_/     /_/   "
         echo -e "${NC}"
-        echo -e "${PURPLE}${BOLD}    >>> UPDATING DROPPY <<<${NC}"
+        echo -e "${CYAN}${BOLD}    >>> UPDATING DROPPY <<<${NC}"
         echo ""
         
-        APP_PATH="\(appPath)"
-        DMG_PATH="\(dmgPath)"
-        APP_NAME="\(appName)"
+        NEW_APP="\(newAppPath)"
+        CURRENT_APP="\(currentAppPath)"
         OLD_PID=\(pid)
         
         # Kill and wait
@@ -140,28 +130,25 @@ class AutoUpdater {
         kill -9 $OLD_PID 2>/dev/null || true
         sleep 2
         
-        # Mount
-        echo -e "${CYAN}📦 Mounting update image...${NC}"
-        hdiutil attach "$DMG_PATH" -nobrowse -mountpoint /Volumes/DroppyUpdate > /dev/null 2>&1
-        
         # Remove old
         echo -e "${CYAN}🗑️  Removing old version...${NC}"
-        rm -rf "$APP_PATH" 2>/dev/null || osascript -e "do shell script \\"rm -rf '$APP_PATH'\\" with administrator privileges" 2>/dev/null
+        rm -rf "$CURRENT_APP" 2>/dev/null || osascript -e "do shell script \\"rm -rf '$CURRENT_APP'\\" with administrator privileges" 2>/dev/null
         
-        # Install
+        # Install new
         echo -e "${CYAN}🚀 Installing new Droppy...${NC}"
-        cp -R "/Volumes/DroppyUpdate/$APP_NAME" "$APP_PATH"
-        xattr -rd com.apple.quarantine "$APP_PATH" 2>/dev/null || true
+        cp -R "$NEW_APP" "$CURRENT_APP"
         
-        # Cleanup
+        # Remove quarantine
+        xattr -rd com.apple.quarantine "$CURRENT_APP" 2>/dev/null || true
+        
+        # Cleanup temp
         echo -e "${CYAN}🧹 Cleaning up...${NC}"
-        hdiutil detach /Volumes/DroppyUpdate > /dev/null 2>&1 || true
-        rm -f "$DMG_PATH" 2>/dev/null || true
+        rm -rf "$(dirname "$NEW_APP")" 2>/dev/null || true
         
         echo ""
         echo -e "${GREEN}${BOLD}✅ UPDATE COMPLETE!${NC}"
         sleep 1
-        open -n "$APP_PATH"
+        open -n "$CURRENT_APP"
         (sleep 1 && rm -f "$0") &
         exit 0
         """
