@@ -109,7 +109,7 @@ Now Playing controls with album art, seek slider, and native Spotify integration
 brew install --cask iordv/tap/droppy
 ```
 
-### Manual Download
+### <img src="docs/assets/macos-disk-icon.png" width="20"> Manual Download
 1. Download [**Droppy.dmg**](https://github.com/iordv/Droppy/releases/latest)
 2. **Before opening**, run this command to clear quarantine:
    ```bash
