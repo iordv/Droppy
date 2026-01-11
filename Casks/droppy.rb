@@ -1,14 +1,13 @@
 cask "droppy" do
-  version "6.1.9"
-  sha256 "121df677b79d99268fedbe9adc1bfb97d137476aca3b726ded77b9f72a5b553c"
+  version "6.2.0"
+  sha256 "ed9282ae566217d2c217aa493d4280f1f3c8bb79ccc27516b1207577d135c998"
 
-  url "https://github.com/iordv/Droppy/releases/download/v6.1.9/Droppy-6.1.9.zip"
+  url "https://github.com/iordv/Droppy/releases/download/v6.2.0/Droppy-6.2.0.dmg"
   name "Droppy"
   desc "Drag and drop file shelf for macOS"
   homepage "https://github.com/iordv/Droppy"
 
-  # The ZIP contains an installer app - Homebrew extracts and uses .payload/Droppy.app
-  app ".payload/Droppy.app"
+  app "Droppy.app"
 
   postflight do
     system_command "/usr/bin/xattr",
