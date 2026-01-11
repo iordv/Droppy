@@ -110,16 +110,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("🎛️ Droppy: Starting Media Key Interceptor for HUD")
                 MediaKeyInterceptor.shared.start()
             }
-            
-            // 4. AirPods Connection Monitor
-            // Start if AirPods HUD is enabled
-            let airPodsHUDEnabled = UserDefaults.standard.object(forKey: "showAirPodsHUD") == nil
-                ? true
-                : UserDefaults.standard.bool(forKey: "showAirPodsHUD")
-            if airPodsHUDEnabled {
-                print("🎧 Droppy: Starting AirPods Connection Monitor")
-                AirPodsManager.shared.startMonitoring()
-            }
         }
         
         // Start background update scheduler (checks once per day)

@@ -78,7 +78,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         let notchView = NotchShelfView(state: DroppyState.shared)
         let hostingView = NSHostingView(rootView: notchView)
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = .clear
+        hostingView.layer?.backgroundColor = CGColor.clear
         
         // 2. Create the container view that handles drops
         let dragContainer = NotchDragContainer(frame: NSRect(origin: .zero, size: windowFrame.size))
