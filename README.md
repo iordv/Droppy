@@ -87,19 +87,15 @@ Now Playing controls with album art, seek slider, and native Spotify integration
 
 | Feature | Description |
 |:---|:---|
-| 🤖 **AI Background Removal** | Local, on-device AI removes backgrounds from images — works in bulk! |
-| 📸 **Element Capture** | Screenshot any UI element by clicking on it — copies to clipboard! |
 | **The Shelf** | Drag files to your notch — they vanish into a sleek shelf |
 | **Floating Basket** | Jiggle your cursor while dragging to summon a basket anywhere |
 | **Clipboard Manager** | Full history with search, favorites, OCR, and drag-out |
 | **Media Player** | Now Playing controls with album art and seek slider |
-| <img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg" width="16"> **Native Spotify** | Shuffle, repeat, and rock-solid playback timing |
 | **Quick Actions** | Right-click for compress, convert, OCR, move, share |
 | **Custom HUDs** | Beautiful volume, brightness, battery, caps lock overlays |
 | <img src="docs/assets/airpods-icon.png" width="16"> **AirPods HUD** | See battery levels and connection status for your AirPods |
 | **OCR & Vision** | Extract text from any image instantly |
 | **Auto-Hide & Peek** | Basket slides to edge, peeks on hover |
-| <img src="https://www.alfredapp.com/media/logo4@2x.png" width="16"> **Alfred Integration** | Push files from Alfred workflows |
 | **Dynamic Island** | Non-notch Macs get a beautiful pill interface |
 | **Multi-Monitor** | Works on external displays with fullscreen detection |
 
