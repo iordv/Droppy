@@ -2660,26 +2660,16 @@ struct AIBackgroundRemovalCard: View {
                 
                 Spacer()
                 
-                // AI Badge
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("AI")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.purple, .pink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
+                // Clean grey badge
+                Text("AI")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
             }
             
             // Title & Description
@@ -2780,20 +2770,16 @@ struct AlfredExtensionCard: View {
                 
                 Spacer()
                 
-                // Productivity badge
-                HStack(spacing: 4) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("PRO")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color.orange.opacity(0.9))
-                )
+                // Clean grey badge
+                Text("Productivity")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
             }
             
             // Title & Description
@@ -2952,20 +2938,16 @@ struct SpotifyExtensionCard: View {
                 
                 Spacer()
                 
-                // Auto badge
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 9))
-                    Text("Auto")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.green)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color.green.opacity(0.15))
-                )
+                // Clean grey badge
+                Text("Media")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
             }
             
             // Title & Description
@@ -3028,6 +3010,17 @@ struct ElementCaptureCard: View {
                     .frame(width: 44, height: 44)
                 
                 Spacer()
+                
+                // Clean grey badge
+                Text("Productivity")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.1))
+                    )
             }
             
             // Title & Description
