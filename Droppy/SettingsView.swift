@@ -2849,6 +2849,10 @@ struct AlfredExtensionCard: View {
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .purple)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showInfoSheet = true
+        }
         .sheet(isPresented: $showInfoSheet) {
             ExtensionInfoView(extensionType: .alfred) {
                 if let workflowPath = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
@@ -2954,6 +2958,10 @@ struct FinderExtensionCard: View {
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .blue)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showInfoSheet = true
+        }
         .sheet(isPresented: $showSetupSheet) {
             FinderServicesSetupSheetView()
         }
@@ -3046,6 +3054,10 @@ struct SpotifyExtensionCard: View {
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .green)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showInfoSheet = true
+        }
         .sheet(isPresented: $showInfoSheet) {
             ExtensionInfoView(extensionType: .spotify)
         }
@@ -3163,6 +3175,10 @@ struct ElementCaptureCard: View {
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .orange)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            showInfoSheet = true
+        }
         .onAppear {
             // Load shortcut from UserDefaults (safe, no MainActor issues)
             loadShortcut()
