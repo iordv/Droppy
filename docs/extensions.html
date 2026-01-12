@@ -177,16 +177,18 @@
         .search-morph-input {
             width: 100%;
             padding: 16px 24px 16px 52px;
-            background: white;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 32px;
-            color: #0f172a;
+            color: white;
             font-size: 18px;
             font-weight: 500;
             outline: none;
+            backdrop-filter: blur(20px);
         }
 
         .search-morph-input::placeholder {
-            color: rgba(100, 116, 139, 0.8);
+            color: rgba(148, 163, 184, 0.6);
         }
 
         .search-morph-icon {
@@ -198,7 +200,6 @@
             transition: opacity 0.3s ease-out;
             z-index: 10;
             pointer-events: none;
-            color: #64748b;
         }
 
         .search-morph-container:hover .search-morph-title,
