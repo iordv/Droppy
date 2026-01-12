@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Droppy — Extension Store</title>
+    <meta name="description" content="Extend Droppy with powerful integrations">
+    <link rel="icon" href="assets/app-icon.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        droppy: {
+                            25: '#f0f9ff', 50: '#e0f2fe', 75: '#e0f2fe', 100: '#bae6fd',
+                            200: '#7dd3fc', 300: '#38bdf8', 400: '#38bdf8', 500: '#0ea5e9',
+                            600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e', 950: '#082f49',
+                        }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Droppy Version Config -->
+    <script>
+        const DROPPY_VERSION = '7.0.1';
+    </script>
+
+    <!-- Block copy/zoom keyboard shortcuts -->
+    <script>
+        document.addEventListener('keydown', function (e) {
+            if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'a')) e.preventDefault();
+            if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) e.preventDefault();
+        });
+        document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    </script>
+
+    <style>
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes scaleOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+        }
+
+        .modal-backdrop {
+            backdrop-filter: blur(8px);
+            transition: opacity 0.25s ease-out;
+        }
+
+        .extension-modal {
+            transition: opacity 0.25s ease-out;
+        }
+
+        .extension-modal.modal-closing {
+            opacity: 0;
+        }
+
+        .modal-closing .modal-backdrop {
+            opacity: 0;
+        }
+
+        .modal-closing .modal-card {
+            animation: scaleOut 0.25s ease-out forwards;
+        }
+
+        /* Extension card hover glow */
+        .extension-card {
+            transition: all 0.3s ease-out;
+        }
+
+        .extension-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased bg-slate-950 text-slate-100">
+    <section class="flex min-h-screen flex-col text-slate-100">
+        <!-- Header -->
+        <header
+            class="fixed top-0 z-40 flex w-full justify-center bg-slate-950 px-8 py-5 outline outline-1 outline-droppy-400/0 duration-300 sm:py-7"
+            id="header">
+            <div class="flex w-full max-w-screen-2xl items-center justify-center">
+                <!-- Center: Logo -->
+                <div class="flex items-center opacity-100" style="animation: fadeIn 0.5s ease-out 0.1s both;">
+                    <a href="/Droppy/" class="group flex items-center outline-none" aria-label="Go home">
+                        <div
+                            class="relative mr-3 h-10 w-10 overflow-hidden rounded-xl border-[2.5px] border-slate-500 bg-slate-800">
+                            <div
+                                class="absolute inset-0.5 origin-center rounded-lg bg-slate-700 transition delay-50 duration-300 ease-out group-hover:-translate-x-full group-hover:scale-x-50 group-hover:scale-y-75 group-hover:opacity-25 group-hover:delay-0">
+                                <img src="assets/app-icon.png" alt="Droppy"
+                                    class="w-full h-full object-cover rounded-lg">
+                            </div>
+                            <svg class="absolute -left-1 -top-1 h-11 w-11 fill-current text-slate-100"
+                                viewBox="0 0 36 36">
+                                <path
+                                    class="ease absolute origin-right translate-x-0.5 scale-50 opacity-0 blur-xs transition duration-300 group-hover:translate-x-0 group-hover:scale-100 group-hover:opacity-100 group-hover:blur-none group-hover:delay-50"
+                                    d="M18.032 11.218a1 1 0 0 0-1.414 0l-6.075 6.075a1 1 0 0 0 0 1.414l6.075 6.075a1 1 0 0 0 1.414-1.414L13.664 19H24.75a1 1 0 1 0 0-2H13.664l4.368-4.368a1 1 0 0 0 0-1.414Z" />
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold">Droppy</div>
+                    </a>
+                    <a href="https://github.com/iordv/Droppy/releases"
+                        class="group ml-2 mt-2.5 flex items-center justify-center self-start whitespace-nowrap rounded-lg border-[1.5px] border-slate-600 bg-slate-800 px-1.5 py-0.5 text-center text-xs font-bold text-slate-400"
+                        target="_blank">
+                        <span class="droppy-version">v6.3</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex flex-1 justify-center px-8 pb-16 pt-32 sm:pb-28 sm:pt-48 xl:px-36">
+            <div class="w-full max-w-screen-lg text-center">
+                <!-- Headline -->
+                <h1 class="mb-4 text-5xl font-bold tracking-tight sm:text-7xl"
+                    style="animation: fadeIn 0.6s ease-out 0.3s both;">
+                    <span class="inline-flex items-center gap-3">
+                        <svg class="w-12 h-12 sm:w-16 sm:h-16 text-slate-100" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
+                        </svg>
+                        Extension Store
+                    </span>
+                </h1>
+
+                <p class="text-xl text-slate-400 mb-12 max-w-xl mx-auto"
+                    style="animation: fadeIn 0.6s ease-out 0.5s both;">
+                    Powerful integrations that extend Droppy's capabilities.
+                </p>
+
+                <!-- Extensions Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto"
+                    style="animation: fadeIn 0.6s ease-out 0.6s both;">
+
+                    <!-- AI Background Removal -->
+                    <button onclick="openExtensionModal('ai-bg')"
+                        class="extension-card group p-8 rounded-[32px] bg-slate-900/50 hover:bg-slate-800/60 text-left cursor-pointer">
+                        <div class="flex items-start gap-5">
+                            <div
+                                class="h-16 w-16 rounded-2xl bg-gradient-to-br from-fuchsia-400 to-purple-600 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span
+                                    class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-fuchsia-500/20 text-fuchsia-300 mb-2">AI</span>
+                                <h3 class="text-xl font-bold text-slate-100">AI Background Removal</h3>
+                                <p class="text-slate-400 mt-1">Remove backgrounds from images instantly using local AI
+                                    processing.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Alfred Workflow -->
+                    <button onclick="openExtensionModal('alfred')"
+                        class="extension-card group p-8 rounded-[32px] bg-slate-900/50 hover:bg-slate-800/60 text-left cursor-pointer">
+                        <div class="flex items-start gap-5">
+                            <img src="assets/images/alfred_icon.png" alt="Alfred"
+                                class="h-16 w-16 rounded-2xl flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                            <div>
+                                <span
+                                    class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/20 text-purple-300 mb-2">Productivity</span>
+                                <h3 class="text-xl font-bold text-slate-100">Alfred Workflow</h3>
+                                <p class="text-slate-400 mt-1">Add files to Droppy directly from Alfred with keyboard
+                                    shortcuts.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Finder Services -->
+                    <button onclick="openExtensionModal('finder')"
+                        class="extension-card group p-8 rounded-[32px] bg-slate-900/50 hover:bg-slate-800/60 text-left cursor-pointer">
+                        <div class="flex items-start gap-5">
+                            <div
+                                class="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-600 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M3.5 5.5A1.5 1.5 0 015 4h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 20H5a1.5 1.5 0 01-1.5-1.5v-13z" />
+                                    <circle cx="7" cy="7" r="1" class="fill-red-400" />
+                                    <circle cx="10" cy="7" r="1" class="fill-yellow-400" />
+                                    <circle cx="13" cy="7" r="1" class="fill-green-400" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span
+                                    class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-300 mb-2">Productivity</span>
+                                <h3 class="text-xl font-bold text-slate-100">Finder Services</h3>
+                                <p class="text-slate-400 mt-1">Right-click integration in Finder's context menu for
+                                    quick access.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Spotify Integration -->
+                    <button onclick="openExtensionModal('spotify')"
+                        class="extension-card group p-8 rounded-[32px] bg-slate-900/50 hover:bg-slate-800/60 text-left cursor-pointer">
+                        <div class="flex items-start gap-5">
+                            <div
+                                class="h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span
+                                    class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-green-500/20 text-green-300 mb-2">Media</span>
+                                <h3 class="text-xl font-bold text-slate-100">Spotify Integration</h3>
+                                <p class="text-slate-400 mt-1">Native Spotify controls with album art and playback in
+                                    the notch.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Element Capture -->
+                    <button onclick="openExtensionModal('element-capture')"
+                        class="extension-card group p-8 rounded-[32px] bg-slate-900/50 hover:bg-slate-800/60 text-left cursor-pointer">
+                        <div class="flex items-start gap-5">
+                            <div
+                                class="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zM14 3a1 1 0 00-1 1v3a1 1 0 102 0V5h2a1 1 0 100-2h-3zM3 14a1 1 0 011-1h3a1 1 0 110 2H5v1a1 1 0 11-2 0v-2zM14 13a1 1 0 00-1 1v2a1 1 0 102 0v-1h2a1 1 0 100-2h-3z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span
+                                    class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-500/20 text-orange-300 mb-2">Productivity</span>
+                                <h3 class="text-xl font-bold text-slate-100">Element Capture</h3>
+                                <p class="text-slate-400 mt-1">Capture and copy screen elements with custom keyboard
+                                    shortcuts.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                </div>
+
+                <p class="mt-12 text-sm text-slate-500" style="animation: fadeIn 0.6s ease-out 0.8s both;">
+                    All extensions are built-in and can be enabled from Droppy's Settings.
+                </p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="relative flex flex-col items-center justify-center px-8 pb-20 sm:pb-0"
+            style="animation: fadeIn 0.6s ease-out 0.9s both;">
+            <div class="flex items-center justify-center space-x-3">
+                <a class="group inline-flex items-center justify-center outline-none transition duration-300 hover:bg-slate-800 rounded-xl bg-slate-800/50 p-2 text-slate-400 hover:text-slate-100 size-10"
+                    href="https://github.com/iordv/Droppy" target="_blank">
+                    <svg class="size-6 fill-current transition duration-300 ease-out group-hover:scale-105"
+                        viewBox="0 0 24 24">
+                        <path fill-rule="evenodd"
+                            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </a>
+                <a class="group inline-flex items-center justify-center outline-none transition duration-300 hover:bg-slate-800 rounded-xl bg-slate-800/50 p-2 text-slate-400 hover:text-slate-100 size-10"
+                    href="https://buymeacoffee.com/droppy" target="_blank">
+                    <svg class="size-6 fill-current transition duration-300 ease-out group-hover:scale-105"
+                        viewBox="0 0 24 24">
+                        <path
+                            d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                    </svg>
+                </a>
+            </div>
+            <div
+                class="pointer-events-none -mt-6 hidden select-none overflow-hidden bg-gradient-to-b from-slate-100/10 from-25% to-slate-100/0 bg-clip-text text-[14rem] font-black leading-none text-transparent sm:block sm:h-36 md:h-48 md:text-[18rem] lg:h-56 lg:text-[20rem]">
+                Droppy</div>
+        </footer>
+    </section>
+
+    <!-- Extension Modals -->
+
+    <!-- AI Background Removal Modal -->
+    <div id="modal-ai-bg"
+        class="extension-modal fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/80 modal-backdrop" onclick="closeExtensionModal('ai-bg')"></div>
+        <div class="relative max-w-xl w-full py-8 modal-card" style="animation: scaleIn 0.3s ease-out;">
+            <div class="bg-slate-900 rounded-[32px] shadow-2xl w-full p-8">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-6">
+                    <div
+                        class="h-16 w-16 rounded-2xl bg-gradient-to-br from-fuchsia-400 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span
+                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-fuchsia-500/20 text-fuchsia-300 mb-1">AI</span>
+                        <h3 class="text-2xl font-bold text-slate-100">AI Background Removal</h3>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    Remove backgrounds from images instantly using local AI processing. No internet connection
+                    required—all processing happens on your Mac using the InSPyReNet neural network.
+                </p>
+
+                <!-- Screenshot Placeholder -->
+                <div
+                    class="rounded-2xl bg-slate-800/50 border border-slate-700/50 h-48 flex items-center justify-center mb-6">
+                    <span class="text-slate-500 text-sm">Screenshot coming soon</span>
+                </div>
+
+                <!-- Features -->
+                <div class="space-y-3 mb-6">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>100% local processing—no cloud uploads</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Works with PNG, JPEG, and HEIC images</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Available via right-click context menu</span>
+                    </div>
+                </div>
+
+                <p class="text-sm text-slate-500 text-center">Enable in Droppy Settings → Extensions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alfred Workflow Modal -->
+    <div id="modal-alfred"
+        class="extension-modal fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/80 modal-backdrop" onclick="closeExtensionModal('alfred')"></div>
+        <div class="relative max-w-xl w-full py-8 modal-card" style="animation: scaleIn 0.3s ease-out;">
+            <div class="bg-slate-900 rounded-[32px] shadow-2xl w-full p-8">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-6">
+                    <img src="assets/images/alfred_icon.png" alt="Alfred" class="h-16 w-16 rounded-2xl flex-shrink-0">
+                    <div>
+                        <span
+                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/20 text-purple-300 mb-1">Productivity</span>
+                        <h3 class="text-2xl font-bold text-slate-100">Alfred Workflow</h3>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    Seamlessly add files to Droppy's Shelf or Basket directly from Alfred. Use keyboard shortcuts to
+                    quickly send selected files without leaving your keyboard workflow.
+                </p>
+
+                <!-- Screenshot Placeholder -->
+                <div
+                    class="rounded-2xl bg-slate-800/50 border border-slate-700/50 h-48 flex items-center justify-center mb-6">
+                    <span class="text-slate-500 text-sm">Screenshot coming soon</span>
+                </div>
+
+                <!-- Features -->
+                <div class="space-y-3 mb-6">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Works with Alfred's File Actions</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Send to Shelf or Basket</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Supports bulk file operations</span>
+                    </div>
+                </div>
+
+                <a href="https://github.com/iordv/Droppy/releases" target="_blank"
+                    class="block w-full text-center bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold py-3 px-6 rounded-2xl transition-colors duration-200">
+                    Download Alfred Workflow →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finder Services Modal -->
+    <div id="modal-finder"
+        class="extension-modal fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/80 modal-backdrop" onclick="closeExtensionModal('finder')"></div>
+        <div class="relative max-w-xl w-full py-8 modal-card" style="animation: scaleIn 0.3s ease-out;">
+            <div class="bg-slate-900 rounded-[32px] shadow-2xl w-full p-8">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-6">
+                    <div
+                        class="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-600 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M3.5 5.5A1.5 1.5 0 015 4h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 20H5a1.5 1.5 0 01-1.5-1.5v-13z" />
+                            <circle cx="7" cy="7" r="1" class="fill-red-400" />
+                            <circle cx="10" cy="7" r="1" class="fill-yellow-400" />
+                            <circle cx="13" cy="7" r="1" class="fill-green-400" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span
+                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-300 mb-1">Productivity</span>
+                        <h3 class="text-2xl font-bold text-slate-100">Finder Services</h3>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    Access Droppy's power directly from Finder's right-click menu. Add selected files to the Shelf or
+                    Basket without switching apps.
+                </p>
+
+                <!-- Screenshot Placeholder -->
+                <div
+                    class="rounded-2xl bg-slate-800/50 border border-slate-700/50 h-48 flex items-center justify-center mb-6">
+                    <span class="text-slate-500 text-sm">Screenshot coming soon</span>
+                </div>
+
+                <!-- Features -->
+                <div class="space-y-3 mb-6">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Appears in Finder's Services menu</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Works with any file selection</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Configurable keyboard shortcuts</span>
+                    </div>
+                </div>
+
+                <p class="text-sm text-slate-500 text-center">Enable in Droppy Settings → Extensions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Element Capture Modal -->
+    <div id="modal-element-capture"
+        class="extension-modal fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/80 modal-backdrop" onclick="closeExtensionModal('element-capture')"></div>
+        <div class="relative max-w-xl w-full py-8 modal-card" style="animation: scaleIn 0.3s ease-out;">
+            <div class="bg-slate-900 rounded-[32px] shadow-2xl w-full p-8">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-6">
+                    <div
+                        class="h-16 w-16 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zM14 3a1 1 0 00-1 1v3a1 1 0 102 0V5h2a1 1 0 100-2h-3zM3 14a1 1 0 011-1h3a1 1 0 110 2H5v1a1 1 0 11-2 0v-2zM14 13a1 1 0 00-1 1v2a1 1 0 102 0v-1h2a1 1 0 100-2h-3z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span
+                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-500/20 text-orange-300 mb-1">Productivity</span>
+                        <h3 class="text-2xl font-bold text-slate-100">Element Capture</h3>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing
+                    UI components, icons, or any visual element.
+                </p>
+
+                <!-- Screenshot Placeholder -->
+                <div
+                    class="rounded-2xl bg-slate-800/50 border border-slate-700/50 h-48 flex items-center justify-center mb-6">
+                    <span class="text-slate-500 text-sm">Screenshot coming soon</span>
+                </div>
+
+                <!-- Features -->
+                <div class="space-y-3 mb-6">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Custom keyboard shortcuts</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Copy to clipboard or add to Shelf</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Settings sync instantly across shortcuts</span>
+                    </div>
+                </div>
+
+                <p class="text-sm text-slate-500 text-center">Enable in Droppy Settings → Extensions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spotify Integration Modal -->
+    <div id="modal-spotify"
+        class="extension-modal fixed inset-0 z-50 hidden items-center justify-center p-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/80 modal-backdrop" onclick="closeExtensionModal('spotify')"></div>
+        <div class="relative max-w-xl w-full py-8 modal-card" style="animation: scaleIn 0.3s ease-out;">
+            <div class="bg-slate-900 rounded-[32px] shadow-2xl w-full p-8">
+                <!-- Header -->
+                <div class="flex items-center gap-5 mb-6">
+                    <div
+                        class="h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <span
+                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-green-500/20 text-green-300 mb-1">Media</span>
+                        <h3 class="text-2xl font-bold text-slate-100">Spotify Integration</h3>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    Control Spotify playback directly from your notch. See album art, track info, and playback controls
+                    without switching apps.
+                </p>
+
+                <!-- Screenshot Placeholder -->
+                <div
+                    class="rounded-2xl bg-slate-800/50 border border-slate-700/50 h-48 flex items-center justify-center mb-6">
+                    <span class="text-slate-500 text-sm">Screenshot coming soon</span>
+                </div>
+
+                <!-- Features -->
+                <div class="space-y-3 mb-6">
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Native album art in the notch</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Play, pause, skip from the shelf</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Works with Spotify Connect devices</span>
+                    </div>
+                </div>
+
+                <p class="text-sm text-slate-500 text-center">Enable in Droppy Settings → Extensions</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openExtensionModal(id) {
+            const modal = document.getElementById('modal-' + id);
+            modal.classList.remove('hidden', 'modal-closing');
+            modal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeExtensionModal(id) {
+            const modal = document.getElementById('modal-' + id);
+            modal.classList.add('modal-closing');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex', 'modal-closing');
+                document.body.style.overflow = '';
+            }, 250);
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                ['ai-bg', 'alfred', 'finder', 'spotify', 'element-capture'].forEach(id => {
+                    const modal = document.getElementById('modal-' + id);
+                    if (!modal.classList.contains('hidden')) {
+                        closeExtensionModal(id);
+                    }
+                });
+            }
+        });
+
+        // Header shadow on scroll
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('header');
+            if (window.scrollY > 20) {
+                header.classList.add('shadow-lg', 'shadow-droppy-950/5');
+            } else {
+                header.classList.remove('shadow-lg', 'shadow-droppy-950/5');
+            }
+        });
+
+        // Initialize version numbers
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.droppy-version').forEach(el => {
+                el.textContent = 'v' + DROPPY_VERSION;
+            });
+        });
+    </script>
+</body>
+
+</html>
