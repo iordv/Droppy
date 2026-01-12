@@ -363,9 +363,14 @@
                     <div class="search-morph-container">
                         <!-- Title with icon - fades out on hover -->
                         <h1 class="search-morph-title text-5xl sm:text-6xl font-bold tracking-tight">
-                            <svg class="w-12 h-12 sm:w-14 sm:h-14 text-slate-100" fill="currentColor"
-                                viewBox="0 0 20 20">
-                                <path
+                            <svg class="w-12 h-12 sm:w-14 sm:h-14" viewBox="0 0 20 20">
+                                <defs>
+                                    <linearGradient id="extensionPuzzleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:#a855f7" />
+                                        <stop offset="100%" style="stop-color:#3b82f6" />
+                                    </linearGradient>
+                                </defs>
+                                <path fill="url(#extensionPuzzleGradient)"
                                     d="M10 3.5a1.5 1.5 0 013 0V4a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-.5a1.5 1.5 0 000 3h.5a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-.5a1.5 1.5 0 00-3 0v.5a1 1 0 01-1 1H6a1 1 0 01-1-1v-3a1 1 0 00-1-1h-.5a1.5 1.5 0 010-3H4a1 1 0 001-1V6a1 1 0 011-1h3a1 1 0 001-1v-.5z" />
                             </svg>
                             Extension Store
