@@ -174,6 +174,19 @@ final class NotchWindowController: NSObject, ObservableObject {
                 self?.notchWindow?.updateMouseEventHandling()
             }
             .store(in: &cancellables)
+        
+        // CRITICAL (v7.0.2): Also update when drag LOCATION changes during a drag.
+        // This ensures the window ignores events when drag moves BELOW the notch,
+        // preventing blocking of bookmarks bar and other UI elements.
+        DragMonitor.shared.$dragLocation
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                // Only update if actively dragging - no need during idle
+                if DragMonitor.shared.isDragging {
+                    self?.notchWindow?.updateMouseEventHandling()
+                }
+            }
+            .store(in: &cancellables)
             
         // 2. React to DroppyState changes (using Observation)
         // Replaces the polling interactionTimer
@@ -615,14 +628,48 @@ class NotchWindow: NSPanel {
         let isDropTargeted = state.isDropTargeted
         let isDraggingFiles = DragMonitor.shared.isDragging
         
+        // CRITICAL FIX (v7.0.2): When dragging, only accept events if drag is OVER the valid drop zone!
+        // Previously we captured ALL drags, which blocked areas below the notch (bookmarks bar, etc.)
+        // Now we check: is the drag actually over the notch? If not, let it pass through.
+        var isDragOverValidZone = false
+        if isDraggingFiles {
+            let mouseLocation = NSEvent.mouseLocation
+            let notchRect = getNotchRect()
+            
+            // Check if drag is over the notch (with horizontal margin for easier targeting)
+            let dragZone = NSRect(
+                x: notchRect.minX - 20,
+                y: notchRect.minY,  // NO downward extension - this is critical!
+                width: notchRect.width + 40,
+                height: notchRect.height + 20  // Only extend upward
+            )
+            isDragOverValidZone = dragZone.contains(mouseLocation)
+            
+            // Also accept if expanded and over the expanded shelf area
+            if isExpanded && !isDragOverValidZone, let screen = NSScreen.main {
+                let expandedWidth: CGFloat = 450
+                let centerX = screen.frame.width / 2
+                let rowCount = ceil(Double(state.items.count) / 5.0)
+                let expandedHeight = max(1, rowCount) * 110 + 54
+                
+                let expandedZone = NSRect(
+                    x: centerX - expandedWidth / 2,
+                    y: screen.frame.height - expandedHeight,
+                    width: expandedWidth,
+                    height: expandedHeight
+                )
+                isDragOverValidZone = expandedZone.contains(mouseLocation)
+            }
+        }
+        
         // Window should accept mouse events when:
         // - Shelf is expanded (need to interact with items)
         // - User is hovering over notch (need click to open)
-        // - User is dragging files anywhere (need to receive NSDraggingDestination callbacks)
         // - Drop is actively targeted on the notch
-        // IMPORTANT: When ignoresMouseEvents = true, NSDraggingDestination methods are ALSO blocked!
-        // We MUST include isDraggingFiles to ensure drag/drop events are received.
-        let shouldAcceptEvents = isExpanded || isHovering || isDropTargeted || isDraggingFiles
+        // - User is dragging files AND they are OVER a valid drop zone
+        // CRITICAL: We now check isDragOverValidZone instead of just isDraggingFiles!
+        // This ensures drags below the notch pass through to other apps.
+        let shouldAcceptEvents = isExpanded || isHovering || isDropTargeted || isDragOverValidZone
         
         // Only update if the value actually needs to change
         if self.ignoresMouseEvents == shouldAcceptEvents {
@@ -928,28 +975,31 @@ class NotchDragContainer: NSView {
         let isHovering = DroppyState.shared.isMouseHovering
         
         if isHovering {
-            // PRECISE HOVER HIT AREA (v5.3):
-            // Capture clicks within the notch/island area + the indicator below it
-            // The indicator is offset by notchHeight + 20, and is about 44px tall
-            // So total area is from screen top to (notchHeight + 20 + 44) = notchHeight + 64
+            // PRECISE HOVER HIT AREA (v6.5.1):
+            // Only capture clicks within the ACTUAL notch/island bounds + small margin.
+            // CRITICAL: NO downward extension - this was blocking Chrome's bookmarks bar!
+            // The indicator appears INSIDE the notch area, so we don't need extra space below.
             guard let notchWindow = self.window as? NotchWindow else { return nil }
             let notchRect = notchWindow.getNotchRect()
             let mouseScreenPos = NSEvent.mouseLocation
             
-            // Horizontal: notch bounds + 20px on each side for comfortable clicking
-            let xMin = notchRect.minX - 20
-            let xMax = notchRect.maxX + 20
+            // Horizontal: notch bounds + 10px on each side for comfortable clicking
+            let xMin = notchRect.minX - 10
+            let xMax = notchRect.maxX + 10
             
-            // Vertical: From screen top (notch.maxY) down to just below the indicator
-            // indicator is at notchHeight + 20 offset, ~44px tall
-            // So total clickable area extends ~64-70px below notch bottom
-            let yMin = notchRect.minY - 70  // Enough for indicator
+            // Vertical: From notch bottom to screen top ONLY - no downward extension!
+            // This ensures we don't block bookmark bars, URL fields, or other UI below the notch
+            let yMin = notchRect.minY  // Exact notch bottom - NO extension below!
             let yMax = NSScreen.main?.frame.maxY ?? notchRect.maxY
             
             if mouseScreenPos.x >= xMin && mouseScreenPos.x <= xMax &&
                mouseScreenPos.y >= yMin && mouseScreenPos.y <= yMax {
                 return super.hitTest(point)
             }
+            
+            // CRITICAL FIX: Mouse is hovering but OUTSIDE the notch area (e.g., below it)
+            // We MUST return nil to ensure clicks pass through to apps below the notch!
+            return nil
         }
 
         // IDLE STATE: Pass through ALL events to underlying apps.
