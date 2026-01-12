@@ -779,20 +779,17 @@ struct OnboardingView: View {
         VStack(spacing: 16) {
             Spacer()
             
-            // Extensions icon
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(LinearGradient(
+            // Extensions icon - plain puzzle, no gradient box
+            Image(systemName: "puzzlepiece.extension.fill")
+                .font(.system(size: 48, weight: .medium))
+                .foregroundStyle(
+                    LinearGradient(
                         colors: [.purple, .blue],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
-                    ))
-                Image(systemName: "puzzlepiece.extension.fill")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 60, height: 60)
-            .shadow(color: .purple.opacity(0.3), radius: 8, y: 4)
+                    )
+                )
+                .shadow(color: .purple.opacity(0.3), radius: 8, y: 4)
             
             VStack(spacing: 8) {
                 Text("Extensions")
@@ -806,15 +803,12 @@ struct OnboardingView: View {
                     .padding(.horizontal, 50)
             }
             
-            // Featured extensions
+            // Featured extensions - using official icons
             VStack(spacing: 12) {
-                extensionHighlight(
-                    icon: "wand.and.stars",
-                    color: .pink,
-                    title: "AI Background Removal",
-                    description: "Remove backgrounds from images locally"
-                )
+                // AI Background Removal - uses AIExtensionIcon (Droppy icon with sparkles)
+                aiExtensionHighlight()
                 
+                // Element Capture - uses viewfinder SF Symbol
                 extensionHighlight(
                     icon: "viewfinder",
                     color: .orange,
@@ -822,12 +816,8 @@ struct OnboardingView: View {
                     description: "Screenshot any UI element with one click"
                 )
                 
-                extensionHighlight(
-                    icon: "command",
-                    color: .purple,
-                    title: "Alfred Workflow",
-                    description: "Push files from Alfred to Droppy"
-                )
+                // Alfred Workflow - uses bundled AlfredIcon
+                alfredExtensionHighlight()
             }
             .padding(.horizontal, 60)
             .padding(.vertical, 16)
@@ -842,6 +832,54 @@ struct OnboardingView: View {
             insertion: .move(edge: .trailing).combined(with: .opacity),
             removal: .move(edge: .leading).combined(with: .opacity)
         ))
+    }
+    
+    /// AI extension highlight using the same icon as Settings (Droppy icon with sparkles)
+    private func aiExtensionHighlight() -> some View {
+        HStack(spacing: 12) {
+            AIExtensionIcon(size: 36)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AI Background Removal")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text("Remove backgrounds from images locally")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+    
+    /// Alfred extension highlight using the bundled Alfred icon
+    private func alfredExtensionHighlight() -> some View {
+        HStack(spacing: 12) {
+            Image("AlfredIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Alfred Workflow")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text("Push files from Alfred to Droppy")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
     
     private func extensionHighlight(icon: String, color: Color, title: String, description: String) -> some View {
