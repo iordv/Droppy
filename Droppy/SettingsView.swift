@@ -2981,11 +2981,13 @@ struct ElementCaptureCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon
             HStack(alignment: .top) {
-                // Icon matching Alfred's style (44x44, no background box)
+                // Icon with squircle background (matching onboarding style)
                 Image(systemName: "viewfinder")
-                    .font(.system(size: 32, weight: .medium))
+                    .font(.system(size: 22, weight: .medium))
                     .foregroundStyle(.orange)
                     .frame(width: 44, height: 44)
+                    .background(Color.orange.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 
                 Spacer()
                 

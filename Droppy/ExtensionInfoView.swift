@@ -146,11 +146,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 64, height: 64)
         case .elementCapture:
-            // Same as ElementCaptureCard
+            // Same as ElementCaptureCard - with squircle background
             Image(systemName: "viewfinder")
-                .font(.system(size: 48, weight: .medium))
+                .font(.system(size: 32, weight: .medium))
                 .foregroundStyle(.orange)
                 .frame(width: 64, height: 64)
+                .background(Color.orange.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 }
@@ -370,11 +372,13 @@ struct ElementCaptureInfoView: View {
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // Icon - same as ElementCaptureCard
+            // Icon - with squircle background matching onboarding
             Image(systemName: "viewfinder")
-                .font(.system(size: 48, weight: .medium))
+                .font(.system(size: 32, weight: .medium))
                 .foregroundStyle(.orange)
                 .frame(width: 64, height: 64)
+                .background(Color.orange.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .shadow(color: Color.orange.opacity(0.3), radius: 8, y: 4)
             
             Text("Element Capture")
