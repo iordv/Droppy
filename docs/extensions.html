@@ -178,13 +178,19 @@
             width: 100%;
             padding: 16px 24px 16px 52px;
             background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid transparent;
             border-radius: 32px;
             color: white;
             font-size: 18px;
             font-weight: 500;
             outline: none;
             backdrop-filter: blur(20px);
+            transition: border-color 0.2s ease-out;
+        }
+
+        .search-morph-input:hover,
+        .search-morph-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
         .search-morph-input::placeholder {
