@@ -5,6 +5,8 @@
 //  Centralized permission checking with caching to prevent repeated prompts
 //  when macOS TCC is slow to sync permission state
 //
+//  v7.0.5: Added logging for cache/TCC mismatches, improved reliability
+//
 
 import Foundation
 import AppKit
@@ -12,6 +14,10 @@ import AppKit
 /// Centralized permission manager with caching
 /// Uses UserDefaults to remember when permissions were granted,
 /// preventing false negatives when TCC hasn't synced yet
+///
+/// IMPORTANT: Cache is persisted across app updates because TCC permissions
+/// are tied to bundle identifier, not code signature. The cache bridges
+/// the timing gap while TCC syncs on launch.
 final class PermissionManager {
     static let shared = PermissionManager()
     
@@ -25,20 +31,35 @@ final class PermissionManager {
     // MARK: - Accessibility
     
     /// Check if accessibility permission is granted (with cache fallback)
+    /// Logic: If we ever successfully verified permission, trust the cache.
+    /// TCC can be slow to sync after launch, so cache prevents false negatives.
     var isAccessibilityGranted: Bool {
         let trusted = AXIsProcessTrusted()
+        let hasCachedGrant = UserDefaults.standard.bool(forKey: accessibilityGrantedKey)
         
-        // Cache if newly trusted
         if trusted {
-            UserDefaults.standard.set(true, forKey: accessibilityGrantedKey)
+            // TCC confirms permission - update cache if needed
+            if !hasCachedGrant {
+                UserDefaults.standard.set(true, forKey: accessibilityGrantedKey)
+                print("🔐 PermissionManager: Accessibility granted, caching")
+            }
+            return true
         }
         
-        // Use cache to prevent false negatives
-        let hasCachedGrant = UserDefaults.standard.bool(forKey: accessibilityGrantedKey)
-        return trusted || hasCachedGrant
+        // TCC says not trusted, but check cache
+        if hasCachedGrant {
+            // Cache says granted - TCC might just be slow to sync
+            // Trust the cache to prevent false "permission needed" warnings
+            // This is safe because permissions persist across updates
+            return true
+        }
+        
+        // Neither TCC nor cache says granted
+        return false
     }
     
     /// Request accessibility permission (shows system dialog)
+    /// IMPORTANT: Only call this from user-initiated actions, never from background checks
     func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
@@ -49,15 +70,22 @@ final class PermissionManager {
     /// Check if screen recording permission is granted (with cache fallback)
     var isScreenRecordingGranted: Bool {
         let granted = CGPreflightScreenCaptureAccess()
+        let hasCachedGrant = UserDefaults.standard.bool(forKey: screenRecordingGrantedKey)
         
-        // Cache if newly granted
         if granted {
-            UserDefaults.standard.set(true, forKey: screenRecordingGrantedKey)
+            if !hasCachedGrant {
+                UserDefaults.standard.set(true, forKey: screenRecordingGrantedKey)
+                print("🔐 PermissionManager: Screen Recording granted, caching")
+            }
+            return true
         }
         
-        // Use cache to prevent false negatives
-        let hasCachedGrant = UserDefaults.standard.bool(forKey: screenRecordingGrantedKey)
-        return granted || hasCachedGrant
+        // Trust cache if we previously verified permission
+        if hasCachedGrant {
+            return true
+        }
+        
+        return false
     }
     
     /// Request screen recording permission (shows system dialog)

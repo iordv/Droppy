@@ -345,6 +345,7 @@ class ClipboardManager: ObservableObject {
     func startMonitoring() {
         guard !isMonitoring else { return }
         isMonitoring = true
+        permissionCheckCounter = 0  // Reset counter on start
         monitorLoop()
     }
     
@@ -352,12 +353,23 @@ class ClipboardManager: ObservableObject {
         isMonitoring = false
     }
     
+    /// Counter for throttling permission checks (every 20 cycles = 10 seconds)
+    private var permissionCheckCounter = 0
+    private let permissionCheckFrequency = 20  // Check every 20 cycles (0.5s * 20 = 10 seconds)
+    
     private func monitorLoop() {
         guard isMonitoring else { return }
         
         autoreleasepool {
             checkForChanges()
-            checkPermission()
+            
+            // Only check permissions every 10 seconds instead of every 0.5s
+            // This prevents excessive TCC queries which can cause system issues
+            permissionCheckCounter += 1
+            if permissionCheckCounter >= permissionCheckFrequency {
+                permissionCheckCounter = 0
+                checkPermission()
+            }
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in

@@ -302,11 +302,27 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             return event
         }
         
-        // 3. Permission Check & Prompt
+    // 3. Permission Check & Prompt
         // Wait 3.5 seconds to allow IOHIDManager retry logic (up to 3s) to complete first
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
-            self?.checkPermissions()
+            self?.checkPermissionsDebounced()
         }
+    }
+    
+    /// Tracks last permission check to prevent rapid re-checks
+    private var lastPermissionCheckTime: Date?
+    private let permissionCheckDebounceInterval: TimeInterval = 30 // Only check every 30 seconds max
+    
+    private func checkPermissionsDebounced() {
+        // Debounce: Skip if we checked recently to prevent TCC race conditions
+        if let lastCheck = lastPermissionCheckTime,
+           Date().timeIntervalSince(lastCheck) < permissionCheckDebounceInterval {
+            print("🔐 ClipboardWindowController: Skipping permission check (debounced)")
+            return
+        }
+        lastPermissionCheckTime = Date()
+        
+        checkPermissions()
     }
     
     private func checkPermissions() {
@@ -334,7 +350,9 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         // Save whether input monitoring was the issue for when user clicks Open Settings
         let needsInputMonitoring = !inputMonitoringOk
         
-        // Show styled alert
+        // Show styled alert - this is the ONLY place we show permission dialogs
+        // NEVER call PermissionManager.shared.requestAccessibility() here - that triggers the system prompt
+        // Instead, we show our own alert with "Open Settings" button
         Task { @MainActor in
             let shouldOpen = await DroppyAlertController.shared.showPermissions(
                 title: "Permissions Required",
