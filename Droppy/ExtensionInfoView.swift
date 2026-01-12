@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 // MARK: - Extension Type
 
@@ -19,7 +20,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     
     var title: String {
         switch self {
-        case .alfred: return "Alfred Integration"
+        case .alfred: return "Alfred Workflow"
         case .finder: return "Finder Services"
         case .spotify: return "Spotify Integration"
         case .elementCapture: return "Element Capture"
@@ -28,10 +29,10 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     
     var subtitle: String {
         switch self {
-        case .alfred: return "Powerpack Required"
-        case .finder: return "Built-in"
-        case .spotify: return "Connect Your Account"
-        case .elementCapture: return "Keyboard Shortcuts"
+        case .alfred: return "Requires Powerpack"
+        case .finder: return "One-time setup"
+        case .spotify: return "No setup needed"
+        case .elementCapture: return "Keyboard shortcuts"
         }
     }
     
@@ -42,10 +43,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         }
     }
     
+    // Colors matching the extension card accent colors
     var categoryColor: Color {
         switch self {
-        case .alfred, .finder, .elementCapture: return .orange
+        case .alfred: return .purple
+        case .finder: return .blue
         case .spotify: return .green
+        case .elementCapture: return .orange
         }
     }
     
@@ -99,6 +103,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var iconView: some View {
         switch self {
         case .alfred:
+            // Same as AlfredExtensionCard
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color(white: 0.15))
@@ -109,50 +114,23 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             }
             .frame(width: 64, height: 64)
         case .finder:
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.8), Color.cyan.opacity(0.6)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 64, height: 64)
+            // Same as FinderExtensionCard - official Finder icon
+            Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 64, height: 64)
         case .spotify:
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.green, Color.green.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "music.note")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 64, height: 64)
+            // Same as SpotifyExtensionCard
+            Image("SpotifyIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 64, height: 64)
         case .elementCapture:
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange, Color.orange.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: "viewfinder")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 64, height: 64)
+            // Same as ElementCaptureCard
+            Image(systemName: "viewfinder")
+                .font(.system(size: 48, weight: .medium))
+                .foregroundStyle(.orange)
+                .frame(width: 64, height: 64)
         }
     }
 }
@@ -324,6 +302,225 @@ struct ExtensionInfoView: View {
         case .finder: return "gearshape"
         case .spotify: return "link"
         case .elementCapture: return "keyboard"
+        }
+    }
+}
+
+// MARK: - Element Capture Info View (with shortcut recording)
+
+struct ElementCaptureInfoView: View {
+    @Binding var currentShortcut: SavedShortcut?
+    
+    @Environment(\.dismiss) private var dismiss
+    @State private var isHoveringAction = false
+    @State private var isHoveringClose = false
+    @State private var isRecording = false
+    @State private var recordMonitor: Any?
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            headerSection
+            
+            // Features
+            featuresSection
+            
+            Divider()
+                .padding(.horizontal, 20)
+            
+            // Shortcut recording section
+            shortcutSection
+            
+            Divider()
+                .padding(.horizontal, 20)
+            
+            // Buttons
+            buttonSection
+        }
+        .frame(width: 340)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Color.black)
+        .clipped()
+        .onDisappear {
+            stopRecording()
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            // Icon - same as ElementCaptureCard
+            Image(systemName: "viewfinder")
+                .font(.system(size: 48, weight: .medium))
+                .foregroundStyle(.orange)
+                .frame(width: 64, height: 64)
+                .shadow(color: Color.orange.opacity(0.3), radius: 8, y: 4)
+            
+            Text("Element Capture")
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+            
+            HStack(spacing: 8) {
+                Text("Productivity")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.orange.opacity(0.15))
+                    )
+                
+                Text("Keyboard shortcuts")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.top, 24)
+        .padding(.bottom, 20)
+    }
+    
+    private var featuresSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 8)
+            
+            featureRow(icon: "keyboard", text: "Configurable keyboard shortcuts")
+            featureRow(icon: "rectangle.dashed", text: "Select screen regions")
+            featureRow(icon: "doc.on.clipboard", text: "Copy to clipboard")
+            featureRow(icon: "plus.circle", text: "Add directly to Droppy")
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 20)
+    }
+    
+    private func featureRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.orange)
+                .frame(width: 24)
+            
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.primary)
+        }
+    }
+    
+    private var shortcutSection: some View {
+        VStack(spacing: 12) {
+            Text("Keyboard Shortcut")
+                .font(.headline)
+                .foregroundStyle(.white)
+            
+            Button {
+                if isRecording {
+                    stopRecording()
+                } else {
+                    startRecording()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if isRecording {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 8, height: 8)
+                        Text("Press keys...")
+                            .font(.system(size: 14, weight: .medium))
+                    } else if let shortcut = currentShortcut {
+                        Image(systemName: "keyboard")
+                            .font(.system(size: 12))
+                        Text(shortcut.description)
+                            .font(.system(size: 14, weight: .semibold))
+                    } else {
+                        Image(systemName: "record.circle")
+                            .font(.system(size: 12))
+                        Text("Click to record shortcut")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                }
+                .foregroundStyle(isRecording ? .white : (currentShortcut != nil ? .primary : .white))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isRecording ? Color.red.opacity(0.85) : (currentShortcut != nil ? Color.white.opacity(0.1) : Color.orange.opacity(0.85)))
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+    }
+    
+    private var buttonSection: some View {
+        HStack(spacing: 10) {
+            Button {
+                dismiss()
+            } label: {
+                Text("Close")
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(isHoveringClose ? 0.15 : 0.1))
+                    .foregroundStyle(.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { h in
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                    isHoveringClose = h
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(16)
+    }
+    
+    // MARK: - Recording
+    
+    private func startRecording() {
+        isRecording = true
+        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Ignore just modifier keys pressed alone
+            if event.keyCode == 54 || event.keyCode == 55 || event.keyCode == 56 ||
+               event.keyCode == 58 || event.keyCode == 59 || event.keyCode == 60 ||
+               event.keyCode == 61 || event.keyCode == 62 {
+                return nil
+            }
+            
+            // Capture the shortcut
+            DispatchQueue.main.async {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let shortcut = SavedShortcut(keyCode: Int(event.keyCode), modifiers: flags.rawValue)
+                saveShortcut(shortcut)
+                stopRecording()
+            }
+            return nil
+        }
+    }
+    
+    private func stopRecording() {
+        isRecording = false
+        if let m = recordMonitor {
+            NSEvent.removeMonitor(m)
+            recordMonitor = nil
+        }
+    }
+    
+    private func saveShortcut(_ shortcut: SavedShortcut) {
+        currentShortcut = shortcut
+        if let encoded = try? JSONEncoder().encode(shortcut) {
+            UserDefaults.standard.set(encoded, forKey: "elementCaptureShortcut")
+        }
+        // Also update the manager (for global hotkey monitoring)
+        Task { @MainActor in
+            ElementCaptureManager.shared.shortcut = shortcut
+            ElementCaptureManager.shared.startMonitoringShortcut()
         }
     }
 }

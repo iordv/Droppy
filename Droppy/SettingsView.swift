@@ -2751,8 +2751,6 @@ struct AIBackgroundRemovalCard: View {
 // MARK: - Alfred Extension Card
 
 struct AlfredExtensionCard: View {
-    @State private var isHoveringAction = false
-    @State private var isHoveringInfo = false
     @State private var showInfoSheet = false
     
     var body: some View {
@@ -2771,19 +2769,6 @@ struct AlfredExtensionCard: View {
                 .frame(width: 44, height: 44)
                 
                 Spacer()
-                
-                // Info button
-                Button {
-                    showInfoSheet = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isHoveringInfo ? .white : .secondary)
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(.easeOut(duration: 0.15)) { isHoveringInfo = h }
-                }
                 
                 // Clean grey badge
                 Text("Productivity")
@@ -2812,40 +2797,10 @@ struct AlfredExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status & Action
-            HStack {
-                Text("Requires Powerpack")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                
-                Spacer()
-                
-                Button {
-                    if let workflowPath = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: workflowPath))
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("Install")
-                            .font(.caption.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.blue.opacity(isHoveringAction ? 1.0 : 0.85))
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        isHoveringAction = hovering
-                    }
-                }
-            }
+            // Status only
+            Text("Requires Powerpack")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .purple)
@@ -2866,8 +2821,6 @@ struct AlfredExtensionCard: View {
 // MARK: - Finder Extension Card
 
 struct FinderExtensionCard: View {
-    @State private var isHoveringAction = false
-    @State private var isHoveringInfo = false
     @State private var showSetupSheet = false
     @State private var showInfoSheet = false
     
@@ -2882,19 +2835,6 @@ struct FinderExtensionCard: View {
                     .frame(width: 44, height: 44)
                 
                 Spacer()
-                
-                // Info button
-                Button {
-                    showInfoSheet = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isHoveringInfo ? .white : .secondary)
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(.easeOut(duration: 0.15)) { isHoveringInfo = h }
-                }
                 
                 // Clean grey badge
                 Text("Productivity")
@@ -2923,38 +2863,10 @@ struct FinderExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status & Action
-            HStack {
-                Text("One-time setup")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                
-                Spacer()
-                
-                Button {
-                    showSetupSheet = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 10))
-                        Text("Setup")
-                            .font(.caption.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.blue.opacity(isHoveringAction ? 1.0 : 0.85))
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        isHoveringAction = hovering
-                    }
-                }
-            }
+            // Status only
+            Text("One-time setup")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .blue)
@@ -2977,7 +2889,6 @@ struct FinderExtensionCard: View {
 // MARK: - Spotify Extension Card
 
 struct SpotifyExtensionCard: View {
-    @State private var isHoveringInfo = false
     @State private var showInfoSheet = false
     
     var body: some View {
@@ -2991,19 +2902,6 @@ struct SpotifyExtensionCard: View {
                     .frame(width: 44, height: 44)
                 
                 Spacer()
-                
-                // Info button
-                Button {
-                    showInfoSheet = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isHoveringInfo ? .white : .secondary)
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(.easeOut(duration: 0.15)) { isHoveringInfo = h }
-                }
                 
                 // Clean grey badge
                 Text("Media")
@@ -3069,10 +2967,6 @@ struct SpotifyExtensionCard: View {
 struct ElementCaptureCard: View {
     // Use local state to avoid @StateObject + @MainActor deadlock
     @State private var currentShortcut: SavedShortcut?
-    @State private var isHoveringAction = false
-    @State private var isHoveringInfo = false
-    @State private var isRecording = false
-    @State private var recordMonitor: Any?
     @State private var showInfoSheet = false
     
     var body: some View {
@@ -3086,19 +2980,6 @@ struct ElementCaptureCard: View {
                     .frame(width: 44, height: 44)
                 
                 Spacer()
-                
-                // Info button
-                Button {
-                    showInfoSheet = true
-                } label: {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isHoveringInfo ? .white : .secondary)
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(.easeOut(duration: 0.15)) { isHoveringInfo = h }
-                }
                 
                 // Clean grey badge
                 Text("Productivity")
@@ -3127,7 +3008,7 @@ struct ElementCaptureCard: View {
             
             Spacer(minLength: 8)
             
-            // Shortcut Recording Row
+            // Shortcut status
             HStack {
                 Text("Shortcut")
                     .font(.caption2)
@@ -3135,41 +3016,14 @@ struct ElementCaptureCard: View {
                 
                 Spacer()
                 
-                // Shortcut display / record button
-                Button {
-                    if isRecording {
-                        stopRecording()
-                    } else {
-                        startRecording()
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        if isRecording {
-                            Text("Press keys...")
-                                .font(.caption.weight(.medium))
-                        } else if let shortcut = currentShortcut {
-                            Text(shortcut.description)
-                                .font(.caption.weight(.semibold))
-                        } else {
-                            Image(systemName: "record.circle")
-                                .font(.system(size: 10))
-                            Text("Record Key")
-                                .font(.caption.weight(.semibold))
-                        }
-                    }
-                    .foregroundStyle(isRecording ? .white : (currentShortcut != nil ? .primary : .white))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(isRecording ? Color.red.opacity(0.85) : (currentShortcut != nil ? Color.white.opacity(isHoveringAction ? 0.15 : 0.1) : Color.orange.opacity(isHoveringAction ? 1.0 : 0.85)))
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        isHoveringAction = hovering
-                    }
+                if let shortcut = currentShortcut {
+                    Text(shortcut.description)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Not configured")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
         }
@@ -3183,63 +3037,15 @@ struct ElementCaptureCard: View {
             // Load shortcut from UserDefaults (safe, no MainActor issues)
             loadShortcut()
         }
-        .onDisappear {
-            stopRecording()
-        }
         .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(extensionType: .elementCapture)
+            ElementCaptureInfoView(currentShortcut: $currentShortcut)
         }
     }
-    
-    // MARK: - Shortcut Loading
     
     private func loadShortcut() {
         if let data = UserDefaults.standard.data(forKey: "elementCaptureShortcut"),
            let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
             currentShortcut = decoded
-        }
-    }
-    
-    private func saveShortcut(_ shortcut: SavedShortcut) {
-        currentShortcut = shortcut
-        if let encoded = try? JSONEncoder().encode(shortcut) {
-            UserDefaults.standard.set(encoded, forKey: "elementCaptureShortcut")
-        }
-        // Also update the manager (for global hotkey monitoring)
-        Task { @MainActor in
-            ElementCaptureManager.shared.shortcut = shortcut
-            ElementCaptureManager.shared.startMonitoringShortcut()
-        }
-    }
-    
-    // MARK: - Recording
-    
-    private func startRecording() {
-        isRecording = true
-        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Ignore just modifier keys pressed alone
-            if event.keyCode == 54 || event.keyCode == 55 || event.keyCode == 56 ||
-               event.keyCode == 58 || event.keyCode == 59 || event.keyCode == 60 ||
-               event.keyCode == 61 || event.keyCode == 62 {
-                return nil
-            }
-            
-            // Capture the shortcut
-            DispatchQueue.main.async {
-                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                let shortcut = SavedShortcut(keyCode: Int(event.keyCode), modifiers: flags.rawValue)
-                saveShortcut(shortcut)
-                stopRecording()
-            }
-            return nil
-        }
-    }
-    
-    private func stopRecording() {
-        isRecording = false
-        if let m = recordMonitor {
-            NSEvent.removeMonitor(m)
-            recordMonitor = nil
         }
     }
 }
