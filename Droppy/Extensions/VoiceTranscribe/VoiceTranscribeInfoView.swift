@@ -359,6 +359,7 @@ struct VoiceTranscribeInfoView: View {
             }
         }
         .padding(16)
+    }
 }
 
 #Preview {
