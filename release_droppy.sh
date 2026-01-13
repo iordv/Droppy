@@ -78,6 +78,11 @@ if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
     sed -i '' "s/const DROPPY_VERSION = '[^']*';/const DROPPY_VERSION = '$VERSION';/" docs/download.html
     sed -i '' "s/const DROPPY_VERSION = '[^']*';/const DROPPY_VERSION = '$VERSION';/" docs/index.html
     sed -i '' "s/const DROPPY_VERSION = '[^']*';/const DROPPY_VERSION = '$VERSION';/" docs/extensions.html
+    
+    # Update centralized version.js
+    sed -i '' "s/version: '[^']*'/version: '$VERSION'/" docs/assets/js/version.js
+    sed -i '' "s/Droppy-[0-9]*\.[0-9]*\.[0-9]*\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
+    sed -i '' "s/Droppy-[0-9]*\.[0-9]*\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
 else
     warning "No valid notes file provided. Skipping doc updates."
 fi
