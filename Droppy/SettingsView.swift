@@ -41,9 +41,7 @@ struct SettingsView: View {
     
     // Hover states for sidebar items
     @State private var hoverFeatures = false
-    @State private var hoverClipboard = false
     @State private var hoverAppearance = false
-    @State private var hoverAccessibility = false
     @State private var hoverExtensions = false
     @State private var hoverAbout = false
     @State private var isCoffeeHovering = false
@@ -64,9 +62,7 @@ struct SettingsView: View {
             NavigationSplitView {
                 VStack(spacing: 6) {
                     sidebarButton(title: "Features", icon: "star.fill", tag: "Features", isHovering: $hoverFeatures)
-                    sidebarButton(title: "Clipboard", icon: "doc.on.clipboard", tag: "Clipboard", isHovering: $hoverClipboard)
                     sidebarButton(title: "Appearance", icon: "paintbrush.fill", tag: "Appearance", isHovering: $hoverAppearance)
-                    sidebarButton(title: "Accessibility", icon: "accessibility", tag: "Accessibility", isHovering: $hoverAccessibility)
                     sidebarButton(title: "Extensions", icon: "puzzlepiece.extension.fill", tag: "Extensions", isHovering: $hoverExtensions)
                     sidebarButton(title: "About", icon: "info.circle.fill", tag: "About", isHovering: $hoverAbout)
                     
@@ -107,12 +103,8 @@ struct SettingsView: View {
                     Form {
                         if selectedTab == "Features" {
                             featuresSettings
-                        } else if selectedTab == "Clipboard" {
-                            clipboardSettings
                         } else if selectedTab == "Appearance" {
                             appearanceSettings
-                        } else if selectedTab == "Accessibility" {
-                            indicatorsSettings
                         } else if selectedTab == "Extensions" {
                             integrationsSettings
                         } else if selectedTab == "About" {
@@ -182,8 +174,10 @@ struct SettingsView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openExtensionFromDeepLink)) { notification in
+            // Always navigate to Extensions tab
+            selectedTab = "Extensions"
+            // If a specific extension type was provided, open its sheet
             if let extensionType = notification.object as? ExtensionType {
-                selectedTab = "Extensions"
                 // Small delay to allow tab switch animation
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     deepLinkedExtension = extensionType
@@ -232,35 +226,6 @@ struct SettingsView: View {
     
     private var featuresSettings: some View {
         Group {
-            // MARK: Startup Section
-            Section {
-                Toggle(isOn: $showInMenuBar) {
-                    VStack(alignment: .leading) {
-                        Text("Menu Bar Icon")
-                        Text("Display Droppy icon in the menu bar")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
-                Toggle(isOn: Binding(
-                    get: { startAtLogin },
-                    set: { newValue in
-                        startAtLogin = newValue
-                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
-                    }
-                )) {
-                    VStack(alignment: .leading) {
-                        Text("Launch at Login")
-                        Text("Start Droppy automatically when you log in")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Startup")
-            }
-            
             // MARK: Drop Zones Section
             Section {
                 Toggle(isOn: $enableNotchShelf) {
@@ -521,6 +486,9 @@ struct SettingsView: View {
             } footer: {
                 Text("Tap to toggle. System HUD requires Accessibility permissions.")
             }
+            
+            // MARK: Clipboard (merged from separate tab)
+            clipboardSettings
         }
     }
     
@@ -704,6 +672,9 @@ struct SettingsView: View {
             } header: {
                 Text("Shelf Behavior")
             }
+            
+            // MARK: Indicators (merged from Accessibility tab)
+            indicatorsSettings
         }
     }
     
@@ -767,6 +738,35 @@ struct SettingsView: View {
     
     private var aboutSettings: some View {
         Group {
+            // MARK: Startup (merged from Features tab)
+            Section {
+                Toggle(isOn: $showInMenuBar) {
+                    VStack(alignment: .leading) {
+                        Text("Menu Bar Icon")
+                        Text("Display Droppy icon in the menu bar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Toggle(isOn: Binding(
+                    get: { startAtLogin },
+                    set: { newValue in
+                        startAtLogin = newValue
+                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
+                    }
+                )) {
+                    VStack(alignment: .leading) {
+                        Text("Launch at Login")
+                        Text("Start Droppy automatically when you log in")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Startup")
+            }
+            
             // MARK: About
             Section {
             HStack(spacing: 14) {
@@ -2458,6 +2458,7 @@ enum ExtensionCategory: String, CaseIterable, Identifiable {
 struct ExtensionsShopView: View {
     @State private var selectedCategory: ExtensionCategory = .all
     @Namespace private var categoryAnimation
+    @State private var extensionCounts: [String: Int] = [:]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -2467,6 +2468,13 @@ struct ExtensionsShopView: View {
             
             // Extensions Grid
             extensionsGrid
+        }
+        .onAppear {
+            Task {
+                if let counts = try? await AnalyticsService.shared.fetchExtensionCounts() {
+                    extensionCounts = counts
+                }
+            }
         }
     }
     
@@ -2501,27 +2509,27 @@ struct ExtensionsShopView: View {
         ], spacing: 16) {
             // AI Background Removal
             if selectedCategory == .all || selectedCategory == .ai {
-                AIBackgroundRemovalCard()
+                AIBackgroundRemovalCard(installCount: extensionCounts["aiBackgroundRemoval"])
             }
             
             // Alfred Integration
             if selectedCategory == .all || selectedCategory == .productivity {
-                AlfredExtensionCard()
+                AlfredExtensionCard(installCount: extensionCounts["alfred"])
             }
             
             // Finder Integration
             if selectedCategory == .all || selectedCategory == .productivity {
-                FinderExtensionCard()
+                FinderExtensionCard(installCount: extensionCounts["finder"])
             }
             
             // Spotify Integration
             if selectedCategory == .all || selectedCategory == .media {
-                SpotifyExtensionCard()
+                SpotifyExtensionCard(installCount: extensionCounts["spotify"])
             }
             
             // Element Capture
             if selectedCategory == .all || selectedCategory == .productivity {
-                ElementCaptureCard()
+                ElementCaptureCard(installCount: extensionCounts["elementCapture"])
             }
         }
     }
@@ -2709,6 +2717,7 @@ struct AIExtensionIcon: View {
 struct AIBackgroundRemovalCard: View {
     @ObservedObject private var manager = AIInstallManager.shared
     @State private var showInstallSheet = false
+    var installCount: Int?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -2746,20 +2755,34 @@ struct AIBackgroundRemovalCard: View {
             
             Spacer(minLength: 8)
             
-            // Status only - no action button
-            if manager.isInstalled {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                    Text("Installed")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.green)
+            // Status row with install count
+            HStack {
+                if manager.isInstalled {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                        Text("Installed")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.green)
+                    }
+                } else {
+                    Text("One-click install")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
-            } else {
-                Text("One-click install")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                
+                Spacer()
+                
+                if let count = installCount, count > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
+                }
             }
         }
         .frame(minHeight: 160)
@@ -2778,6 +2801,7 @@ struct AIBackgroundRemovalCard: View {
 
 struct AlfredExtensionCard: View {
     @State private var showInfoSheet = false
+    var installCount: Int?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -2823,10 +2847,24 @@ struct AlfredExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status only
-            Text("Requires Powerpack")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            // Status row with install count
+            HStack {
+                Text("Requires Powerpack")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                
+                Spacer()
+                
+                if let count = installCount, count > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .purple)
@@ -2849,6 +2887,7 @@ struct AlfredExtensionCard: View {
 struct FinderExtensionCard: View {
     @State private var showSetupSheet = false
     @State private var showInfoSheet = false
+    var installCount: Int?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -2894,10 +2933,24 @@ struct FinderExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status only
-            Text("One-time setup")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            // Status row with install count
+            HStack {
+                Text("One-time setup")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                
+                Spacer()
+                
+                if let count = installCount, count > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
+                }
+            }
         }
         .frame(minHeight: 160)
         .extensionCardStyle(accentColor: .blue)
@@ -2921,6 +2974,7 @@ struct FinderExtensionCard: View {
 
 struct SpotifyExtensionCard: View {
     @State private var showInfoSheet = false
+    var installCount: Int?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -2966,7 +3020,7 @@ struct SpotifyExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status
+            // Status with install count
             HStack {
                 // Live status indicator
                 HStack(spacing: 6) {
@@ -2980,10 +3034,15 @@ struct SpotifyExtensionCard: View {
                 
                 Spacer()
                 
-                // No setup required badge
-                Text("No setup needed")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if let count = installCount, count > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
+                }
             }
         }
         .frame(minHeight: 160)
@@ -3004,6 +3063,7 @@ struct ElementCaptureCard: View {
     // Use local state to avoid @StateObject + @MainActor deadlock
     @State private var currentShortcut: SavedShortcut?
     @State private var showInfoSheet = false
+    var installCount: Int?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -3048,13 +3108,11 @@ struct ElementCaptureCard: View {
             
             Spacer(minLength: 8)
             
-            // Shortcut status
+            // Shortcut status with install count
             HStack {
                 Text("Shortcut")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
-                
-                Spacer()
                 
                 if let shortcut = currentShortcut {
                     Text(shortcut.description)
@@ -3064,6 +3122,18 @@ struct ElementCaptureCard: View {
                     Text("Not configured")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                }
+                
+                Spacer()
+                
+                if let count = installCount, count > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    .foregroundStyle(.secondary)
                 }
             }
         }

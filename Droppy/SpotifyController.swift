@@ -88,6 +88,12 @@ final class SpotifyController {
     func refreshState() {
         guard isSpotifyRunning else { return }
         
+        // Track Spotify integration activation (only once per user)
+        if !UserDefaults.standard.bool(forKey: "spotifyIntegrationTracked") {
+            AnalyticsService.shared.trackExtensionActivation(extensionId: "spotify")
+            UserDefaults.standard.set(true, forKey: "spotifyIntegrationTracked")
+        }
+        
         // Fetch shuffle and repeat state
         fetchShuffleState()
         fetchRepeatState()

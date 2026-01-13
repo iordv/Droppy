@@ -209,6 +209,9 @@ final class AIInstallManager: ObservableObject {
                 
                 // Enable the feature
                 UserDefaults.standard.set(true, forKey: "useLocalBackgroundRemoval")
+                
+                // Track extension activation
+                AnalyticsService.shared.trackExtensionActivation(extensionId: "aiBackgroundRemoval")
             } else {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorOutput = String(data: errorData, encoding: .utf8) ?? "Unknown error"

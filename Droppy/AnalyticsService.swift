@@ -106,4 +106,77 @@ final class AnalyticsService: Sendable {
         
         return 0
     }
+    
+    // MARK: - Extension Tracking
+    
+    private let extensionStatsURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/extension_stats")!
+    
+    /// Track when an extension is activated (enabled)
+    func trackExtensionActivation(extensionId: String) {
+        Task {
+            let analyticsID = getOrGenerateAnalyticsID()
+            await trackExtensionEvent(extensionId: extensionId, action: "activate", id: analyticsID)
+        }
+    }
+    
+    private func trackExtensionEvent(extensionId: String, action: String, id: String) async {
+        let payload: [String: Any] = [
+            "extension_id": extensionId,
+            "anonymous_id": id,
+            "action": action,
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        ]
+        
+        do {
+            var request = URLRequest(url: extensionStatsURL)
+            request.httpMethod = "POST"
+            request.addValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
+            request.addValue(supabaseKey, forHTTPHeaderField: "apikey")
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            // Use upsert to handle duplicate tracking (same user activating same extension)
+            request.addValue("resolution=ignore-duplicates", forHTTPHeaderField: "Prefer")
+            
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+                print("Extension tracking failed: \(httpResponse.statusCode)")
+            }
+        } catch {
+            print("Extension tracking error: \(error)")
+        }
+    }
+    
+    /// Fetches install counts for all extensions
+    func fetchExtensionCounts() async throws -> [String: Int] {
+        let rpcURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/rpc/get_extension_counts")!
+        
+        var request = URLRequest(url: rpcURL)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
+        request.addValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [:])
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        // Response is array of {extension_id, install_count}
+        if let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            var counts: [String: Int] = [:]
+            for result in results {
+                if let extId = result["extension_id"] as? String,
+                   let count = result["install_count"] as? Int {
+                    counts[extId] = count
+                }
+            }
+            return counts
+        }
+        
+        return [:]
+    }
 }

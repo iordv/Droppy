@@ -500,7 +500,7 @@
                     <!-- AI Background Removal -->
                     <button onclick="openExtensionModal('ai-bg')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
-                        data-name="ai background removal" data-category="ai">
+                        data-name="ai background removal" data-category="ai" data-extension-id="aiBackgroundRemoval">
                         <div
                             class="h-12 w-12 rounded-xl bg-gradient-to-br from-fuchsia-400 to-purple-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
                             <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -510,21 +510,39 @@
                             </svg>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">AI Background Removal</h3>
-                        <p class="text-slate-400 text-sm">Remove backgrounds instantly using local AI.</p>
+                        <p class="text-slate-400 text-sm mb-3">Remove backgrounds instantly using local AI.</p>
+                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
+                            style="display: none;">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="count-value">0</span> installs
+                        </div>
                     </button>
                     <!-- Alfred Workflow -->
                     <button onclick="openExtensionModal('alfred')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
-                        data-name="alfred workflow" data-category="productivity">
+                        data-name="alfred workflow" data-category="productivity" data-extension-id="alfred">
                         <img src="assets/images/alfred_icon.png" alt="Alfred"
                             class="h-12 w-12 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110">
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Alfred Workflow</h3>
-                        <p class="text-slate-400 text-sm">Add files via Alfred keyboard shortcuts.</p>
+                        <p class="text-slate-400 text-sm mb-3">Add files via Alfred keyboard shortcuts.</p>
+                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
+                            style="display: none;">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="count-value">0</span> installs
+                        </div>
                     </button>
                     <!-- Finder Services -->
                     <button onclick="openExtensionModal('finder')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
-                        data-name="finder services" data-category="productivity">
+                        data-name="finder services" data-category="productivity" data-extension-id="finder">
                         <div
                             class="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
                             <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -536,12 +554,21 @@
                             </svg>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Finder Services</h3>
-                        <p class="text-slate-400 text-sm">Right-click integration in Finder.</p>
+                        <p class="text-slate-400 text-sm mb-3">Right-click integration in Finder.</p>
+                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
+                            style="display: none;">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="count-value">0</span> installs
+                        </div>
                     </button>
                     <!-- Element Capture -->
                     <button onclick="openExtensionModal('element-capture')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
-                        data-name="element capture" data-category="productivity">
+                        data-name="element capture" data-category="productivity" data-extension-id="elementCapture">
                         <div
                             class="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
                             <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -551,16 +578,34 @@
                             </svg>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Element Capture</h3>
-                        <p class="text-slate-400 text-sm">Capture screen elements with shortcuts.</p>
+                        <p class="text-slate-400 text-sm mb-3">Capture screen elements with shortcuts.</p>
+                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
+                            style="display: none;">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="count-value">0</span> installs
+                        </div>
                     </button>
                     <!-- Spotify Integration -->
                     <button onclick="openExtensionModal('spotify')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
-                        data-name="spotify integration" data-category="media">
+                        data-name="spotify integration" data-category="media" data-extension-id="spotify">
                         <img src="assets/images/SpotifyIcon.png" alt="Spotify"
                             class="h-12 w-12 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110">
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Spotify Integration</h3>
-                        <p class="text-slate-400 text-sm">Playback controls with album art in notch.</p>
+                        <p class="text-slate-400 text-sm mb-3">Playback controls with album art in notch.</p>
+                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
+                            style="display: none;">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="count-value">0</span> installs
+                        </div>
                     </button>
                 </div>
 
@@ -1013,7 +1058,53 @@
                 el.textContent = 'v' + DROPPY_VERSION;
             });
 
-            // Search demo animation
+            // Fetch and display extension install counts
+            fetchExtensionCounts();
+        });
+
+        // Fetch extension install counts from Supabase
+        async function fetchExtensionCounts() {
+            try {
+                const response = await fetch('https://anannmonpspjsnfgdglb.supabase.co/rest/v1/rpc/get_extension_counts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYW5ubW9ucHNwanNuZmdkZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDgxODQsImV4cCI6MjA4MzEyNDE4NH0.5BvuW5cS0kJCuA2Nm5HCVDLNWNzn6EA_8JVVrW6pfnY'
+                    },
+                    body: '{}'
+                });
+
+                if (!response.ok) return;
+
+                const counts = await response.json();
+
+                // Convert array to object for easier lookup
+                const countMap = {};
+                counts.forEach(item => {
+                    countMap[item.extension_id] = item.install_count;
+                });
+
+                // Update each extension card with its count
+                document.querySelectorAll('.extension-card[data-extension-id]').forEach(card => {
+                    const extId = card.dataset.extensionId;
+                    const count = countMap[extId] || 0;
+
+                    if (count > 0) {
+                        const countEl = card.querySelector('.extension-count');
+                        const valueEl = card.querySelector('.count-value');
+                        if (countEl && valueEl) {
+                            valueEl.textContent = count;
+                            countEl.style.display = 'flex';
+                        }
+                    }
+                });
+            } catch (error) {
+                console.log('Could not fetch extension counts:', error);
+            }
+        }
+
+        // Search demo animation
+        document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 const container = document.querySelector('.search-morph-container');
                 const input = document.getElementById('extensionSearch');

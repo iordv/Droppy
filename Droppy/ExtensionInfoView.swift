@@ -337,6 +337,8 @@ struct ExtensionInfoView: View {
             // Action button (optional)
             if let action = onAction {
                 Button {
+                    // Track extension activation
+                    AnalyticsService.shared.trackExtensionActivation(extensionId: extensionType.rawValue)
                     action()
                 } label: {
                     HStack(spacing: 6) {
@@ -627,6 +629,12 @@ struct ElementCaptureInfoView: View {
         currentShortcut = shortcut
         if let encoded = try? JSONEncoder().encode(shortcut) {
             UserDefaults.standard.set(encoded, forKey: "elementCaptureShortcut")
+            
+            // Track extension activation (only once per user)
+            if !UserDefaults.standard.bool(forKey: "elementCaptureTracked") {
+                AnalyticsService.shared.trackExtensionActivation(extensionId: "elementCapture")
+                UserDefaults.standard.set(true, forKey: "elementCaptureTracked")
+            }
         }
         // Also update the manager (for global hotkey monitoring)
         Task { @MainActor in

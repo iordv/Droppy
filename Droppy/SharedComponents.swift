@@ -32,9 +32,7 @@ struct OptionButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Animated HUD Toggle
-
-/// Reusable HUD toggle button with icon bounce animation
+/// Reusable HUD toggle button with horizontal layout matching onboarding style
 /// Used in both OnboardingView and SettingsView for HUD option grids
 struct AnimatedHUDToggle: View {
     let icon: String
@@ -45,14 +43,6 @@ struct AnimatedHUDToggle: View {
     
     @State private var iconBounce = false
     @State private var isHovering = false
-    
-    private var borderColor: Color {
-        if isHovering {
-            return isOn ? color.opacity(0.7) : Color.white.opacity(0.3)
-        } else {
-            return isOn ? color.opacity(0.5) : Color.white.opacity(0.1)
-        }
-    }
     
     var body: some View {
         Button {
@@ -67,25 +57,39 @@ struct AnimatedHUDToggle: View {
                 }
             }
         } label: {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(isOn ? color : .secondary)
-                    .scaleEffect(iconBounce ? 1.3 : 1.0)
-                    .rotationEffect(.degrees(iconBounce ? -8 : 0))
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isOn ? color.opacity(0.2) : Color.white.opacity(0.05))
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isOn ? color : .secondary)
+                        .scaleEffect(iconBounce ? 1.3 : 1.0)
+                        .rotationEffect(.degrees(iconBounce ? -8 : 0))
+                }
+                .frame(width: 40, height: 40)
+                
                 Text(title)
-                    .font(.caption.weight(.medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(isOn ? .white : .secondary)
+                
+                Spacer()
+                
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isOn ? .green : .secondary.opacity(0.5))
             }
-            .frame(width: fixedWidth, height: 80)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(width: fixedWidth)
             .frame(maxWidth: fixedWidth == nil ? .infinity : nil)
-            .background(Color.white.opacity(isOn ? 0.1 : 0.05))
-            .clipShape(RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous))
+            .background(Color.white.opacity(isOn ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
-            .scaleEffect(isHovering ? 1.02 : (isOn ? 1.0 : 0.98))
+            .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
         }
         .buttonStyle(OptionButtonStyle())
@@ -99,7 +103,7 @@ struct AnimatedHUDToggle: View {
 // MARK: - Animated HUD Toggle with Subtitle
 
 /// HUD toggle with subtitle text and icon bounce animation
-/// Used for toggles that need to show connection to another toggle (e.g., Auto-Hide for Media)
+/// Uses horizontal layout matching other toggle styles
 struct AnimatedHUDToggleWithSubtitle: View {
     let icon: String
     let title: String
@@ -110,14 +114,6 @@ struct AnimatedHUDToggleWithSubtitle: View {
     
     @State private var iconBounce = false
     @State private var isHovering = false
-    
-    private var borderColor: Color {
-        if isHovering && isEnabled {
-            return isOn ? color.opacity(0.7) : Color.white.opacity(0.3)
-        } else {
-            return isOn ? color.opacity(0.5) : Color.white.opacity(0.1)
-        }
-    }
     
     var body: some View {
         Button {
@@ -133,29 +129,44 @@ struct AnimatedHUDToggleWithSubtitle: View {
                 }
             }
         } label: {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(isOn ? color : .secondary)
-                    .scaleEffect(iconBounce ? 1.3 : 1.0)
-                    .rotationEffect(.degrees(iconBounce ? -8 : 0))
-                Text(title)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(isOn ? .white : .secondary)
-                Text(subtitle)
-                    .font(.system(size: 8))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isOn ? color.opacity(0.2) : Color.white.opacity(0.05))
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isOn ? color : .secondary)
+                        .scaleEffect(iconBounce ? 1.3 : 1.0)
+                        .rotationEffect(.degrees(iconBounce ? -8 : 0))
+                }
+                .frame(width: 40, height: 40)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(isOn ? .white : .secondary)
+                    Text(subtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isOn ? .green : .secondary.opacity(0.5))
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(Color.white.opacity(isOn ? 0.1 : 0.05))
-            .clipShape(RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous))
+            .background(Color.white.opacity(isOn ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
-            .scaleEffect(isHovering && isEnabled ? 1.02 : (isOn ? 1.0 : 0.98))
+            .scaleEffect(isHovering && isEnabled ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
         }
         .buttonStyle(OptionButtonStyle())
@@ -170,21 +181,13 @@ struct AnimatedHUDToggleWithSubtitle: View {
 // MARK: - Volume & Brightness Toggle
 
 /// Special toggle for Volume/Brightness that morphs between icons on tap
-/// Used in both SettingsView and OnboardingView HUD options
+/// Uses horizontal layout matching onboarding style
 struct VolumeAndBrightnessToggle: View {
     @Binding var isEnabled: Bool
     
     @State private var showBrightnessIcon = false
     @State private var iconBounce = false
     @State private var isHovering = false
-    
-    private var borderColor: Color {
-        if isHovering {
-            return isEnabled ? Color.white.opacity(0.7) : Color.white.opacity(0.3)
-        } else {
-            return isEnabled ? Color.white.opacity(0.5) : Color.white.opacity(0.1)
-        }
-    }
     
     var body: some View {
         Button {
@@ -209,38 +212,51 @@ struct VolumeAndBrightnessToggle: View {
                 }
             }
         } label: {
-            VStack(spacing: 6) {
+            HStack(spacing: 12) {
                 ZStack {
-                    // Volume icon
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.title2)
-                        .foregroundStyle(isEnabled ? .white : .secondary)
-                        .opacity(showBrightnessIcon ? 0 : 1)
-                        .scaleEffect(showBrightnessIcon ? 0.5 : 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isEnabled ? Color.white.opacity(0.2) : Color.white.opacity(0.05))
                     
-                    // Brightness icon (shown briefly on tap)
-                    Image(systemName: "sun.max.fill")
-                        .font(.title2)
-                        .foregroundStyle(isEnabled ? .yellow : .secondary)
-                        .opacity(showBrightnessIcon ? 1 : 0)
-                        .scaleEffect(showBrightnessIcon ? 1 : 0.5)
+                    ZStack {
+                        // Volume icon
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(isEnabled ? .white : .secondary)
+                            .opacity(showBrightnessIcon ? 0 : 1)
+                            .scaleEffect(showBrightnessIcon ? 0.5 : 1)
+                        
+                        // Brightness icon (shown briefly on tap)
+                        Image(systemName: "sun.max.fill")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(isEnabled ? .yellow : .secondary)
+                            .opacity(showBrightnessIcon ? 1 : 0)
+                            .scaleEffect(showBrightnessIcon ? 1 : 0.5)
+                    }
+                    .scaleEffect(iconBounce ? 1.3 : 1.0)
+                    .rotationEffect(.degrees(iconBounce ? -8 : 0))
                 }
-                .scaleEffect(iconBounce ? 1.3 : 1.0)
-                .rotationEffect(.degrees(iconBounce ? -8 : 0))
+                .frame(width: 40, height: 40)
                 
                 Text("Volume & Brightness")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(isEnabled ? .white : .secondary)
+                
+                Spacer()
+                
+                Image(systemName: isEnabled ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isEnabled ? .green : .secondary.opacity(0.5))
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(Color.white.opacity(isEnabled ? 0.1 : 0.05))
-            .clipShape(RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous))
+            .background(Color.white.opacity(isEnabled ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isEnabled ? Color.white.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
-            .scaleEffect(isHovering ? 1.02 : (isEnabled ? 1.0 : 0.98))
+            .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
         }
         .buttonStyle(OptionButtonStyle())
@@ -253,8 +269,8 @@ struct VolumeAndBrightnessToggle: View {
 
 // MARK: - Display Mode Button
 
-/// Reusable button for Notch/Dynamic Island mode selection with hover and press animations
-/// Used in both SettingsView and OnboardingView for display mode picker
+/// Reusable button for Notch/Dynamic Island mode selection
+/// Uses horizontal layout matching other toggle styles with icon animations preserved
 struct DisplayModeButton<Icon: View>: View {
     let title: String
     let subtitle: String?
@@ -274,14 +290,6 @@ struct DisplayModeButton<Icon: View>: View {
         self.action = action
     }
     
-    private var borderColor: Color {
-        if isHovering {
-            return isSelected ? Color.blue.opacity(0.7) : Color.white.opacity(0.3)
-        } else {
-            return isSelected ? Color.blue.opacity(0.5) : Color.white.opacity(0.1)
-        }
-    }
-    
     var body: some View {
         Button(action: {
             // Trigger icon bounce animation
@@ -295,38 +303,43 @@ struct DisplayModeButton<Icon: View>: View {
                 }
             }
         }) {
-            VStack(spacing: 8) {
+            HStack(spacing: 12) {
                 // Icon preview area
                 ZStack {
-                    RoundedRectangle(cornerRadius: DesignConstants.innerPreviewRadius, style: .continuous)
-                        .fill(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.1))
-                        .frame(width: 100, height: 50)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isSelected ? Color.blue.opacity(0.2) : Color.white.opacity(0.05))
                     
                     icon
                         .scaleEffect(iconBounce ? 1.2 : 1.0)
                         .rotationEffect(.degrees(iconBounce ? -5 : 0))
                 }
+                .frame(width: 70, height: 40)
                 
-                VStack(spacing: 2) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(isSelected ? .white : .secondary)
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
                 }
+                
+                Spacer()
+                
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? .green : .secondary.opacity(0.5))
             }
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .fill(isSelected ? Color.blue.opacity(0.15) : Color.white.opacity(0.05))
-            )
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(isSelected ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .strokeBorder(borderColor, lineWidth: isSelected ? 1.5 : 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.97 : (isHovering ? 1.02 : 1.0))
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
@@ -344,11 +357,10 @@ struct DisplayModeButton<Icon: View>: View {
         )
     }
 }
-
 // MARK: - Animated Sub-Setting Toggle
 
 /// Sub-setting toggle with icon bounce animation and subtitle
-/// Used in OnboardingView for shelf sub-options
+/// Uses horizontal layout matching other toggle styles
 struct AnimatedSubSettingToggle: View {
     let icon: String
     let title: String
@@ -358,14 +370,6 @@ struct AnimatedSubSettingToggle: View {
     
     @State private var iconBounce = false
     @State private var isHovering = false
-    
-    private var borderColor: Color {
-        if isHovering {
-            return isOn ? color.opacity(0.7) : Color.white.opacity(0.3)
-        } else {
-            return isOn ? color.opacity(0.5) : Color.white.opacity(0.1)
-        }
-    }
     
     var body: some View {
         Button {
@@ -380,29 +384,43 @@ struct AnimatedSubSettingToggle: View {
                 }
             }
         } label: {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(isOn ? color : .secondary)
-                    .scaleEffect(iconBounce ? 1.3 : 1.0)
-                    .rotationEffect(.degrees(iconBounce ? -8 : 0))
-                Text(title)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(isOn ? .white : .secondary)
-                Text(subtitle)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isOn ? color.opacity(0.2) : Color.white.opacity(0.05))
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isOn ? color : .secondary)
+                        .scaleEffect(iconBounce ? 1.3 : 1.0)
+                        .rotationEffect(.degrees(iconBounce ? -8 : 0))
+                }
+                .frame(width: 40, height: 40)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(isOn ? .white : .secondary)
+                    Text(subtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isOn ? .green : .secondary.opacity(0.5))
             }
-            .frame(width: 140)
+            .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(isOn ? 0.1 : 0.05))
-            .clipShape(RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous))
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(isOn ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.buttonCornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
-            .scaleEffect(isHovering ? 1.02 : (isOn ? 1.0 : 0.98))
+            .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
         }
         .buttonStyle(OptionButtonStyle())

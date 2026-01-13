@@ -20,6 +20,146 @@ enum OnboardingPage: Int, CaseIterable {
     var shouldShow: Bool { true }
 }
 
+// MARK: - Onboarding Toggle
+
+/// Toggle button for onboarding with icon bounce animation
+/// Designed for the 2x2 grid layout in Quick Setup page
+struct OnboardingToggle: View {
+    let icon: String
+    let title: String
+    let color: Color
+    @Binding var isOn: Bool
+    
+    @State private var iconBounce = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            // Trigger icon bounce
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
+                iconBounce = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    iconBounce = false
+                    isOn.toggle()
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isOn ? color.opacity(0.2) : Color.white.opacity(0.05))
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isOn ? color : .secondary)
+                        .scaleEffect(iconBounce ? 1.3 : 1.0)
+                        .rotationEffect(.degrees(iconBounce ? -8 : 0))
+                }
+                .frame(width: 40, height: 40)
+                
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isOn ? .white : .secondary)
+                
+                Spacer()
+                
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isOn ? .green : .secondary.opacity(0.5))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(isOn ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .scaleEffect(isHovering ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Onboarding Display Mode Button
+
+/// Display mode button for onboarding with icon bounce animation
+/// Designed for the Notch/Dynamic Island selection
+struct OnboardingDisplayModeButton<Icon: View>: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    let icon: Icon
+    
+    @State private var iconBounce = false
+    @State private var isHovering = false
+    
+    init(title: String, isSelected: Bool, action: @escaping () -> Void, @ViewBuilder icon: () -> Icon) {
+        self.title = title
+        self.isSelected = isSelected
+        self.action = action
+        self.icon = icon()
+    }
+    
+    var body: some View {
+        Button {
+            // Trigger icon bounce
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
+                iconBounce = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    iconBounce = false
+                    action()
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isSelected ? Color.blue.opacity(0.2) : Color.white.opacity(0.05))
+                    
+                    icon
+                        .scaleEffect(iconBounce ? 1.2 : 1.0)
+                        .rotationEffect(.degrees(iconBounce ? -5 : 0))
+                }
+                .frame(width: 70, height: 40)
+                
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isSelected ? .white : .secondary)
+                
+                Spacer()
+                
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? .green : .secondary.opacity(0.5))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(isSelected ? 0.08 : 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .scaleEffect(isHovering ? 1.02 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
 // MARK: - Onboarding View
 
 struct OnboardingView: View {
@@ -281,13 +421,52 @@ struct OnboardingView: View {
                     delay: 0.24
                 )
                 
-                featureRow(
-                    icon: "puzzlepiece.extension.fill",
-                    color: .pink,
-                    title: "Extensions",
-                    description: "AI background removal, Alfred, Spotify, and more",
-                    delay: 0.32
+                // Extensions - special gradient icon
+                HStack(spacing: 16) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.purple.opacity(0.3), .blue.opacity(0.3)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Image(systemName: "puzzlepiece.extension.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                    .frame(width: 44, height: 44)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Extensions")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Text("AI background removal, Alfred, Spotify, and more")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
+                .opacity(featuresAnimated ? 1 : 0)
+                .offset(y: featuresAnimated ? 0 : 10)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.32), value: featuresAnimated)
             }
             .padding(.horizontal, 60)
             
@@ -310,6 +489,7 @@ struct OnboardingView: View {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(color)
+                    .symbolRenderingMode(.monochrome)
             }
             .frame(width: 44, height: 44)
             
@@ -354,16 +534,16 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 60)
             
-            // Essential toggles grid
+            // Essential toggles grid with icon bounce animation
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
-                    setupToggle(icon: "tray.and.arrow.down.fill", title: "Shelf", color: .blue, isOn: $enableShelf)
-                    setupToggle(icon: "basket.fill", title: "Basket", color: .purple, isOn: $enableBasket)
+                    OnboardingToggle(icon: "tray.and.arrow.down.fill", title: "Shelf", color: .blue, isOn: $enableShelf)
+                    OnboardingToggle(icon: "basket.fill", title: "Basket", color: .purple, isOn: $enableBasket)
                 }
                 
                 HStack(spacing: 12) {
-                    setupToggle(icon: "doc.on.clipboard.fill", title: "Clipboard", color: .cyan, isOn: $enableClipboard)
-                    setupToggle(icon: "slider.horizontal.3", title: "System HUDs", color: .orange, isOn: $enableHUDs)
+                    OnboardingToggle(icon: "doc.on.clipboard.fill", title: "Clipboard", color: .cyan, isOn: $enableClipboard)
+                    OnboardingToggle(icon: "slider.horizontal.3", title: "System HUDs", color: .orange, isOn: $enableHUDs)
                 }
             }
             .padding(.horizontal, 100)
@@ -375,21 +555,30 @@ struct OnboardingView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                     
-                    HStack(spacing: 16) {
-                        displayModeButton(
+                    HStack(spacing: 12) {
+                        OnboardingDisplayModeButton(
                             title: "Notch",
-                            isSelected: !useDynamicIslandStyle
+                            isSelected: !useDynamicIslandStyle,
+                            action: { useDynamicIslandStyle = false }
                         ) {
-                            useDynamicIslandStyle = false
+                            // Notch icon (simple rounded rectangle)
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                .frame(width: 50, height: 16)
                         }
                         
-                        displayModeButton(
+                        OnboardingDisplayModeButton(
                             title: "Dynamic Island",
-                            isSelected: useDynamicIslandStyle
+                            isSelected: useDynamicIslandStyle,
+                            action: { useDynamicIslandStyle = true }
                         ) {
-                            useDynamicIslandStyle = true
+                            // Dynamic Island icon
+                            Capsule()
+                                .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                .frame(width: 44, height: 14)
                         }
                     }
+                    .padding(.horizontal, 60)
                 }
                 .padding(.top, 8)
             }
@@ -416,66 +605,7 @@ struct OnboardingView: View {
             removal: .move(edge: .leading).combined(with: .opacity)
         ))
     }
-    
-    private func setupToggle(icon: String, title: String, color: Color, isOn: Binding<Bool>) -> some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                isOn.wrappedValue.toggle()
-            }
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isOn.wrappedValue ? color.opacity(0.2) : Color.white.opacity(0.05))
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(isOn.wrappedValue ? color : .secondary)
-                }
-                .frame(width: 40, height: 40)
-                
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(isOn.wrappedValue ? .white : .secondary)
-                
-                Spacer()
-                
-                Image(systemName: isOn.wrappedValue ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundStyle(isOn.wrappedValue ? .green : .secondary.opacity(0.5))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Color.white.opacity(isOn.wrappedValue ? 0.08 : 0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isOn.wrappedValue ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private func displayModeButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                action()
-            }
-        }) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(isSelected ? .white : .secondary)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(isSelected ? Color.blue.opacity(0.8) : Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isSelected ? Color.blue : Color.white.opacity(0.1), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-    
+        
     private func keyBadge(_ key: String) -> some View {
         Text(key)
             .font(.system(size: 11, weight: .medium, design: .rounded))
@@ -518,9 +648,12 @@ struct OnboardingView: View {
             
             // Extension Store preview card
             Button {
-                // Open extension store
-                if let url = URL(string: "https://iordv.github.io/Droppy/extensions.html") {
-                    NSWorkspace.shared.open(url)
+                // Open Settings → Extensions tab
+                onComplete() // Close onboarding first
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    SettingsWindowController.shared.showSettings(openingExtension: nil)
+                    // Navigate to Extensions tab
+                    NotificationCenter.default.post(name: .openExtensionFromDeepLink, object: nil)
                 }
             } label: {
                 HStack(spacing: 14) {
@@ -677,7 +810,7 @@ struct OnboardingParticle: Identifiable {
 
 // MARK: - Window Controller
 
-final class OnboardingWindowController: NSObject {
+final class OnboardingWindowController: NSObject, NSWindowDelegate {
     static let shared = OnboardingWindowController()
     
     private var window: NSWindow?
@@ -688,14 +821,16 @@ final class OnboardingWindowController: NSObject {
     
     func show() {
         // If window exists and is visible, just bring to front
-        if let existingWindow = window, existingWindow.isVisible {
-            existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
+        if let existingWindow = window {
+            if existingWindow.isVisible {
+                existingWindow.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                return
+            } else {
+                // Window exists but not visible - clear it
+                window = nil
+            }
         }
-        
-        // Clear any stale reference before creating new window
-        window = nil
         
         let contentView = OnboardingView { [weak self] in
             // Defer to next runloop to avoid releasing view while callback is in progress
@@ -719,6 +854,8 @@ final class OnboardingWindowController: NSObject {
         newWindow.titleVisibility = .hidden
         newWindow.backgroundColor = .black
         newWindow.isMovableByWindowBackground = true
+        newWindow.isReleasedWhenClosed = false  // Prevent premature deallocation
+        newWindow.delegate = self  // Handle window close
         newWindow.contentView = hostingView
         newWindow.center()
         newWindow.level = .floating
@@ -752,5 +889,12 @@ final class OnboardingWindowController: NSObject {
             self?.window = nil
             panel.orderOut(nil)
         })
+    }
+    
+    // MARK: - NSWindowDelegate
+    
+    func windowWillClose(_ notification: Notification) {
+        // Clear reference when window is closed via X button
+        window = nil
     }
 }
