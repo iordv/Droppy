@@ -2744,23 +2744,50 @@ struct AIBackgroundRemovalCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon and badge
+            // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Droppy icon with magic overlay
                 AIExtensionIcon(size: 44)
                 
                 Spacer()
                 
-                // Clean grey badge
-                Text("AI")
-                    .font(.system(size: 10, weight: .semibold))
+                // Stats row: installs + rating + badge
+                HStack(spacing: 8) {
+                    // Installs (always visible)
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(installCount ?? 0)")
+                            .font(.caption2.weight(.medium))
+                    }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    
+                    // Rating (always visible)
+                    HStack(spacing: 2) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption2.weight(.medium))
+                        } else {
+                            Text("–")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    // Category badge
+                    Text("AI")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                        )
+                }
             }
             
             // Title & Description
@@ -2778,7 +2805,7 @@ struct AIBackgroundRemovalCard: View {
             
             Spacer(minLength: 8)
             
-            // Status row with rating and install count
+            // Status row
             HStack {
                 if manager.isInstalled {
                     HStack(spacing: 4) {
@@ -2789,36 +2816,12 @@ struct AIBackgroundRemovalCard: View {
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(.green)
                     }
-                } else if let r = rating, r.ratingCount > 0 {
-                    // Show star rating
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", r.averageRating))
-                            .font(.caption2.weight(.medium))
-                        Text("(\(r.ratingCount))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.secondary)
                 } else {
                     Text("One-click install")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
-                
                 Spacer()
-                
-                if let count = installCount, count > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(count)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .frame(minHeight: 160)
@@ -2842,7 +2845,7 @@ struct AlfredExtensionCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
+            // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Alfred icon (bundled) with squircle background
                 ZStack {
@@ -2857,16 +2860,43 @@ struct AlfredExtensionCard: View {
                 
                 Spacer()
                 
-                // Clean grey badge
-                Text("Productivity")
-                    .font(.system(size: 10, weight: .semibold))
+                // Stats row: installs + rating + badge
+                HStack(spacing: 8) {
+                    // Installs (always visible)
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(installCount ?? 0)")
+                            .font(.caption2.weight(.medium))
+                    }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    
+                    // Rating (always visible)
+                    HStack(spacing: 2) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption2.weight(.medium))
+                        } else {
+                            Text("–")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    // Category badge
+                    Text("Productivity")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                        )
+                }
             }
             
             // Title & Description
@@ -2884,37 +2914,12 @@ struct AlfredExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status row with rating and install count
+            // Status row
             HStack {
-                if let r = rating, r.ratingCount > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", r.averageRating))
-                            .font(.caption2.weight(.medium))
-                        Text("(\(r.ratingCount))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.secondary)
-                } else {
-                    Text("Requires Powerpack")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                
+                Text("Requires Powerpack")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 Spacer()
-                
-                if let count = installCount, count > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(count)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .frame(minHeight: 160)
@@ -2943,7 +2948,7 @@ struct FinderExtensionCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
+            // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Finder icon with squircle background
                 ZStack {
@@ -2958,16 +2963,43 @@ struct FinderExtensionCard: View {
                 
                 Spacer()
                 
-                // Clean grey badge
-                Text("Productivity")
-                    .font(.system(size: 10, weight: .semibold))
+                // Stats row: installs + rating + badge
+                HStack(spacing: 8) {
+                    // Installs (always visible)
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(installCount ?? 0)")
+                            .font(.caption2.weight(.medium))
+                    }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    
+                    // Rating (always visible)
+                    HStack(spacing: 2) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption2.weight(.medium))
+                        } else {
+                            Text("–")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    // Category badge
+                    Text("Productivity")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                        )
+                }
             }
             
             // Title & Description
@@ -2985,37 +3017,12 @@ struct FinderExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status row with rating and install count
+            // Status row
             HStack {
-                if let r = rating, r.ratingCount > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", r.averageRating))
-                            .font(.caption2.weight(.medium))
-                        Text("(\(r.ratingCount))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.secondary)
-                } else {
-                    Text("One-time setup")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                
+                Text("One-time setup")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 Spacer()
-                
-                if let count = installCount, count > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(count)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .frame(minHeight: 160)
@@ -3045,7 +3052,7 @@ struct SpotifyExtensionCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
+            // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Spotify icon (bundled) with squircle background
                 ZStack {
@@ -3060,16 +3067,43 @@ struct SpotifyExtensionCard: View {
                 
                 Spacer()
                 
-                // Clean grey badge
-                Text("Media")
-                    .font(.system(size: 10, weight: .semibold))
+                // Stats row: installs + rating + badge
+                HStack(spacing: 8) {
+                    // Installs (always visible)
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(installCount ?? 0)")
+                            .font(.caption2.weight(.medium))
+                    }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    
+                    // Rating (always visible)
+                    HStack(spacing: 2) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption2.weight(.medium))
+                        } else {
+                            Text("–")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    // Category badge
+                    Text("Media")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                        )
+                }
             }
             
             // Title & Description
@@ -3087,43 +3121,15 @@ struct SpotifyExtensionCard: View {
             
             Spacer(minLength: 8)
             
-            // Status with rating and install count
+            // Status row - Running indicator
             HStack {
-                // Live status or rating
-                if let r = rating, r.ratingCount > 0, !SpotifyController.shared.isSpotifyRunning {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", r.averageRating))
-                            .font(.caption2.weight(.medium))
-                        Text("(\(r.ratingCount))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.secondary)
-                } else {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(SpotifyController.shared.isSpotifyRunning ? Color.green : Color.gray.opacity(0.5))
-                            .frame(width: 6, height: 6)
-                        Text(SpotifyController.shared.isSpotifyRunning ? "Running" : "Not running")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(SpotifyController.shared.isSpotifyRunning ? .primary : .secondary)
-                    }
-                }
-                
+                Circle()
+                    .fill(SpotifyController.shared.isSpotifyRunning ? Color.green : Color.gray.opacity(0.5))
+                    .frame(width: 6, height: 6)
+                Text(SpotifyController.shared.isSpotifyRunning ? "Running" : "Not running")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(SpotifyController.shared.isSpotifyRunning ? .primary : .secondary)
                 Spacer()
-                
-                if let count = installCount, count > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(count)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .frame(minHeight: 160)
@@ -3149,7 +3155,7 @@ struct ElementCaptureCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
+            // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Icon with dark squircle background (consistent with all extensions)
                 ZStack {
@@ -3163,16 +3169,43 @@ struct ElementCaptureCard: View {
                 
                 Spacer()
                 
-                // Clean grey badge
-                Text("Productivity")
-                    .font(.system(size: 10, weight: .semibold))
+                // Stats row: installs + rating + badge
+                HStack(spacing: 8) {
+                    // Installs (always visible)
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 10))
+                        Text("\(installCount ?? 0)")
+                            .font(.caption2.weight(.medium))
+                    }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    
+                    // Rating (always visible)
+                    HStack(spacing: 2) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption2.weight(.medium))
+                        } else {
+                            Text("–")
+                                .font(.caption2.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    
+                    // Category badge
+                    Text("Productivity")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                        )
+                }
             }
             
             // Title & Description
@@ -3190,21 +3223,9 @@ struct ElementCaptureCard: View {
             
             Spacer(minLength: 8)
             
-            // Shortcut status with rating and install count
+            // Shortcut status
             HStack {
-                if let r = rating, r.ratingCount > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        Text(String(format: "%.1f", r.averageRating))
-                            .font(.caption2.weight(.medium))
-                        Text("(\(r.ratingCount))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .foregroundStyle(.secondary)
-                } else if let shortcut = currentShortcut {
+                if let shortcut = currentShortcut {
                     HStack {
                         Text("Shortcut")
                             .font(.caption2)
@@ -3218,18 +3239,7 @@ struct ElementCaptureCard: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
-                
                 Spacer()
-                
-                if let count = installCount, count > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(count)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                }
             }
         }
         .frame(minHeight: 160)

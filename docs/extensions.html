@@ -501,156 +501,174 @@
                     <button onclick="openExtensionModal('ai-bg')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
                         data-name="ai background removal" data-category="ai" data-extension-id="aiBackgroundRemoval">
-                        <div
-                            class="h-12 w-12 rounded-xl bg-gradient-to-br from-fuchsia-400 to-purple-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
-                            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                                    clip-rule="evenodd" />
-                            </svg>
+                        <!-- Header row: icon + stats -->
+                        <div class="flex items-start justify-between mb-4">
+                            <div
+                                class="h-12 w-12 rounded-xl bg-gradient-to-br from-fuchsia-400 to-purple-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <!-- Installs (always visible) -->
+                                <div class="extension-count text-slate-500 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="count-value">0</span>
+                                </div>
+                                <!-- Rating (always visible) -->
+                                <div class="extension-rating text-yellow-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="rating-value text-slate-500">–</span>
+                                </div>
+                                <!-- Category badge -->
+                                <span class="px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-medium">AI</span>
+                            </div>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">AI Background Removal</h3>
-                        <p class="text-slate-400 text-sm mb-3">Remove backgrounds instantly using local AI.</p>
-                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="count-value">0</span> installs
-                        </div>
-                        <div class="extension-rating text-yellow-400 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span class="rating-value">0</span>
-                            <span class="rating-count text-slate-500">(0)</span>
-                        </div>
+                        <p class="text-slate-400 text-sm">Remove backgrounds instantly using local AI.</p>
                     </button>
                     <!-- Alfred Workflow -->
                     <button onclick="openExtensionModal('alfred')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
                         data-name="alfred workflow" data-category="productivity" data-extension-id="alfred">
-                        <img src="assets/images/alfred_icon.png" alt="Alfred"
-                            class="h-12 w-12 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110">
+                        <div class="flex items-start justify-between mb-4">
+                            <img src="assets/images/alfred_icon.png" alt="Alfred"
+                                class="h-12 w-12 rounded-xl transition-transform duration-300 group-hover:scale-110">
+                            <div class="flex items-center gap-2 text-xs">
+                                <div class="extension-count text-slate-500 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="count-value">0</span>
+                                </div>
+                                <div class="extension-rating text-yellow-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="rating-value text-slate-500">–</span>
+                                </div>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-medium">Productivity</span>
+                            </div>
+                        </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Alfred Workflow</h3>
-                        <p class="text-slate-400 text-sm mb-3">Add files via Alfred keyboard shortcuts.</p>
-                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="count-value">0</span> installs
-                        </div>
-                        <div class="extension-rating text-yellow-400 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span class="rating-value">0</span>
-                            <span class="rating-count text-slate-500">(0)</span>
-                        </div>
+                        <p class="text-slate-400 text-sm">Add files via Alfred keyboard shortcuts.</p>
                     </button>
                     <!-- Finder Services -->
                     <button onclick="openExtensionModal('finder')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
                         data-name="finder services" data-category="productivity" data-extension-id="finder">
-                        <div
-                            class="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
-                            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M3.5 5.5A1.5 1.5 0 015 4h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 20H5a1.5 1.5 0 01-1.5-1.5v-13z" />
-                                <circle cx="7" cy="7" r="1" fill="#f87171" />
-                                <circle cx="10" cy="7" r="1" fill="#fbbf24" />
-                                <circle cx="13" cy="7" r="1" fill="#4ade80" />
-                            </svg>
+                        <div class="flex items-start justify-between mb-4">
+                            <div
+                                class="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                    <path
+                                        d="M3.5 5.5A1.5 1.5 0 015 4h14a1.5 1.5 0 011.5 1.5v13A1.5 1.5 0 0119 20H5a1.5 1.5 0 01-1.5-1.5v-13z" />
+                                    <circle cx="7" cy="7" r="1" fill="#f87171" />
+                                    <circle cx="10" cy="7" r="1" fill="#fbbf24" />
+                                    <circle cx="13" cy="7" r="1" fill="#4ade80" />
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <div class="extension-count text-slate-500 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="count-value">0</span>
+                                </div>
+                                <div class="extension-rating text-yellow-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="rating-value text-slate-500">–</span>
+                                </div>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-medium">Productivity</span>
+                            </div>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Finder Services</h3>
-                        <p class="text-slate-400 text-sm mb-3">Right-click integration in Finder.</p>
-                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="count-value">0</span> installs
-                        </div>
-                        <div class="extension-rating text-yellow-400 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span class="rating-value">0</span>
-                            <span class="rating-count text-slate-500">(0)</span>
-                        </div>
+                        <p class="text-slate-400 text-sm">Right-click integration in Finder.</p>
                     </button>
                     <!-- Element Capture -->
                     <button onclick="openExtensionModal('element-capture')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
                         data-name="element capture" data-category="productivity" data-extension-id="elementCapture">
-                        <div
-                            class="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
-                            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zM14 3a1 1 0 00-1 1v3a1 1 0 102 0V5h2a1 1 0 100-2h-3zM3 14a1 1 0 011-1h3a1 1 0 110 2H5v1a1 1 0 11-2 0v-2zM14 13a1 1 0 00-1 1v2a1 1 0 102 0v-1h2a1 1 0 100-2h-3z"
-                                    clip-rule="evenodd" />
-                            </svg>
+                        <div class="flex items-start justify-between mb-4">
+                            <div
+                                class="h-12 w-12 rounded-xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M3 4a1 1 0 011-1h3a1 1 0 010 2H5v2a1 1 0 01-2 0V4zM14 3a1 1 0 00-1 1v3a1 1 0 102 0V5h2a1 1 0 100-2h-3zM3 14a1 1 0 011-1h3a1 1 0 110 2H5v1a1 1 0 11-2 0v-2zM14 13a1 1 0 00-1 1v2a1 1 0 102 0v-1h2a1 1 0 100-2h-3z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <div class="extension-count text-slate-500 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="count-value">0</span>
+                                </div>
+                                <div class="extension-rating text-yellow-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="rating-value text-slate-500">–</span>
+                                </div>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-medium">Productivity</span>
+                            </div>
                         </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Element Capture</h3>
-                        <p class="text-slate-400 text-sm mb-3">Capture screen elements with shortcuts.</p>
-                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="count-value">0</span> installs
-                        </div>
-                        <div class="extension-rating text-yellow-400 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span class="rating-value">0</span>
-                            <span class="rating-count text-slate-500">(0)</span>
-                        </div>
+                        <p class="text-slate-400 text-sm">Capture screen elements with shortcuts.</p>
                     </button>
                     <!-- Spotify Integration -->
                     <button onclick="openExtensionModal('spotify')"
                         class="extension-card extension-item group p-6 rounded-[32px] bg-slate-900/30 hover:bg-slate-800/40 text-left cursor-pointer"
                         data-name="spotify integration" data-category="media" data-extension-id="spotify">
-                        <img src="assets/images/SpotifyIcon.png" alt="Spotify"
-                            class="h-12 w-12 rounded-xl mb-4 transition-transform duration-300 group-hover:scale-110">
+                        <div class="flex items-start justify-between mb-4">
+                            <img src="assets/images/SpotifyIcon.png" alt="Spotify"
+                                class="h-12 w-12 rounded-xl transition-transform duration-300 group-hover:scale-110">
+                            <div class="flex items-center gap-2 text-xs">
+                                <div class="extension-count text-slate-500 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <span class="count-value">0</span>
+                                </div>
+                                <div class="extension-rating text-yellow-400 flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="rating-value text-slate-500">–</span>
+                                </div>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-white/10 text-slate-400 font-medium">Media</span>
+                            </div>
+                        </div>
                         <h3 class="text-lg font-bold text-slate-100 mb-1">Spotify Integration</h3>
-                        <p class="text-slate-400 text-sm mb-3">Playback controls with album art in notch.</p>
-                        <div class="extension-count text-slate-500 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 11.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="count-value">0</span> installs
-                        </div>
-                        <div class="extension-rating text-yellow-400 text-xs flex items-center gap-1"
-                            style="display: none;">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            <span class="rating-value">0</span>
-                            <span class="rating-count text-slate-500">(0)</span>
-                        </div>
+                        <p class="text-slate-400 text-sm">Playback controls with album art in notch.</p>
                     </button>
                 </div>
 
@@ -1238,14 +1256,9 @@
                 document.querySelectorAll('.extension-card[data-extension-id]').forEach(card => {
                     const extId = card.dataset.extensionId;
                     const count = countMap[extId] || 0;
-
-                    if (count > 0) {
-                        const countEl = card.querySelector('.extension-count');
-                        const valueEl = card.querySelector('.count-value');
-                        if (countEl && valueEl) {
-                            valueEl.textContent = count;
-                            countEl.style.display = 'flex';
-                        }
+                    const valueEl = card.querySelector('.count-value');
+                    if (valueEl) {
+                        valueEl.textContent = count;
                     }
                 });
             } catch (error) {
@@ -1273,11 +1286,10 @@
                 ratings.forEach(item => {
                     const cards = document.querySelectorAll(`[data-extension-id="${item.extension_id}"]`);
                     cards.forEach(card => {
-                        const ratingEl = card.querySelector('.extension-rating');
+                        const ratingEl = card.querySelector('.rating-value');
                         if (ratingEl && item.rating_count > 0) {
-                            ratingEl.querySelector('.rating-value').textContent = parseFloat(item.average_rating).toFixed(1);
-                            ratingEl.querySelector('.rating-count').textContent = `(${item.rating_count})`;
-                            ratingEl.style.display = 'flex';
+                            ratingEl.textContent = parseFloat(item.average_rating).toFixed(1);
+                            ratingEl.classList.remove('text-slate-500');
                         }
                     });
                 });
