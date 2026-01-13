@@ -169,8 +169,11 @@ struct SettingsView: View {
             // Check if there's a pending extension from a deep link
             if let pending = SettingsWindowController.shared.pendingExtensionToOpen {
                 selectedTab = "Extensions"
-                deepLinkedExtension = pending
                 SettingsWindowController.shared.clearPendingExtension()
+                // Delay to allow card views to fully initialize before presenting sheet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    deepLinkedExtension = pending
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openExtensionFromDeepLink)) { notification in
@@ -498,6 +501,12 @@ struct SettingsView: View {
                 // AI Background Removal has its own view
                 if extensionType == .aiBackgroundRemoval {
                     AIInstallView()
+                } else if extensionType == .windowSnap {
+                    // Window Snap has its own detailed configuration view
+                    WindowSnapInfoView(installCount: nil, rating: nil)
+                } else if extensionType == .elementCapture {
+                    // Element Capture has its own detailed configuration view
+                    ElementCaptureInfoView(currentShortcut: .constant(nil), installCount: nil, rating: nil)
                 } else {
                     // All other extensions use ExtensionInfoView
                     ExtensionInfoView(extensionType: extensionType) {
@@ -511,8 +520,8 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
                         case .spotify:
                             SpotifyAuthManager.shared.startAuthentication()
-                        case .elementCapture, .aiBackgroundRemoval:
-                            break // No action needed
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap:
+                            break // No action needed - these have their own configuration UI
                         }
                     }
                 }
@@ -2430,6 +2439,7 @@ struct DropIndicatorPreview: View {
 
 enum ExtensionCategory: String, CaseIterable, Identifiable {
     case all = "All"
+    case installed = "Installed"
     case ai = "AI"
     case productivity = "Productivity"
     case media = "Media"
@@ -2439,6 +2449,7 @@ enum ExtensionCategory: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .all: return "square.grid.2x2"
+        case .installed: return "checkmark.circle.fill"
         case .ai: return "sparkles"
         case .productivity: return "bolt.fill"
         case .media: return "music.note"
@@ -2448,6 +2459,7 @@ enum ExtensionCategory: String, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .all: return .white
+        case .installed: return .green
         case .ai: return .purple
         case .productivity: return .orange
         case .media: return .green
@@ -2460,6 +2472,34 @@ struct ExtensionsShopView: View {
     @Namespace private var categoryAnimation
     @State private var extensionCounts: [String: Int] = [:]
     @State private var extensionRatings: [String: AnalyticsService.ExtensionRating] = [:]
+    
+    // MARK: - Installed State Checks
+    // Use tracking keys for consistency (set by AnalyticsService.trackExtensionActivation)
+    // OR real-time checks for extensions with observable state
+    
+    // Real-time check: AI model exists on disk
+    private var isAIInstalled: Bool { AIInstallManager.shared.isInstalled }
+    // Tracking key: set when workflow is opened
+    private var isAlfredInstalled: Bool { UserDefaults.standard.bool(forKey: "alfredTracked") }
+    // Tracking key: set when services are enabled
+    private var isFinderInstalled: Bool { UserDefaults.standard.bool(forKey: "finderTracked") }
+    // Tracking key: set when Spotify integration is first used (playing music)
+    private var isSpotifyInstalled: Bool { UserDefaults.standard.bool(forKey: "spotifyTracked") }
+    // Real-time check: has shortcut data
+    private var isElementCaptureInstalled: Bool {
+        UserDefaults.standard.data(forKey: "elementCaptureShortcut") != nil
+    }
+    // Real-time check: has shortcuts configured  
+    private var isWindowSnapInstalled: Bool { !WindowSnapManager.shared.shortcuts.isEmpty }
+    
+    /// Check if extension should be shown based on selected category
+    private func shouldShow(category: ExtensionCategory, isInstalled: Bool) -> Bool {
+        switch selectedCategory {
+        case .all: return true
+        case .installed: return isInstalled
+        default: return selectedCategory == category
+        }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -2515,7 +2555,7 @@ struct ExtensionsShopView: View {
             GridItem(.flexible(), spacing: 16)
         ], spacing: 16) {
             // AI Background Removal
-            if selectedCategory == .all || selectedCategory == .ai {
+            if shouldShow(category: .ai, isInstalled: isAIInstalled) {
                 AIBackgroundRemovalCard(
                     installCount: extensionCounts["aiBackgroundRemoval"],
                     rating: extensionRatings["aiBackgroundRemoval"]
@@ -2523,7 +2563,7 @@ struct ExtensionsShopView: View {
             }
             
             // Alfred Integration
-            if selectedCategory == .all || selectedCategory == .productivity {
+            if shouldShow(category: .productivity, isInstalled: isAlfredInstalled) {
                 AlfredExtensionCard(
                     installCount: extensionCounts["alfred"],
                     rating: extensionRatings["alfred"]
@@ -2531,7 +2571,7 @@ struct ExtensionsShopView: View {
             }
             
             // Finder Integration
-            if selectedCategory == .all || selectedCategory == .productivity {
+            if shouldShow(category: .productivity, isInstalled: isFinderInstalled) {
                 FinderExtensionCard(
                     installCount: extensionCounts["finder"],
                     rating: extensionRatings["finder"]
@@ -2539,7 +2579,7 @@ struct ExtensionsShopView: View {
             }
             
             // Spotify Integration
-            if selectedCategory == .all || selectedCategory == .media {
+            if shouldShow(category: .media, isInstalled: isSpotifyInstalled) {
                 SpotifyExtensionCard(
                     installCount: extensionCounts["spotify"],
                     rating: extensionRatings["spotify"]
@@ -2547,10 +2587,18 @@ struct ExtensionsShopView: View {
             }
             
             // Element Capture
-            if selectedCategory == .all || selectedCategory == .productivity {
+            if shouldShow(category: .productivity, isInstalled: isElementCaptureInstalled) {
                 ElementCaptureCard(
                     installCount: extensionCounts["elementCapture"],
                     rating: extensionRatings["elementCapture"]
+                )
+            }
+            
+            // Window Snap
+            if shouldShow(category: .productivity, isInstalled: isWindowSnapInstalled) {
+                WindowSnapCard(
+                    installCount: extensionCounts["windowSnap"],
+                    rating: extensionRatings["windowSnap"]
                 )
             }
         }
@@ -2734,546 +2782,14 @@ struct AIExtensionIcon: View {
     }
 }
 
-// MARK: - AI Background Removal Card
-
-struct AIBackgroundRemovalCard: View {
-    @ObservedObject private var manager = AIInstallManager.shared
-    @State private var showInstallSheet = false
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon, stats, and badge
-            HStack(alignment: .top) {
-                // Droppy icon with magic overlay
-                AIExtensionIcon(size: 44)
-                
-                Spacer()
-                
-                // Stats row: installs + rating + badge
-                HStack(spacing: 8) {
-                    // Installs (always visible)
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Rating (always visible)
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption2.weight(.medium))
-                        } else {
-                            Text("–")
-                                .font(.caption2.weight(.medium))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Category badge
-                    Text("AI")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Background Removal")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Remove backgrounds from images using AI. Works offline.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Status row
-            HStack {
-                if manager.isInstalled {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 6, height: 6)
-                        Text("Installed")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.green)
-                    }
-                } else {
-                    Text("One-click install")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-            }
-        }
-        .frame(minHeight: 160)
-        .aiExtensionCardStyle()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInstallSheet = true
-        }
-        .sheet(isPresented: $showInstallSheet) {
-            AIInstallView(installCount: installCount, rating: rating)
-        }
-    }
-}
-
-// MARK: - Alfred Extension Card
-
-struct AlfredExtensionCard: View {
-    @State private var showInfoSheet = false
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon, stats, and badge
-            HStack(alignment: .top) {
-                // Official Alfred icon (bundled) with squircle background
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(white: 0.15))
-                    Image("AlfredIcon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(2)
-                }
-                .frame(width: 44, height: 44)
-                
-                Spacer()
-                
-                // Stats row: installs + rating + badge
-                HStack(spacing: 8) {
-                    // Installs (always visible)
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Rating (always visible)
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption2.weight(.medium))
-                        } else {
-                            Text("–")
-                                .font(.caption2.weight(.medium))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Category badge
-                    Text("Productivity")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Alfred Workflow")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Push files to Droppy with a quick Alfred hotkey.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Status row
-            HStack {
-                Text("Requires Powerpack")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-        }
-        .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .purple)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInfoSheet = true
-        }
-        .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(
-                extensionType: .alfred,
-                onAction: {
-                    if let workflowPath = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
-                        NSWorkspace.shared.open(URL(fileURLWithPath: workflowPath))
-                    }
-                },
-                installCount: installCount,
-                rating: rating
-            )
-        }
-    }
-}
-
-// MARK: - Finder Extension Card
-
-struct FinderExtensionCard: View {
-    @State private var showSetupSheet = false
-    @State private var showInfoSheet = false
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon, stats, and badge
-            HStack(alignment: .top) {
-                // Official Finder icon with squircle background
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(white: 0.15))
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: "/System/Library/CoreServices/Finder.app"))
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(2)
-                }
-                .frame(width: 44, height: 44)
-                
-                Spacer()
-                
-                // Stats row: installs + rating + badge
-                HStack(spacing: 8) {
-                    // Installs (always visible)
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Rating (always visible)
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption2.weight(.medium))
-                        } else {
-                            Text("–")
-                                .font(.caption2.weight(.medium))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Category badge
-                    Text("Productivity")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Finder Services")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Right-click files to add them via Services menu.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Status row
-            HStack {
-                Text("One-time setup")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-            }
-        }
-        .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .blue)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInfoSheet = true
-        }
-        .sheet(isPresented: $showSetupSheet) {
-            FinderServicesSetupSheetView()
-        }
-        .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(
-                extensionType: .finder,
-                onAction: {
-                    showInfoSheet = false
-                    showSetupSheet = true
-                },
-                installCount: installCount,
-                rating: rating
-            )
-        }
-    }
-}
-
-// MARK: - Spotify Extension Card
-
-struct SpotifyExtensionCard: View {
-    @State private var showInfoSheet = false
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon, stats, and badge
-            HStack(alignment: .top) {
-                // Official Spotify icon (bundled) with squircle background
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(white: 0.15))
-                    Image("SpotifyIcon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(2)
-                }
-                .frame(width: 44, height: 44)
-                
-                Spacer()
-                
-                // Stats row: installs + rating + badge
-                HStack(spacing: 8) {
-                    // Installs (always visible)
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Rating (always visible)
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption2.weight(.medium))
-                        } else {
-                            Text("–")
-                                .font(.caption2.weight(.medium))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Category badge
-                    Text("Media")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Spotify Integration")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Extra shuffle, repeat & replay controls in the media player.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Status row - Running indicator
-            HStack {
-                Circle()
-                    .fill(SpotifyController.shared.isSpotifyRunning ? Color.green : Color.gray.opacity(0.5))
-                    .frame(width: 6, height: 6)
-                Text(SpotifyController.shared.isSpotifyRunning ? "Running" : "Not running")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(SpotifyController.shared.isSpotifyRunning ? .primary : .secondary)
-                Spacer()
-            }
-        }
-        .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .green)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInfoSheet = true
-        }
-        .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(extensionType: .spotify, installCount: installCount, rating: rating)
-        }
-    }
-}
-
-// MARK: - Element Capture Card
-
-struct ElementCaptureCard: View {
-    // Use local state to avoid @StateObject + @MainActor deadlock
-    @State private var currentShortcut: SavedShortcut?
-    @State private var showInfoSheet = false
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon, stats, and badge
-            HStack(alignment: .top) {
-                // Icon with dark squircle background (consistent with all extensions)
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(white: 0.15))
-                    Image(systemName: "viewfinder")
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(.orange)
-                }
-                .frame(width: 44, height: 44)
-                
-                Spacer()
-                
-                // Stats row: installs + rating + badge
-                HStack(spacing: 8) {
-                    // Installs (always visible)
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
-                            .font(.caption2.weight(.medium))
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Rating (always visible)
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption2.weight(.medium))
-                        } else {
-                            Text("–")
-                                .font(.caption2.weight(.medium))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    
-                    // Category badge
-                    Text("Productivity")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                        )
-                }
-            }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Element Capture")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                Text("Screenshot any UI element by clicking on it.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer(minLength: 8)
-            
-            // Shortcut status
-            HStack {
-                if let shortcut = currentShortcut {
-                    HStack {
-                        Text("Shortcut")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                        Text(shortcut.description)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("Not configured")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                Spacer()
-            }
-        }
-        .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .orange)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInfoSheet = true
-        }
-        .onAppear {
-            // Load shortcut from UserDefaults (safe, no MainActor issues)
-            loadShortcut()
-        }
-        .sheet(isPresented: $showInfoSheet) {
-            ElementCaptureInfoView(currentShortcut: $currentShortcut, installCount: installCount, rating: rating)
-        }
-    }
-    
-    private func loadShortcut() {
-        if let data = UserDefaults.standard.data(forKey: "elementCaptureShortcut"),
-           let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
-            currentShortcut = decoded
-        }
-    }
-}
+// MARK: - Extension Cards (Modular)
+// Extension card structs are now in their own files:
+// - Extensions/AIBackgroundRemoval/AIBackgroundRemovalCard.swift
+// - Extensions/Alfred/AlfredCard.swift
+// - Extensions/FinderServices/FinderServicesCard.swift
+// - Extensions/Spotify/SpotifyCard.swift
+// - Extensions/ElementCapture/ElementCaptureCard.swift
+// - Extensions/WindowSnap/WindowSnapCard.swift
 
 /// Settings row for managing AI background removal with one-click install
 

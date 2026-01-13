@@ -49,6 +49,26 @@ struct DroppyMenuContent: View {
         elementCaptureButton
             .id(shortcutRefreshId)  // Force rebuild when shortcut changes
         
+        // Window Snap submenu with quick actions
+        Menu("Window Snap") {
+            Button("Left Half") {
+                WindowSnapManager.shared.executeAction(.leftHalf)
+            }
+            Button("Right Half") {
+                WindowSnapManager.shared.executeAction(.rightHalf)
+            }
+            Button("Maximize") {
+                WindowSnapManager.shared.executeAction(.maximize)
+            }
+            Button("Center") {
+                WindowSnapManager.shared.executeAction(.center)
+            }
+            Divider()
+            Button("Configure Shortcuts...") {
+                SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
+            }
+        }
+        
         Divider()
         
         Button("Settings...") {
@@ -63,6 +83,9 @@ struct DroppyMenuContent: View {
         }
         .keyboardShortcut("q", modifiers: .command)
         .onReceive(NotificationCenter.default.publisher(for: .elementCaptureShortcutChanged)) { _ in
+            shortcutRefreshId = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .windowSnapShortcutChanged)) { _ in
             shortcutRefreshId = UUID()
         }
     }
@@ -118,9 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = ClipboardManager.shared
         _ = ClipboardWindowController.shared
         
-        // Load Element Capture shortcuts (after all other singletons are ready)
+        // Load Element Capture and Window Snap shortcuts (after all other singletons are ready)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ElementCaptureManager.shared.loadAndStartMonitoring()
+            WindowSnapManager.shared.loadAndStartMonitoring()
         }
         
         // Start analytics (anonymous launch tracking)

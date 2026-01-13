@@ -112,7 +112,14 @@ final class AnalyticsService: Sendable {
     private let extensionStatsURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/extension_stats")!
     
     /// Track when an extension is activated (enabled)
+    /// Also sets a local flag so UI can check installed state
     func trackExtensionActivation(extensionId: String) {
+        // Set local install flag immediately for UI responsiveness
+        // This persists the installed state so cards and filters work without network
+        let localKey = "\(extensionId)Tracked"
+        UserDefaults.standard.set(true, forKey: localKey)
+        
+        // Track to Supabase for analytics
         Task {
             let analyticsID = getOrGenerateAnalyticsID()
             await trackExtensionEvent(extensionId: extensionId, action: "activate", id: analyticsID)
