@@ -154,7 +154,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .aiBackgroundRemoval:
             AIExtensionIcon(size: 64)
         case .alfred:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.png")) { phase in
+            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().aspectRatio(contentMode: .fill)

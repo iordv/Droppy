@@ -18,7 +18,7 @@ struct AlfredExtensionCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Alfred icon from remote URL (keeps app binary small)
-                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.png")) { phase in
+                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { phase in
                     switch phase {
                     case .success(let image):
                         image
