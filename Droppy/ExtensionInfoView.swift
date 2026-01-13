@@ -191,10 +191,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
 struct ExtensionInfoView: View {
     let extensionType: ExtensionType
     var onAction: (() -> Void)?
+    var installCount: Int?
+    var rating: AnalyticsService.ExtensionRating?
     
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringAction = false
     @State private var isHoveringClose = false
+    @State private var showReviewsSheet = false
     
     // Rating state
     @State private var selectedRating: Int = 0
@@ -349,8 +352,41 @@ struct ExtensionInfoView: View {
                 .font(.title2.bold())
                 .foregroundStyle(.white)
             
-            // Subtitle with category badge
-            HStack(spacing: 8) {
+            // Stats row: installs + rating + category badge
+            HStack(spacing: 12) {
+                // Installs
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12))
+                    Text("\(installCount ?? 0)")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(.secondary)
+                
+                // Rating (clickable)
+                Button {
+                    showReviewsSheet = true
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption.weight(.medium))
+                            Text("(\(r.ratingCount))")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        } else {
+                            Text("–")
+                                .font(.caption.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                // Category badge
                 Text(extensionType.category)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(extensionType.categoryColor)
@@ -360,14 +396,18 @@ struct ExtensionInfoView: View {
                         Capsule()
                             .fill(extensionType.categoryColor.opacity(0.15))
                     )
-                
-                Text(extensionType.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
             }
+            
+            // Subtitle
+            Text(extensionType.subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
         .padding(.top, 24)
         .padding(.bottom, 20)
+        .sheet(isPresented: $showReviewsSheet) {
+            ExtensionReviewsSheet(extensionType: extensionType)
+        }
     }
     
     // MARK: - Features
@@ -768,7 +808,145 @@ struct ElementCaptureInfoView: View {
 
 #Preview {
     ExtensionInfoView(extensionType: .alfred) {
-        print("Action tapped")
+        print("Action")
     }
-    .frame(width: 340, height: 450)
+}
+
+// MARK: - Extension Reviews Sheet
+
+struct ExtensionReviewsSheet: View {
+    let extensionType: ExtensionType
+    @Environment(\.dismiss) private var dismiss
+    @State private var reviews: [ExtensionReview] = []
+    @State private var isLoading = true
+    @State private var averageRating: Double = 0
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Reviews")
+                        .font(.title2.bold())
+                    Text(extensionType.title)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                // Average rating
+                if !reviews.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.yellow)
+                        Text(String(format: "%.1f", averageRating))
+                            .font(.title3.weight(.semibold))
+                        Text("(\(reviews.count))")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(20)
+            
+            Divider()
+            
+            if isLoading {
+                Spacer()
+                ProgressView()
+                    .scaleEffect(1.2)
+                Spacer()
+            } else if reviews.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "star.bubble")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.tertiary)
+                    Text("No reviews yet")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("Be the first to rate this extension!")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        ForEach(reviews) { review in
+                            ReviewCard(review: review)
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+        }
+        .frame(width: 450, height: 400)
+        .background(Color.black)
+        .onAppear {
+            Task {
+                await loadReviews()
+            }
+        }
+    }
+    
+    private func loadReviews() async {
+        do {
+            reviews = try await AnalyticsService.shared.fetchExtensionReviews(extensionId: extensionType.rawValue)
+            if !reviews.isEmpty {
+                averageRating = Double(reviews.map { $0.rating }.reduce(0, +)) / Double(reviews.count)
+            }
+            isLoading = false
+        } catch {
+            isLoading = false
+        }
+    }
+}
+
+// MARK: - Review Card
+
+struct ReviewCard: View {
+    let review: ExtensionReview
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Stars
+                HStack(spacing: 2) {
+                    ForEach(1...5, id: \.self) { star in
+                        Image(systemName: star <= review.rating ? "star.fill" : "star")
+                            .font(.system(size: 12))
+                            .foregroundStyle(star <= review.rating ? .yellow : .gray.opacity(0.3))
+                    }
+                }
+                
+                Spacer()
+                
+                // Date
+                Text(review.createdAt, style: .date)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            
+            if let feedback = review.feedback, !feedback.isEmpty {
+                Text(feedback)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
 }

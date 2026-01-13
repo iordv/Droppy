@@ -252,4 +252,57 @@ final class AnalyticsService: Sendable {
         
         return [:]
     }
+    
+    /// Fetch all individual reviews for a specific extension
+    func fetchExtensionReviews(extensionId: String) async throws -> [ExtensionReview] {
+        let url = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/extension_ratings?extension_id=eq.\(extensionId)&order=created_at.desc")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
+        request.addValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        
+        // Parse the JSON response
+        if let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            var reviews: [ExtensionReview] = []
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            for result in results {
+                if let rating = result["rating"] as? Int {
+                    let feedback = result["feedback"] as? String
+                    var createdAtDate = Date()
+                    if let createdAtString = result["created_at"] as? String {
+                        createdAtDate = dateFormatter.date(from: createdAtString) ?? Date()
+                    }
+                    
+                    reviews.append(ExtensionReview(
+                        id: result["id"] as? String ?? UUID().uuidString,
+                        rating: rating,
+                        feedback: feedback,
+                        createdAt: createdAtDate
+                    ))
+                }
+            }
+            return reviews
+        }
+        
+        return []
+    }
+}
+
+// MARK: - Extension Review Model
+
+struct ExtensionReview: Identifiable {
+    let id: String
+    let rating: Int
+    let feedback: String?
+    let createdAt: Date
 }
