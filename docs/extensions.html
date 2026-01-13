@@ -99,6 +99,17 @@
             opacity: 0;
         }
 
+        /* Submit button hover animation (for dynamically created content) */
+        #reviews-submit-btn:hover .submit-text {
+            transform: translateX(-12px);
+        }
+
+        #reviews-submit-btn:hover .submit-arrow {
+            transform: translateX(0) scaleX(1);
+            opacity: 1;
+            filter: blur(0);
+        }
+
         .modal-closing .modal-backdrop {
             opacity: 0;
         }
@@ -1577,9 +1588,9 @@
                             </div>
                             <div id="reviews-feedback-area" class="hidden">
                                 <textarea id="reviews-feedback-input" class="w-full bg-slate-800/50 border border-white/10 hover:border-white/30 focus:border-white/30 rounded-[28px] px-6 py-4 text-sm text-slate-200 placeholder-slate-500/60 resize-none outline-none backdrop-blur-xl transition-colors" rows="2" placeholder="Share your experience (optional)..."></textarea>
-                                <button id="reviews-submit-btn" class="group relative mt-3 w-full inline-flex items-center justify-center rounded-[28px] px-6 py-3 font-semibold bg-slate-100 text-slate-900 hover:bg-white transition-colors overflow-hidden">
-                                    <span class="transition-all duration-300 group-hover:-translate-x-3">Submit Review</span>
-                                    <svg class="w-5 h-5 absolute right-6 translate-x-full scale-x-50 opacity-0 blur-sm transition-all duration-300 group-hover:translate-x-0 group-hover:scale-x-100 group-hover:opacity-100 group-hover:blur-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                                <button id="reviews-submit-btn" class="group relative mt-3 w-full inline-flex items-center justify-center rounded-[28px] px-6 py-3 font-semibold bg-slate-100 text-slate-900 hover:bg-white transition-colors overflow-hidden" style="position: relative;">
+                                    <span class="submit-text" style="transition: transform 0.3s ease;">Submit Review</span>
+                                    <svg class="submit-arrow" style="width: 20px; height: 20px; position: absolute; right: 24px; transform: translateX(100%) scaleX(0.5); opacity: 0; filter: blur(4px); transition: all 0.3s ease;" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                                         <path d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" />
                                     </svg>
                                 </button>
