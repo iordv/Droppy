@@ -42,10 +42,16 @@ struct AIInstallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringAction = false
     @State private var isHoveringCancel = false
+    @State private var isHoveringReviews = false
     @State private var pulseAnimation = false
     @State private var showSuccessGlow = false
     @State private var showConfetti = false
     @State private var currentStep: AIInstallStep = .checking
+    @State private var showReviewsSheet = false
+    
+    // Stats passed from parent
+    var installCount: Int?
+    var rating: AnalyticsService.ExtensionRating?
     
     var body: some View {
         ZStack {
@@ -78,6 +84,9 @@ struct AIInstallView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.black)
         .clipped()
+        .sheet(isPresented: $showReviewsSheet) {
+            ExtensionReviewsSheet(extensionType: .aiBackgroundRemoval)
+        }
         .onAppear {
             pulseAnimation = true
         }
@@ -142,6 +151,52 @@ struct AIInstallView: View {
                 .font(.title2.bold())
                 .foregroundStyle(manager.isInstalled ? .green : .white)
                 .animation(.easeInOut(duration: 0.3), value: manager.isInstalled)
+            
+            // Stats row: installs + rating + category badge
+            HStack(spacing: 12) {
+                // Installs
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 12))
+                    Text("\(installCount ?? 0)")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(.secondary)
+                
+                // Rating (clickable)
+                Button {
+                    showReviewsSheet = true
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.yellow)
+                        if let r = rating, r.ratingCount > 0 {
+                            Text(String(format: "%.1f", r.averageRating))
+                                .font(.caption.weight(.medium))
+                            Text("(\(r.ratingCount))")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        } else {
+                            Text("–")
+                                .font(.caption.weight(.medium))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                // Category badge
+                Text("AI")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.purple)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.purple.opacity(0.15))
+                    )
+            }
             
             Text("InSPyReNet - State of the Art Quality")
                 .font(.subheadline)
@@ -281,6 +336,29 @@ struct AIInstallView: View {
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                         isHoveringCancel = h
                     }
+                }
+            }
+            
+            // Reviews button
+            Button {
+                showReviewsSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.bubble")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Reviews")
+                }
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(isHoveringReviews ? 0.15 : 0.1))
+                .foregroundStyle(.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { h in
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                    isHoveringReviews = h
                 }
             }
             

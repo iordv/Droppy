@@ -199,13 +199,7 @@ struct ExtensionInfoView: View {
     @State private var isHoveringClose = false
     @State private var showReviewsSheet = false
     
-    // Rating state
-    @State private var selectedRating: Int = 0
-    @State private var hoveringRating: Int = 0
-    @State private var feedbackText: String = ""
-    @State private var hasSubmittedRating = false
-    @State private var isSubmittingRating = false
-    @State private var showFeedbackField = false
+    @State private var isHoveringReviews = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -214,9 +208,6 @@ struct ExtensionInfoView: View {
             
             // Features
             featuresSection
-            
-            // Rating Section
-            ratingSection
             
             Divider()
                 .padding(.horizontal, 20)
@@ -228,118 +219,8 @@ struct ExtensionInfoView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.black)
         .clipped()
-    }
-    
-    // MARK: - Rating Section
-    
-    private var ratingSection: some View {
-        VStack(spacing: 12) {
-            Divider()
-                .padding(.horizontal, 20)
-            
-            if hasSubmittedRating {
-                // Thank you message
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Thanks for your feedback!")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 12)
-            } else {
-                VStack(spacing: 10) {
-                    Text("Rate this extension")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    
-                    // Star picker
-                    HStack(spacing: 8) {
-                        ForEach(1...5, id: \.self) { star in
-                            Image(systemName: star <= (hoveringRating > 0 ? hoveringRating : selectedRating) ? "star.fill" : "star")
-                                .font(.system(size: 24))
-                                .foregroundStyle(star <= (hoveringRating > 0 ? hoveringRating : selectedRating) ? .yellow : .gray.opacity(0.4))
-                                .onHover { hovering in
-                                    hoveringRating = hovering ? star : 0
-                                }
-                                .onTapGesture {
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        selectedRating = star
-                                        showFeedbackField = true
-                                    }
-                                }
-                                .scaleEffect(hoveringRating == star ? 1.15 : 1.0)
-                                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: hoveringRating)
-                        }
-                    }
-                    
-                    // Optional feedback field
-                    if showFeedbackField && selectedRating > 0 {
-                        VStack(spacing: 8) {
-                            TextField("Optional feedback...", text: $feedbackText, axis: .vertical)
-                                .textFieldStyle(.plain)
-                                .font(.callout)
-                                .padding(10)
-                                .background(Color.white.opacity(0.05))
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                                )
-                                .lineLimit(2...4)
-                            
-                            Button {
-                                submitRating()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    if isSubmittingRating {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    } else {
-                                        Text("Submit")
-                                    }
-                                }
-                                .font(.callout.weight(.medium))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(extensionType.categoryColor)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isSubmittingRating)
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-                .padding(.vertical, 12)
-            }
-        }
-        .padding(.horizontal, 24)
-    }
-    
-    private func submitRating() {
-        guard selectedRating > 0 else { return }
-        isSubmittingRating = true
-        
-        Task {
-            do {
-                try await AnalyticsService.shared.submitExtensionRating(
-                    extensionId: extensionType.rawValue,
-                    rating: selectedRating,
-                    feedback: feedbackText.isEmpty ? nil : feedbackText
-                )
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        hasSubmittedRating = true
-                        isSubmittingRating = false
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    isSubmittingRating = false
-                }
-            }
+        .sheet(isPresented: $showReviewsSheet) {
+            ExtensionReviewsSheet(extensionType: extensionType)
         }
     }
     
@@ -493,6 +374,29 @@ struct ExtensionInfoView: View {
             .onHover { h in
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                     isHoveringClose = h
+                }
+            }
+            
+            // Reviews button
+            Button {
+                showReviewsSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.bubble")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Reviews")
+                }
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.white.opacity(isHoveringReviews ? 0.15 : 0.1))
+                .foregroundStyle(.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .onHover { h in
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                    isHoveringReviews = h
                 }
             }
             
@@ -865,6 +769,14 @@ struct ExtensionReviewsSheet: View {
     @State private var isLoading = true
     @State private var averageRating: Double = 0
     
+    // Rating state
+    @State private var selectedRating: Int = 0
+    @State private var hoveringRating: Int = 0
+    @State private var feedbackText: String = ""
+    @State private var hasSubmittedRating = false
+    @State private var isSubmittingRating = false
+    @State private var showFeedbackField = false
+    
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -905,6 +817,12 @@ struct ExtensionReviewsSheet: View {
             
             Divider()
             
+            // Rating submission section
+            ratingSubmitSection
+            
+            Divider()
+            
+            // Reviews list
             if isLoading {
                 Spacer()
                 ProgressView()
@@ -935,13 +853,97 @@ struct ExtensionReviewsSheet: View {
                 }
             }
         }
-        .frame(width: 450, height: 400)
+        .frame(width: 450, height: 500)
         .background(Color.black)
         .onAppear {
             Task {
                 await loadReviews()
             }
         }
+    }
+    
+    @ViewBuilder
+    private var ratingSubmitSection: some View {
+        VStack(spacing: 12) {
+            if hasSubmittedRating {
+                // Thank you message
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Thanks for your feedback!")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 12)
+            } else {
+                VStack(spacing: 10) {
+                    Text("Rate this extension")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    
+                    // Star picker
+                    HStack(spacing: 8) {
+                        ForEach(1...5, id: \.self) { star in
+                            Image(systemName: star <= (hoveringRating > 0 ? hoveringRating : selectedRating) ? "star.fill" : "star")
+                                .font(.system(size: 24))
+                                .foregroundStyle(star <= (hoveringRating > 0 ? hoveringRating : selectedRating) ? .yellow : .gray.opacity(0.4))
+                                .onHover { hovering in
+                                    hoveringRating = hovering ? star : 0
+                                }
+                                .onTapGesture {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        selectedRating = star
+                                        showFeedbackField = true
+                                    }
+                                }
+                                .scaleEffect(hoveringRating == star ? 1.15 : 1.0)
+                                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: hoveringRating)
+                        }
+                    }
+                    
+                    // Optional feedback field
+                    if showFeedbackField && selectedRating > 0 {
+                        VStack(spacing: 8) {
+                            TextField("Optional feedback...", text: $feedbackText, axis: .vertical)
+                                .textFieldStyle(.plain)
+                                .font(.callout)
+                                .padding(10)
+                                .background(Color.white.opacity(0.05))
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                )
+                                .lineLimit(2...4)
+                            
+                            Button {
+                                submitRating()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    if isSubmittingRating {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Text("Submit")
+                                    }
+                                }
+                                .font(.callout.weight(.medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(extensionType.categoryColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isSubmittingRating)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+                .padding(.vertical, 12)
+            }
+        }
+        .padding(.horizontal, 20)
     }
     
     private func loadReviews() async {
@@ -953,6 +955,31 @@ struct ExtensionReviewsSheet: View {
             isLoading = false
         } catch {
             isLoading = false
+        }
+    }
+    
+    private func submitRating() {
+        guard selectedRating > 0, !isSubmittingRating else { return }
+        isSubmittingRating = true
+        
+        Task {
+            try? await AnalyticsService.shared.submitExtensionRating(
+                extensionId: extensionType.rawValue,
+                rating: selectedRating,
+                feedback: feedbackText.isEmpty ? nil : feedbackText
+            )
+            
+            await MainActor.run {
+                withAnimation {
+                    hasSubmittedRating = true
+                    isSubmittingRating = false
+                }
+                
+                // Reload reviews to show new one
+                Task {
+                    await loadReviews()
+                }
+            }
         }
     }
 }

@@ -2831,7 +2831,7 @@ struct AIBackgroundRemovalCard: View {
             showInstallSheet = true
         }
         .sheet(isPresented: $showInstallSheet) {
-            AIInstallView()
+            AIInstallView(installCount: installCount, rating: rating)
         }
     }
 }
@@ -2929,7 +2929,7 @@ struct AlfredExtensionCard: View {
             showInfoSheet = true
         }
         .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(extensionType: .alfred) {
+            ExtensionInfoView(extensionType: .alfred, installCount: installCount, rating: rating) {
                 if let workflowPath = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
                     NSWorkspace.shared.open(URL(fileURLWithPath: workflowPath))
                 }
@@ -3035,7 +3035,7 @@ struct FinderExtensionCard: View {
             FinderServicesSetupSheetView()
         }
         .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(extensionType: .finder) {
+            ExtensionInfoView(extensionType: .finder, installCount: installCount, rating: rating) {
                 showInfoSheet = false
                 showSetupSheet = true
             }
@@ -3139,7 +3139,7 @@ struct SpotifyExtensionCard: View {
             showInfoSheet = true
         }
         .sheet(isPresented: $showInfoSheet) {
-            ExtensionInfoView(extensionType: .spotify)
+            ExtensionInfoView(extensionType: .spotify, installCount: installCount, rating: rating)
         }
     }
 }
