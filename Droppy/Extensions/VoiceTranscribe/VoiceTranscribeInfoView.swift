@@ -244,7 +244,7 @@ struct VoiceTranscribeInfoView: View {
                         isDownloading = false
                     }
                 } label: {
-                    HStack {
+                    HStack(spacing: 6) {
                         if manager.isDownloading {
                             ProgressView()
                                 .scaleEffect(0.7)
@@ -252,16 +252,16 @@ struct VoiceTranscribeInfoView: View {
                             Text("Downloading...")
                         } else {
                             Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 12, weight: .semibold))
                             Text("Download Model")
                         }
                     }
-                    .font(.callout.weight(.semibold))
+                    .fontWeight(.semibold)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .scaleEffect(isHoveringDownload ? 1.02 : 1.0)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(manager.isDownloading)
