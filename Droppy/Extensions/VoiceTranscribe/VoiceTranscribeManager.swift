@@ -95,6 +95,7 @@ final class VoiceTranscribeManager: ObservableObject {
     private var levelTimer: Timer?
     private var recordingURL: URL?
     private var whisperKit: WhisperKit?
+    private var downloadTask: Task<Void, Never>?
     
     // Model storage directory
     private var modelsDirectory: URL {
@@ -206,59 +207,69 @@ final class VoiceTranscribeManager: ObservableObject {
     }
     
     /// Download and initialize the selected model
-    func downloadModel() async {
+    func downloadModel() {
         guard !isDownloading else { return }
         
         isDownloading = true
         downloadProgress = 0.05
         
-        do {
-            // Create WhisperKit with progress observation
-            // We use a timer to poll progress since direct observation is complex from async context
-            let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self else { return }
-                    // WhisperKit.progress is exposed - we estimate progress in phases:
-                    // 0-50%: Download, 50-80%: Load, 80-100%: Prewarm
-                    // This is approximate since we can't directly observe internal progress
-                }
+        downloadTask = Task {
+            do {
+                // Phase 1: Download (0-50%)
+                downloadProgress = 0.1
+                
+                try Task.checkCancellation()
+                
+                whisperKit = try await WhisperKit(
+                    model: selectedModel.rawValue,
+                    verbose: true,
+                    logLevel: .debug,
+                    prewarm: false,
+                    load: false,
+                    download: true
+                )
+                
+                try Task.checkCancellation()
+                
+                // Phase 2: Load models (50-80%)
+                downloadProgress = 0.5
+                try await whisperKit?.loadModels()
+                
+                try Task.checkCancellation()
+                
+                // Phase 3: Prewarm (80-100%)
+                downloadProgress = 0.8
+                try await whisperKit?.prewarmModels()
+                
+                downloadProgress = 1.0
+                isModelDownloaded = true
+                savePreferences()
+                
+                print("VoiceTranscribe: Model \(selectedModel.rawValue) loaded successfully")
+                
+            } catch is CancellationError {
+                print("VoiceTranscribe: Download cancelled by user")
+                whisperKit = nil
+                downloadProgress = 0
+            } catch {
+                print("VoiceTranscribe: Failed to load model: \(error)")
+                state = .error("Failed to download model: \(error.localizedDescription)")
+                isModelDownloaded = false
             }
             
-            // Phase 1: Download (0-50%)
-            downloadProgress = 0.1
-            
-            whisperKit = try await WhisperKit(
-                model: selectedModel.rawValue,
-                verbose: true,
-                logLevel: .debug,
-                prewarm: false,  // We'll prewarm separately to track progress
-                load: false,     // We'll load separately
-                download: true
-            )
-            
-            // Phase 2: Load models (50-80%)
-            downloadProgress = 0.5
-            try await whisperKit?.loadModels()
-            
-            // Phase 3: Prewarm (80-100%)
-            downloadProgress = 0.8
-            try await whisperKit?.prewarmModels()
-            
-            progressTimer.invalidate()
-            
-            downloadProgress = 1.0
-            isModelDownloaded = true
-            savePreferences()
-            
-            print("VoiceTranscribe: Model \(selectedModel.rawValue) loaded successfully")
-            
-        } catch {
-            print("VoiceTranscribe: Failed to load model: \(error)")
-            state = .error("Failed to download model: \(error.localizedDescription)")
-            isModelDownloaded = false
+            isDownloading = false
+            downloadTask = nil
         }
-        
+    }
+    
+    /// Cancel the current model download
+    func cancelDownload() {
+        downloadTask?.cancel()
+        downloadTask = nil
         isDownloading = false
+        downloadProgress = 0
+        whisperKit = nil
+        print("VoiceTranscribe: Download cancelled")
     }
     
     // MARK: - Private Methods

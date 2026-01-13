@@ -238,41 +238,56 @@ struct VoiceTranscribeInfoView: View {
             // Download/Status Section
             if !manager.isModelDownloaded {
                 if manager.isDownloading {
-                    // Progress bar (morphed from button)
-                    ZStack(alignment: .leading) {
-                        // Background track
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.blue.opacity(0.3))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                        
-                        // Progress fill
-                        GeometryReader { geo in
+                    // Progress bar (morphed from button) with cancel button
+                    HStack(spacing: 12) {
+                        ZStack(alignment: .leading) {
+                            // Background track
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.blue)
-                                .frame(width: geo.size.width * manager.downloadProgress)
-                                .animation(.easeInOut(duration: 0.3), value: manager.downloadProgress)
+                                .fill(Color.blue.opacity(0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                            
+                            // Progress fill
+                            GeometryReader { geo in
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.blue)
+                                    .frame(width: geo.size.width * manager.downloadProgress)
+                                    .animation(.easeInOut(duration: 0.3), value: manager.downloadProgress)
+                            }
+                            .frame(height: 44)
+                            
+                            // Label overlay
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .frame(width: 16, height: 16)
+                                Text("Downloading \(Int(manager.downloadProgress * 100))%")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         .frame(height: 44)
                         
-                        // Label overlay
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .frame(width: 16, height: 16)
-                            Text("Downloading \(Int(manager.downloadProgress * 100))%")
-                                .fontWeight(.semibold)
+                        // Cancel button
+                        Button {
+                            manager.cancelDownload()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.white.opacity(0.7))
                         }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .buttonStyle(.plain)
+                        .onHover { h in
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                                // Optional: could add hover state here
+                            }
+                        }
                     }
-                    .frame(height: 44)
                 } else {
                     // Download button
                     Button {
-                        Task {
-                            await manager.downloadModel()
-                        }
+                        manager.downloadModel()
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.down.circle.fill")
