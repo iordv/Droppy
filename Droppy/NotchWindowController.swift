@@ -48,15 +48,16 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Sets up and shows the notch overlay window
     func setupNotchWindow() {
         guard notchWindow == nil else { return }
-        guard let screen = NSScreen.main else { return }
-        
+        // Use built-in screen with notch, fallback to main
+        guard let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return }
+
         // Window needs to be wide enough for expanded shelf and tall enough for glow + shelf
         let windowWidth: CGFloat = 500
         let windowHeight: CGFloat = 200
-        
-        // Position at top center of screen (aligned with notch)
-        let xPosition = (screen.frame.width - windowWidth) / 2
-        let yPosition = screen.frame.height - windowHeight
+
+        // Position at top center of screen (aligned with notch) using global coordinates
+        let xPosition = screen.frame.origin.x + (screen.frame.width - windowWidth) / 2
+        let yPosition = screen.frame.origin.y + screen.frame.height - windowHeight
         
         let windowFrame = NSRect(
             x: xPosition,
@@ -123,15 +124,16 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     /// Repositions the notch window when screen configuration changes (dock/undock)
     private func repositionNotchWindow() {
-        guard let window = notchWindow, let screen = NSScreen.main else { return }
-        
+        // Use built-in screen with notch, fallback to main
+        guard let window = notchWindow, let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return }
+
         // Use same dimensions as setupNotchWindow
         let windowWidth: CGFloat = 500
         let windowHeight: CGFloat = 200
-        
-        // Recalculate position for new screen geometry
-        let xPosition = (screen.frame.width - windowWidth) / 2
-        let yPosition = screen.frame.height - windowHeight
+
+        // Recalculate position for new screen geometry using global coordinates
+        let xPosition = screen.frame.origin.x + (screen.frame.width - windowWidth) / 2
+        let yPosition = screen.frame.origin.y + screen.frame.height - windowHeight
         
         let newFrame = NSRect(
             x: xPosition,
@@ -204,32 +206,68 @@ final class NotchWindowController: NSObject, ObservableObject {
         // GLOBAL CLICK MONITOR (v5.3) - Ultra-reliable single-click shelf opening
         // This catches clicks even when Droppy isn't focused, enabling instant shelf opening
         // Uses a slightly expanded hit zone to match the hover detection expansion
+        // Also handles closing shelf when clicking outside (desktop click to close)
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
             guard let self = self,
                   let notchWindow = self.notchWindow,
                   UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return }
-            
+
             // Get the notch rect and expand it for reliable clicking (same expansion as hover)
             let notchRect = notchWindow.getNotchRect()
             let mouseLocation = NSEvent.mouseLocation
-            
+
             // Create a click-friendly zone: ±10px horizontal expansion, upward to screen top
             // This matches user's natural click targeting when aiming for the notch
-            let screenTopY = NSScreen.main?.frame.maxY ?? notchRect.maxY
+            // Use built-in screen with notch for multi-monitor support
+            let targetScreen = NSScreen.builtInWithNotch ?? NSScreen.main
+
+            // Handle clicks in the expanded click zone (for opening/toggling)
+            let screenTopY = targetScreen?.frame.maxY ?? notchRect.maxY
             let upwardExpansion = max(0, screenTopY - notchRect.maxY)
-            
+
             let clickZone = NSRect(
                 x: notchRect.origin.x - 10,           // 10px expansion on left
                 y: notchRect.origin.y,                // Keep bottom edge exact
                 width: notchRect.width + 20,          // 10px expansion on each side
                 height: notchRect.height + upwardExpansion  // Extend to screen top
             )
-            
-            // Handle clicks in the expanded click zone
-            if clickZone.contains(mouseLocation) {
+
+            // Calculate expanded shelf area (when shelf is open)
+            // Exact shelf bounds - clicks outside will close the shelf
+            let isExpanded = DroppyState.shared.isExpanded
+            var expandedShelfZone: NSRect = .zero
+            if isExpanded, let screen = targetScreen {
+                let expandedWidth: CGFloat = 450
+                let centerX = screen.frame.origin.x + screen.frame.width / 2
+                let rowCount = ceil(Double(DroppyState.shared.items.count) / 5.0)
+                let expandedHeight = max(1, rowCount) * 110 + 54
+
+                expandedShelfZone = NSRect(
+                    x: centerX - expandedWidth / 2,
+                    y: screen.frame.origin.y + screen.frame.height - expandedHeight,
+                    width: expandedWidth,
+                    height: expandedHeight
+                )
+            }
+
+            // Check if click is in notch zone or expanded shelf zone
+            let isInNotchZone = clickZone.contains(mouseLocation)
+            let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
+
+            if isInNotchZone {
+                // Click on notch - toggle shelf
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                         DroppyState.shared.isExpanded.toggle()
+                    }
+                }
+            } else if isExpanded && !isInExpandedShelfZone {
+                // CLICK OUTSIDE TO CLOSE: Shelf is open, click is outside shelf area
+                // Close the shelf
+                DispatchQueue.main.async {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        DroppyState.shared.isExpanded = false
+                        DroppyState.shared.isMouseHovering = false
                     }
                 }
             }
@@ -237,44 +275,78 @@ final class NotchWindowController: NSObject, ObservableObject {
         
         // Local monitor catches movement AND clicks when mouse is over the Notch window
         // Global monitor only catches events from OTHER apps - we need local for our own window
+        // Also handles closing shelf when clicking outside the shelf area
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
             guard let self = self else { return event }
-            
+
             // Handle mouse movement
             if event.type == .mouseMoved {
                 self.handleMouseEvent(event)
                 return event
             }
-            
-            // Handle click - single-click shelf toggle (v5.3 improved)
+
+            // Handle click - single-click shelf toggle and click-outside-to-close
             if event.type == .leftMouseDown {
                 guard let notchWindow = self.notchWindow,
                       UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return event }
-                
+
                 let notchRect = notchWindow.getNotchRect()
                 let mouseLocation = NSEvent.mouseLocation
-                
-                // Use same expanded click zone as global monitor for consistency
-                let screenTopY = NSScreen.main?.frame.maxY ?? notchRect.maxY
+
+                // Use built-in screen with notch for multi-monitor support
+                let targetScreen = NSScreen.builtInWithNotch ?? NSScreen.main
+
+                // Notch click zone
+                let screenTopY = targetScreen?.frame.maxY ?? notchRect.maxY
                 let upwardExpansion = max(0, screenTopY - notchRect.maxY)
-                
+
                 let clickZone = NSRect(
                     x: notchRect.origin.x - 10,
                     y: notchRect.origin.y,
                     width: notchRect.width + 20,
                     height: notchRect.height + upwardExpansion
                 )
-                
-                if clickZone.contains(mouseLocation) {
+
+                // Calculate expanded shelf area
+                let isExpanded = DroppyState.shared.isExpanded
+                var expandedShelfZone: NSRect = .zero
+                if isExpanded, let screen = targetScreen {
+                    let expandedWidth: CGFloat = 450
+                    let centerX = screen.frame.origin.x + screen.frame.width / 2
+                    let rowCount = ceil(Double(DroppyState.shared.items.count) / 5.0)
+                    let expandedHeight = max(1, rowCount) * 110 + 54
+
+                    expandedShelfZone = NSRect(
+                        x: centerX - expandedWidth / 2,
+                        y: screen.frame.origin.y + screen.frame.height - expandedHeight,
+                        width: expandedWidth,
+                        height: expandedHeight
+                    )
+                }
+
+                let isInNotchZone = clickZone.contains(mouseLocation)
+                let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
+
+                if isInNotchZone {
+                    // Click on notch - toggle shelf
                     DispatchQueue.main.async {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                             DroppyState.shared.isExpanded.toggle()
                         }
                     }
                     return nil  // Consume the click event
+                } else if isExpanded && !isInExpandedShelfZone {
+                    // CLICK OUTSIDE TO CLOSE: Click is outside the shelf area
+                    DispatchQueue.main.async {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            DroppyState.shared.isExpanded = false
+                            DroppyState.shared.isMouseHovering = false
+                        }
+                    }
+                    return nil  // Consume the click event
                 }
             }
-            
+
             return event
         }
         
@@ -372,16 +444,41 @@ final class NotchWindowController: NSObject, ObservableObject {
     }
 }
 
+// MARK: - Screen Helper
+
+/// Helper to find the built-in display with a notch
+extension NSScreen {
+    /// Returns the built-in display (the one with a notch), regardless of which screen is "main"
+    static var builtInWithNotch: NSScreen? {
+        // First, try to find a screen with safeAreaInsets.top > 0 (has a notch)
+        if let notchScreen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) {
+            return notchScreen
+        }
+        // Fallback to built-in display (localizedName contains "Built-in" or similar)
+        return NSScreen.screens.first(where: { $0.localizedName.contains("Built-in") || $0.localizedName.contains("内蔵") })
+    }
+
+    /// Check if a point (in global screen coordinates) is on this screen
+    func contains(point: NSPoint) -> Bool {
+        return frame.contains(point)
+    }
+}
+
 // MARK: - Custom Window Configuration
 
 class NotchWindow: NSPanel {
-    
+
     /// Flag to indicate if the window is still valid for event handling
     var isValid: Bool = true
     
+    /// Returns the screen that should be used for notch display (built-in with notch, or main as fallback)
+    var notchScreen: NSScreen? {
+        return NSScreen.builtInWithNotch ?? NSScreen.main
+    }
+
     /// Whether the current screen lacks a physical notch
     private var needsDynamicIsland: Bool {
-        guard let screen = NSScreen.main else { return true }
+        guard let screen = notchScreen else { return true }
         let hasNotch = screen.safeAreaInsets.top > 0
         let useDynamicIsland = UserDefaults.standard.bool(forKey: "useDynamicIslandStyle")
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
@@ -396,14 +493,15 @@ class NotchWindow: NSPanel {
     private let dynamicIslandTopMargin: CGFloat = 4
     
     private var notchRect: NSRect {
-        guard let screen = NSScreen.main else { return .zero }
-        
+        guard let screen = notchScreen else { return .zero }
+
         // DYNAMIC ISLAND MODE: Floating pill centered below screen top edge
         if needsDynamicIsland {
-            let x = (screen.frame.width - dynamicIslandWidth) / 2
+            // Use screen.frame.origin for global coordinates (multi-monitor support)
+            let x = screen.frame.origin.x + (screen.frame.width - dynamicIslandWidth) / 2
             // Position below screen top with margin (floating island effect like iPhone)
-            let y = screen.frame.height - dynamicIslandTopMargin - dynamicIslandHeight
-            
+            let y = screen.frame.origin.y + screen.frame.height - dynamicIslandTopMargin - dynamicIslandHeight
+
             return NSRect(
                 x: x,
                 y: y,
@@ -411,12 +509,13 @@ class NotchWindow: NSPanel {
                 height: dynamicIslandHeight
             )
         }
-        
+
         // NOTCH MODE: Standard notch positioning
         var notchWidth: CGFloat = 180
         var notchHeight: CGFloat = 32
-        var notchX: CGFloat = screen.frame.width / 2 - notchWidth / 2  // Fallback
-        
+        // Use global screen coordinates for X position
+        var notchX: CGFloat = screen.frame.origin.x + screen.frame.width / 2 - notchWidth / 2  // Fallback
+
         // Calculate true notch position and size from safe areas
         // The notch is the gap between the right edge of the left safe area
         // and the left edge of the right safe area
@@ -424,19 +523,23 @@ class NotchWindow: NSPanel {
            let rightArea = screen.auxiliaryTopRightArea {
             // Correct calculation: the gap between the two auxiliary areas
             notchWidth = max(rightArea.minX - leftArea.maxX, 180)
-            // Derive X position directly from auxiliary areas (more robust)
-            notchX = leftArea.maxX
+            // Derive X position directly from auxiliary areas (already in screen-local coordinates)
+            // Convert to global coordinates by adding screen origin
+            notchX = screen.frame.origin.x + leftArea.maxX
         }
-        
+
         // Get notch height from safe area insets
         let topInset = screen.safeAreaInsets.top
         if topInset > 0 {
             notchHeight = topInset
         }
-        
+
+        // Y position in global coordinates
+        let notchY = screen.frame.origin.y + screen.frame.height - notchHeight
+
         return NSRect(
             x: notchX,
-            y: screen.frame.height - notchHeight,
+            y: notchY,
             width: notchWidth,
             height: notchHeight
         )
@@ -489,36 +592,50 @@ class NotchWindow: NSPanel {
         // For global monitors, we need to convert the event location to screen coordinates.
         // Global events have locationInScreen as the screen-based location.
         let mouseLocation: NSPoint
-        if (event.window?.screen ?? NSScreen.main) != nil {
+        if (event.window?.screen ?? notchScreen) != nil {
             // Convert window-relative location to screen coordinates
             if event.window != nil {
                 mouseLocation = event.window!.convertPoint(toScreen: event.locationInWindow)
             } else {
-                // For events without a window (global monitor), the locationInWindow 
+                // For events without a window (global monitor), the locationInWindow
                 // is already in screen coordinates for global monitors
                 mouseLocation = NSEvent.mouseLocation // fallback, cached once
             }
         } else {
             mouseLocation = NSEvent.mouseLocation
         }
-        
+
+        // MULTI-MONITOR FIX: Only detect cursor on the notch screen (built-in display)
+        // This prevents the shelf from activating when cursor is on external displays
+        guard let targetScreen = notchScreen, targetScreen.frame.contains(mouseLocation) else {
+            // Cursor is on external display - clear hover state if needed
+            if DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+                DispatchQueue.main.async {
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        DroppyState.shared.isMouseHovering = false
+                    }
+                }
+            }
+            return
+        }
+
         // PRECISE HOVER DETECTION (v5.2)
         // Different logic for NOTCH vs DYNAMIC ISLAND modes
-        
+
         let isOverExactNotch = notchRect.contains(mouseLocation)
         var isOverExpandedZone: Bool
-        
+
         if needsDynamicIsland {
             // DYNAMIC ISLAND MODE:
             // The island is a floating pill below the menu bar with a gap above it.
             // - Horizontal: ±20px expansion for catching fast horizontal movements
             // - Upward: Extend to absolute screen top (area above island is still interactive)
             // - Downward: NO expansion - must NOT detect below the visible island
-            let screenTopY = NSScreen.main?.frame.maxY ?? notchRect.maxY
-            
+            let screenTopY = targetScreen.frame.maxY
+
             // Extend all the way to screen top (covers the gap above the floating island)
             let upwardExpansion = max(0, screenTopY - notchRect.maxY)
-            
+
             let expandedNotchRect = NSRect(
                 x: notchRect.origin.x - 20,                     // 20px expansion on left
                 y: notchRect.origin.y,                          // Keep bottom edge EXACT (no downward expansion!)
@@ -526,15 +643,13 @@ class NotchWindow: NSPanel {
                 height: notchRect.height + upwardExpansion      // Extend upward to screen top (covers the gap)
             )
             isOverExpandedZone = expandedNotchRect.contains(mouseLocation)
-            
+
             // Special case: If cursor is at the absolute screen top edge within island X range,
             // always treat it as hovering (Fitt's Law)
-            if let screen = NSScreen.main {
-                let isAtScreenTop = mouseLocation.y >= screen.frame.maxY - 5
-                let isWithinIslandX = mouseLocation.x >= notchRect.minX - 20 && mouseLocation.x <= notchRect.maxX + 20
-                if isAtScreenTop && isWithinIslandX {
-                    isOverExpandedZone = true
-                }
+            let isAtScreenTop = mouseLocation.y >= targetScreen.frame.maxY - 5
+            let isWithinIslandX = mouseLocation.x >= notchRect.minX - 20 && mouseLocation.x <= notchRect.maxX + 20
+            if isAtScreenTop && isWithinIslandX {
+                isOverExpandedZone = true
             }
         } else {
             // NOTCH MODE:
@@ -542,9 +657,9 @@ class NotchWindow: NSPanel {
             // - Horizontal: ±20px expansion for fast side-to-side movements
             // - Upward: Extend to absolute screen top (Fitt's Law - infinite edge target)
             // - Downward: NO expansion (avoid blocking bookmark bars, URL fields)
-            let screenTopY = NSScreen.main?.frame.maxY ?? notchRect.maxY
+            let screenTopY = targetScreen.frame.maxY
             let upwardExpansion = (screenTopY - notchRect.maxY) + 5  // +5px buffer to capture absolute edge
-            
+
             let expandedNotchRect = NSRect(
                 x: notchRect.origin.x - 20,                     // 20px expansion on left
                 y: notchRect.origin.y,                          // Keep bottom edge exact (no downward expansion)
@@ -552,44 +667,40 @@ class NotchWindow: NSPanel {
                 height: notchRect.height + upwardExpansion      // Extend to screen top edge + buffer
             )
             isOverExpandedZone = expandedNotchRect.contains(mouseLocation)
-            
+
             // Special case: If cursor is at/near the absolute top of the screen and within notch X range,
             // always treat it as hovering. The tolerance needs to be generous because:
             // 1. When cursor hits screen edge, no more mouseMoved events are generated
             // 2. The last event before hitting the edge might have a Y slightly below maxY
             // 3. Menu bar is ~24px, notch is within that space, so 10px tolerance is safe
-            if let screen = NSScreen.main {
-                let isAtScreenTop = mouseLocation.y >= screen.frame.maxY - 10  // Within 10px of absolute top
-                let isWithinNotchX = mouseLocation.x >= notchRect.minX - 20 && mouseLocation.x <= notchRect.maxX + 20
-                if isAtScreenTop && isWithinNotchX {
-                    isOverExpandedZone = true
-                }
+            let isAtScreenTop = mouseLocation.y >= targetScreen.frame.maxY - 10  // Within 10px of absolute top
+            let isWithinNotchX = mouseLocation.x >= notchRect.minX - 20 && mouseLocation.x <= notchRect.maxX + 20
+            if isAtScreenTop && isWithinNotchX {
+                isOverExpandedZone = true
             }
         }
-        
+
         // Use expanded zone to START hovering, exact zone to MAINTAIN hover
         // Exception: Also maintain hover at the screen top edge (Fitt's Law - user pushing against edge)
         let currentlyHovering = DroppyState.shared.isMouseHovering
-        
+
         // For maintaining hover: exact notch OR at screen top within horizontal bounds
         var isOverExactOrEdge = isOverExactNotch
-        if let screen = NSScreen.main {
-            let isAtScreenTop = mouseLocation.y >= screen.frame.maxY - 5
-            let isWithinNotchX = mouseLocation.x >= notchRect.minX && mouseLocation.x <= notchRect.maxX
-            if isAtScreenTop && isWithinNotchX {
-                isOverExactOrEdge = true
-            }
+        let isAtScreenTop = mouseLocation.y >= targetScreen.frame.maxY - 5
+        let isWithinNotchX = mouseLocation.x >= notchRect.minX && mouseLocation.x <= notchRect.maxX
+        if isAtScreenTop && isWithinNotchX {
+            isOverExactOrEdge = true
         }
-        
+
         let isOverNotch = currentlyHovering ? isOverExactOrEdge : isOverExpandedZone
-        
+
         // Only update if not dragging (drag monitor handles that)
         if !DragMonitor.shared.isDragging {
             if isOverNotch && !currentlyHovering {
                 DispatchQueue.main.async {
                     // Validate items before showing shelf (remove ghost files)
                     DroppyState.shared.validateItems()
-                    
+
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                         DroppyState.shared.isMouseHovering = true
                     }
@@ -646,15 +757,17 @@ class NotchWindow: NSPanel {
             isDragOverValidZone = dragZone.contains(mouseLocation)
             
             // Also accept if expanded and over the expanded shelf area
-            if isExpanded && !isDragOverValidZone, let screen = NSScreen.main {
+            // Use notchScreen for multi-monitor support
+            if isExpanded && !isDragOverValidZone, let screen = notchScreen {
                 let expandedWidth: CGFloat = 450
-                let centerX = screen.frame.width / 2
+                // Use global coordinates
+                let centerX = screen.frame.origin.x + screen.frame.width / 2
                 let rowCount = ceil(Double(state.items.count) / 5.0)
                 let expandedHeight = max(1, rowCount) * 110 + 54
-                
+
                 let expandedZone = NSRect(
                     x: centerX - expandedWidth / 2,
-                    y: screen.frame.height - expandedHeight,
+                    y: screen.frame.origin.y + screen.frame.height - expandedHeight,
                     width: expandedWidth,
                     height: expandedHeight
                 )
@@ -678,8 +791,9 @@ class NotchWindow: NSPanel {
     }
     
     func checkForFullscreen() {
-        guard let screen = NSScreen.main else { return }
-        
+        // Use notchScreen for multi-monitor support
+        guard let screen = notchScreen else { return }
+
         // 1. Check basic visible frame (Standard Spaces Fullscreen)
         let isNativeFullscreen = screen.visibleFrame.equalTo(screen.frame)
         
@@ -935,25 +1049,28 @@ class NotchDragContainer: NSView {
             }
             
             // When expanded, also accept drags over the expanded shelf area
+            // Use notchScreen for multi-monitor support
             if DroppyState.shared.isExpanded {
-                guard let screen = NSScreen.main else { return nil }
-                
+                guard let notchWindow = self.window as? NotchWindow,
+                      let screen = notchWindow.notchScreen else { return nil }
+
                 let expandedWidth: CGFloat = 450
-                let centerX = screen.frame.width / 2
+                // Use global coordinates
+                let centerX = screen.frame.origin.x + screen.frame.width / 2
                 let xMin = centerX - expandedWidth / 2
                 let xMax = centerX + expandedWidth / 2
-                
+
                 let rowCount = ceil(Double(DroppyState.shared.items.count) / 5.0)
                 var expandedHeight = max(1, rowCount) * 110 + 54
-                
+
                 let shouldShowPlayer = MusicManager.shared.isPlaying || MusicManager.shared.wasRecentlyPlaying
                 if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
                     expandedHeight += 100
                 }
-                
-                let yMin = screen.frame.height - expandedHeight
-                let yMax = screen.frame.height
-                
+
+                let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
+                let yMax = screen.frame.origin.y + screen.frame.height
+
                 if mouseScreenPos.x >= xMin && mouseScreenPos.x <= xMax &&
                    mouseScreenPos.y >= yMin && mouseScreenPos.y <= yMax {
                     return super.hitTest(point)
@@ -990,7 +1107,8 @@ class NotchDragContainer: NSView {
             // Vertical: From notch bottom to screen top ONLY - no downward extension!
             // This ensures we don't block bookmark bars, URL fields, or other UI below the notch
             let yMin = notchRect.minY  // Exact notch bottom - NO extension below!
-            let yMax = NSScreen.main?.frame.maxY ?? notchRect.maxY
+            // Use notchScreen for multi-monitor support
+            let yMax = notchWindow.notchScreen?.frame.maxY ?? notchRect.maxY
             
             if mouseScreenPos.x >= xMin && mouseScreenPos.x <= xMax &&
                mouseScreenPos.y >= yMin && mouseScreenPos.y <= yMax {
@@ -1028,33 +1146,36 @@ class NotchDragContainer: NSView {
     
     /// Helper to check if a drag is over the expanded shelf area
     private func isDragOverExpandedShelf(_ sender: NSDraggingInfo) -> Bool {
-        guard let screen = NSScreen.main else { return false }
+        // Use notchScreen for multi-monitor support
+        guard let notchWindow = self.window as? NotchWindow,
+              let screen = notchWindow.notchScreen else { return false }
         let dragLocation = sender.draggingLocation
-        
+
         // Convert from window coordinates to screen coordinates
         guard let windowFrame = self.window?.frame else { return false }
         let screenLocation = NSPoint(x: windowFrame.origin.x + dragLocation.x,
                                      y: windowFrame.origin.y + dragLocation.y)
-        
+
         // Calculate expanded shelf bounds (same logic as hitTest)
+        // Use global coordinates
         let expandedWidth: CGFloat = 450
-        let centerX = screen.frame.width / 2
+        let centerX = screen.frame.origin.x + screen.frame.width / 2
         let xMin = centerX - expandedWidth / 2
         let xMax = centerX + expandedWidth / 2
-        
+
         // Height calculation
         let rowCount = ceil(Double(DroppyState.shared.items.count) / 5.0)
         var expandedHeight = max(1, rowCount) * 110 + 54
-        
+
         // Add extra height for media player
         let shouldShowPlayer = MusicManager.shared.isPlaying || MusicManager.shared.wasRecentlyPlaying
         if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
             expandedHeight += 100
         }
-        
-        let yMin = screen.frame.height - expandedHeight
-        let yMax = screen.frame.height
-        
+
+        let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
+        let yMax = screen.frame.origin.y + screen.frame.height
+
         return screenLocation.x >= xMin && screenLocation.x <= xMax &&
                screenLocation.y >= yMin && screenLocation.y <= yMax
     }

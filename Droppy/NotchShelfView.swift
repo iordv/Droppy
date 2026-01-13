@@ -139,8 +139,9 @@ struct NotchShelfView: View {
     private var notchWidth: CGFloat {
         // Dynamic Island uses fixed size
         if isDynamicIslandMode { return 210 }
-        
-        guard let screen = NSScreen.main else { return 180 }
+
+        // Use built-in screen with notch for multi-monitor support
+        guard let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return 180 }
         
         // Use auxiliary areas to calculate true notch width
         // The notch is the gap between the right edge of the left safe area
@@ -162,15 +163,17 @@ struct NotchShelfView: View {
     private var notchHeight: CGFloat {
         // Dynamic Island uses fixed size
         if isDynamicIslandMode { return 37 }
-        
-        guard let screen = NSScreen.main else { return 32 }
+
+        // Use built-in screen with notch for multi-monitor support
+        guard let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return 32 }
         let topInset = screen.safeAreaInsets.top
         return topInset > 0 ? topInset : 32
     }
     
     /// Whether we're in Dynamic Island mode (no physical notch + setting enabled, or force test)
     private var isDynamicIslandMode: Bool {
-        guard let screen = NSScreen.main else { return true }
+        // Use built-in screen with notch for multi-monitor support
+        guard let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return true }
         let hasNotch = screen.safeAreaInsets.top > 0
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
         // Use the @AppStorage property for reactive updates!
@@ -311,7 +314,8 @@ struct NotchShelfView: View {
     
     /// Helper to check if current screen is built-in (MacBook display)
     private var isBuiltInDisplay: Bool {
-        guard let screen = NSScreen.main else { return true }
+        // Use built-in screen with notch for multi-monitor support
+        guard let screen = NSScreen.builtInWithNotch ?? NSScreen.main else { return true }
         // On modern macOS, built-in displays usually have "Built-in" in their localized name
         // This is the most reliable simple check without diving into IOKit
         return screen.localizedName.contains("Built-in") || screen.localizedName.contains("Internal")
