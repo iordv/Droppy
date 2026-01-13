@@ -238,19 +238,21 @@ final class VoiceTranscribeManager: ObservableObject {
             
             // Update duration timer
             recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                guard let self else { return }
                 Task { @MainActor in
-                    self?.recordingDuration += 0.1
+                    self.recordingDuration += 0.1
                 }
             }
             
             // Update audio level timer
             levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+                guard let self else { return }
                 Task { @MainActor in
-                    self?.audioRecorder?.updateMeters()
-                    let db = self?.audioRecorder?.averagePower(forChannel: 0) ?? -160
+                    self.audioRecorder?.updateMeters()
+                    let db = self.audioRecorder?.averagePower(forChannel: 0) ?? -160
                     // Normalize dB to 0-1 range (-60 to 0 dB)
                     let normalized = max(0, min(1, (db + 60) / 60))
-                    self?.audioLevel = Float(normalized)
+                    self.audioLevel = Float(normalized)
                 }
             }
         } catch {
