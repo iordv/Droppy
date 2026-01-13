@@ -109,6 +109,54 @@
             animation: scaleOut 0.25s ease-out forwards;
         }
 
+        /* Carousel styles */
+        .carousel {
+            position: relative;
+        }
+
+        .carousel-slides {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .carousel-slide {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+        }
+
+        .carousel-slide.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 0;
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.4);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .carousel-dot:hover {
+            background: rgba(148, 163, 184, 0.7);
+        }
+
+        .carousel-dot.active {
+            background: #0ea5e9;
+            transform: scale(1.2);
+        }
+
         /* Extension card hover glow */
         .extension-card {
             transition: all 0.3s ease-out;
@@ -602,9 +650,22 @@
                 <p class="text-slate-300 mb-6 leading-relaxed">Remove backgrounds from images instantly using local AI
                     processing. No internet connection required—all processing happens on your Mac using the InSPyReNet
                     neural network.</p>
-                <div class="rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
-                    <img src="assets/images/ai-bg-screenshot.png" alt="AI Background Removal screenshot"
-                        class="w-full h-auto">
+                <div class="relative rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
+                    <div class="carousel" data-carousel="ai-bg">
+                        <div class="carousel-slides">
+                            <img src="assets/images/ai-bg-screenshot-1.png" alt="AI Background Removal - Shelf view"
+                                class="w-full h-auto carousel-slide active">
+                            <img src="assets/images/ai-bg-screenshot-2.png" alt="AI Background Removal - Context menu"
+                                class="w-full h-auto carousel-slide">
+                            <img src="assets/images/ai-bg-screenshot-3.png" alt="AI Background Removal - Result"
+                                class="w-full h-auto carousel-slide">
+                        </div>
+                        <div class="carousel-dots">
+                            <button class="carousel-dot active" data-index="0"></button>
+                            <button class="carousel-dot" data-index="1"></button>
+                            <button class="carousel-dot" data-index="2"></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center gap-3 text-slate-300">
@@ -726,9 +787,19 @@
                 </div>
                 <p class="text-slate-300 mb-6 leading-relaxed">Access Droppy's power directly from Finder's right-click
                     menu. Add selected files to the Shelf or Basket without switching apps.</p>
-                <div class="rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
-                    <img src="assets/images/finder-screenshot.png" alt="Finder Services screenshot"
-                        class="w-full h-auto">
+                <div class="relative rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
+                    <div class="carousel" data-carousel="finder">
+                        <div class="carousel-slides">
+                            <img src="assets/images/finder-screenshot-1.png" alt="Finder Services - Shelf view"
+                                class="w-full h-auto carousel-slide active">
+                            <img src="assets/images/finder-screenshot-2.png" alt="Finder Services - Context menu"
+                                class="w-full h-auto carousel-slide">
+                        </div>
+                        <div class="carousel-dots">
+                            <button class="carousel-dot active" data-index="0"></button>
+                            <button class="carousel-dot" data-index="1"></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center gap-3 text-slate-300">
@@ -787,9 +858,19 @@
                 </div>
                 <p class="text-slate-300 mb-6 leading-relaxed">Capture specific screen elements and copy them to
                     clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element.</p>
-                <div class="rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
-                    <img src="assets/images/element-capture-screenshot.png" alt="Element Capture screenshot"
-                        class="w-full h-auto">
+                <div class="relative rounded-2xl bg-slate-800/50 border border-slate-700/50 overflow-hidden mb-6">
+                    <div class="carousel" data-carousel="element-capture">
+                        <div class="carousel-slides">
+                            <img src="assets/images/element-capture-screenshot-1.png" alt="Element Capture - Result"
+                                class="w-full h-auto carousel-slide active">
+                            <img src="assets/images/element-capture-screenshot-2.png" alt="Element Capture - Selection"
+                                class="w-full h-auto carousel-slide">
+                        </div>
+                        <div class="carousel-dots">
+                            <button class="carousel-dot active" data-index="0"></button>
+                            <button class="carousel-dot" data-index="1"></button>
+                        </div>
+                    </div>
                 </div>
                 <div class="space-y-3 mb-6">
                     <div class="flex items-center gap-3 text-slate-300">
@@ -1008,6 +1089,24 @@
                     }, 60);
                 }, 400);
             }, 1500);
+
+            // Initialize carousels
+            document.querySelectorAll('.carousel').forEach(carousel => {
+                const slides = carousel.querySelectorAll('.carousel-slide');
+                const dots = carousel.querySelectorAll('.carousel-dot');
+
+                dots.forEach((dot, index) => {
+                    dot.addEventListener('click', () => {
+                        // Update slides
+                        slides.forEach(slide => slide.classList.remove('active'));
+                        slides[index].classList.add('active');
+
+                        // Update dots
+                        dots.forEach(d => d.classList.remove('active'));
+                        dot.classList.add('active');
+                    });
+                });
+            });
         });
     </script>
 </body>
