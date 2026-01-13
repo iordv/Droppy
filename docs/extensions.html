@@ -1410,15 +1410,18 @@
             }
         });
 
-        // Initialize version numbers
+        // Initialize extension stats and version on page load
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.droppy-version').forEach(el => {
-                el.textContent = 'v' + DROPPY_VERSION;
-            });
-
-            // Fetch and display extension stats
+            // Fetch and display extension stats FIRST (most important)
             fetchExtensionCounts();
             fetchExtensionRatings();
+
+            // Update version numbers from version.js (uses DROPPY_CONFIG)
+            if (typeof DROPPY_CONFIG !== 'undefined') {
+                document.querySelectorAll('.droppy-version').forEach(el => {
+                    el.textContent = 'v' + DROPPY_CONFIG.version;
+                });
+            }
         });
 
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYW5ubW9ucHNwanNuZmdkZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDgxODQsImV4cCI6MjA4MzEyNDE4NH0.5BvuW5cS0kJCuA2Nm5HCVDLNWNzn6EA_8JVVrW6pfnY';
