@@ -507,6 +507,9 @@ struct SettingsView: View {
                 } else if extensionType == .elementCapture {
                     // Element Capture has its own detailed configuration view
                     ElementCaptureInfoView(currentShortcut: .constant(nil), installCount: nil, rating: nil)
+                } else if extensionType == .voiceTranscribe {
+                    // Voice Transcribe has its own detailed configuration view
+                    VoiceTranscribeInfoView(installCount: nil, rating: nil)
                 } else {
                     // All other extensions use ExtensionInfoView
                     ExtensionInfoView(extensionType: extensionType) {

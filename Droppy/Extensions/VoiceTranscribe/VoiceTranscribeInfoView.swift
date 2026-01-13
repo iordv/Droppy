@@ -14,6 +14,7 @@ struct VoiceTranscribeInfoView: View {
     @State private var isHoveringCancel = false
     @State private var isHoveringReviews = false
     @State private var isHoveringDownload = false
+    @State private var isHoveringDelete = false
     @State private var showReviewsSheet = false
     @State private var isDownloading = false
     
@@ -121,7 +122,7 @@ struct VoiceTranscribeInfoView: View {
     
     private var setupContent: some View {
         VStack(spacing: 16) {
-            // Configuration Card
+            // Configuration Card (Model + Language)
             VStack(spacing: 0) {
                 // Model Selection Row
                 HStack {
@@ -208,118 +209,133 @@ struct VoiceTranscribeInfoView: View {
                     .menuStyle(.borderlessButton)
                 }
                 .padding(16)
-                
-                Divider().padding(.horizontal, 16)
-                
-                // Menu Bar Toggle Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Menu Bar Icon")
-                            .font(.callout.weight(.medium))
-                        Text("Quick access to record")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
-                        get: { manager.isMenuBarEnabled },
-                        set: { manager.isMenuBarEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                }
-                .padding(16)
             }
             .background(Color.white.opacity(0.03))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             
-            // Download/Status Section
-            if !manager.isModelDownloaded {
-                if manager.isDownloading {
-                    // Progress bar (morphed from button) with cancel button
-                    HStack(spacing: 12) {
-                        ZStack(alignment: .leading) {
-                            // Background track
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.blue.opacity(0.3))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                            
-                            // Progress fill
-                            GeometryReader { geo in
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(Color.blue)
-                                    .frame(width: geo.size.width * manager.downloadProgress)
-                                    .animation(.easeInOut(duration: 0.3), value: manager.downloadProgress)
-                            }
+            // Download Section
+            if manager.isDownloading {
+                // Progress bar with cancel button
+                HStack(spacing: 12) {
+                    ZStack(alignment: .leading) {
+                        // Background track
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.blue.opacity(0.3))
+                            .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                            
-                            // Label overlay
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                    .frame(width: 16, height: 16)
-                                Text("Downloading \(Int(manager.downloadProgress * 100))%")
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        .frame(height: 44)
                         
-                        // Cancel button
+                        // Progress fill - use percentage width with clipping
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.blue)
+                            .frame(height: 44)
+                            .mask(alignment: .leading) {
+                                GeometryReader { geo in
+                                    Rectangle()
+                                        .frame(width: geo.size.width * max(0.02, manager.downloadProgress))
+                                }
+                            }
+                            .animation(.easeInOut(duration: 0.3), value: manager.downloadProgress)
+                        
+                        // Label overlay
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 16, height: 16)
+                            Text("Downloading \(Int(manager.downloadProgress * 100))%")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .frame(height: 44)
+                    
+                    Button {
+                        manager.cancelDownload()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if !manager.isModelDownloaded {
+                // Download button
+                Button {
+                    manager.downloadModel()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Download Model")
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        isHoveringDownload = h
+                    }
+                }
+            }
+            
+            // Installed Models Section (only when model is installed)
+            if manager.isModelDownloaded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Installed Models")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                    
+                    // Current installed model row
+                    HStack {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.system(size: 14))
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(manager.selectedModel.displayName)
+                                    .font(.callout.weight(.medium))
+                                Text(manager.selectedModel.sizeDescription)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // Delete button with hover effect
                         Button {
-                            manager.cancelDownload()
+                            manager.deleteModel()
                         } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(.white.opacity(0.7))
+                            HStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 11))
+                                Text("Delete")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .foregroundStyle(.red.opacity(0.9))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.red.opacity(isHoveringDelete ? 0.2 : 0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
                         .buttonStyle(.plain)
                         .onHover { h in
                             withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                                // Optional: could add hover state here
+                                isHoveringDelete = h
                             }
                         }
                     }
-                } else {
-                    // Download button
-                    Button {
-                        manager.downloadModel()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Download Model")
-                        }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            isHoveringDownload = h
-                        }
-                    }
+                    .padding(14)
+                    .background(Color.white.opacity(0.03))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("Model ready")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(16)
-                .background(Color.white.opacity(0.03))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
         .padding(.horizontal, 24)
@@ -374,23 +390,41 @@ struct VoiceTranscribeInfoView: View {
             
             Spacer()
             
-            // Done button
+            // Menu Bar toggle button (or Download First if not ready)
             Button {
-                // Track activation if model is downloaded
                 if manager.isModelDownloaded {
-                    AnalyticsService.shared.trackExtensionActivation(extensionId: "voiceTranscribe")
+                    manager.isMenuBarEnabled.toggle()
+                    if manager.isMenuBarEnabled {
+                        AnalyticsService.shared.trackExtensionActivation(extensionId: "voiceTranscribe")
+                    }
                 }
-                dismiss()
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: manager.isModelDownloaded ? "checkmark.circle.fill" : "arrow.down.circle")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(manager.isModelDownloaded ? "Done" : "Download First")
+                    if !manager.isModelDownloaded {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Download First")
+                    } else if manager.isMenuBarEnabled {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Remove")
+                    } else {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Add to Menu Bar")
+                    }
                 }
+                .fixedSize()
                 .fontWeight(.semibold)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
-                .background(manager.isModelDownloaded ? Color.green.opacity(isHoveringAction ? 1.0 : 0.85) : Color.gray.opacity(0.5))
+                .background(
+                    manager.isModelDownloaded
+                        ? (manager.isMenuBarEnabled
+                            ? Color.red.opacity(isHoveringAction ? 0.9 : 0.7)
+                            : Color.green.opacity(isHoveringAction ? 1.0 : 0.85))
+                        : Color.gray.opacity(0.5)
+                )
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
