@@ -17,16 +17,26 @@ struct WindowSnapCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
-                // Icon with dark squircle background
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(white: 0.15))
-                    Image("WindowSnapIcon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(2)
+                // Icon from remote URL with squircle clip (keeps app binary small)
+                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        // Fallback: SF Symbol
+                        Image(systemName: "rectangle.split.2x2")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(.cyan)
+                    default:
+                        // Loading placeholder
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(white: 0.2))
+                    }
                 }
                 .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 
                 Spacer()
                 

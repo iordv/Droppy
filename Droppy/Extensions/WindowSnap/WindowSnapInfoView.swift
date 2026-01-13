@@ -57,15 +57,24 @@ struct WindowSnapInfoView: View {
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // Icon - with dark squircle background
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(white: 0.15))
-                Image(systemName: "rectangle.split.2x2")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(.cyan)
+            // Icon from remote URL with squircle clip
+            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    Image(systemName: "rectangle.split.2x2")
+                        .font(.system(size: 32, weight: .medium))
+                        .foregroundStyle(.cyan)
+                default:
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(white: 0.2))
+                }
             }
             .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: Color.cyan.opacity(0.3), radius: 8, y: 4)
             
             Text("Window Snap")
