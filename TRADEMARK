@@ -1,0 +1,43 @@
+# Droppy Trademark Policy
+
+## Trademark Notice
+
+"Droppy" and the Droppy logo (the water droplet icon) are trademarks of 
+Jordy Spruit. All rights reserved.
+
+## What This Means
+
+The source code of Droppy is available under the GPL-3.0 + Commons Clause 
+license, but the name "Droppy" and associated branding are protected.
+
+### You MAY:
+- Refer to this project as "Droppy" when discussing or reviewing it
+- Use the name "Droppy" in factual statements (e.g., "based on Droppy")
+- Fork the code for personal use or contribution back to this project
+
+### You MAY NOT:
+- Distribute a modified version under the name "Droppy"
+- Use "Droppy" or similar names (Droppie, DropIt, etc.) for derivative products
+- Use the Droppy logo or icon in your own projects
+- Imply official endorsement or affiliation without permission
+
+### If You Fork This Project:
+If you create a derivative work, you must:
+1. Choose a distinctly different name
+2. Create your own branding and icons
+3. Remove all Droppy trademarks from your distribution
+4. Clearly indicate your project is not affiliated with Droppy
+
+## Attribution
+When discussing forks or derivatives, use language like:
+- "Based on Droppy" or "Forked from Droppy" ✅
+- "Droppy 2.0" or "Droppy Pro" ❌
+
+## Contact
+For trademark licensing inquiries or permissions, contact:
+- GitHub: @iordv
+- Project: https://github.com/iordv/Droppy
+
+---
+
+© 2026 Jordy Spruit. All trademark rights reserved.
