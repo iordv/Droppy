@@ -80,6 +80,8 @@ Droppy's built-in Extension Store lets you add powerful features on demand. Ever
 
 **Available extensions:**
 
+<img src="https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg" height="20" style="vertical-align: middle; border-radius: 4px;"> **Voice Transcribe** — Record and transcribe speech to text with 100% on-device AI
+
 <img src="https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg" height="20" style="vertical-align: middle; border-radius: 4px;"> **AI Background Removal** — Remove backgrounds from images locally using machine learning
 
 <img src="https://iordv.github.io/Droppy/assets/icons/alfred.jpg" height="20" style="vertical-align: middle; border-radius: 4px;"> **Alfred Workflow** — Add files to Droppy directly from Alfred
