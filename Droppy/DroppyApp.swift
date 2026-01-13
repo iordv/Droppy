@@ -145,6 +145,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             ElementCaptureManager.shared.loadAndStartMonitoring()
             WindowSnapManager.shared.loadAndStartMonitoring()
+            
+            // Initialize Voice Transcribe (restores menu bar if it was enabled)
+            _ = VoiceTranscribeManager.shared
         }
         
         // Start analytics (anonymous launch tracking)

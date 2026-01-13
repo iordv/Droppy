@@ -83,10 +83,11 @@ final class VoiceTranscribeManager: ObservableObject {
     @Published var isMenuBarEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(isMenuBarEnabled, forKey: "voiceTranscribeMenuBarEnabled")
-            // TODO: Show/hide menu bar item
+            VoiceTranscribeMenuBar.shared.setVisible(isMenuBarEnabled)
         }
     }
     @Published var isDownloading: Bool = false
+    @Published var transcriptionProgress: Double = 0
     
     // MARK: - Private Properties
     
@@ -148,18 +149,137 @@ final class VoiceTranscribeManager: ObservableObject {
     
     /// Start recording audio
     func startRecording() {
-        guard state == .idle else { return }
+        print("VoiceTranscribe: startRecording called, state: \(state), isModelDownloaded: \(isModelDownloaded), whisperKit: \(whisperKit != nil)")
         
-        // Request microphone permission
-        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-            DispatchQueue.main.async {
-                if granted {
-                    self?.beginRecording()
-                } else {
-                    self?.state = .error("Microphone access denied. Enable in System Settings > Privacy & Security > Microphone.")
+        guard state == .idle else {
+            print("VoiceTranscribe: Cannot start recording - state is \(state), not idle")
+            return
+        }
+        
+        // Start recording immediately - we can transcribe later
+        // Model loading happens in parallel if needed
+        if whisperKit == nil && isModelDownloaded {
+            print("VoiceTranscribe: Model not in memory, loading in background...")
+            Task {
+                do {
+                    // Use download: true - WhisperKit skips download if model exists in cache
+                    // This ensures it properly locates the model in HuggingFace cache
+                    let kit = try await WhisperKit(
+                        model: selectedModel.rawValue,
+                        verbose: false,
+                        logLevel: .error,
+                        prewarm: false,
+                        load: false,
+                        download: true  // Required to locate model in cache
+                    )
+                    // Load and prewarm models
+                    try await kit.loadModels()
+                    try await kit.prewarmModels()
+                    whisperKit = kit
+                    print("VoiceTranscribe: Model loaded in background")
+                } catch {
+                    print("VoiceTranscribe: Background model load failed: \(error)")
+                    // Model might be corrupted or deleted - clear the flag so user can re-download
+                    await MainActor.run {
+                        self.isModelDownloaded = false
+                        self.savePreferences()
+                    }
                 }
             }
         }
+        
+        // Always request mic and start recording
+        requestMicAndRecord()
+    }
+    
+    private func requestMicAndRecord() {
+        // Use AVAudioApplication for macOS 14+ or fallback to AVCaptureDevice
+        if #available(macOS 14.0, *) {
+            let status = AVAudioApplication.shared.recordPermission
+            
+            switch status {
+            case .granted:
+                print("VoiceTranscribe: Mic already authorized, beginning recording")
+                beginRecording()
+                
+            case .undetermined:
+                // First time - this will trigger the system prompt
+                print("VoiceTranscribe: Requesting mic permission for first time (AVAudioApplication)")
+                AVAudioApplication.requestRecordPermission { [weak self] granted in
+                    DispatchQueue.main.async {
+                        if granted {
+                            print("VoiceTranscribe: Mic access granted, beginning recording")
+                            self?.beginRecording()
+                        } else {
+                            print("VoiceTranscribe: Mic access denied by user via system prompt")
+                            self?.state = .idle
+                            VoiceRecordingWindowController.shared.hideWindow()
+                        }
+                    }
+                }
+                
+            case .denied:
+                print("VoiceTranscribe: Mic access previously denied, showing alert")
+                state = .idle
+                showMicPermissionAlert()
+                
+            @unknown default:
+                print("VoiceTranscribe: Unknown mic auth status")
+                state = .error("Unable to check microphone permission.")
+            }
+        } else {
+            // Fallback for older macOS
+            let status = AVCaptureDevice.authorizationStatus(for: .audio)
+            
+            switch status {
+            case .authorized:
+                print("VoiceTranscribe: Mic already authorized, beginning recording")
+                beginRecording()
+                
+            case .notDetermined:
+                print("VoiceTranscribe: Requesting mic permission for first time")
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                    DispatchQueue.main.async {
+                        if granted {
+                            print("VoiceTranscribe: Mic access granted, beginning recording")
+                            self?.beginRecording()
+                        } else {
+                            print("VoiceTranscribe: Mic access denied by user via system prompt")
+                            self?.state = .idle
+                            VoiceRecordingWindowController.shared.hideWindow()
+                        }
+                    }
+                }
+                
+            case .denied, .restricted:
+                print("VoiceTranscribe: Mic access previously denied, showing alert")
+                state = .idle
+                showMicPermissionAlert()
+                
+            @unknown default:
+                print("VoiceTranscribe: Unknown mic auth status")
+                state = .error("Unable to check microphone permission.")
+            }
+        }
+    }
+    
+    private func showMicPermissionAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Microphone Access Required"
+        alert.informativeText = "Voice Transcribe needs microphone access to record audio. Please enable it in System Settings → Privacy & Security → Microphone."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Cancel")
+        
+        if alert.runModal() == .alertFirstButtonReturn {
+            // Open Privacy & Security settings
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+        
+        // Hide recording window since we can't record
+        VoiceRecordingWindowController.shared.hideWindow()
     }
     
     /// Stop recording and start transcription
@@ -169,6 +289,9 @@ final class VoiceTranscribeManager: ObservableObject {
         audioRecorder?.stop()
         recordingTimer?.invalidate()
         levelTimer?.invalidate()
+        
+        // Revert menu bar icon to normal
+        VoiceTranscribeMenuBar.shared.setRecordingState(false)
         
         state = .processing
         
@@ -211,35 +334,61 @@ final class VoiceTranscribeManager: ObservableObject {
         guard !isDownloading else { return }
         
         isDownloading = true
-        downloadProgress = 0.05
+        downloadProgress = 0.02
         
         downloadTask = Task {
             do {
-                // Phase 1: Download (0-50%)
-                downloadProgress = 0.1
+                // Start progress polling timer
+                var progressObservation: NSKeyValueObservation?
+                
+                // Phase 1: Download and initialize (0-60%)
+                downloadProgress = 0.05
                 
                 try Task.checkCancellation()
                 
-                whisperKit = try await WhisperKit(
+                // Create WhisperKit - this triggers the download
+                let kit = try await WhisperKit(
                     model: selectedModel.rawValue,
-                    verbose: true,
-                    logLevel: .debug,
+                    verbose: false,
+                    logLevel: .none,
                     prewarm: false,
                     load: false,
                     download: true
                 )
+                whisperKit = kit
+                
+                // Observe progress for subsequent operations
+                progressObservation = kit.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] progress, _ in
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        // Map 0-1 progress to our current phase range
+                        let phase = self.downloadProgress
+                        if phase < 0.6 {
+                            // Download phase: 5% to 60%
+                            self.downloadProgress = 0.05 + (progress.fractionCompleted * 0.55)
+                        } else if phase < 0.85 {
+                            // Load phase: 60% to 85%
+                            self.downloadProgress = 0.6 + (progress.fractionCompleted * 0.25)
+                        } else {
+                            // Prewarm phase: 85% to 100%
+                            self.downloadProgress = 0.85 + (progress.fractionCompleted * 0.15)
+                        }
+                    }
+                }
                 
                 try Task.checkCancellation()
                 
-                // Phase 2: Load models (50-80%)
-                downloadProgress = 0.5
+                // Phase 2: Load models (60-85%)
+                downloadProgress = 0.6
                 try await whisperKit?.loadModels()
                 
                 try Task.checkCancellation()
                 
-                // Phase 3: Prewarm (80-100%)
-                downloadProgress = 0.8
+                // Phase 3: Prewarm (85-100%)
+                downloadProgress = 0.85
                 try await whisperKit?.prewarmModels()
+                
+                progressObservation?.invalidate()
                 
                 downloadProgress = 1.0
                 isModelDownloaded = true
@@ -272,6 +421,50 @@ final class VoiceTranscribeManager: ObservableObject {
         print("VoiceTranscribe: Download cancelled")
     }
     
+    /// Delete the downloaded model from disk
+    func deleteModel() {
+        // Clear the WhisperKit instance first
+        whisperKit = nil
+        isModelDownloaded = false
+        isMenuBarEnabled = false
+        downloadProgress = 0
+        
+        // Actually delete the model files from disk
+        // WhisperKit/HuggingFace stores models in ~/Library/Caches/huggingface/hub
+        let modelName = selectedModel.rawValue
+        let fileManager = FileManager.default
+        
+        // HuggingFace cache location
+        if let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            let hubDir = cachesDir.appendingPathComponent("huggingface/hub")
+            
+            // Models are stored with encoded names
+            // Try to find and delete the model directory
+            if let contents = try? fileManager.contentsOfDirectory(at: hubDir, includingPropertiesForKeys: nil) {
+                for item in contents {
+                    // WhisperKit models are in folders containing the model name
+                    if item.lastPathComponent.contains("whisperkit") || 
+                       item.lastPathComponent.contains(modelName.replacingOccurrences(of: "_", with: "-")) {
+                        do {
+                            try fileManager.removeItem(at: item)
+                            print("VoiceTranscribe: Deleted model cache at \(item.path)")
+                        } catch {
+                            print("VoiceTranscribe: Failed to delete \(item.path): \(error)")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also clear the download state from UserDefaults
+        UserDefaults.standard.removeObject(forKey: "voiceTranscribeModelDownloaded_\(modelName)")
+        
+        // Update menu bar
+        VoiceTranscribeMenuBar.shared.setVisible(false)
+        
+        print("VoiceTranscribe: Model \(modelName) deleted from disk")
+    }
+    
     // MARK: - Private Methods
     
     private func beginRecording() {
@@ -296,23 +489,24 @@ final class VoiceTranscribeManager: ObservableObject {
             state = .recording
             recordingDuration = 0
             
+            // Update menu bar icon to recording state
+            VoiceTranscribeMenuBar.shared.setRecordingState(true)
+            
             // Update duration timer
             recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    self.recordingDuration += 0.1
+                Task { @MainActor [weak self] in
+                    self?.recordingDuration += 0.1
                 }
             }
             
             // Update audio level timer
             levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    self.audioRecorder?.updateMeters()
-                    let db = self.audioRecorder?.averagePower(forChannel: 0) ?? -160
+                Task { @MainActor [weak self] in
+                    self?.audioRecorder?.updateMeters()
+                    let db = self?.audioRecorder?.averagePower(forChannel: 0) ?? -160
                     // Normalize dB to 0-1 range (-60 to 0 dB)
                     let normalized = max(0, min(1, (db + 60) / 60))
-                    self.audioLevel = Float(normalized)
+                    self?.audioLevel = Float(normalized)
                 }
             }
         } catch {
@@ -326,14 +520,24 @@ final class VoiceTranscribeManager: ObservableObject {
             return
         }
         
+        // Reset progress
+        transcriptionProgress = 0
+        
         // Ensure we have a loaded model
         if whisperKit == nil {
+            transcriptionProgress = 0.1 // Loading model phase
             do {
-                whisperKit = try await WhisperKit(
+                let kit = try await WhisperKit(
                     model: selectedModel.rawValue,
                     verbose: false,
-                    logLevel: .none
+                    logLevel: .none,
+                    prewarm: false,
+                    load: false,
+                    download: true  // Required to locate model in cache
                 )
+                try await kit.loadModels()
+                try await kit.prewarmModels()
+                whisperKit = kit
             } catch {
                 state = .error("Failed to load model: \(error.localizedDescription)")
                 return
@@ -344,6 +548,17 @@ final class VoiceTranscribeManager: ObservableObject {
             state = .error("Model not initialized")
             return
         }
+        
+        // Observe transcription progress
+        let progressObservation = whisper.progress.observe(\.fractionCompleted, options: [.new]) { [weak self] progress, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                // Map progress: 0.2 to 0.95 (leave room for loading and completion)
+                self.transcriptionProgress = 0.2 + (progress.fractionCompleted * 0.75)
+            }
+        }
+        
+        transcriptionProgress = 0.2 // Starting transcription
         
         do {
             // Configure transcription options
@@ -357,6 +572,11 @@ final class VoiceTranscribeManager: ObservableObject {
             // Transcribe the audio file
             let results = try await whisper.transcribe(audioPath: url.path, decodeOptions: options)
             
+            // Cancel observation
+            progressObservation.invalidate()
+            
+            transcriptionProgress = 1.0
+            
             // Extract text from results
             if let result = results.first {
                 transcriptionResult = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -369,6 +589,7 @@ final class VoiceTranscribeManager: ObservableObject {
             }
             
         } catch {
+            progressObservation.invalidate()
             print("VoiceTranscribe: Transcription error: \(error)")
             state = .error("Transcription failed: \(error.localizedDescription)")
         }
@@ -392,6 +613,9 @@ final class VoiceTranscribeManager: ObservableObject {
             selectedLanguage = lang
         }
         isMenuBarEnabled = UserDefaults.standard.bool(forKey: "voiceTranscribeMenuBarEnabled")
+        
+        // Explicitly set menu bar visibility (didSet may not fire on initial load)
+        VoiceTranscribeMenuBar.shared.setVisible(isMenuBarEnabled)
     }
     
     private func savePreferences() {
