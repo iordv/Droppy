@@ -210,19 +210,41 @@ final class VoiceTranscribeManager: ObservableObject {
         guard !isDownloading else { return }
         
         isDownloading = true
-        downloadProgress = 0.1
+        downloadProgress = 0.05
         
         do {
-            // Let WhisperKit handle model downloading to its default location
-            // It downloads from Hugging Face and caches automatically
+            // Create WhisperKit with progress observation
+            // We use a timer to poll progress since direct observation is complex from async context
+            let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    // WhisperKit.progress is exposed - we estimate progress in phases:
+                    // 0-50%: Download, 50-80%: Load, 80-100%: Prewarm
+                    // This is approximate since we can't directly observe internal progress
+                }
+            }
+            
+            // Phase 1: Download (0-50%)
+            downloadProgress = 0.1
+            
             whisperKit = try await WhisperKit(
                 model: selectedModel.rawValue,
                 verbose: true,
                 logLevel: .debug,
-                prewarm: true,
-                load: true,
+                prewarm: false,  // We'll prewarm separately to track progress
+                load: false,     // We'll load separately
                 download: true
             )
+            
+            // Phase 2: Load models (50-80%)
+            downloadProgress = 0.5
+            try await whisperKit?.loadModels()
+            
+            // Phase 3: Prewarm (80-100%)
+            downloadProgress = 0.8
+            try await whisperKit?.prewarmModels()
+            
+            progressTimer.invalidate()
             
             downloadProgress = 1.0
             isModelDownloaded = true
