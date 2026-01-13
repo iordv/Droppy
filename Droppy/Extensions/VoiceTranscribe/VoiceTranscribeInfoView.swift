@@ -237,37 +237,60 @@ struct VoiceTranscribeInfoView: View {
             
             // Download/Status Section
             if !manager.isModelDownloaded {
-                Button {
-                    isDownloading = true
-                    Task {
-                        await manager.downloadModel()
-                        isDownloading = false
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        if manager.isDownloading {
+                if manager.isDownloading {
+                    // Progress bar (morphed from button)
+                    ZStack(alignment: .leading) {
+                        // Background track
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.blue.opacity(0.3))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                        
+                        // Progress fill
+                        GeometryReader { geo in
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.blue)
+                                .frame(width: geo.size.width * manager.downloadProgress)
+                                .animation(.easeInOut(duration: 0.3), value: manager.downloadProgress)
+                        }
+                        .frame(height: 44)
+                        
+                        // Label overlay
+                        HStack(spacing: 6) {
                             ProgressView()
                                 .scaleEffect(0.7)
                                 .frame(width: 16, height: 16)
-                            Text("Downloading...")
-                        } else {
+                            Text("Downloading \(Int(manager.downloadProgress * 100))%")
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .frame(height: 44)
+                } else {
+                    // Download button
+                    Button {
+                        Task {
+                            await manager.downloadModel()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
                             Image(systemName: "arrow.down.circle.fill")
                                 .font(.system(size: 12, weight: .semibold))
                             Text("Download Model")
                         }
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(manager.isDownloading)
-                .onHover { h in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        isHoveringDownload = h
+                    .buttonStyle(.plain)
+                    .onHover { h in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isHoveringDownload = h
+                        }
                     }
                 }
             } else {
