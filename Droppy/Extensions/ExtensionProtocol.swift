@@ -56,7 +56,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     // Colors matching the extension card accent colors
     var categoryColor: Color {
         switch self {
-        case .aiBackgroundRemoval: return .pink
+        case .aiBackgroundRemoval: return .blue
         case .alfred: return .blue
         case .finder, .finderServices: return .blue
         case .spotify: return .blue
@@ -152,7 +152,18 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var iconView: some View {
         switch self {
         case .aiBackgroundRemoval:
-            AIExtensionIcon(size: 64)
+            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().aspectRatio(contentMode: .fill)
+                case .failure:
+                    Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
+                default:
+                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
+                }
+            }
+            .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .alfred:
             AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { phase in
                 switch phase {

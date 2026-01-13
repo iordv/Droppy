@@ -2801,8 +2801,19 @@ struct AIBackgroundRemovalSettingsRow: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon
             HStack(alignment: .top) {
-                // AI Icon - uses app icon with magic overlay
-                AIExtensionIcon(size: 44)
+                // AI Icon from remote URL
+                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
+                    default:
+                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 0.2))
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 
                 Spacer()
                 

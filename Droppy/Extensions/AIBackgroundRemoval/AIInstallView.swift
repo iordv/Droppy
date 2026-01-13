@@ -129,7 +129,7 @@ struct AIInstallView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [.purple.opacity(0.3), .cyan.opacity(0.3)],
+                                colors: [.blue.opacity(0.3), .cyan.opacity(0.3)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -140,11 +140,22 @@ struct AIInstallView: View {
                         .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: pulseAnimation)
                 }
                 
-                // Main icon - Droppy with magic sparkle overlay
-                AIExtensionIcon(size: 64)
-                    .shadow(color: manager.isInstalled ? .green.opacity(0.4) : .purple.opacity(0.3), radius: 8, y: 4)
-                    .scaleEffect(manager.isInstalled ? 1.05 : 1.0)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.6), value: manager.isInstalled)
+                // Main icon - AI icon from remote URL
+                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
+                    default:
+                        RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
+                    }
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: manager.isInstalled ? .green.opacity(0.4) : .blue.opacity(0.3), radius: 8, y: 4)
+                .scaleEffect(manager.isInstalled ? 1.05 : 1.0)
+                .animation(.spring(response: 0.4, dampingFraction: 0.6), value: manager.isInstalled)
             }
             
             Text(statusTitle)
@@ -189,12 +200,12 @@ struct AIInstallView: View {
                 // Category badge
                 Text("AI")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(.blue)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(
                         Capsule()
-                            .fill(Color.purple.opacity(0.15))
+                            .fill(Color.blue.opacity(0.15))
                     )
             }
             
