@@ -347,7 +347,7 @@ struct VoiceTranscribeInfoView: View {
                 HStack(spacing: 6) {
                     Image(systemName: manager.isModelDownloaded ? "checkmark.circle.fill" : "arrow.down.circle")
                         .font(.system(size: 12, weight: .semibold))
-                    Text(manager.isModelDownloaded ? "Done" : "Download Model First")
+                    Text(manager.isModelDownloaded ? "Done" : "Download First")
                 }
                 .fontWeight(.semibold)
                 .padding(.horizontal, 20)
