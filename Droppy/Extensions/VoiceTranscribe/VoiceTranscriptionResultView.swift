@@ -85,9 +85,11 @@ final class VoiceTranscriptionResultController: NSObject {
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.15
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            panel.close()
-            self?.window = nil
+        }, completionHandler: {
+            Task { @MainActor [weak self] in
+                panel.close()
+                self?.window = nil
+            }
         })
     }
 }
