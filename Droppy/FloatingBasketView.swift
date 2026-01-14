@@ -137,7 +137,7 @@ struct FloatingBasketView: View {
             ZStack {
                     // Background (extracted to reduce type-checker complexity)
                     basketBackground
-                    .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+                    .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 6)
 
                     
                     // Content

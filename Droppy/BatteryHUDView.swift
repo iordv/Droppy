@@ -97,7 +97,7 @@ struct BatteryHUDView: View {
                             .symbolVariant(.fill)
                             .frame(width: 26, height: 26)
                             .shadow(color: accentColor.opacity(0.4), radius: batteryManager.isCharging ? 6 : 0)
-                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                         Spacer(minLength: 0)
                     }
                     .padding(.leading, 8)  // Balanced with vertical padding

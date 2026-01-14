@@ -36,7 +36,7 @@ struct FinderServicesSetupView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .shadow(color: .black.opacity(0.5), radius: 20, y: 10)
+        .shadow(color: .black.opacity(0.3), radius: 12, y: 6)
     }
     
     // MARK: - Header

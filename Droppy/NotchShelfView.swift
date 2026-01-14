@@ -399,7 +399,13 @@ struct NotchShelfView: View {
                 // When transparent DI is enabled, use glass material instead of black
                 DynamicIslandShape(cornerRadius: state.isExpanded ? 40 : 50)
                     .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-                    .shadow(color: Color.black.opacity(isDynamicIslandMode ? 0.4 : 0), radius: 8, x: 0, y: 4)
+                    // Shadow scales with expanded state for proper depth perception
+                    .shadow(
+                        color: Color.black.opacity(isDynamicIslandMode ? (state.isExpanded ? 0.3 : 0.25) : 0),
+                        radius: state.isExpanded ? 12 : 6,
+                        x: 0,
+                        y: state.isExpanded ? 6 : 3
+                    )
                     .opacity(isDynamicIslandMode ? 1 : 0)
                     .scaleEffect(isDynamicIslandMode ? 1 : 0.85)
                 
@@ -984,7 +990,7 @@ struct NotchShelfView: View {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+            .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
     }
 
     // MARK: - Expanded Content

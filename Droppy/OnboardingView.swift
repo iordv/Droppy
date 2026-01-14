@@ -344,7 +344,7 @@ struct OnboardingView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 90, height: 90)
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .shadow(color: .black.opacity(0.4), radius: 12, y: 6)
+                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
             }
             
             VStack(spacing: 10) {

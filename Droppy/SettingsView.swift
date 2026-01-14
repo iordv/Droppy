@@ -2010,7 +2010,7 @@ struct FloatingBasketPreview: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(Color.white.opacity(0.15), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+            .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .onAppear {
@@ -2156,7 +2156,7 @@ struct PeekPreview: View {
             RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous)
                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.3), radius: 10 * miniBasketScale, x: 0, y: 5 * miniBasketScale)
+        .shadow(color: .black.opacity(0.25), radius: 8 * miniBasketScale, x: 0, y: 4 * miniBasketScale)
     }
     
     private var basketOffset: CGSize {
@@ -2324,7 +2324,7 @@ struct NotchShelfPreview: View {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
                             )
-                            .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+                            .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
                     )
                     
                     Spacer()
@@ -2387,7 +2387,7 @@ struct OpenShelfIndicatorPreview: View {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
         )
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -2424,7 +2424,7 @@ struct DropIndicatorPreview: View {
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .stroke(Color.white.opacity(0.2), lineWidth: 1)
                 )
-                .shadow(color: .black.opacity(0.3), radius: 10, y: 5)
+                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
         )
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)

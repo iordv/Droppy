@@ -288,7 +288,7 @@ struct MediaPlayerView: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
             )
-            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+            .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
         .scaleEffect(isAlbumArtPressed ? 0.95 : (isAlbumArtHovering ? 1.02 : 1.0))
@@ -537,7 +537,7 @@ struct SpotifyBadge: View {
         }
         .frame(width: 20, height: 20)
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
     }
 }
 

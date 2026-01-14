@@ -88,7 +88,7 @@ struct NotchHUDView: View {
                             .contentTransition(.symbolEffect(.replace))
                             .symbolVariant(.fill)
                             .frame(width: 26, height: 26)
-                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hudType.icon(for: value))
                         Spacer(minLength: 0)
                     }
@@ -310,7 +310,7 @@ struct MediaHUDView: View {
                         }
                         .frame(width: 26, height: 26)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                         Spacer(minLength: 0)
                     }
                     .padding(.leading, 8)  // Balanced with vertical padding
@@ -541,7 +541,7 @@ struct HUDOverlayView: View {
                 .contentTransition(.interpolate)
                 .symbolVariant(.fill)
                 .frame(width: 24, height: 20)
-                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
             
             // Slider
             LiquidSlider(
@@ -600,7 +600,7 @@ struct HUDOverlayView: View {
                         lineWidth: 0.5
                     )
             )
-            .shadow(color: .black.opacity(0.3), radius: 15, y: 8)
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
     }
 }
 

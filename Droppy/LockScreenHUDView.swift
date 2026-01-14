@@ -102,7 +102,7 @@ struct LockScreenHUDView: View {
                 .rotationEffect(.degrees(showUnlockAnim ? 10 : 0))
         }
         .frame(width: isDynamicIslandMode ? 20 : 26, height: isDynamicIslandMode ? 20 : 26)
-        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
     
     /// Trigger the smooth multi-phase unlock animation

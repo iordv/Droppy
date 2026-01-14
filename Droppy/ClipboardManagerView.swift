@@ -192,7 +192,7 @@ struct ClipboardManagerView: View {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+            .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
             .padding(.bottom, 24)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
@@ -1229,7 +1229,7 @@ struct ClipboardPreviewView: View {
                                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                                         .stroke(Color.white.opacity(0.25), lineWidth: 1)
                                 )
-                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
                             .buttonStyle(.plain)
                             .padding(12)
@@ -2080,6 +2080,6 @@ struct URLTypeBadge: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.white.opacity(0.25), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
     }
 }
