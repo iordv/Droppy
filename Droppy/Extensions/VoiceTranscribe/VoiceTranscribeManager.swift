@@ -583,6 +583,9 @@ final class VoiceTranscribeManager: ObservableObject {
                 state = .complete
                 
                 print("VoiceTranscribe: Transcription complete - \(result.text.count) chars")
+                
+                // Show result window (works for both regular and invisi-record mode)
+                VoiceTranscriptionResultController.shared.showResult()
             } else {
                 transcriptionResult = ""
                 state = .complete
