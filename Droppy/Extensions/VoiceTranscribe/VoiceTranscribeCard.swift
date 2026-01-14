@@ -17,21 +17,15 @@ struct VoiceTranscribeCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
-                // Icon from remote URL
-                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    case .failure:
-                        Image(systemName: "waveform.and.mic")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(.blue)
-                    default:
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(white: 0.2))
-                    }
+                // Icon from remote URL (cached to prevent flashing)
+                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "waveform.and.mic")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(.blue)
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

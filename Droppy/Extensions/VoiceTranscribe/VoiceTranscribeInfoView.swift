@@ -51,16 +51,11 @@ struct VoiceTranscribeInfoView: View {
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // Icon
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "waveform.and.mic").font(.system(size: 32)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            // Icon (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "waveform.and.mic").font(.system(size: 32)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -110,7 +105,7 @@ struct VoiceTranscribeInfoView: View {
                     .background(Capsule().fill(Color.blue.opacity(0.15)))
             }
             
-            Text("Transcribe speech to text with 100% on-device AI")
+            Text("On-device speech-to-text transcription")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -212,6 +207,20 @@ struct VoiceTranscribeInfoView: View {
             }
             .background(Color.white.opacity(0.03))
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            // Screenshot loaded from web (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/voice-transcribe-screenshot.png")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            } placeholder: {
+                EmptyView()
+            }
             
             // Download Section
             if manager.isDownloading {

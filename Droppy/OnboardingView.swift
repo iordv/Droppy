@@ -421,23 +421,20 @@ struct OnboardingView: View {
                     delay: 0.24
                 )
                 
-                // Extensions - droplet puzzle icon
+                // Extensions - droplet puzzle icon (cached to prevent flashing)
                 HStack(spacing: 16) {
-                    AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fit)
-                        default:
-                            Image(systemName: "puzzlepiece.extension.fill")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.purple, .blue],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
+                    CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { image in
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Image(systemName: "puzzlepiece.extension.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 )
-                        }
+                            )
                     }
                     .frame(width: 44, height: 44)
                     
@@ -654,21 +651,18 @@ struct OnboardingView: View {
                 }
             } label: {
                 HStack(spacing: 14) {
-                    AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fit)
-                        default:
-                            Image(systemName: "puzzlepiece.extension.fill")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.purple, .blue],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
+                    CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { image in
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Image(systemName: "puzzlepiece.extension.fill")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.purple, .blue],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 )
-                        }
+                            )
                     }
                     .frame(width: 48, height: 48)
                     

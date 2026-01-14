@@ -38,13 +38,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     
     var subtitle: String {
         switch self {
-        case .aiBackgroundRemoval: return "One-click install"
-        case .alfred: return "Requires Powerpack"
-        case .finder, .finderServices: return "One-time setup"
-        case .spotify: return "No setup needed"
-        case .elementCapture: return "Keyboard shortcuts"
-        case .windowSnap: return "Keyboard shortcuts"
-        case .voiceTranscribe: return "Model download"
+        case .aiBackgroundRemoval: return "InSPyReNet - State of the Art Quality"
+        case .alfred: return "Keyboard-first file management"
+        case .finder, .finderServices: return "Right-click → Add to Droppy"
+        case .spotify: return "Control playback from your notch"
+        case .elementCapture: return "Capture any screen element instantly"
+        case .windowSnap: return "Keyboard-driven window management"
+        case .voiceTranscribe: return "On-device speech-to-text transcription"
         }
     }
     
@@ -73,19 +73,19 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .aiBackgroundRemoval:
-            return "Remove backgrounds from images instantly using local AI. No internet required, your images stay private. One-click install gets you started in seconds."
+            return "Remove backgrounds from images instantly using local AI processing. No internet connection required."
         case .alfred:
-            return "Push any selected file or folder to Droppy instantly with a customizable Alfred hotkey. Perfect for power users who prefer keyboard-driven workflows."
+            return "Seamlessly add files to Droppy's Shelf or Basket directly from Alfred using keyboard shortcuts."
         case .finder, .finderServices:
-            return "Right-click any file in Finder to instantly add it to Droppy. No extra apps needed—it's built right into macOS."
+            return "Access Droppy directly from Finder's right-click menu. Add selected files to the Shelf or Basket without switching apps."
         case .spotify:
-            return "Control Spotify playback directly from the notch. See album art, track info, and use play/pause controls without switching apps."
+            return "Control Spotify playback directly from your notch. See album art, track info, and playback controls without switching apps."
         case .elementCapture:
             return "Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element."
         case .windowSnap:
-            return "Snap windows to screen positions using keyboard shortcuts. Halves, quarters, thirds, maximize, and center—all at your fingertips."
+            return "Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included."
         case .voiceTranscribe:
-            return "Record audio and transcribe instantly using local AI. 100% on-device—your voice stays private. Supports 99+ languages."
+            return "Transcribe audio recordings to text using WhisperKit AI. 100% on-device processing means your voice never leaves your Mac—completely private."
         }
     }
     
@@ -135,10 +135,10 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             ]
         case .voiceTranscribe:
             return [
-                ("mic.fill", "One-tap recording"),
-                ("cpu", "100% on-device AI"),
-                ("globe", "99+ languages"),
-                ("lock.fill", "Private—audio never leaves Mac")
+                ("mic.fill", "One-tap Quick Record from menu bar"),
+                ("cpu", "100% on-device AI processing"),
+                ("globe", "99+ languages supported"),
+                ("lock.fill", "Private—audio never leaves your Mac")
             ]
         }
     }
@@ -168,93 +168,58 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var iconView: some View {
         switch self {
         case .aiBackgroundRemoval:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .alfred:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "command.circle.fill").font(.system(size: 32)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "command.circle.fill").font(.system(size: 32)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .finder, .finderServices:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "folder").font(.system(size: 32)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "folder").font(.system(size: 32)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .spotify:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "music.note.list").font(.system(size: 32)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "music.note.list").font(.system(size: 32)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .elementCapture:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "viewfinder").font(.system(size: 32, weight: .medium)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "viewfinder").font(.system(size: 32, weight: .medium)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .windowSnap:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "rectangle.split.2x2").font(.system(size: 32, weight: .medium)).foregroundStyle(.cyan)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "rectangle.split.2x2").font(.system(size: 32, weight: .medium)).foregroundStyle(.cyan)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .voiceTranscribe:
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "waveform.and.mic").font(.system(size: 32, weight: .medium)).foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                }
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "waveform.and.mic").font(.system(size: 32, weight: .medium)).foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))

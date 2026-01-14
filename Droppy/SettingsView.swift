@@ -849,8 +849,8 @@ struct SettingsView: View {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top, spacing: 14) {
-                        // Official BMC Logo
-                        AsyncImage(url: URL(string: "https://i.postimg.cc/MHxm3CKr/5c58570cfdd26f0001068f06-198x149-2x.avif")) { image in
+                        // Official BMC Logo (cached to prevent flashing)
+                        CachedAsyncImage(url: URL(string: "https://i.postimg.cc/MHxm3CKr/5c58570cfdd26f0001068f06-198x149-2x.avif")) { image in
                              image.resizable()
                                   .aspectRatio(contentMode: .fit)
                         } placeholder: {
@@ -2812,16 +2812,11 @@ struct AIBackgroundRemovalSettingsRow: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with icon
             HStack(alignment: .top) {
-                // AI Icon from remote URL
-                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    case .failure:
-                        Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
-                    default:
-                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 0.2))
-                    }
+                // AI Icon from remote URL (cached to prevent flashing)
+                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

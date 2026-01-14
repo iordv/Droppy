@@ -54,21 +54,15 @@ struct ElementCaptureInfoView: View {
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // Icon from remote URL
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "viewfinder")
-                        .font(.system(size: 32, weight: .medium))
-                        .foregroundStyle(.blue)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(white: 0.2))
-                }
+            // Icon from remote URL (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "viewfinder")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(.blue)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -124,7 +118,7 @@ struct ElementCaptureInfoView: View {
                     )
             }
             
-            Text("Keyboard shortcuts")
+            Text("Capture any screen element instantly")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -145,30 +139,19 @@ struct ElementCaptureInfoView: View {
             featureRow(icon: "doc.on.clipboard", text: "Copy to clipboard")
             featureRow(icon: "plus.circle", text: "Add directly to Droppy")
             
-            // Screenshot loaded from web (keeps app size minimal)
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/element-capture-screenshot.png")) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                        .padding(.top, 8)
-                case .failure:
-                    EmptyView()
-                case .empty:
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                        .frame(height: 150)
-                        .overlay(ProgressView().scaleEffect(0.8))
-                        .padding(.top, 8)
-                @unknown default:
-                    EmptyView()
-                }
+            // Screenshot loaded from web (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/element-capture-screenshot.png")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .padding(.top, 8)
+            } placeholder: {
+                EmptyView()
             }
         }
         .padding(.horizontal, 24)

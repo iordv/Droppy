@@ -131,31 +131,20 @@ struct ExtensionInfoView: View {
                 featureRow(icon: feature.icon, text: feature.text)
             }
             
-            // Screenshot preview loaded from web (keeps app size minimal)
+            // Screenshot preview loaded from web (cached to prevent flashing)
             if let screenshotURL = extensionType.screenshotURL {
-                AsyncImage(url: screenshotURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                            )
-                            .padding(.top, 8)
-                    case .failure:
-                        EmptyView() // Silently fail if network unavailable
-                    case .empty:
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white.opacity(0.05))
-                            .frame(height: 150)
-                            .overlay(ProgressView().scaleEffect(0.8))
-                            .padding(.top, 8)
-                    @unknown default:
-                        EmptyView()
-                    }
+                CachedAsyncImage(url: screenshotURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        )
+                        .padding(.top, 8)
+                } placeholder: {
+                    EmptyView() // Silently fail if network unavailable
                 }
             }
         }

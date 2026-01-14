@@ -140,16 +140,11 @@ struct AIInstallView: View {
                         .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: pulseAnimation)
                 }
                 
-                // Main icon - AI icon from remote URL
-                AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    case .failure:
-                        Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
-                    default:
-                        RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(white: 0.2))
-                    }
+                // Main icon - AI icon from remote URL (cached to prevent flashing)
+                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
                 }
                 .frame(width: 64, height: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -265,30 +260,19 @@ struct AIInstallView: View {
             featureRow(icon: "lock.fill", text: "100% on-device processing")
             featureRow(icon: "arrow.down.circle", text: "One-time download (~400MB)")
             
-            // Screenshot loaded from web (keeps app size minimal)
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/ai-bg-screenshot.png")) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                        .padding(.top, 8)
-                case .failure:
-                    EmptyView()
-                case .empty:
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                        .frame(height: 150)
-                        .overlay(ProgressView().scaleEffect(0.8))
-                        .padding(.top, 8)
-                @unknown default:
-                    EmptyView()
-                }
+            // Screenshot loaded from web (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/ai-bg-screenshot.png")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .padding(.top, 8)
+            } placeholder: {
+                EmptyView()
             }
         }
         .padding(.horizontal, 24)

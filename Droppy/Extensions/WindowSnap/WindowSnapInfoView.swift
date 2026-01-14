@@ -57,21 +57,15 @@ struct WindowSnapInfoView: View {
     
     private var headerSection: some View {
         VStack(spacing: 12) {
-            // Icon from remote URL with squircle clip
-            AsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure:
-                    Image(systemName: "rectangle.split.2x2")
-                        .font(.system(size: 32, weight: .medium))
-                        .foregroundStyle(.cyan)
-                default:
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(white: 0.2))
-                }
+            // Icon from remote URL (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "rectangle.split.2x2")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(.cyan)
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -127,7 +121,7 @@ struct WindowSnapInfoView: View {
                     )
             }
             
-            Text("Keyboard shortcuts")
+            Text("Keyboard-driven window management")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -137,7 +131,7 @@ struct WindowSnapInfoView: View {
     
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Snap windows to screen positions using keyboard shortcuts. Halves, quarters, thirds, maximize, and center—all at your fingertips.")
+            Text("Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -147,6 +141,21 @@ struct WindowSnapInfoView: View {
             featureRow(icon: "rectangle.split.2x2", text: "Halves, quarters, and thirds")
             featureRow(icon: "arrow.up.left.and.arrow.down.right", text: "Maximize and restore")
             featureRow(icon: "display", text: "Multi-monitor support")
+            
+            // Screenshot loaded from web (cached to prevent flashing)
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/window-snap-screenshot.png")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .padding(.top, 8)
+            } placeholder: {
+                EmptyView()
+            }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 20)

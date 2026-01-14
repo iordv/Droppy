@@ -12,7 +12,7 @@ import SwiftUI
 /// URL Format:
 /// - droppy://add?target=shelf&path=/path/to/file1&path=/path/to/file2
 /// - droppy://add?target=basket&path=/path/to/file
-/// - droppy://extension/{id} - Opens extension info sheet (ai-bg, alfred, finder, element-capture, spotify, window-snap)
+/// - droppy://extension/{id} - Opens extension info sheet (ai-bg, alfred, finder, element-capture, spotify, window-snap, voice-transcribe)
 ///
 /// Parameters:
 /// - target: "shelf" or "basket" - where to add the files
@@ -144,6 +144,8 @@ struct URLSchemeHandler {
             extensionType = .spotify
         case "window-snap", "windowsnap", "snap":
             extensionType = .windowSnap
+        case "voice-transcribe", "voicetranscribe", "transcribe":
+            extensionType = .voiceTranscribe
         default:
             print("⚠️ URLSchemeHandler: Unknown extension ID '\(extensionId)'")
             extensionType = nil
