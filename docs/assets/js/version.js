@@ -1,8 +1,8 @@
 // Droppy Version Config
 // Single source of truth for version across all pages
 const DROPPY_CONFIG = {
-    version: '7.6.4',
-    dmgUrl: 'https://github.com/iordv/Droppy/releases/latest/download/Droppy-7.6.4.dmg',
+    version: '7.6.5',
+    dmgUrl: 'https://github.com/iordv/Droppy/releases/latest/download/Droppy-7.6.5.dmg',
     releasesUrl: 'https://github.com/iordv/Droppy/releases/latest'
 };
 
