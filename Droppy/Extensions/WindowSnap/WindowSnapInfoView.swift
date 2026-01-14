@@ -29,16 +29,16 @@ struct WindowSnapInfoView: View {
                 .padding(.horizontal, 20)
             
             // Main content: HStack with features left, shortcuts right
-            HStack(alignment: .top, spacing: 0) {
+            HStack(alignment: .top, spacing: 24) {
                 // Left: Features + Screenshot
                 featuresSection
-                
-                Divider()
-                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 
                 // Right: Keyboard Shortcuts
                 shortcutSection
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
+            .padding(.horizontal, 24)
             
             Divider()
                 .padding(.horizontal, 20)
@@ -46,7 +46,7 @@ struct WindowSnapInfoView: View {
             // Buttons
             buttonSection
         }
-        .frame(width: 800)  // Wider for horizontal layout
+        .frame(width: 920)  // Wide horizontal layout for shortcut grid
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.black)
         .clipped()
@@ -163,8 +163,6 @@ struct WindowSnapInfoView: View {
                 EmptyView()
             }
         }
-        .frame(width: 380, alignment: .top)
-        .padding(.horizontal, 24)
         .padding(.vertical, 20)
     }
     
@@ -221,8 +219,6 @@ struct WindowSnapInfoView: View {
                 }
             }
         }
-        .frame(width: 360, alignment: .top)
-        .padding(.horizontal, 20)
         .padding(.vertical, 20)
     }
     
