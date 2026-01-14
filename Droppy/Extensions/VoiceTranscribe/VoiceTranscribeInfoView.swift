@@ -110,7 +110,7 @@ struct VoiceTranscribeInfoView: View {
                     .background(Capsule().fill(Color.blue.opacity(0.15)))
             }
             
-            Text("Record and transcribe audio using local AI")
+            Text("Transcribe speech to text with 100% on-device AI")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
