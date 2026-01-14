@@ -429,22 +429,19 @@ final class VoiceTranscribeManager: ObservableObject {
         isMenuBarEnabled = false
         downloadProgress = 0
         
-        // Actually delete the model files from disk
-        // WhisperKit/HuggingFace stores models in ~/Library/Caches/huggingface/hub
-        let modelName = selectedModel.rawValue
+        // Delete ALL WhisperKit model files from disk
         let fileManager = FileManager.default
         
-        // HuggingFace cache location
+        // HuggingFace cache location (where WhisperKit stores models)
         if let cachesDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
             let hubDir = cachesDir.appendingPathComponent("huggingface/hub")
             
-            // Models are stored with encoded names
-            // Try to find and delete the model directory
+            // Delete all whisperkit-related directories
             if let contents = try? fileManager.contentsOfDirectory(at: hubDir, includingPropertiesForKeys: nil) {
                 for item in contents {
-                    // WhisperKit models are in folders containing the model name
-                    if item.lastPathComponent.contains("whisperkit") || 
-                       item.lastPathComponent.contains(modelName.replacingOccurrences(of: "_", with: "-")) {
+                    // WhisperKit models contain "whisperkit" or "whisper" in the name
+                    let name = item.lastPathComponent.lowercased()
+                    if name.contains("whisper") {
                         do {
                             try fileManager.removeItem(at: item)
                             print("VoiceTranscribe: Deleted model cache at \(item.path)")
@@ -456,13 +453,15 @@ final class VoiceTranscribeManager: ObservableObject {
             }
         }
         
-        // Also clear the download state from UserDefaults
-        UserDefaults.standard.removeObject(forKey: "voiceTranscribeModelDownloaded_\(modelName)")
+        // Clear ALL model download states from UserDefaults
+        for model in WhisperModel.allCases {
+            UserDefaults.standard.removeObject(forKey: "voiceTranscribeModelDownloaded_\(model.rawValue)")
+        }
         
         // Update menu bar
         VoiceTranscribeMenuBar.shared.setVisible(false)
         
-        print("VoiceTranscribe: Model \(modelName) deleted from disk")
+        print("VoiceTranscribe: All models deleted from disk")
     }
     
     // MARK: - Private Methods
