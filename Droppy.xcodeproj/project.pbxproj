@@ -319,7 +319,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 7.6.3;
+				MARKETING_VERSION = 7.6.4;
 				OTHER_LDFLAGS = (
 					"-framework",
 					CoreAudio,
@@ -366,7 +366,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 7.6.3;
+				MARKETING_VERSION = 7.6.4;
 				OTHER_LDFLAGS = (
 					"-framework",
 					CoreAudio,
