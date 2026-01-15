@@ -24,7 +24,7 @@
 
 <img src="docs/assets/images/droppy-overview-hero.jpg" alt="Droppy Overview" width="100%">
 
-**See it in action on [our website](https://iordv.github.io/Droppy/)!**
+**Visit [our website](https://iordv.github.io/Droppy/) or browse the [Extension Store](https://iordv.github.io/Droppy/extensions.html).**
 
 </div>
 
