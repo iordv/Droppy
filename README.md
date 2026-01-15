@@ -32,17 +32,18 @@
 
 ## What's Droppy?
 
-Stop juggling drag & drop utilities, clipboard managers, and background removal tools. **Droppy** unifies your entire workflow into one stunning, native interface that lives in your notch.
+**The native productivity layer macOS is missing.**
 
-**No notch? No problem.** Droppy creates a sleek Dynamic Island-style pill that works on any Mac.
+Ditch the clutter of single-purpose apps. Droppy unifies your clipboard history, drag & drop shelf, screenshot tools, and system HUDs into one stunning, native interface that transforms your notch into a command center.
 
-### The basics:
+**No notch?** Droppy adds a sleek, interactive Dynamic Island to any display.
 
-- **Drag files to the notch** — they slide into a hidden shelf, ready whenever you need them
-- **Jiggle your mouse while dragging** — a floating basket appears anywhere on screen  
-- **Full clipboard history** — search, pin favorites, extract text from images, drag items out
-- **Media controls in the notch** — album art, seek slider, shuffle/repeat, Spotify integration
-- **Native HUDs** — beautiful, non-intrusive replacements for volume, brightness, battery, and caps lock overlays
+### Core Powers:
+
+- **The Magic Shelf** — Drag files to the notch to stash them. Jiggle your mouse to summon them anywhere.
+- **Clipboard Master** — Search your history, pin favorites, and extract text from images locally.
+- **Beautiful HUDs** — Modern, non-intrusive replacements for volume, brightness, and system overlays.
+- **Media Center** — Control playback and view album art without breaking your flow.
 
 ---
 
