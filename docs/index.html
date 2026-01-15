@@ -207,6 +207,61 @@
             transform: translate(20%, -55%) rotate(12deg) scale(0.85);
         }
 
+        /* Load animation: spread out then back */
+        @keyframes card-spread-1 {
+            0% {
+                transform: translate(-50%, -50%) rotate(-3deg) scale(0.92);
+            }
+
+            40% {
+                transform: translate(-120%, -55%) rotate(-15deg) scale(0.85);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(-3deg) scale(0.92);
+            }
+        }
+
+        @keyframes card-spread-2 {
+            0% {
+                transform: translate(-50%, -50%) rotate(2deg) scale(0.96);
+            }
+
+            40% {
+                transform: translate(-50%, -50%) rotate(0deg) scale(0.9);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(2deg) scale(0.96);
+            }
+        }
+
+        @keyframes card-spread-3 {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg) scale(1);
+            }
+
+            40% {
+                transform: translate(20%, -55%) rotate(12deg) scale(0.85);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(0deg) scale(1);
+            }
+        }
+
+        .hero-stack-card:nth-child(1) {
+            animation: card-spread-1 1.8s ease-out 0.8s;
+        }
+
+        .hero-stack-card:nth-child(2) {
+            animation: card-spread-2 1.8s ease-out 0.8s;
+        }
+
+        .hero-stack-card:nth-child(3) {
+            animation: card-spread-3 1.8s ease-out 0.8s;
+        }
+
         @media (max-width: 768px) {
             .hero-stack {
                 height: 300px;
