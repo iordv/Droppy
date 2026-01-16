@@ -30,8 +30,10 @@ struct NotchShelfView: View {
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
-    @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true
-    @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Seconds (1-10)
+    @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true  // Legacy - always true now
+    @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Legacy - kept for backwards compat
+    @AppStorage("autoCollapseDelay") private var autoCollapseDelay = 1.0  // New: 0.5-2.0 seconds
+    @AppStorage("autoExpandDelay") private var autoExpandDelay = 1.0  // New: 0.5-2.0 seconds
     @AppStorage("showClipboardButton") private var showClipboardButton = false
     @AppStorage("showOpenShelfIndicator") private var showOpenShelfIndicator = true
     @AppStorage("showDropIndicator") private var showDropIndicator = true
@@ -284,13 +286,14 @@ struct NotchShelfView: View {
         // MEDIA PLAYER: FIXED height (doesn't grow with shelf items)
         // This is the height when showing media player via swipe or natural playback
         if showMediaPlayer && shouldShowMediaPlayer && !musicManager.isPlayerIdle {
-            // Fixed media player height: 54 (header) + 210 (content area for album/controls)
-            return 264
+            // Fixed media player height (no header - collapsed via auto-shrink)
+            return 210
         }
         
         // SHELF: DYNAMIC height (grows with files, small when empty)
+        // No header row anymore - auto-collapse handles hiding
         let rowCount = (Double(state.items.count) / 5.0).rounded(.up)
-        let baseHeight = max(1, rowCount) * 110 + 54 // 110 per row + 54 header
+        let baseHeight = max(1, rowCount) * 110 // 110 per row, no header
         return baseHeight
     }
     /// Helper to check if current screen is built-in (MacBook display)
@@ -453,6 +456,14 @@ struct NotchShelfView: View {
                 .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
                 // Right-click context menu to hide the notch/island
                 .contextMenu {
+                    // Clipboard button (when enabled in settings)
+                    if showClipboardButton {
+                        Button("Open Clipboard") {
+                            ClipboardWindowController.shared.toggle()
+                        }
+                        Divider()
+                    }
+                    
                     Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
                         NotchWindowController.shared.setTemporarilyHidden(true)
                     }
@@ -871,7 +882,8 @@ struct NotchShelfView: View {
             }
         }
         autoShrinkWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + Double(autoShrinkDelay), execute: workItem)
+        // Use new autoCollapseDelay (0.5-2.0 seconds) instead of legacy autoShrinkDelay
+        DispatchQueue.main.asyncAfter(deadline: .now() + autoCollapseDelay, execute: workItem)
     }
     
     /// Resets the auto-shrink timer (called when mouse enters the notch area)
@@ -1015,58 +1027,17 @@ struct NotchShelfView: View {
     // MARK: - Expanded Content
     
     private var expandedShelfContent: some View {
-        VStack(spacing: 0) {
-            // Header / Controls
-            HStack(spacing: 0) {
-                // Close button
-                NotchControlButton(icon: "chevron.up") {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        state.isExpanded = false
-                        state.isMouseHovering = false // Reset to hide "Open Shelf" indicator
-                    }
-                }
-                .padding(.leading, 16)
-                
-                Spacer()
-                
-                // Clipboard button (optional)
-                if showClipboardButton {
-                    NotchControlButton(icon: "doc.on.clipboard") {
-                        ClipboardWindowController.shared.toggle()
-                    }
-                    .padding(.trailing, 8)
-                }
-                
-                // Clear button (only when items exist)
-                // Settings removed - use right-click context menu instead
-                if !state.items.isEmpty {
-                    NotchControlButton(icon: "eraser.fill") {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            state.clearAll()
-                            state.isExpanded = false
-                            state.isMouseHovering = false // Reset to hide indicator
-                        }
-                    }
-                    .padding(.trailing, 16)
-                }
-            }
-            .frame(height: 54)
-            .frame(width: expandedWidth)
-            .contentShape(Rectangle()) // Make header clickable to deselect if needed, or just let it pass
-            .onTapGesture {
-                state.deselectAll()
-            }
-            
-            // Grid Items or Media Player or Drop Zone
-            ZStack {
-                // Show drop zone when dragging over (takes priority)
-                if state.isDropTargeted && state.items.isEmpty {
-                    emptyShelfContent
-                        .frame(height: currentExpandedHeight - 54)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.95)),
-                            removal: .opacity.combined(with: .scale(scale: 0.95))
-                        ))
+        // Grid Items or Media Player or Drop Zone
+        // No header row - auto-collapse handles hiding, right-click for settings/clipboard
+        ZStack {
+            // Show drop zone when dragging over (takes priority)
+            if state.isDropTargeted && state.items.isEmpty {
+                emptyShelfContent
+                    .frame(height: currentExpandedHeight)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                        removal: .opacity.combined(with: .scale(scale: 0.95))
+                    ))
                 }
                 // MEDIA PLAYER VIEW: Show if:
                 // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused
@@ -1076,7 +1047,7 @@ struct NotchShelfView: View {
                         (musicManager.isMediaHUDForced || 
                          ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
                     MediaPlayerView(musicManager: musicManager)
-                        .frame(height: currentExpandedHeight - 54)
+                                            .frame(height: currentExpandedHeight)
                         // Capture all clicks within the media player area
                         .contentShape(Rectangle())
                         // Stable identity for animation - prevents jitter on state changes
@@ -1091,7 +1062,7 @@ struct NotchShelfView: View {
                 // Show empty shelf when no items and no music (or user swiped to hide music)
                 else if state.items.isEmpty {
                     emptyShelfContent
-                        .frame(height: currentExpandedHeight - 54)
+                                            .frame(height: currentExpandedHeight)
                         // Stable identity for animation
                         .id("empty-shelf-view")
                         // Shelf slides in from LEFT when appearing (user swiped right)
@@ -1104,7 +1075,7 @@ struct NotchShelfView: View {
                 // Show items grid when items exist
                 else {
                     itemsGridView
-                        .frame(height: currentExpandedHeight - 54)
+                                            .frame(height: currentExpandedHeight)
                         // Stable identity for animation
                         .id("items-grid-view")
                         // Same as empty shelf - items come from LEFT
@@ -1114,13 +1085,12 @@ struct NotchShelfView: View {
                         ))
                 }
             }
-            // Smoother, more premium animation
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: state.isDropTargeted)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.wasRecentlyPlaying)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDForced)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDHidden)
-        }
+        // Smoother, more premium animation
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: state.isDropTargeted)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.wasRecentlyPlaying)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDForced)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDHidden)
         .onHover { isHovering in
             
             // Track hover state for the auto-shrink timer
@@ -1135,6 +1105,14 @@ struct NotchShelfView: View {
         }
         // Right-click context menu for entire expanded shelf
         .contextMenu {
+            // Clipboard button (when enabled in settings)
+            if showClipboardButton {
+                Button("Open Clipboard") {
+                    ClipboardWindowController.shared.toggle()
+                }
+                Divider()
+            }
+            
             Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
                 NotchWindowController.shared.setTemporarilyHidden(true)
             }

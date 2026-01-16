@@ -32,9 +32,11 @@ struct SettingsView: View {
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
     @AppStorage("enableRealAudioVisualizer") private var enableRealAudioVisualizer = false  // Opt-in: requires Screen Recording
-    @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true
-    @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Seconds (1-10)
-    @AppStorage("autoExpandShelf") private var autoExpandShelf = false  // Auto-expand on hover
+    @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true  // Legacy - always true now
+    @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Legacy - kept for backwards compat
+    @AppStorage("autoCollapseDelay") private var autoCollapseDelay = 1.0  // New: 0.5-2.0 seconds
+    @AppStorage("autoExpandShelf") private var autoExpandShelf = true  // Now default true
+    @AppStorage("autoExpandDelay") private var autoExpandDelay = 1.0  // New: 0.5-2.0 seconds
     @AppStorage("enableFinderServices") private var enableFinderServices = true
 
 
@@ -742,37 +744,43 @@ struct SettingsView: View {
             
             // MARK: Shelf Behavior
             Section {
-                Toggle(isOn: $autoShrinkShelf) {
-                    VStack(alignment: .leading) {
-                        Text("Auto-Collapse")
-                        Text("Shrink shelf when mouse leaves")
-                            .font(.caption)
+                // Auto-Collapse is always enabled - only configurable delay
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Auto-Collapse")
+                            Text("Shelf shrinks when mouse leaves")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(String(format: "%.1fs", autoCollapseDelay))
                             .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
+                    Slider(value: $autoCollapseDelay, in: 0.5...2.0, step: 0.5)
                 }
                 
+                // Auto-Expand can be toggled, with delay slider
                 Toggle(isOn: $autoExpandShelf) {
                     VStack(alignment: .leading) {
                         Text("Auto-Expand")
-                        Text("Expand shelf automatically when hovering (0.5s)")
+                        Text("Expand shelf when hovering over notch")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
                 
-                if autoShrinkShelf {
+                if autoExpandShelf {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Collapse Delay")
+                            Text("Expand Delay")
                             Spacer()
-                            Text("\(autoShrinkDelay)s")
+                            Text(String(format: "%.1fs", autoExpandDelay))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Slider(value: Binding(
-                            get: { Double(autoShrinkDelay) },
-                            set: { autoShrinkDelay = Int($0) }
-                        ), in: 1...10, step: 1)
+                        Slider(value: $autoExpandDelay, in: 0.5...2.0, step: 0.5)
                     }
                 }
             } header: {
@@ -789,8 +797,8 @@ struct SettingsView: View {
             Section {
                 Toggle(isOn: $showClipboardButton) {
                     VStack(alignment: .leading) {
-                        Text("Clipboard Button")
-                        Text("Show button to open clipboard in shelf and basket")
+                        Text("Clipboard in Menu")
+                        Text("Adds \"Open Clipboard\" to right-click menu on notch/island")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
