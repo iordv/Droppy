@@ -39,7 +39,7 @@ struct VoiceTranscribeInfoView: View {
             // Action Buttons
             buttonSection
         }
-        .frame(width: 420)
+        .frame(width: 540)  // Wider for horizontal config layout
         .fixedSize(horizontal: false, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .clipped()
@@ -118,40 +118,34 @@ struct VoiceTranscribeInfoView: View {
     
     private var setupContent: some View {
         VStack(spacing: 16) {
-            // Configuration Card (Menu Bar + Model + Language)
-            VStack(spacing: 0) {
-                // Menu Bar Toggle Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Menu Bar")
-                            .font(.callout.weight(.medium))
-                        Text("Show recording icon in menu bar")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
+            // Configuration Card - Horizontal layout (3 columns)
+            HStack(alignment: .top, spacing: 0) {
+                // Menu Bar Column
+                VStack(alignment: .center, spacing: 8) {
+                    Text("Menu Bar")
+                        .font(.callout.weight(.medium))
+                    Text("Show in menu bar")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
                     
                     Toggle("", isOn: $manager.isMenuBarEnabled)
                         .toggleStyle(.switch)
                         .labelsHidden()
                         .disabled(!manager.isModelDownloaded)
                 }
-                .padding(16)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
                 
-                Divider().padding(.horizontal, 16)
+                Divider().frame(height: 70)
                 
-                // Model Selection Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Model")
-                            .font(.callout.weight(.medium))
-                        Text(manager.selectedModel.sizeDescription)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
+                // Model Column
+                VStack(alignment: .center, spacing: 8) {
+                    Text("Model")
+                        .font(.callout.weight(.medium))
+                    Text(manager.selectedModel.sizeDescription)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                     
                     Menu {
                         ForEach(WhisperModel.allCases) { model in
@@ -181,21 +175,18 @@ struct VoiceTranscribeInfoView: View {
                     }
                     .menuStyle(.borderlessButton)
                 }
-                .padding(16)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
                 
-                Divider().padding(.horizontal, 16)
+                Divider().frame(height: 70)
                 
-                // Language Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Language")
-                            .font(.callout.weight(.medium))
-                        Text("Auto-detect recommended")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
+                // Language Column
+                VStack(alignment: .center, spacing: 8) {
+                    Text("Language")
+                        .font(.callout.weight(.medium))
+                    Text("Auto-detect recommended")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                     
                     Menu {
                         ForEach(manager.supportedLanguages, id: \.code) { lang in
@@ -225,7 +216,8 @@ struct VoiceTranscribeInfoView: View {
                     }
                     .menuStyle(.borderlessButton)
                 }
-                .padding(16)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
             .background(AdaptiveColors.buttonBackgroundAuto)
             .clipShape(RoundedRectangle(cornerRadius: 12))
