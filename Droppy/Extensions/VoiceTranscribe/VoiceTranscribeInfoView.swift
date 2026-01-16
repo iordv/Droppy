@@ -18,6 +18,8 @@ struct VoiceTranscribeInfoView: View {
     @State private var isHoveringDelete = false
     @State private var showReviewsSheet = false
     @State private var isDownloading = false
+    @State private var recordingMode: VoiceRecordingMode?
+    @State private var recordMonitor: Any?
     
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
@@ -306,6 +308,24 @@ struct VoiceTranscribeInfoView: View {
                 }
             }
             
+            // Keyboard Shortcuts Section (only when model is installed)
+            if manager.isModelDownloaded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Keyboard Shortcuts")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                    
+                    HStack(spacing: 10) {
+                        // Quick Record shortcut
+                        shortcutRow(for: .quick)
+                        
+                        // Invisi-Record shortcut
+                        shortcutRow(for: .invisi)
+                    }
+                }
+            }
+            
             // Installed Models Section (only when model is installed)
             if manager.isModelDownloaded {
                 VStack(alignment: .leading, spacing: 12) {
@@ -417,6 +437,109 @@ struct VoiceTranscribeInfoView: View {
             DisableExtensionButton(extensionType: .voiceTranscribe)
         }
         .padding(16)
+    }
+    
+    // MARK: - Shortcut Recording
+    
+    private func shortcutRow(for mode: VoiceRecordingMode) -> some View {
+        HStack(spacing: 8) {
+            // Icon
+            Image(systemName: mode.icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.blue)
+                .frame(width: 20)
+            
+            // Title
+            VStack(alignment: .leading, spacing: 1) {
+                Text(mode.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(mode.description)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            // Shortcut button
+            Button {
+                if recordingMode == mode {
+                    stopRecording()
+                } else {
+                    startRecording(for: mode)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if recordingMode == mode {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 6, height: 6)
+                        Text("...")
+                            .font(.system(size: 11, weight: .medium))
+                    } else if let shortcut = shortcut(for: mode) {
+                        Text(shortcut.description)
+                            .font(.system(size: 11, weight: .semibold))
+                    } else {
+                        Text("Click")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .foregroundStyle(recordingMode == mode ? .primary : (shortcut(for: mode) != nil ? .primary : .secondary))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(recordingMode == mode ? Color.red.opacity(0.85) : AdaptiveColors.buttonBackgroundAuto)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(AdaptiveColors.buttonBackgroundAuto)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+    
+    private func shortcut(for mode: VoiceRecordingMode) -> SavedShortcut? {
+        switch mode {
+        case .quick:
+            return manager.quickRecordShortcut
+        case .invisi:
+            return manager.invisiRecordShortcut
+        }
+    }
+    
+    private func startRecording(for mode: VoiceRecordingMode) {
+        stopRecording()
+        recordingMode = mode
+        recordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Ignore just modifier keys pressed alone
+            if event.keyCode == 54 || event.keyCode == 55 || event.keyCode == 56 ||
+               event.keyCode == 58 || event.keyCode == 59 || event.keyCode == 60 ||
+               event.keyCode == 61 || event.keyCode == 62 {
+                return nil
+            }
+            
+            // Capture the shortcut
+            DispatchQueue.main.async {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let shortcut = SavedShortcut(keyCode: Int(event.keyCode), modifiers: flags.rawValue)
+                self.manager.setShortcut(shortcut, for: mode)
+                self.stopRecording()
+            }
+            return nil
+        }
+    }
+    
+    private func stopRecording() {
+        recordingMode = nil
+        if let m = recordMonitor {
+            NSEvent.removeMonitor(m)
+            recordMonitor = nil
+        }
     }
 }
 

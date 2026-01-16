@@ -91,6 +91,14 @@ final class VoiceTranscribeManager: ObservableObject {
     @Published var transcriptionProgress: Double = 0
     @Published private(set) var lastRecordingURL: URL? // Available after transcription for save
     
+    // Keyboard shortcuts for recording modes
+    @Published var quickRecordShortcut: SavedShortcut? {
+        didSet { saveShortcutPreferences() }
+    }
+    @Published var invisiRecordShortcut: SavedShortcut? {
+        didSet { saveShortcutPreferences() }
+    }
+    
     // MARK: - Private Properties
     
     private var audioRecorder: AVAudioRecorder?
@@ -99,6 +107,7 @@ final class VoiceTranscribeManager: ObservableObject {
     private var recordingURL: URL?
     private var whisperKit: WhisperKit?
     private var downloadTask: Task<Void, Never>?
+    private var globalKeyMonitor: Any?
     
     // Model storage directory
     private var modelsDirectory: URL {
@@ -144,6 +153,7 @@ final class VoiceTranscribeManager: ObservableObject {
     private init() {
         try? FileManager.default.createDirectory(at: recordingsDirectory, withIntermediateDirectories: true)
         loadPreferences()
+        loadShortcutPreferences()
         checkModelStatus()
     }
     
@@ -946,3 +956,157 @@ extension VoiceTranscribeManager {
     }
 }
 
+// MARK: - Keyboard Shortcuts
+
+extension VoiceTranscribeManager {
+    /// Load shortcut preferences from UserDefaults
+    func loadShortcutPreferences() {
+        if let data = UserDefaults.standard.data(forKey: "voiceTranscribeQuickRecordShortcut"),
+           let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            quickRecordShortcut = shortcut
+        }
+        if let data = UserDefaults.standard.data(forKey: "voiceTranscribeInvisiRecordShortcut"),
+           let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            invisiRecordShortcut = shortcut
+        }
+        
+        // Start monitoring if we have any shortcuts
+        if quickRecordShortcut != nil || invisiRecordShortcut != nil {
+            startGlobalKeyMonitoring()
+        }
+    }
+    
+    /// Save shortcut preferences to UserDefaults
+    func saveShortcutPreferences() {
+        if let shortcut = quickRecordShortcut,
+           let data = try? JSONEncoder().encode(shortcut) {
+            UserDefaults.standard.set(data, forKey: "voiceTranscribeQuickRecordShortcut")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "voiceTranscribeQuickRecordShortcut")
+        }
+        
+        if let shortcut = invisiRecordShortcut,
+           let data = try? JSONEncoder().encode(shortcut) {
+            UserDefaults.standard.set(data, forKey: "voiceTranscribeInvisiRecordShortcut")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "voiceTranscribeInvisiRecordShortcut")
+        }
+        
+        // Update monitoring based on shortcut availability
+        if quickRecordShortcut != nil || invisiRecordShortcut != nil {
+            startGlobalKeyMonitoring()
+        } else {
+            stopGlobalKeyMonitoring()
+        }
+    }
+    
+    /// Start global keyboard monitoring for shortcuts
+    func startGlobalKeyMonitoring() {
+        guard globalKeyMonitor == nil else { return }
+        
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            Task { @MainActor [weak self] in
+                self?.handleGlobalKeyEvent(event)
+            }
+        }
+        
+        print("[VoiceTranscribe] Global key monitoring started")
+    }
+    
+    /// Stop global keyboard monitoring
+    func stopGlobalKeyMonitoring() {
+        if let monitor = globalKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalKeyMonitor = nil
+            print("[VoiceTranscribe] Global key monitoring stopped")
+        }
+    }
+    
+    /// Handle global key events
+    private func handleGlobalKeyEvent(_ event: NSEvent) {
+        guard !ExtensionType.voiceTranscribe.isRemoved else { return }
+        guard isModelDownloaded else { return }
+        
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let keyCode = Int(event.keyCode)
+        
+        // Check Quick Record shortcut
+        if let quickShortcut = quickRecordShortcut,
+           keyCode == quickShortcut.keyCode,
+           flags.rawValue == quickShortcut.modifiers {
+            triggerQuickRecord()
+            return
+        }
+        
+        // Check Invisi-Record shortcut
+        if let invisiShortcut = invisiRecordShortcut,
+           keyCode == invisiShortcut.keyCode,
+           flags.rawValue == invisiShortcut.modifiers {
+            triggerInvisiRecord()
+            return
+        }
+    }
+    
+    /// Trigger quick record via shortcut (shows recording window)
+    private func triggerQuickRecord() {
+        if state == .recording {
+            VoiceRecordingWindowController.shared.stopRecordingAndTranscribe()
+        } else if state == .idle {
+            VoiceRecordingWindowController.shared.showAndStartRecording()
+        }
+    }
+    
+    /// Trigger invisi-record via shortcut (no window)
+    private func triggerInvisiRecord() {
+        if state == .recording {
+            stopRecording()
+            VoiceRecordingWindowController.shared.showTranscribingProgress()
+        } else if state == .idle {
+            startRecording()
+        }
+    }
+    
+    /// Set shortcut for a recording mode
+    func setShortcut(_ shortcut: SavedShortcut?, for mode: VoiceRecordingMode) {
+        switch mode {
+        case .quick:
+            quickRecordShortcut = shortcut
+        case .invisi:
+            invisiRecordShortcut = shortcut
+        }
+    }
+    
+    /// Remove shortcut for a recording mode
+    func removeShortcut(for mode: VoiceRecordingMode) {
+        setShortcut(nil, for: mode)
+    }
+}
+
+/// Recording modes for Voice Transcribe
+enum VoiceRecordingMode: String, CaseIterable, Identifiable {
+    case quick = "quick"
+    case invisi = "invisi"
+    
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+        case .quick: return "Quick Record"
+        case .invisi: return "Invisi-Record"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .quick: return "record.circle"
+        case .invisi: return "eye.slash.circle"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .quick: return "Record with visible window"
+        case .invisi: return "Background recording (no window)"
+        }
+    }
+}
