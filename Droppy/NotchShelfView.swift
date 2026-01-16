@@ -294,11 +294,7 @@ struct NotchShelfView: View {
         // No header row anymore - auto-collapse handles hiding
         let rowCount = (Double(state.items.count) / 5.0).rounded(.up)
         let baseHeight = max(1, rowCount) * 110 // 110 per row, no header
-        
-        // In notch mode, add extra height to compensate for top padding that clears physical notch
-        // Island mode doesn't need this as there's no physical obstruction
-        let notchCompensation: CGFloat = isDynamicIslandMode ? 0 : notchHeight
-        return baseHeight + notchCompensation
+        return baseHeight
     }
     /// Helper to check if current screen is built-in (MacBook display)
     private var isBuiltInDisplay: Bool {
@@ -1207,9 +1203,8 @@ struct NotchShelfView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                // More top padding in notch mode to clear physical notch
-                // Top padding clears physical notch in notch mode (notchHeight + margin)
-                .padding(.top, isDynamicIslandMode ? 8 : notchHeight + 4)
+                // Slightly more top padding in notch mode to clear physical notch
+                .padding(.top, isDynamicIslandMode ? 8 : 14)
                 .padding(.bottom, 6)
             }
         }
@@ -1391,9 +1386,8 @@ extension NotchShelfView {
                     )
                 )
         )
-        // Top padding must clear the physical notch (notchHeight + small margin)
-        // Island mode: minimal padding since there's no physical obstruction
-        .padding(EdgeInsets(top: isDynamicIslandMode ? 10 : notchHeight + 6, leading: 20, bottom: 20, trailing: 20))
+        // Slightly more top padding in notch mode to clear physical notch area
+        .padding(EdgeInsets(top: isDynamicIslandMode ? 10 : 18, leading: 20, bottom: 20, trailing: 20))
         .scaleEffect(state.isDropTargeted ? 1.03 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
         .onAppear {
