@@ -28,7 +28,7 @@
 
 <div align="center">
 
-<img src="https://i.postimg.cc/1tpKj1Wf/Droppy-demo-v2.gif" alt="Droppy Demo" width="100%">
+![Droppy Demo](https://i.postimg.cc/1tpKj1Wf/Droppy-demo-v2.gif)
 
 **Visit [our website](https://iordv.github.io/Droppy/) or browse the [Extension Store](https://iordv.github.io/Droppy/extensions.html).**
 
