@@ -466,6 +466,16 @@ struct NotchShelfView: View {
                 .animation(.spring(response: 0.4, dampingFraction: 0.75), value: useDynamicIslandStyle)
                 // DYNAMIC ISLAND: Add top margin for floating effect
                 .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
+                // Right-click context menu to hide the notch/island
+                .contextMenu {
+                    Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
+                        NotchWindowController.shared.setTemporarilyHidden(true)
+                    }
+                    Divider()
+                    Button("Settings...") {
+                        SettingsWindowController.shared.showSettings()
+                    }
+                }
             
             // MARK: - Content Overlay
             ZStack(alignment: .top) {

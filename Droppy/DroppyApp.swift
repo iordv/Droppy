@@ -27,6 +27,9 @@ struct DroppyMenuContent: View {
     // Track shortcut changes via notification
     @State private var shortcutRefreshId = UUID()
     
+    // Observe NotchWindowController for hide state
+    @ObservedObject private var notchController = NotchWindowController.shared
+    
     // Check if extensions are disabled
     private var isElementCaptureDisabled: Bool {
         _ = shortcutRefreshId // Force refresh
@@ -50,6 +53,19 @@ struct DroppyMenuContent: View {
     }
     
     var body: some View {
+        // Show/Hide Notch or Dynamic Island toggle
+        if notchController.isTemporarilyHidden {
+            Button("Show \(notchController.displayModeLabel)") {
+                notchController.setTemporarilyHidden(false)
+            }
+        } else {
+            Button("Hide \(notchController.displayModeLabel)") {
+                notchController.setTemporarilyHidden(true)
+            }
+        }
+        
+        Divider()
+        
         Button("Check for Updates...") {
             UpdateChecker.shared.checkAndNotify()
         }

@@ -61,6 +61,10 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Shared instance
     static let shared = NotchWindowController()
     
+    /// Whether the notch is temporarily hidden by user action
+    /// Published for menu bar UI to observe
+    @Published private(set) var isTemporarilyHidden = false
+    
     private override init() {
         super.init()
     }
@@ -181,6 +185,41 @@ final class NotchWindowController: NSObject, ObservableObject {
             window.close()
         }
         notchWindows.removeAll()
+    }
+    
+    /// Temporarily hides or shows all notch windows
+    /// - Parameter hidden: true to hide, false to show
+    func setTemporarilyHidden(_ hidden: Bool) {
+        isTemporarilyHidden = hidden
+        
+        if hidden {
+            // Hide all windows by setting alpha to 0 and disabling hit testing
+            for window in notchWindows.values {
+                window.alphaValue = 0
+                window.ignoresMouseEvents = true
+            }
+            stopMonitors()
+        } else {
+            // Show all windows
+            for window in notchWindows.values {
+                window.alphaValue = 1
+                window.ignoresMouseEvents = false
+            }
+            startMonitors()
+        }
+    }
+    
+    /// Returns the current display mode label for menu (Notch vs Dynamic Island)
+    var displayModeLabel: String {
+        // Check if any connected screen has a notch
+        let hasNotch = NSScreen.builtInWithNotch?.safeAreaInsets.top ?? 0 > 0
+        let useDynamicIsland = UserDefaults.standard.bool(forKey: "useDynamicIslandStyle")
+        
+        if hasNotch && !useDynamicIsland {
+            return "Notch"
+        } else {
+            return "Dynamic Island"
+        }
     }
     
     /// Repositions notch windows when screen configuration changes (dock/undock)
