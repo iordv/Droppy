@@ -216,7 +216,12 @@ class ClipboardManager: ObservableObject {
         self.hasAccessibilityPermission = PermissionManager.shared.isAccessibilityGranted
         
         // Initial load of settings from UserDefaults
-        self.isEnabled = UserDefaults.standard.bool(forKey: "enableClipboardBeta")
+        // Default to enabled if key hasn't been explicitly set
+        if UserDefaults.standard.object(forKey: "enableClipboardBeta") == nil {
+            self.isEnabled = true
+        } else {
+            self.isEnabled = UserDefaults.standard.bool(forKey: "enableClipboardBeta")
+        }
         let limit = UserDefaults.standard.integer(forKey: "clipboardHistoryLimit")
         self.historyLimit = limit == 0 ? 50 : limit
         self.excludedAppsData = UserDefaults.standard.data(forKey: "excludedClipboardApps") ?? Data()

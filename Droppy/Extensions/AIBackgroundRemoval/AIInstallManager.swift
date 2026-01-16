@@ -255,4 +255,26 @@ final class AIInstallManager: ObservableObject {
             installError = "Failed to uninstall: \(error.localizedDescription)"
         }
     }
+    
+    // MARK: - Extension Removal Cleanup
+    
+    /// Clean up all AI Background Removal resources when extension is removed
+    func cleanup() {
+        Task {
+            // Uninstall the Python package
+            await uninstallTransparentBackground()
+            
+            // Clear cached state
+            UserDefaults.standard.removeObject(forKey: installedCacheKey)
+            UserDefaults.standard.removeObject(forKey: "useLocalBackgroundRemoval")
+            UserDefaults.standard.removeObject(forKey: "aiBackgroundRemovalTracked")
+            
+            // Reset state
+            isInstalled = false
+            installProgress = ""
+            installError = nil
+            
+            print("[AIInstallManager] Cleanup complete")
+        }
+    }
 }

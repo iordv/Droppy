@@ -118,8 +118,29 @@ struct VoiceTranscribeInfoView: View {
     
     private var setupContent: some View {
         VStack(spacing: 16) {
-            // Configuration Card (Model + Language)
+            // Configuration Card (Menu Bar + Model + Language)
             VStack(spacing: 0) {
+                // Menu Bar Toggle Row
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Menu Bar")
+                            .font(.callout.weight(.medium))
+                        Text("Show recording icon in menu bar")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: $manager.isMenuBarEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(!manager.isModelDownloaded)
+                }
+                .padding(16)
+                
+                Divider().padding(.horizontal, 16)
+                
                 // Model Selection Row
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -400,51 +421,8 @@ struct VoiceTranscribeInfoView: View {
             
             Spacer()
             
-            // Menu Bar toggle button (or Download First if not ready)
-            Button {
-                if manager.isModelDownloaded {
-                    manager.isMenuBarEnabled.toggle()
-                    if manager.isMenuBarEnabled {
-                        AnalyticsService.shared.trackExtensionActivation(extensionId: "voiceTranscribe")
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    if !manager.isModelDownloaded {
-                        Image(systemName: "arrow.down.circle")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Download First")
-                    } else if manager.isMenuBarEnabled {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Remove")
-                    } else {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("Add to Menu Bar")
-                    }
-                }
-                .fixedSize()
-                .fontWeight(.semibold)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(
-                    manager.isModelDownloaded
-                        ? (manager.isMenuBarEnabled
-                            ? Color.red.opacity(isHoveringAction ? 0.9 : 0.7)
-                            : Color.green.opacity(isHoveringAction ? 1.0 : 0.85))
-                        : Color.gray.opacity(0.5)
-                )
-                .foregroundStyle(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(!manager.isModelDownloaded)
-            .onHover { h in
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                    isHoveringAction = h
-                }
-            }
+            // Disable Extension button
+            DisableExtensionButton(extensionType: .voiceTranscribe)
         }
         .padding(16)
     }

@@ -15,6 +15,7 @@ struct LockScreenHUDView: View {
     let notchWidth: CGFloat   // Physical notch width
     let notchHeight: CGFloat  // Physical notch height
     let hudWidth: CGFloat     // Total HUD width
+    var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     
     // Animation states
     @State private var showUnlockAnim = false
@@ -31,12 +32,22 @@ struct LockScreenHUDView: View {
         lockScreenManager.lastEvent == .unlocked
     }
     
-    /// Whether we're in Dynamic Island mode
+    /// Whether we're in Dynamic Island mode (screen-aware for multi-monitor)
+    /// For HUD LAYOUT purposes: external displays always use compact layout (no physical notch)
     private var isDynamicIslandMode: Bool {
-        guard let screen = NSScreen.main else { return true }
+        let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen = screen else { return true }
         let hasNotch = screen.safeAreaInsets.top > 0
-        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
+        
+        // External displays never have physical notches, so always use compact HUD layout
+        // The externalDisplayUseDynamicIsland setting only affects the visual shape, not HUD content layout
+        if !screen.isBuiltIn {
+            return true
+        }
+        
+        // For built-in display, use main Dynamic Island setting
+        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         return (!hasNotch || forceTest) && useDynamicIsland
     }
     
@@ -102,7 +113,6 @@ struct LockScreenHUDView: View {
                 .rotationEffect(.degrees(showUnlockAnim ? 10 : 0))
         }
         .frame(width: isDynamicIslandMode ? 20 : 26, height: isDynamicIslandMode ? 20 : 26)
-        .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
     }
     
     /// Trigger the smooth multi-phase unlock animation

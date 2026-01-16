@@ -104,7 +104,12 @@ struct VoiceTranscriptionResultView: View {
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
     @State private var isCopyHovering = false
     @State private var isCloseHovering = false
+    @State private var isSaveHovering = false
     @State private var showCopiedFeedback = false
+    
+    private var hasRecording: Bool {
+        VoiceTranscribeManager.shared.lastRecordingURL != nil
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -146,6 +151,8 @@ struct VoiceTranscriptionResultView: View {
             // Action buttons
             HStack(spacing: 10) {
                 Button {
+                    // Discard recording on close
+                    VoiceTranscribeManager.shared.discardRecording()
                     onClose()
                 } label: {
                     Text("Close")
@@ -164,6 +171,35 @@ struct VoiceTranscriptionResultView: View {
                 .onHover { h in
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                         isCloseHovering = h
+                    }
+                }
+                
+                // Save Audio button
+                if hasRecording {
+                    Button {
+                        VoiceTranscribeManager.shared.saveRecording()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("Save Audio")
+                        }
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background((isSaveHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
+                        .foregroundStyle(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { h in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isSaveHovering = h
+                        }
                     }
                 }
                 

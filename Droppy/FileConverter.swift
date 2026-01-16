@@ -29,7 +29,7 @@ enum ConversionFormat: String, CaseIterable, Identifiable {
         switch self {
         case .jpeg: return .jpeg
         case .png: return .png
-        case .pdf: return nil // PDF uses Gotenberg, not bitmap
+        case .pdf: return nil // PDF uses native apps or LibreOffice
         }
     }
     
@@ -59,18 +59,8 @@ struct ConversionOption: Identifiable {
     var icon: String { format.icon }
 }
 
-/// Utility class for converting files between formats using native macOS APIs and Cloudmersive
+/// Utility class for converting files between formats using native macOS APIs
 class FileConverter {
-    
-    /// Cloudmersive API key - Free tier: 800 calls/month
-    /// Get your own key at: https://account.cloudmersive.com/signup
-    static let cloudmersiveAPIKey = "0d34f6fa-02f6-4ffc-a000-a1319d54d6eb"
-    
-    /// Cloudmersive API base URL
-    static let cloudmersiveBaseURL = "https://api.cloudmersive.com"
-    
-    /// Local Gotenberg URL (fallback if available)
-    static let gotenbergURL = "http://localhost:3001"
     
     // MARK: - Available Conversions
     
@@ -214,155 +204,240 @@ class FileConverter {
         }
     }
     
-    // MARK: - Document to PDF Conversion (via Cloudmersive API)
+    /// Returns the specific app name required to convert this file type to PDF
+    static func requiredAppForPDFConversion(fileType: UTType?) -> String? {
+        guard let fileType = fileType else { return nil }
+        
+        // PowerPoint → Keynote
+        if fileType.conforms(to: UTType("org.openxmlformats.presentationml.presentation") ?? .data) ||
+           fileType.conforms(to: UTType("com.microsoft.powerpoint.ppt") ?? .data) ||
+           fileType.identifier == "org.openxmlformats.presentationml.presentation" ||
+           fileType.identifier == "com.microsoft.powerpoint.ppt" {
+            return "Keynote"
+        }
+        
+        // Word → Pages
+        if fileType.conforms(to: UTType("org.openxmlformats.wordprocessingml.document") ?? .data) ||
+           fileType.conforms(to: UTType("com.microsoft.word.doc") ?? .data) ||
+           fileType.identifier == "org.openxmlformats.wordprocessingml.document" ||
+           fileType.identifier == "com.microsoft.word.doc" {
+            return "Pages"
+        }
+        
+        // Excel → Numbers
+        if fileType.conforms(to: UTType("org.openxmlformats.spreadsheetml.sheet") ?? .data) ||
+           fileType.conforms(to: UTType("com.microsoft.excel.xls") ?? .data) ||
+           fileType.identifier == "org.openxmlformats.spreadsheetml.sheet" ||
+           fileType.identifier == "com.microsoft.excel.xls" {
+            return "Numbers"
+        }
+        
+        return nil
+    }
+    // MARK: - Document to PDF Conversion (via Native macOS iWork Apps)
     
     private static func convertDocumentToPDF(from sourceURL: URL, to destinationURL: URL) async -> URL? {
-        // Determine the correct endpoint based on file type
         let fileExtension = sourceURL.pathExtension.lowercased()
-        let endpoint: String
         
+        // Route to appropriate native converter
         switch fileExtension {
-        case "docx":
-            endpoint = "/convert/docx/to/pdf"
-        case "doc":
-            endpoint = "/convert/doc/to/pdf"
-        case "xlsx":
-            endpoint = "/convert/xlsx/to/pdf"
-        case "xls":
-            endpoint = "/convert/xls/to/pdf"
-        case "pptx":
-            endpoint = "/convert/pptx/to/pdf"
-        case "ppt":
-            endpoint = "/convert/ppt/to/pdf"
+        case "pptx", "ppt":
+            return await convertViaNativeApp(from: sourceURL, to: destinationURL, app: .keynote)
+        case "docx", "doc":
+            return await convertViaNativeApp(from: sourceURL, to: destinationURL, app: .pages)
+        case "xlsx", "xls":
+            return await convertViaNativeApp(from: sourceURL, to: destinationURL, app: .numbers)
         default:
-            // Try generic office conversion
-            endpoint = "/convert/autodetect/to/pdf"
-        }
-        
-        guard let url = URL(string: "\(cloudmersiveBaseURL)\(endpoint)") else {
-            print("FileConverter: Invalid Cloudmersive URL")
-            return nil
-        }
-        
-        // Read the source file
-        guard let fileData = try? Data(contentsOf: sourceURL) else {
-            print("FileConverter: Failed to read source file")
-            return nil
-        }
-        
-        // Create multipart form data request
-        let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue(cloudmersiveAPIKey, forHTTPHeaderField: "Apikey")
-        request.timeoutInterval = 120 // Allow up to 120 seconds for cloud conversion
-        
-        // Build multipart body
-        var body = Data()
-        
-        // Add the file
-        let filename = sourceURL.lastPathComponent
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"inputFile\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-        body.append(fileData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // Close boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
-        
-        // Make the request
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("FileConverter: Invalid response from Cloudmersive")
-                return nil
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                print("FileConverter: Cloudmersive returned status \(httpResponse.statusCode)")
-                if let errorMessage = String(data: data, encoding: .utf8) {
-                    print("FileConverter: Error: \(errorMessage)")
-                }
-                // Fall back to local Gotenberg if available
-                return await convertDocumentToPDFViaGotenberg(from: sourceURL, to: destinationURL)
-            }
-            
-            // Write the PDF to destination
-            try data.write(to: destinationURL)
-            print("FileConverter: Successfully converted to PDF via Cloudmersive")
-            return destinationURL
-            
-        } catch {
-            print("FileConverter: Cloudmersive request failed: \(error)")
-            // Fall back to local Gotenberg if available
-            return await convertDocumentToPDFViaGotenberg(from: sourceURL, to: destinationURL)
+            // Fall back to LibreOffice for unsupported formats
+            return await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
         }
     }
     
-    // MARK: - Fallback: Local Gotenberg
+    /// Native iWork app types for conversion
+    private enum IWorkApp: String {
+        case keynote = "Keynote"
+        case pages = "Pages"
+        case numbers = "Numbers"
+        
+        /// Bundle identifier for the app
+        var bundleIdentifier: String {
+            switch self {
+            case .keynote: return "com.apple.iWork.Keynote"
+            case .pages: return "com.apple.iWork.Pages"
+            case .numbers: return "com.apple.iWork.Numbers"
+            }
+        }
+        
+        /// Check if the app is installed
+        var isInstalled: Bool {
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) != nil
+        }
+    }
     
-    private static func convertDocumentToPDFViaGotenberg(from sourceURL: URL, to destinationURL: URL) async -> URL? {
-        // Gotenberg LibreOffice endpoint for office documents
-        guard let url = URL(string: "\(gotenbergURL)/forms/libreoffice/convert") else {
-            print("FileConverter: Invalid Gotenberg URL")
+    /// Convert document using native iWork app via AppleScript
+    /// Preserves original layout optimally since iWork apps have excellent Office format support
+    private static func convertViaNativeApp(from sourceURL: URL, to destinationURL: URL, app: IWorkApp) async -> URL? {
+        // Check if app is installed first to avoid crash/dialog
+        guard app.isInstalled else {
+            print("FileConverter: \(app.rawValue) is not installed, falling back to LibreOffice")
+            return await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
+        }
+        
+        // Escape paths for AppleScript
+        let sourcePath = sourceURL.path.replacingOccurrences(of: "\"", with: "\\\"")
+        let destPath = destinationURL.path.replacingOccurrences(of: "\"", with: "\\\"")
+        
+        let script: String
+        switch app {
+        case .keynote:
+            script = """
+            tell application "Keynote"
+                activate
+                open POSIX file "\(sourcePath)"
+                delay 1
+                set theDoc to front document
+                export theDoc to POSIX file "\(destPath)" as PDF with properties {PDF image quality:Best}
+                close theDoc saving no
+            end tell
+            """
+        case .pages:
+            script = """
+            tell application "Pages"
+                activate
+                open POSIX file "\(sourcePath)"
+                delay 1
+                set theDoc to front document
+                export theDoc to POSIX file "\(destPath)" as PDF with properties {image quality:Best}
+                close theDoc saving no
+            end tell
+            """
+        case .numbers:
+            script = """
+            tell application "Numbers"
+                activate
+                open POSIX file "\(sourcePath)"
+                delay 1
+                set theDoc to front document
+                export theDoc to POSIX file "\(destPath)" as PDF with properties {image quality:Best}
+                close theDoc saving no
+            end tell
+            """
+        }
+        
+        // Execute AppleScript
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var error: NSDictionary?
+                if let appleScript = NSAppleScript(source: script) {
+                    appleScript.executeAndReturnError(&error)
+                    
+                    if let error = error {
+                        print("FileConverter: AppleScript error for \(app.rawValue): \(error)")
+                        // Fall back to LibreOffice
+                        Task {
+                            let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
+                            continuation.resume(returning: fallbackResult)
+                        }
+                        return
+                    }
+                    
+                    // Verify the file was created
+                    if FileManager.default.fileExists(atPath: destinationURL.path) {
+                        print("FileConverter: Successfully converted to PDF via \(app.rawValue)")
+                        continuation.resume(returning: destinationURL)
+                    } else {
+                        print("FileConverter: \(app.rawValue) export completed but file not found")
+                        Task {
+                            let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
+                            continuation.resume(returning: fallbackResult)
+                        }
+                    }
+                } else {
+                    print("FileConverter: Failed to create AppleScript for \(app.rawValue)")
+                    Task {
+                        let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
+                        continuation.resume(returning: fallbackResult)
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Fallback: LibreOffice CLI
+    
+    /// Common LibreOffice installation paths on macOS
+    private static let libreOfficePaths = [
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+        "/opt/homebrew/bin/soffice",
+        "/usr/local/bin/soffice"
+    ]
+    
+    /// Check if LibreOffice is installed and return the path
+    private static var libreOfficePath: String? {
+        for path in libreOfficePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        return nil
+    }
+    
+    /// Convert document using LibreOffice command-line (headless mode)
+    private static func convertDocumentToPDFViaLibreOffice(from sourceURL: URL, to destinationURL: URL) async -> URL? {
+        guard let sofficePath = libreOfficePath else {
+            print("FileConverter: No PDF converter available. Install Keynote/Pages/Numbers (free from App Store) or LibreOffice.")
             return nil
         }
         
-        // Read the source file
-        guard let fileData = try? Data(contentsOf: sourceURL) else {
-            print("FileConverter: Failed to read source file")
-            return nil
-        }
+        // LibreOffice converts to a directory, not a specific file
+        let outputDir = destinationURL.deletingLastPathComponent()
         
-        // Create multipart form data request
-        let boundary = "Boundary-\(UUID().uuidString)"
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
+        // Run LibreOffice in headless mode
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: sofficePath)
+        process.arguments = [
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", outputDir.path,
+            sourceURL.path
+        ]
         
-        // Build multipart body
-        var body = Data()
+        // Suppress output
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
         
-        // Add the file
-        let filename = sourceURL.lastPathComponent
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-        body.append(fileData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // Close boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
-        
-        // Make the request
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            try process.run()
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                print("FileConverter: Invalid response from Gotenberg")
-                return nil
+            // Wait for completion
+            await withCheckedContinuation { continuation in
+                process.terminationHandler = { _ in
+                    continuation.resume()
+                }
             }
             
-            guard httpResponse.statusCode == 200 else {
-                print("FileConverter: Gotenberg returned status \(httpResponse.statusCode)")
-                return nil
+            if process.terminationStatus == 0 {
+                // LibreOffice outputs with the same basename but .pdf extension
+                let expectedPDF = outputDir.appendingPathComponent(
+                    sourceURL.deletingPathExtension().lastPathComponent + ".pdf"
+                )
+                
+                // Rename to our desired destination if different
+                if expectedPDF.path != destinationURL.path {
+                    try? FileManager.default.moveItem(at: expectedPDF, to: destinationURL)
+                }
+                
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    print("FileConverter: Successfully converted to PDF via LibreOffice")
+                    return destinationURL
+                }
             }
             
-            // Write the PDF to destination
-            try data.write(to: destinationURL)
-            print("FileConverter: Successfully converted to PDF via Gotenberg (fallback)")
-            return destinationURL
+            print("FileConverter: LibreOffice conversion failed")
+            return nil
             
         } catch {
-            print("FileConverter: Gotenberg request failed: \(error)")
+            print("FileConverter: LibreOffice process error: \(error)")
             return nil
         }
     }

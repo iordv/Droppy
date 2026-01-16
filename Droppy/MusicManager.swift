@@ -87,12 +87,22 @@ final class MusicManager: ObservableObject {
     @Published private(set) var playbackRate: Double = 1.0
     @Published private(set) var timestampDate: Date = .distantPast
     @Published private(set) var bundleIdentifier: String?
+    
+    /// Whether media HUD is manually shown via swipe gesture (overrides auto-show logic)
+    /// When true, shows media player even when paused (as long as there's a track to show)
+    @Published var isMediaHUDForced: Bool = false
+    
+    /// Whether media HUD is manually hidden via swipe gesture (even when playing)
+    /// This allows users to swipe away from the media player to see the shelf
+    @Published var isMediaHUDHidden: Bool = false
 
     // MARK: - Spotify Integration
     
-    /// Whether the current media source is Spotify
+    /// Whether the current media source is Spotify (and Spotify extension is enabled)
     var isSpotifySource: Bool {
-        bundleIdentifier == SpotifyController.spotifyBundleId
+        // If Spotify extension is disabled, pretend it's not Spotify
+        guard !ExtensionType.spotify.isRemoved else { return false }
+        return bundleIdentifier == SpotifyController.spotifyBundleId
     }
     
     /// Spotify controller for app-specific features (shuffle, repeat, like)

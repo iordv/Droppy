@@ -71,6 +71,11 @@ class FileCompressor {
         return type.conforms(to: .image) || type.conforms(to: .pdf) || type.conforms(to: .movie) || type.conforms(to: .video)
     }
     
+    /// Check if target size compression is available for videos (requires FFmpeg extension)
+    static var isVideoTargetSizeAvailable: Bool {
+        !ExtensionType.ffmpegVideoCompression.isRemoved && FFmpegInstallManager.shared.isInstalled
+    }
+    
     /// Compress a file with the specified mode
     /// Returns the URL of the compressed file, or nil on failure
     func compress(url: URL, mode: CompressionMode) async -> URL? {
@@ -95,16 +100,8 @@ class FileCompressor {
             resultURL = await compressPDF(url: url, mode: effectiveMode)
             
         } else if type.conforms(to: .movie) || type.conforms(to: .video) {
-            // TARGET SIZE RESTRICTION: Only allow target size for photos.
-            // For Video, fallback to Medium preset if targetSize is requested.
-            let effectiveMode: CompressionMode
-            if case .targetSize = mode {
-                print("Target Size not supported for Video. Falling back to Medium.")
-                effectiveMode = .preset(.medium)
-            } else {
-                effectiveMode = mode
-            }
-            resultURL = await compressVideo(url: url, mode: effectiveMode)
+            // Video compression with target size is now supported
+            resultURL = await compressVideo(url: url, mode: mode)
         }
         
         // MARK: - Size Guard
@@ -321,18 +318,12 @@ class FileCompressor {
         // Remove existing file if present
         try? FileManager.default.removeItem(at: outputURL)
         
-        // Always use Preset since targetSize is disallowed for Video now
-        // But logic in compress() handles the fallback.
-        // Here we handle the presets map.
-        
         switch mode {
         case .preset(let quality):
             return await compressVideoWithPreset(asset: asset, preset: quality.videoPreset, outputURL: outputURL)
-        // If somehow targetSize leaks here, handled gracefully or logic error?
-        // It shouldn't if compress() works.
-        case .targetSize:
-             // Fallback just in case
-            return await compressVideoWithPreset(asset: asset, preset: AVAssetExportPresetMediumQuality, outputURL: outputURL)
+            
+        case .targetSize(let targetBytes):
+            return await compressVideoToTargetSize(asset: asset, targetBytes: targetBytes, outputURL: outputURL)
         }
     }
     
@@ -364,5 +355,135 @@ class FileCompressor {
                 return nil
             }
         }
+    }
+    
+    /// Compress video to target file size using FFmpeg two-pass encoding
+    /// This provides exact file size targeting like compressO
+    private func compressVideoToTargetSize(asset: AVAsset, targetBytes: Int64, outputURL: URL) async -> URL? {
+        // Get video duration
+        guard let duration = try? await asset.load(.duration) else {
+            print("Video compression: Failed to load duration")
+            return nil
+        }
+        
+        let durationSeconds = CMTimeGetSeconds(duration)
+        guard durationSeconds > 0 else {
+            print("Video compression: Invalid duration")
+            return nil
+        }
+        
+        // Get source URL from asset
+        guard let urlAsset = asset as? AVURLAsset else {
+            print("Video compression: Asset is not a URL asset")
+            return nil
+        }
+        let inputURL = urlAsset.url
+        
+        // Calculate target bitrate (in kbps for FFmpeg)
+        // Formula: videoBitrate = (targetBytes * 8 - audioBitrate * duration) / duration
+        let audioBitrateKbps = 128 // 128 kbps for audio
+        let targetBits = Double(targetBytes) * 8
+        let audioBits = Double(audioBitrateKbps * 1000) * durationSeconds
+        let videoBits = max(targetBits - audioBits, 50_000 * durationSeconds) // Min 50kbps
+        let videoBitrateKbps = Int(videoBits / durationSeconds / 1000)
+        
+        print("Video compression (FFmpeg): Duration=\(durationSeconds)s, Target=\(targetBytes) bytes, VideoBitrate=\(videoBitrateKbps)k")
+        
+        // Find FFmpeg path from install manager
+        guard let ffmpegPath = FFmpegInstallManager.shared.findFFmpegPath() else {
+            print("Video compression: FFmpeg not found. Please install the Video Target Size extension.")
+            return nil
+        }
+        
+        // Create temp directory for two-pass log files
+        let tempDir = FileManager.default.temporaryDirectory
+        let passLogPrefix = tempDir.appendingPathComponent("ffmpeg2pass_\(UUID().uuidString)").path
+        
+        // Pass 1: Analyze video
+        let pass1Args = [
+            "-y", "-i", inputURL.path,
+            "-c:v", "libx264",
+            "-b:v", "\(videoBitrateKbps)k",
+            "-pass", "1",
+            "-passlogfile", passLogPrefix,
+            "-an", // No audio in pass 1
+            "-f", "null", "/dev/null"
+        ]
+        
+        print("Video compression: Running pass 1...")
+        let pass1Success = await runFFmpeg(path: ffmpegPath, arguments: pass1Args)
+        guard pass1Success else {
+            print("Video compression: Pass 1 failed")
+            cleanupPassLogs(prefix: passLogPrefix)
+            return nil
+        }
+        
+        // Pass 2: Encode with target bitrate
+        let pass2Args = [
+            "-y", "-i", inputURL.path,
+            "-c:v", "libx264",
+            "-b:v", "\(videoBitrateKbps)k",
+            "-pass", "2",
+            "-passlogfile", passLogPrefix,
+            "-c:a", "aac",
+            "-b:a", "\(audioBitrateKbps)k",
+            "-movflags", "+faststart",
+            outputURL.path
+        ]
+        
+        print("Video compression: Running pass 2...")
+        let pass2Success = await runFFmpeg(path: ffmpegPath, arguments: pass2Args)
+        
+        // Cleanup pass log files
+        cleanupPassLogs(prefix: passLogPrefix)
+        
+        if pass2Success {
+            print("Video compression: FFmpeg success")
+            return outputURL
+        } else {
+            print("Video compression: Pass 2 failed")
+            return nil
+        }
+    }
+    
+    /// Run FFmpeg with arguments
+    private func runFFmpeg(path: String, arguments: [String]) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = arguments
+            
+            // Capture stderr for debugging
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
+            process.standardOutput = FileHandle.nullDevice
+            
+            do {
+                try process.run()
+                process.waitUntilExit()
+                
+                if process.terminationStatus == 0 {
+                    continuation.resume(returning: true)
+                } else {
+                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                    if let errorString = String(data: errorData, encoding: .utf8) {
+                        print("FFmpeg error: \(errorString.suffix(500))")
+                    }
+                    continuation.resume(returning: false)
+                }
+            } catch {
+                print("FFmpeg process error: \(error)")
+                continuation.resume(returning: false)
+            }
+        }
+    }
+    
+    /// Cleanup two-pass log files
+    private func cleanupPassLogs(prefix: String) {
+        let fm = FileManager.default
+        let logFile = prefix + "-0.log"
+        let mbtreeFile = prefix + "-0.log.mbtree"
+        try? fm.removeItem(atPath: logFile)
+        try? fm.removeItem(atPath: mbtreeFile)
     }
 }

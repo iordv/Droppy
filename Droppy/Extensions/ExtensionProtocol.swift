@@ -18,6 +18,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     case elementCapture
     case windowSnap
     case voiceTranscribe
+    case ffmpegVideoCompression
     
     /// URL-safe ID for deep links
     case finderServices  // Alias for finder
@@ -33,6 +34,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .elementCapture: return "Element Capture"
         case .windowSnap: return "Window Snap"
         case .voiceTranscribe: return "Voice Transcribe"
+        case .ffmpegVideoCompression: return "Video Target Size"
         }
     }
     
@@ -45,6 +47,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .elementCapture: return "Capture any screen element instantly"
         case .windowSnap: return "Keyboard-driven window management"
         case .voiceTranscribe: return "On-device speech-to-text transcription"
+        case .ffmpegVideoCompression: return "Compress videos to exact file sizes"
         }
     }
     
@@ -54,6 +57,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .alfred, .finder, .finderServices, .elementCapture, .windowSnap: return "Productivity"
         case .spotify: return "Media"
         case .voiceTranscribe: return "AI"
+        case .ffmpegVideoCompression: return "Media"
         }
     }
     
@@ -61,12 +65,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var categoryColor: Color {
         switch self {
         case .aiBackgroundRemoval: return .blue
-        case .alfred: return .blue
+        case .alfred: return .purple
         case .finder, .finderServices: return .blue
-        case .spotify: return .blue
+        case .spotify: return Color(red: 0.12, green: 0.84, blue: 0.38) // Spotify green
         case .elementCapture: return .blue
         case .windowSnap: return .cyan
         case .voiceTranscribe: return .blue
+        case .ffmpegVideoCompression: return Color(red: 0.0, green: 0.5, blue: 0.25) // Dark green
         }
     }
     
@@ -86,6 +91,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             return "Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included."
         case .voiceTranscribe:
             return "Transcribe audio recordings to text using WhisperKit AI. 100% on-device processing means your voice never leaves your Mac—completely private."
+        case .ffmpegVideoCompression:
+            return "Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect for file size limits on Discord, email, or social media."
         }
     }
     
@@ -140,6 +147,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
                 ("globe", "99+ languages supported"),
                 ("lock.fill", "Private—audio never leaves your Mac")
             ]
+        case .ffmpegVideoCompression:
+            return [
+                ("target", "Exact file size targeting"),
+                ("film", "Two-pass encoding for accuracy"),
+                ("arrow.down.circle", "One-time FFmpeg install"),
+                ("bolt.fill", "Fast H.264/AAC processing")
+            ]
         }
     }
     
@@ -161,6 +175,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             return URL(string: baseURL + "window-snap-screenshot.png")
         case .voiceTranscribe:
             return URL(string: baseURL + "voice-transcribe-screenshot.png")
+        case .ffmpegVideoCompression:
+            return URL(string: baseURL + "video-target-size-screenshot.png")
         }
     }
     
@@ -176,7 +192,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .alfred:
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.png")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "command.circle.fill").font(.system(size: 32)).foregroundStyle(.blue)
@@ -184,7 +200,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .finder, .finderServices:
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.png")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "folder").font(.system(size: 32)).foregroundStyle(.blue)
@@ -192,7 +208,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         case .spotify:
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.png")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "music.note.list").font(.system(size: 32)).foregroundStyle(.blue)
@@ -223,6 +239,63 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        case .ffmpegVideoCompression:
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "film").font(.system(size: 32, weight: .medium)).foregroundStyle(.orange)
+            }
+            .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+    
+    // MARK: - Removed State
+    
+    /// UserDefaults key for removed state
+    private var removedKey: String { "extension_removed_\(rawValue)" }
+    
+    /// Check if this extension has been removed by the user
+    var isRemoved: Bool {
+        UserDefaults.standard.bool(forKey: removedKey)
+    }
+    
+    /// Set the removed state for this extension
+    func setRemoved(_ removed: Bool) {
+        UserDefaults.standard.set(removed, forKey: removedKey)
+    }
+    
+    /// Clean up all resources associated with this extension
+    /// Called when user removes the extension
+    func cleanup() {
+        switch self {
+        case .voiceTranscribe:
+            // Delete WhisperKit model
+            VoiceTranscribeManager.shared.cleanup()
+            
+        case .elementCapture:
+            // Remove keyboard shortcut
+            ElementCaptureManager.shared.cleanup()
+            
+        case .windowSnap:
+            // Remove all shortcuts
+            WindowSnapManager.shared.cleanup()
+            
+        case .spotify:
+            // Clear OAuth tokens
+            SpotifyAuthManager.shared.cleanup()
+            
+        case .aiBackgroundRemoval:
+            // Delete downloaded model
+            AIInstallManager.shared.cleanup()
+            
+        case .alfred, .finder, .finderServices:
+            // No cleanup needed for these
+            break
+            
+        case .ffmpegVideoCompression:
+            // Clear FFmpeg installed state
+            FFmpegInstallManager.shared.cleanup()
         }
     }
 }

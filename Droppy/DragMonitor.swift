@@ -102,6 +102,20 @@ final class DragMonitor: ObservableObject {
                     lastDragLocation = currentMouseLocation
                     isDragging = true
                     dragLocation = currentMouseLocation
+                    
+                    // Check if instant basket mode is enabled
+                    let instantMode = UserDefaults.standard.bool(forKey: "instantBasketOnDrag")
+                    if instantMode {
+                        // Small delay (150ms) to let drag "settle" - feels snappy but intentional
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                            // Only show if drag is still active (user didn't release)
+                            guard self?.dragActive == true else { return }
+                            let enabled = UserDefaults.standard.bool(forKey: "enableFloatingBasket")
+                            if enabled || UserDefaults.standard.object(forKey: "enableFloatingBasket") == nil {
+                                FloatingBasketWindowController.shared.onJiggleDetected()
+                            }
+                        }
+                    }
                 }
             }
             

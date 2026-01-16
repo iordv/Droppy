@@ -642,7 +642,7 @@
 
         <div class="extension-card" data-extension="alfred" data-category="productivity">
             <div class="extension-header">
-                <img src="assets/icons/alfred.jpg" alt="Alfred" class="extension-icon">
+                <img src="assets/icons/alfred.png" alt="Alfred" class="extension-icon">
                 <div class="extension-meta">
                     <h3>Alfred Workflows</h3><span>Productivity</span>
                 </div>
@@ -688,7 +688,7 @@
 
         <div class="extension-card" data-extension="finder" data-category="utilities">
             <div class="extension-header">
-                <img src="assets/icons/finder.jpg" alt="Finder Services" class="extension-icon">
+                <img src="assets/icons/finder.png" alt="Finder Services" class="extension-icon">
                 <div class="extension-meta">
                     <h3>Finder Services</h3><span>Utilities</span>
                 </div>
@@ -711,7 +711,7 @@
 
         <div class="extension-card" data-extension="spotify" data-category="media">
             <div class="extension-header">
-                <img src="assets/icons/spotify.jpg" alt="Spotify" class="extension-icon">
+                <img src="assets/icons/spotify.png" alt="Spotify" class="extension-icon">
                 <div class="extension-meta">
                     <h3>Spotify Integration</h3><span>Media</span>
                 </div>
@@ -776,6 +776,29 @@
                 keyboard shortcuts. Multi-monitor support included.</p>
             <div class="extension-tags"><span class="extension-tag">Windows</span><span
                     class="extension-tag">Productivity</span></div>
+        </div>
+
+        <div class="extension-card" data-extension="video-target-size" data-category="media">
+            <div class="extension-header">
+                <img src="assets/icons/video-target-size.png" alt="Video Target Size" class="extension-icon">
+                <div class="extension-meta">
+                    <h3>Video Target Size</h3><span>Media</span>
+                </div>
+            </div>
+            <div class="extension-stats">
+                <div class="stat-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg><span class="stat-value" data-install-count="video-target-size">0</span> installs</div>
+                <div class="stat-item"><svg fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg><span class="stat-value" data-rating="video-target-size">—</span><span
+                        data-rating-count="video-target-size">(0)</span></div>
+            </div>
+            <p class="extension-description">Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect
+                for Discord, email, or social media limits.</p>
+            <div class="extension-tags"><span class="extension-tag">Video</span><span
+                    class="extension-tag">Compression</span></div>
         </div>
     </div>
 
@@ -857,18 +880,20 @@
             'finder': 'finder',
             'spotify': 'spotify',
             'voice-transcribe': 'voiceTranscribe',
-            'window-snap': 'windowSnap'
+            'window-snap': 'windowSnap',
+            'video-target-size': 'ffmpegVideoCompression'
         };
 
         // Extension data with screenshots
         const extensionData = {
             'ai-bg': { icon: 'assets/icons/ai-bg.jpg', title: 'AI Background Removal', category: 'AI', deepUrl: 'droppy://extension/ai-bg', screenshot: 'assets/images/ai-bg-screenshot.png', description: 'Remove backgrounds from images instantly using local AI processing. No internet connection required.', features: ['On-device AI processing', 'No internet required', 'Instant results', 'Multiple format support', 'Batch processing'] },
-            'alfred': { icon: 'assets/icons/alfred.jpg', title: 'Alfred Workflows', category: 'Productivity', deepUrl: 'droppy://extension/alfred', screenshot: 'assets/images/alfred-screenshot.png', description: 'Seamlessly add files to Droppy\'s Shelf or Basket directly from Alfred using keyboard shortcuts.', features: ['Trigger workflows from basket', 'Quick access to favorites', 'Keyboard shortcuts', 'Deep linking support'] },
+            'alfred': { icon: 'assets/icons/alfred.png', title: 'Alfred Workflows', category: 'Productivity', deepUrl: 'droppy://extension/alfred', screenshot: 'assets/images/alfred-screenshot.png', description: 'Seamlessly add files to Droppy\'s Shelf or Basket directly from Alfred using keyboard shortcuts.', features: ['Trigger workflows from basket', 'Quick access to favorites', 'Keyboard shortcuts', 'Deep linking support'] },
             'element-capture': { icon: 'assets/icons/element-capture.jpg', title: 'Element Capture', category: 'Utilities', deepUrl: 'droppy://extension/element-capture', screenshot: 'assets/images/element-capture-screenshot.png', description: 'Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element.', features: ['Element detection', 'Pixel-perfect capture', 'Auto-cropping', 'Multiple formats', 'Quick save to basket'] },
-            'finder': { icon: 'assets/icons/finder.jpg', title: 'Finder Services', category: 'Utilities', deepUrl: 'droppy://extension/finder', screenshot: 'assets/images/finder-screenshot.png', description: 'Access Droppy directly from Finder\'s right-click menu. Add selected files to the Shelf or Basket without switching apps.', features: ['Services menu integration', 'Right-click actions', 'Quick add to basket', 'Process with extensions'] },
-            'spotify': { icon: 'assets/icons/spotify.jpg', title: 'Spotify Integration', category: 'Media', deepUrl: 'droppy://extension/spotify', screenshot: 'assets/images/spotify-screenshot.jpg', description: 'Control Spotify playback directly from your notch. See album art, track info, and playback controls without switching apps.', features: ['Now Playing widget in notch', 'Playback controls', 'Volume adjustment', 'Album artwork display', 'Keyboard shortcuts'] },
+            'finder': { icon: 'assets/icons/finder.png', title: 'Finder Services', category: 'Utilities', deepUrl: 'droppy://extension/finder', screenshot: 'assets/images/finder-screenshot.png', description: 'Access Droppy directly from Finder\'s right-click menu. Add selected files to the Shelf or Basket without switching apps.', features: ['Services menu integration', 'Right-click actions', 'Quick add to basket', 'Process with extensions'] },
+            'spotify': { icon: 'assets/icons/spotify.png', title: 'Spotify Integration', category: 'Media', deepUrl: 'droppy://extension/spotify', screenshot: 'assets/images/spotify-screenshot.jpg', description: 'Control Spotify playback directly from your notch. See album art, track info, and playback controls without switching apps.', features: ['Now Playing widget in notch', 'Playback controls', 'Volume adjustment', 'Album artwork display', 'Keyboard shortcuts'] },
             'voice-transcribe': { icon: 'assets/icons/voice-transcribe.jpg', title: 'Voice Transcribe', category: 'AI', deepUrl: 'droppy://extension/voice-transcribe', screenshot: 'assets/images/voice-transcribe-screenshot.png', description: 'Transcribe audio recordings to text using WhisperKit AI. 100% on-device processing means your voice never leaves your Mac—completely private.', features: ['On-device Whisper AI', 'Multiple language support', 'Audio file upload', 'Real-time transcription', 'Export to text'] },
-            'window-snap': { icon: 'assets/icons/window-snap.jpg', title: 'Window Snap', category: 'Productivity', deepUrl: 'droppy://extension/window-snap', screenshot: 'assets/images/window-snap-screenshot.png', description: 'Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included.', features: ['Keyboard shortcuts', 'Custom snap areas', 'Multi-monitor support', 'Edge snapping', 'Remembers positions'] }
+            'window-snap': { icon: 'assets/icons/window-snap.jpg', title: 'Window Snap', category: 'Productivity', deepUrl: 'droppy://extension/window-snap', screenshot: 'assets/images/window-snap-screenshot.png', description: 'Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included.', features: ['Keyboard shortcuts', 'Custom snap areas', 'Multi-monitor support', 'Edge snapping', 'Remembers positions'] },
+            'video-target-size': { icon: 'assets/icons/video-target-size.png', title: 'Video Target Size', category: 'Media', deepUrl: 'droppy://extension/video-target-size', screenshot: 'assets/images/video-target-size-screenshot.png', description: 'Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect for Discord, email, or social media limits.', features: ['Exact file size targeting', 'Two-pass encoding', 'H.264/AAC output', 'One-time FFmpeg install', 'Fast processing'] }
         };
 
         let installCounts = {}, ratings = {}, currentExtension = null;

@@ -1,6 +1,10 @@
 import Cocoa
 import SwiftUI
 
+extension Notification.Name {
+    static let clipboardWindowDidShow = Notification.Name("ClipboardWindowDidShow")
+}
+
 class ClipboardWindowController: NSObject, NSWindowDelegate {
     static let shared = ClipboardWindowController()
     
@@ -57,6 +61,10 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         window.delegate = self
         window.contentView = hostingView
         
+        // Fix for Issue #33: Prevent snapping back to previous window/space
+        // Allow floating over full screen apps and on all desktops
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        
         // Note: Removed level = .popUpMenu and custom collectionBehavior to match Settings
         
         // Allow clicking on it and becoming key
@@ -96,6 +104,8 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
     private var clickMonitor: Any?
     private var localClickMonitor: Any?
 
+
+
     func show() {
         guard !isAnimating, let window = window else { return }
         
@@ -123,6 +133,8 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         DispatchQueue.main.async {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
+            // Post notification for View to reset state (Search/Selection)
+            NotificationCenter.default.post(name: .clipboardWindowDidShow, object: nil)
         }
         
         // Start monitoring for clicks outside to auto-close (since we are not Key)
@@ -197,6 +209,11 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             
             // Don't close if click is on the OCR window
             if let ocrWindow = OCRWindowController.shared.window, event.window == ocrWindow {
+                return event
+            }
+            
+            // Don't close if click is on the Rename window
+            if let renameWindow = RenameWindowController.shared.window, event.window == renameWindow {
                 return event
             }
             

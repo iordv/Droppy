@@ -186,6 +186,12 @@ final class WindowSnapManager: ObservableObject {
     
     /// Called from AppDelegate after app finishes launching
     func loadAndStartMonitoring() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.windowSnap.isRemoved else {
+            print("[WindowSnap] Extension is disabled, skipping monitoring")
+            return
+        }
+        
         loadShortcuts()
         if !shortcuts.isEmpty {
             startMonitoringAllShortcuts()
@@ -196,6 +202,12 @@ final class WindowSnapManager: ObservableObject {
     
     /// Execute a snap action on the frontmost window
     func executeAction(_ action: SnapAction) {
+        // Don't execute if extension is disabled
+        guard !ExtensionType.windowSnap.isRemoved else {
+            print("[WindowSnap] Extension is disabled, ignoring action")
+            return
+        }
+        
         guard checkAccessibilityPermission() else {
             showPermissionAlert()
             return
@@ -281,6 +293,47 @@ final class WindowSnapManager: ObservableObject {
         }
     }
     
+    /// Remove default shortcuts only (keep custom ones)
+    func removeDefaults() {
+        for action in SnapAction.allCases {
+            // Check if current shortcut matches the default
+            if let currentShortcut = shortcuts[action],
+               let defaultShortcut = action.defaultShortcut,
+               currentShortcut.keyCode == defaultShortcut.keyCode &&
+               currentShortcut.modifiers == defaultShortcut.modifiers {
+                setShortcut(nil, for: action)
+            }
+        }
+    }
+    
+    // MARK: - Extension Removal Cleanup
+    
+    /// Clean up all Window Snap resources when extension is removed
+    func cleanup() {
+        print("[WindowSnap] Cleanup starting - stopping \(hotkeyMonitors.count) monitors")
+        
+        // Stop monitoring all shortcuts
+        stopMonitoringAllShortcuts()
+        
+        print("[WindowSnap] Monitors after stop: \(hotkeyMonitors.count)")
+        
+        // Clear all shortcuts
+        shortcuts.removeAll()
+        
+        // Clear saved window frames
+        savedWindowFrames.removeAll()
+        
+        // Clear persisted data
+        UserDefaults.standard.removeObject(forKey: shortcutsKey)
+        UserDefaults.standard.removeObject(forKey: "windowSnapTracked")
+        
+        // Notify other components
+        NotificationCenter.default.post(name: .windowSnapShortcutChanged, object: nil)
+        
+        print("[WindowSnap] Cleanup complete - isEnabled: \(isEnabled)")
+    }
+
+    
     // MARK: - Shortcut Persistence
     
     private func loadShortcuts() {
@@ -310,6 +363,12 @@ final class WindowSnapManager: ObservableObject {
     // MARK: - Global Hotkey Monitoring
     
     func startMonitoringAllShortcuts() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.windowSnap.isRemoved else {
+            print("[WindowSnap] Extension is disabled, not starting")
+            return
+        }
+        
         for (action, _) in shortcuts {
             startMonitoringShortcut(for: action)
         }
@@ -330,6 +389,9 @@ final class WindowSnapManager: ObservableObject {
         guard let savedShortcut = shortcuts[action] else { return }
         
         hotkeyMonitors[action] = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // CRITICAL: Check if extension is disabled - stops shortcuts from working
+            guard !ExtensionType.windowSnap.isRemoved else { return }
+            
             // Mask to only compare control/option/shift/command - ignore function/numericPad flags
             // Arrow keys include .numericPad and .function flags which would break comparison
             let relevantModifiers: NSEvent.ModifierFlags = [.control, .option, .shift, .command]

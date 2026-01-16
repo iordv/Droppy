@@ -15,6 +15,7 @@ struct CapsLockHUDView: View {
     let notchWidth: CGFloat   // Physical notch width
     let notchHeight: CGFloat  // Physical notch height
     let hudWidth: CGFloat     // Total HUD width
+    var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     
     /// Width of each "wing" (area left/right of physical notch)
     private var wingWidth: CGFloat {
@@ -32,12 +33,22 @@ struct CapsLockHUDView: View {
         capsLockManager.isCapsLockOn ? "capslock.fill" : "capslock"
     }
     
-    /// Whether we're in Dynamic Island mode
+    /// Whether we're in Dynamic Island mode (screen-aware for multi-monitor)
+    /// For HUD LAYOUT purposes: external displays always use compact layout (no physical notch)
     private var isDynamicIslandMode: Bool {
-        guard let screen = NSScreen.main else { return true }
+        let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen = screen else { return true }
         let hasNotch = screen.safeAreaInsets.top > 0
-        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
+        
+        // External displays never have physical notches, so always use compact HUD layout
+        // The externalDisplayUseDynamicIsland setting only affects the visual shape, not HUD content layout
+        if !screen.isBuiltIn {
+            return true
+        }
+        
+        // For built-in display, use main Dynamic Island setting
+        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         return (!hasNotch || forceTest) && useDynamicIsland
     }
     
@@ -66,7 +77,6 @@ struct CapsLockHUDView: View {
                         .contentTransition(.symbolEffect(.replace))
                         .symbolVariant(.fill)
                         .frame(width: 20, height: 20)
-                        .shadow(color: dynamicIslandColor.opacity(capsLockManager.isCapsLockOn ? 0.4 : 0), radius: 4)
                     
                     // ON/OFF text - white in transparent mode for readability
                     Text(capsLockManager.isCapsLockOn ? "ON" : "OFF")
@@ -90,8 +100,6 @@ struct CapsLockHUDView: View {
                             .contentTransition(.symbolEffect(.replace))
                             .symbolVariant(.fill)
                             .frame(width: 26, height: 26)
-                            .shadow(color: accentColor.opacity(capsLockManager.isCapsLockOn ? 0.4 : 0), radius: 6)
-                            .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                         Spacer(minLength: 0)
                     }
                     .padding(.leading, 8)  // Balanced with vertical padding

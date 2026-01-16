@@ -28,33 +28,39 @@ final class PermissionManager {
     
     private init() {}
     
+    // MARK: - App State
+    private let appLaunchTimestamp = Date()
+    private let cacheTrustDuration: TimeInterval = 15.0 // Seconds to trust cache after launch
+    
     // MARK: - Accessibility
     
-    /// Check if accessibility permission is granted (with cache fallback)
-    /// Logic: If we ever successfully verified permission, trust the cache.
-    /// TCC can be slow to sync after launch, so cache prevents false negatives.
+    /// Check if accessibility permission is granted (with time-limited cache)
+    /// Logic: Always check source of truth (AXIsProcessTrusted).
+    /// Only rely on cache during immediate app launch when TCC might be slow.
+    /// After warm-up period, cache is ignored to detect runtime revocation.
     var isAccessibilityGranted: Bool {
         let trusted = AXIsProcessTrusted()
-        let hasCachedGrant = UserDefaults.standard.bool(forKey: accessibilityGrantedKey)
         
         if trusted {
-            // TCC confirms permission - update cache if needed
-            if !hasCachedGrant {
+            // TCC confirms permission - update cache
+            if !UserDefaults.standard.bool(forKey: accessibilityGrantedKey) {
                 UserDefaults.standard.set(true, forKey: accessibilityGrantedKey)
                 print("🔐 PermissionManager: Accessibility granted, caching")
             }
             return true
         }
         
-        // TCC says not trusted, but check cache
-        if hasCachedGrant {
-            // Cache says granted - TCC might just be slow to sync
-            // Trust the cache to prevent false "permission needed" warnings
-            // This is safe because permissions persist across updates
-            return true
+        // TCC says NOT trusted.
+        // Only fall back to cache during the warm-up period.
+        // This prevents the "freeze" scenario where user revokes permission
+        // but we keep trying to use it because we trust the cache forever.
+        if Date().timeIntervalSince(appLaunchTimestamp) < cacheTrustDuration {
+            if UserDefaults.standard.bool(forKey: accessibilityGrantedKey) {
+                print("🔐 PermissionManager: Trusting cache during warm-up (TCC slow sync)")
+                return true
+            }
         }
         
-        // Neither TCC nor cache says granted
         return false
     }
     

@@ -50,6 +50,7 @@ struct AirPodsHUDView: View {
     let notchWidth: CGFloat
     let notchHeight: CGFloat
     let hudWidth: CGFloat
+    var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     
     // Animation states - iPhone-style timing
     @State private var rotationAngle: Double = 0
@@ -64,12 +65,22 @@ struct AirPodsHUDView: View {
         (hudWidth - notchWidth) / 2
     }
     
-    /// Whether we're in Dynamic Island mode
+    /// Whether we're in Dynamic Island mode (screen-aware for multi-monitor)
+    /// For HUD LAYOUT purposes: external displays always use compact layout (no physical notch)
     private var isDynamicIslandMode: Bool {
-        guard let screen = NSScreen.main else { return true }
+        let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen = screen else { return true }
         let hasNotch = screen.safeAreaInsets.top > 0
-        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
+        
+        // External displays never have physical notches, so always use compact HUD layout
+        // The externalDisplayUseDynamicIsland setting only affects the visual shape, not HUD content layout
+        if !screen.isBuiltIn {
+            return true
+        }
+        
+        // For built-in display, use main Dynamic Island setting
+        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
         return (!hasNotch || forceTest) && useDynamicIsland
     }
     

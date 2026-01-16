@@ -8,25 +8,7 @@
 import SwiftUI
 
 // MARK: - Sharing Services Cache
-private var droppedItemSharingServicesCache: [String: (services: [NSSharingService], timestamp: Date)] = [:]
-private let droppedItemSharingServicesCacheTTL: TimeInterval = 60
 
-// Use a wrapper function to silence the deprecation warning
-// The deprecated API is the ONLY way to properly show share services in SwiftUI context menus
-@available(macOS, deprecated: 13.0, message: "NSSharingService.sharingServices is deprecated but required for context menu integration")
-private func sharingServicesForItems(_ items: [Any]) -> [NSSharingService] {
-    if let url = items.first as? URL {
-        let ext = url.pathExtension.lowercased()
-        if let cached = droppedItemSharingServicesCache[ext],
-           Date().timeIntervalSince(cached.timestamp) < droppedItemSharingServicesCacheTTL {
-            return cached.services
-        }
-        let services = NSSharingService.sharingServices(forItems: items)
-        droppedItemSharingServicesCache[ext] = (services: services, timestamp: Date())
-        return services
-    }
-    return NSSharingService.sharingServices(forItems: items)
-}
 
 /// Individual item card displayed on the shelf with liquid glass styling
 struct DroppedItemView: View {

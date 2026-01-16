@@ -18,7 +18,6 @@ struct TargetSizeDialogView: View {
     @State private var targetSizeMB: String = ""
     @State private var isCompressButtonHovering = false
     @State private var isCancelButtonHovering = false
-    @State private var inputDashPhase: CGFloat = 0
     
     var body: some View {
         VStack(spacing: 0) {
@@ -79,7 +78,7 @@ struct TargetSizeDialogView: View {
                                         lineWidth: 1.5,
                                         lineCap: .round,
                                         dash: [3, 3],
-                                        dashPhase: inputDashPhase
+                                        dashPhase: 0  // Static dotted border (no animation)
                                     )
                                 )
                         )
@@ -155,10 +154,6 @@ struct TargetSizeDialogView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .onAppear {
-            // Animate input border
-            withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                inputDashPhase = 6
-            }
             // Default to 50% of current size
             let suggestedMB = Double(currentSize) / (1024 * 1024) / 2
             targetSizeMB = String(format: "%.1f", suggestedMB)

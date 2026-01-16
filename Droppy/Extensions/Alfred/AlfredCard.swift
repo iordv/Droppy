@@ -18,7 +18,7 @@ struct AlfredExtensionCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Alfred icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.png")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -95,7 +95,7 @@ struct AlfredExtensionCard: View {
             }
         }
         .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .blue)
+        .extensionCardStyle(accentColor: .purple)
         .contentShape(Rectangle())
         .onTapGesture {
             showInfoSheet = true

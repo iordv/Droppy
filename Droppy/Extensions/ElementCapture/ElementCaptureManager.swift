@@ -62,6 +62,12 @@ final class ElementCaptureManager: ObservableObject {
     
     /// Called from AppDelegate after app finishes launching
     func loadAndStartMonitoring() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.elementCapture.isRemoved else {
+            print("[ElementCapture] Extension is disabled, skipping monitoring")
+            return
+        }
+        
         loadShortcut()
         if shortcut != nil {
             startMonitoringShortcut()
@@ -72,6 +78,12 @@ final class ElementCaptureManager: ObservableObject {
     
     /// Start element capture mode
     func startCaptureMode() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.elementCapture.isRemoved else {
+            print("[ElementCapture] Extension is disabled, ignoring")
+            return
+        }
+        
         guard !isActive else { return }
         
         // Check permissions first
@@ -157,11 +169,16 @@ final class ElementCaptureManager: ObservableObject {
     // MARK: - Global Hotkey Monitoring
     
     func startMonitoringShortcut() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.elementCapture.isRemoved else { return }
         // Prevent duplicate monitoring
         guard hotkeyMonitor == nil else { return }
         guard let savedShortcut = shortcut else { return }
         
         hotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // CRITICAL: Check if extension is disabled - stops shortcuts from working
+            guard !ExtensionType.elementCapture.isRemoved else { return }
+            
             // Check if the pressed key matches our shortcut
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             
@@ -431,7 +448,25 @@ final class ElementCaptureManager: ObservableObject {
             callback: { proxy, type, event, refcon in
                 guard let refcon = refcon else { return Unmanaged.passRetained(event) }
                 let manager = Unmanaged<ElementCaptureManager>.fromOpaque(refcon).takeUnretainedValue()
-                
+
+                // Handle tap being disabled (system temporarily disables if we take too long)
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if !PermissionManager.shared.isAccessibilityGranted {
+                        print("❌ ElementCapture: Tap disabled and permissions revoked. Stopping capture.")
+                        // Dispatch stop safely
+                        DispatchQueue.main.async {
+                            manager.stopCaptureMode()
+                        }
+                        return Unmanaged.passRetained(event)
+                    }
+                    
+                    print("⚠️ ElementCapture: Tap disabled, re-enabling...")
+                    if let tap = manager.eventTap {
+                        CGEvent.tapEnable(tap: tap, enable: true)
+                    }
+                    return Unmanaged.passRetained(event)
+                }
+
                 // Only handle if we're active and have an element
                 if manager.isActive && manager.hasElement {
                     // Trigger capture on main thread
@@ -598,6 +633,28 @@ final class ElementCaptureManager: ObservableObject {
         case noDisplay
         case captureFailed
         case permissionDenied
+    }
+    
+    // MARK: - Extension Removal Cleanup
+    
+    /// Clean up all Element Capture resources when extension is removed
+    func cleanup() {
+        // Stop capture mode if active
+        if isActive {
+            stopCaptureMode()
+        }
+        
+        // Stop monitoring shortcut
+        stopMonitoringShortcut()
+        
+        // Clear saved shortcut
+        shortcut = nil
+        UserDefaults.standard.removeObject(forKey: shortcutKey)
+        
+        // Notify other components
+        NotificationCenter.default.post(name: .elementCaptureShortcutChanged, object: nil)
+        
+        print("[ElementCapture] Cleanup complete")
     }
 }
 
@@ -878,60 +935,5 @@ final class CapturePreviewWindowController {
 
 // MARK: - Capture Preview View (Styled like Basket)
 
-struct CapturePreviewView: View {
-    let image: NSImage
-    @AppStorage("useTransparentBackground") private var useTransparentBackground = false
-    
-    private let cornerRadius: CGFloat = 28
-    private let padding: CGFloat = 16  // Symmetrical padding on all sides
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            // Header with badge (matching basket header style)
-            HStack {
-                Text("Screenshot")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                
-                Spacer()
-                
-                // Success badge (styled like basket buttons)
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("Copied!")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundColor(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.green.opacity(0.8))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
-                )
-            }
-            
-            // Screenshot preview
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
-                )
-        }
-        .padding(padding)  // Symmetrical padding on all sides
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
-        )
-        // Note: Shadow handled by NSWindow.hasShadow for proper rounded appearance
-    }
-}
+
 

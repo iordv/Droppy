@@ -79,13 +79,17 @@ final class SpotifyController {
     
     // MARK: - Spotify Detection
     
-    /// Check if Spotify is currently running
+    /// Check if Spotify is currently running (and extension is enabled)
     var isSpotifyRunning: Bool {
-        NSRunningApplication.runningApplications(withBundleIdentifier: Self.spotifyBundleId).first != nil
+        // If extension is disabled, pretend Spotify is not running
+        guard !ExtensionType.spotify.isRemoved else { return false }
+        return NSRunningApplication.runningApplications(withBundleIdentifier: Self.spotifyBundleId).first != nil
     }
     
     /// Refresh state when Spotify becomes the active source
     func refreshState() {
+        // Don't refresh if extension is disabled
+        guard !ExtensionType.spotify.isRemoved else { return }
         guard isSpotifyRunning else { return }
         
         // Track Spotify integration activation (only once per user)

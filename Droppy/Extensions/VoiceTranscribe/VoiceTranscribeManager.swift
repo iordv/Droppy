@@ -10,6 +10,7 @@ import SwiftUI
 import Combine
 import WhisperKit
 import CoreML
+import UniformTypeIdentifiers
 
 // MARK: - Transcription Model
 
@@ -88,6 +89,7 @@ final class VoiceTranscribeManager: ObservableObject {
     }
     @Published var isDownloading: Bool = false
     @Published var transcriptionProgress: Double = 0
+    @Published private(set) var lastRecordingURL: URL? // Available after transcription for save
     
     // MARK: - Private Properties
     
@@ -149,6 +151,12 @@ final class VoiceTranscribeManager: ObservableObject {
     
     /// Start recording audio
     func startRecording() {
+        // Don't start if extension is disabled
+        guard !ExtensionType.voiceTranscribe.isRemoved else {
+            print("[VoiceTranscribe] Extension is disabled, ignoring")
+            return
+        }
+        
         print("VoiceTranscribe: startRecording called, state: \(state), isModelDownloaded: \(isModelDownloaded), whisperKit: \(whisperKit != nil)")
         
         guard state == .idle else {
@@ -328,6 +336,60 @@ final class VoiceTranscribeManager: ObservableObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(transcriptionResult, forType: .string)
     }
+    
+    /// Save the last recording to a user-selected location
+    func saveRecording() {
+        guard let sourceURL = lastRecordingURL, FileManager.default.fileExists(atPath: sourceURL.path) else {
+            print("VoiceTranscribe: No recording available to save")
+            return
+        }
+        
+        let savePanel = NSSavePanel()
+        savePanel.title = "Save Audio Recording"
+        savePanel.nameFieldStringValue = "recording_\(Date().formatted(date: .abbreviated, time: .shortened).replacingOccurrences(of: ":", with: "-")).wav"
+        savePanel.allowedContentTypes = [.wav, .audio]
+        savePanel.canCreateDirectories = true
+        savePanel.level = .screenSaver // Match result window level
+        
+        savePanel.begin { response in
+            guard response == .OK, let destinationURL = savePanel.url else { return }
+            
+            Task { @MainActor in
+                do {
+                    // Copy to user's selected location
+                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                    print("VoiceTranscribe: Recording saved to \(destinationURL.path)")
+                } catch {
+                    print("VoiceTranscribe: Failed to save recording: \(error)")
+                }
+            }
+        }
+    }
+    
+    /// Discard the last recording (clean up temp file)
+    func discardRecording() {
+        guard let url = lastRecordingURL else { return }
+        try? FileManager.default.removeItem(at: url)
+        lastRecordingURL = nil
+        print("VoiceTranscribe: Recording discarded")
+    }
+    
+    /// Retry transcription of the last recording
+    func retryTranscription() {
+        guard let url = lastRecordingURL, FileManager.default.fileExists(atPath: url.path) else {
+            print("VoiceTranscribe: No recording available to retry")
+            state = .error("No recording available to retry")
+            return
+        }
+        
+        state = .processing
+        recordingURL = url
+        
+        Task {
+            await transcribeRecording()
+        }
+    }
+
     
     /// Transcribe an existing audio file
     func transcribeFile(at url: URL) {
@@ -594,6 +656,9 @@ final class VoiceTranscribeManager: ObservableObject {
             if let result = results.first {
                 transcriptionResult = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 
+                // Keep recording for "Save Audio" feature
+                lastRecordingURL = url
+                
                 print("VoiceTranscribe: Transcription complete - \(result.text.count) chars")
                 
                 // Show result window (works for both regular and invisi-record mode)
@@ -603,17 +668,19 @@ final class VoiceTranscribeManager: ObservableObject {
                 state = .idle
             } else {
                 transcriptionResult = ""
+                // No successful result, clean up recording
+                lastRecordingURL = nil
+                try? FileManager.default.removeItem(at: url)
                 state = .idle  // Reset even if no result
             }
             
         } catch {
             progressObservation.invalidate()
             print("VoiceTranscribe: Transcription error: \(error)")
+            // Keep recording for retry
+            lastRecordingURL = url
             state = .error("Transcription failed: \(error.localizedDescription)")
         }
-        
-        // Clean up recording file
-        try? FileManager.default.removeItem(at: url)
     }
     
     /// Transcribe an external audio file (does NOT delete the source file)
@@ -786,6 +853,13 @@ final class VoiceTranscribeManager: ObservableObject {
     }
     
     private func loadPreferences() {
+        // If extension is disabled, don't load any preferences
+        guard !ExtensionType.voiceTranscribe.isRemoved else {
+            isMenuBarEnabled = false
+            VoiceTranscribeMenuBar.shared.setVisible(false)
+            return
+        }
+        
         if let modelRaw = UserDefaults.standard.string(forKey: "voiceTranscribeModel"),
            let model = WhisperModel(rawValue: modelRaw) {
             selectedModel = model
@@ -817,6 +891,58 @@ extension VoiceTranscribeManager {
         let seconds = Int(recordingDuration) % 60
         let tenths = Int((recordingDuration.truncatingRemainder(dividingBy: 1)) * 10)
         return String(format: "%d:%02d.%d", minutes, seconds, tenths)
+    }
+}
+
+// MARK: - Extension Removal Cleanup
+
+extension VoiceTranscribeManager {
+    /// Clean up all Voice Transcribe resources when extension is removed
+    /// Deletes downloaded WhisperKit model and resets all state
+    func cleanup() {
+        // Stop any active recording
+        if state == .recording {
+            stopRecording()
+        }
+        
+        // Cancel any ongoing download
+        downloadTask?.cancel()
+        downloadTask = nil
+        isDownloading = false
+        downloadProgress = 0
+        
+        // Release WhisperKit instance
+        whisperKit = nil
+        
+        // Delete model files
+        let modelsDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Droppy/WhisperModels")
+        
+        do {
+            if FileManager.default.fileExists(atPath: modelsDir.path) {
+                try FileManager.default.removeItem(at: modelsDir)
+                print("[VoiceTranscribe] Deleted model directory")
+            }
+        } catch {
+            print("[VoiceTranscribe] Failed to delete models: \(error)")
+        }
+        
+        // Reset state
+        isModelDownloaded = false
+        transcriptionResult = ""
+        
+        // Clear preferences
+        UserDefaults.standard.removeObject(forKey: "voiceTranscribeModel")
+        UserDefaults.standard.removeObject(forKey: "voiceTranscribeLanguage")
+        for model in WhisperModel.allCases {
+            UserDefaults.standard.removeObject(forKey: "voiceTranscribeModelDownloaded_\(model.rawValue)")
+        }
+        
+        // Hide menu bar item
+        VoiceTranscribeMenuBar.shared.setVisible(false)
+        isMenuBarEnabled = false
+        
+        print("[VoiceTranscribe] Cleanup complete")
     }
 }
 

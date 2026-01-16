@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("enableAutoClean") private var enableAutoClean = false  // Auto-clear after drag-out (v6.0.2)
     @AppStorage("enableAirDropZone") private var enableAirDropZone = true  // AirDrop drop zone in basket
     @AppStorage("basketAutoHideEdge") private var basketAutoHideEdge = "right"  // "left", "right", "bottom"
+    @AppStorage("instantBasketOnDrag") private var instantBasketOnDrag = false  // Show basket immediately on drag
     @AppStorage("showClipboardButton") private var showClipboardButton = false
     @AppStorage("showOpenShelfIndicator") private var showOpenShelfIndicator = true
     @AppStorage("showDropIndicator") private var showDropIndicator = true
@@ -32,6 +33,7 @@ struct SettingsView: View {
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
     @AppStorage("autoShrinkShelf") private var autoShrinkShelf = true
     @AppStorage("autoShrinkDelay") private var autoShrinkDelay = 3  // Seconds (1-10)
+    @AppStorage("autoExpandShelf") private var autoExpandShelf = false  // Auto-expand on hover
     @AppStorage("enableFinderServices") private var enableFinderServices = true
 
 
@@ -256,12 +258,17 @@ struct SettingsView: View {
                     NotchShelfPreview()
                 }
 
-                Toggle(isOn: $enableFloatingBasket) {
-                    VStack(alignment: .leading) {
-                        Text("Floating Basket")
-                        Text("Appears when you jiggle files anywhere on screen")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    BasketGestureInfoButton()
+                    Toggle(isOn: $enableFloatingBasket) {
+                        VStack(alignment: .leading) {
+                            Text("Floating Basket")
+                            Text(instantBasketOnDrag 
+                                ? "Appears instantly when dragging files anywhere" 
+                                : "Appears when you jiggle files anywhere on screen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .onChange(of: enableFloatingBasket) { oldValue, newValue in
@@ -273,13 +280,29 @@ struct SettingsView: View {
                 if enableFloatingBasket {
                     FloatingBasketPreview()
                     
+                    // Instant appear toggle
+                    HStack(spacing: 8) {
+                        InstantAppearInfoButton()
+                        Toggle(isOn: $instantBasketOnDrag) {
+                            VStack(alignment: .leading) {
+                                Text("Instant Appear")
+                                Text("Show basket immediately when dragging files")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    
                     // Auto-hide with peek toggle
-                    Toggle(isOn: $enableBasketAutoHide) {
-                        VStack(alignment: .leading) {
-                            Text("Auto-Hide with Peek")
-                            Text("Basket slides to edge when cursor leaves, hover to reveal")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        PeekModeInfoButton()
+                        Toggle(isOn: $enableBasketAutoHide) {
+                            VStack(alignment: .leading) {
+                                Text("Auto-Hide with Peek")
+                                Text("Basket slides to edge when cursor leaves, hover to reveal")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     
@@ -304,12 +327,15 @@ struct SettingsView: View {
                     }
                     
                     // AirDrop Zone toggle
-                    Toggle(isOn: $enableAirDropZone) {
-                        VStack(alignment: .leading) {
-                            Text("AirDrop Zone")
-                            Text("Drop files on the right side to AirDrop instantly")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        AirDropZoneInfoButton()
+                        Toggle(isOn: $enableAirDropZone) {
+                            VStack(alignment: .leading) {
+                                Text("AirDrop Zone")
+                                Text("Drop files on the right side to AirDrop instantly")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -335,12 +361,17 @@ struct SettingsView: View {
             Section {
                 // Media Player requires macOS 15.0+ due to MediaRemoteAdapter.framework
                 if #available(macOS 15.0, *) {
-                    Toggle(isOn: $showMediaPlayer) {
-                        VStack(alignment: .leading) {
-                            Text("Now Playing")
-                            Text("Show current song in the notch")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        // Info button with swipe gesture tooltip
+                        SwipeGestureInfoButton()
+                        
+                        Toggle(isOn: $showMediaPlayer) {
+                            VStack(alignment: .leading) {
+                                Text("Now Playing")
+                                Text("Show current song in the notch")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .onChange(of: showMediaPlayer) { _, newValue in
@@ -521,6 +552,9 @@ struct SettingsView: View {
                 } else if extensionType == .voiceTranscribe {
                     // Voice Transcribe has its own detailed configuration view
                     VoiceTranscribeInfoView(installCount: nil, rating: nil)
+                } else if extensionType == .ffmpegVideoCompression {
+                    // FFmpeg Video Compression has its own install view
+                    FFmpegInstallView(installCount: nil, rating: nil)
                 } else {
                     // All other extensions use ExtensionInfoView
                     ExtensionInfoView(extensionType: extensionType) {
@@ -534,7 +568,7 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
                         case .spotify:
                             SpotifyAuthManager.shared.startAuthentication()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression:
                             break // No action needed - these have their own configuration UI
                         }
                     }
@@ -556,12 +590,15 @@ struct SettingsView: View {
                     }
                 }
                 
-                Toggle(isOn: $hideNotchOnExternalDisplays) {
-                    VStack(alignment: .leading) {
-                        Text("Hide on External Displays")
-                        Text("Disable notch shelf on external monitors")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    ExternalDisplayInfoButton()
+                    Toggle(isOn: $hideNotchOnExternalDisplays) {
+                        VStack(alignment: .leading) {
+                            Text("Hide on External Displays")
+                            Text("Disable notch shelf on external monitors")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 
@@ -595,6 +632,21 @@ struct SettingsView: View {
                                 }
                             ) {
                                 externalDisplayUseDynamicIsland = true
+                            }
+                        }
+                        
+                        // Transparent Dynamic Island toggle (external displays)
+                        if externalDisplayUseDynamicIsland && useTransparentBackground {
+                            Divider()
+                                .padding(.vertical, 4)
+                            
+                            Toggle(isOn: $useDynamicIslandTransparent) {
+                                VStack(alignment: .leading) {
+                                    Text("Transparent Dynamic Island")
+                                    Text("Use glass effect instead of solid black")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
@@ -646,7 +698,8 @@ struct SettingsView: View {
                         }
                         
                         // Transparent Dynamic Island option (only when DI + transparent enabled)
-                        if useDynamicIslandStyle && useTransparentBackground {
+                        // Show for both built-in (useDynamicIslandStyle) AND external (externalDisplayUseDynamicIsland)
+                        if (useDynamicIslandStyle || externalDisplayUseDynamicIsland) && useTransparentBackground {
                             Divider()
                                 .padding(.vertical, 4)
                             
@@ -672,6 +725,15 @@ struct SettingsView: View {
                     VStack(alignment: .leading) {
                         Text("Auto-Collapse")
                         Text("Shrink shelf when mouse leaves")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Toggle(isOn: $autoExpandShelf) {
+                    VStack(alignment: .leading) {
+                        Text("Auto-Expand")
+                        Text("Expand shelf automatically when hovering (0.5s)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -925,7 +987,7 @@ struct SettingsView: View {
     @State private var downloadCount: Int?
     
     // MARK: - Clipboard
-    @AppStorage("enableClipboardBeta") private var enableClipboard = false
+    @AppStorage("enableClipboardBeta") private var enableClipboard = true
     @AppStorage("clipboardHistoryLimit") private var clipboardHistoryLimit = 50
     @State private var currentShortcut: SavedShortcut?
     @State private var showAppPicker: Bool = false
@@ -954,12 +1016,15 @@ struct SettingsView: View {
     
     private var clipboardSettings: some View {
         Section {
-            Toggle(isOn: $enableClipboard) {
-                VStack(alignment: .leading) {
-                    Text("Clipboard Manager")
-                    Text("History with Preview")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ClipboardShortcutInfoButton(shortcut: currentShortcut)
+                Toggle(isOn: $enableClipboard) {
+                    VStack(alignment: .leading) {
+                        Text("Clipboard Manager")
+                        Text("History with Preview")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .onChange(of: enableClipboard) { oldValue, newValue in
@@ -1314,1585 +1379,662 @@ class ClickSelectingTextField: NSTextField {
     }
 }
 
-// MARK: - Feature Preview GIF Component
+// MARK: - Swipe Gesture Info Button
 
-struct FeaturePreviewGIF: View {
-    let url: String
+/// Info button that shows a popover explaining the swipe gesture for media/shelf switching
+struct SwipeGestureInfoButton: View {
+    @State private var showPopover = false
+    @State private var animateSwipe = false
     
     var body: some View {
-        AnimatedGIFView(url: url)
-            .frame(maxWidth: 500, maxHeight: 200)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: .white.opacity(0.4), location: 0),
-                                .init(color: .white.opacity(0.1), location: 0.5),
-                                .init(color: .black.opacity(0.2), location: 1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-            .padding(.vertical, 8)
-    }
-}
-
-/// Static image preview with same styling as GIF previews
-struct FeaturePreviewImage: View {
-    let url: String
-    @State private var image: NSImage?
-    
-    var body: some View {
-        Group {
-            if let image = image {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            } else {
-                ProgressView()
-                    .frame(height: 60)
-            }
-        }
-        .frame(maxWidth: 250, maxHeight: 80)
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.vertical, 4)
-        .task {
-            guard let imageURL = URL(string: url) else { return }
-            do {
-                let (data, _) = try await URLSession.shared.data(from: imageURL)
-                if let loadedImage = NSImage(data: data) {
-                    await MainActor.run {
-                        self.image = loadedImage
-                    }
-                }
-            } catch {
-                print("Failed to load preview image: \(error)")
-            }
-        }
-    }
-}
-
-/// Native NSImageView-based GIF display (crash-safe, no WebKit)
-struct AnimatedGIFView: NSViewRepresentable {
-    let url: String
-    
-    func makeNSView(context: Context) -> NSView {
-        // Container view to properly constrain the image
-        let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
-        
-        let imageView = NSImageView()
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.animates = true
-        imageView.imageScaling = .scaleProportionallyDown  // Only scale DOWN, never up
-        imageView.canDrawSubviewsIntoLayer = true
-        imageView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        imageView.setContentHuggingPriority(.defaultLow, for: .vertical)
-        imageView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        imageView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
-        
-        container.addSubview(imageView)
-        
-        // Center the image within the container and constrain its edges
-        NSLayoutConstraint.activate([
-            imageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            imageView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            imageView.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor),
-            imageView.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
-            imageView.topAnchor.constraint(greaterThanOrEqualTo: container.topAnchor),
-            imageView.bottomAnchor.constraint(lessThanOrEqualTo: container.bottomAnchor),
-        ])
-        
-        // Store imageView reference for loading
-        context.coordinator.imageView = imageView
-        
-        // Load GIF data asynchronously
-        if let gifURL = URL(string: url) {
-            Task {
-                do {
-                    let (data, _) = try await URLSession.shared.data(from: gifURL)
-                    if let image = NSImage(data: data) {
-                        await MainActor.run {
-                            context.coordinator.imageView?.image = image
-                        }
-                    }
-                } catch {
-                    print("GIF load failed: \(error)")
-                }
-            }
-        }
-        
-        return container
-    }
-    
-    func updateNSView(_ nsView: NSView, context: Context) {
-        // Ensure animation is running
-        context.coordinator.imageView?.animates = true
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-    
-    class Coordinator {
-        weak var imageView: NSImageView?
-    }
-}
-
-// MARK: - Scroll Offset Preference Key
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-// MARK: - U-Shape for Notch Icon Preview
-/// Simple U-shape for notch mode icon in settings picker
-struct UShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius: CGFloat = 6
-        
-        // Start top-left
-        path.move(to: CGPoint(x: 0, y: 0))
-        // Down left side
-        path.addLine(to: CGPoint(x: 0, y: rect.height - radius))
-        // Bottom-left corner
-        path.addQuadCurve(
-            to: CGPoint(x: radius, y: rect.height),
-            control: CGPoint(x: 0, y: rect.height)
-        )
-        // Across bottom
-        path.addLine(to: CGPoint(x: rect.width - radius, y: rect.height))
-        // Bottom-right corner
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width, y: rect.height - radius),
-            control: CGPoint(x: rect.width, y: rect.height)
-        )
-        // Up right side
-        path.addLine(to: CGPoint(x: rect.width, y: 0))
-        
-        return path
-    }
-}
-
-// MARK: - Display Mode Button
-// Note: DisplayModeButton is now defined in SharedComponents.swift
-
-// MARK: - HUD Toggle Button (2x2 Grid)
-
-/// Compact toggle button for HUD settings grid - uses shared AnimatedHUDToggle
-struct HUDToggleButton: View {
-    let title: String
-    let icon: String
-    @Binding var isEnabled: Bool
-    var color: Color = .white
-    
-    var body: some View {
-        AnimatedHUDToggle(
-            icon: icon,
-            title: title,
-            isOn: $isEnabled,
-            color: color,
-            fixedWidth: nil  // Flexible - fills grid cell
-        )
-    }
-}
-
-// MARK: - Volume & Brightness Toggle (Special Morph Animation)
-// Note: VolumeAndBrightnessToggle is now defined in SharedComponents.swift
-
-// MARK: - SwiftUI Feature Previews (Using REAL Components)
-
-/// Volume/Brightness HUD Preview - uses REAL NotchShape and HUDSlider
-struct VolumeHUDPreview: View {
-    @State private var animatedValue: CGFloat = 0.65
-    
-    // Match real notch dimensions from NotchShelfView
-    private let hudWidth: CGFloat = 280
-    private let notchWidth: CGFloat = 180
-    private let notchHeight: CGFloat = 32
-    
-    private var wingWidth: CGFloat { (hudWidth - notchWidth) / 2 }
-    
-    var body: some View {
-        ZStack {
-            // Notch background with proper rounded corners
-            NotchShape(bottomRadius: 16)
-                .fill(Color.black)
-                .frame(width: hudWidth, height: notchHeight + 28)
-                .overlay(
-                    NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-            
-            // HUD content - laid out exactly like real NotchHUDView
-            VStack(spacing: 0) {
-                // Wings: Icon (left) | Camera Gap | Percentage (right)
-                HStack(spacing: 0) {
-                    // Left wing - Icon
-                    HStack {
-                        Spacer(minLength: 0)
-                        Image(systemName: volumeIcon)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .symbolVariant(.fill)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: wingWidth)
-                    
-                    // Camera notch gap
-                    Spacer().frame(width: notchWidth)
-                    
-                    // Right wing - Percentage (clipped to prevent animation overflow)
-                    HStack {
-                        Spacer(minLength: 0)
-                        Text("\(Int(animatedValue * 100))%")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .monospacedDigit()
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: wingWidth)
-                    .clipped()
-                }
-                .frame(height: notchHeight)
-                
-                // REAL HUDSlider below notch
-                HUDSlider(
-                    value: $animatedValue,
-                    accentColor: .white,
-                    isActive: false,
-                    onChange: nil
-                )
-                .frame(height: 20)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 4)
-                .allowsHitTesting(false)
-            }
-            .frame(width: hudWidth)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                animatedValue = 0.35
-            }
-        }
-    }
-    
-    private var volumeIcon: String {
-        if animatedValue == 0 { return "speaker.slash.fill" }
-        if animatedValue < 0.33 { return "speaker.wave.1.fill" }
-        if animatedValue < 0.66 { return "speaker.wave.2.fill" }
-        return "speaker.wave.3.fill"
-    }
-}
-
-/// Media Player Preview - uses REAL NotchShape, AudioSpectrumView, and MarqueeText
-struct MediaPlayerPreview: View {
-    @State private var isPlaying = true
-    
-    // Match real notch dimensions
-    private let hudWidth: CGFloat = 280
-    private let notchWidth: CGFloat = 180
-    private let notchHeight: CGFloat = 32
-    
-    private var wingWidth: CGFloat { (hudWidth - notchWidth) / 2 }
-    
-    var body: some View {
-        ZStack {
-            // Notch background with proper rounded corners
-            NotchShape(bottomRadius: 16)
-                .fill(Color.black)
-                .frame(width: hudWidth, height: notchHeight + 28)
-                .overlay(
-                    NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-            
-            // HUD content - laid out exactly like real MediaHUDView
-            VStack(spacing: 0) {
-                // Wings: Album (left) | Camera Gap | Visualizer (right)
-                HStack(spacing: 0) {
-                    // Left wing - Album art
-                    HStack {
-                        Spacer(minLength: 0)
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 22, height: 22)
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.white.opacity(0.8))
-                            )
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: wingWidth)
-                    
-                    // Camera notch gap
-                    Spacer().frame(width: notchWidth)
-                    
-                    // Right wing - REAL AudioSpectrumView
-                    HStack {
-                        Spacer(minLength: 0)
-                        AudioSpectrumView(isPlaying: isPlaying, barCount: 4, barWidth: 3, spacing: 2, height: 16, color: .orange)
-                            .frame(width: 4 * 3 + 3 * 2, height: 16)
-                        Spacer(minLength: 0)
-                    }
-                    .frame(width: wingWidth)
-                }
-                .frame(height: notchHeight)
-                
-                // REAL MarqueeText below notch
-                MarqueeText(text: "Purple Rain — Prince", speed: 30)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(height: 18)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-            }
-            .frame(width: hudWidth)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    isPlaying.toggle()
-                }
-            }
-        }
-    }
-}
-
-/// Clipboard Preview - realistic split view matching ClipboardWindow
-struct ClipboardPreview: View {
-    var body: some View {
-        HStack(spacing: 0) {
-            // Left: Item list
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.on.clipboard.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.blue)
-                    Text("History")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                
-                Divider().background(Color.white.opacity(0.1))
-                
-                // Items
-                VStack(spacing: 2) {
-                    ClipboardMockItem(icon: "doc.text.fill", text: "Hello World", color: .blue, isSelected: true)
-                    ClipboardMockItem(icon: "link", text: "droppy.app", color: .green, isSelected: false)
-                    ClipboardMockItem(icon: "photo.fill", text: "Image.png", color: .purple, isSelected: false)
-                }
-                .padding(4)
-                
-                Spacer(minLength: 0)
-            }
-            .frame(width: 110)
-            
-            Divider().background(Color.white.opacity(0.1))
-            
-            // Right: Preview pane
-            VStack {
-                Spacer()
-                VStack(spacing: 4) {
-                    Text("Hello World")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
-                    Text("Copied text")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                Spacer()
-                
-                // Paste button
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.on.doc.fill")
-                        .font(.system(size: 8))
-                    Text("Paste")
-                        .font(.system(size: 9, weight: .medium))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .padding(.bottom, 8)
-            }
-            .frame(width: 90)
-        }
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
-        )
-        .frame(width: 200, height: 120)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-    }
-}
-
-/// Single mock item for ClipboardPreview
-private struct ClipboardMockItem: View {
-    let icon: String
-    let text: String
-    let color: Color
-    var isSelected: Bool = false
-    
-    var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 8))
-                .foregroundStyle(color)
-                .frame(width: 12)
-            
-            Text(text)
-                .font(.system(size: 9))
-                .foregroundStyle(.white.opacity(isSelected ? 1 : 0.7))
-                .lineLimit(1)
-            
-            Spacer()
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(isSelected ? Color.blue.opacity(0.3) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-}
-
-/// Battery HUD Preview - animated charging state with real battery icon
-struct BatteryHUDPreview: View {
-    @State private var isCharging = false
-    @State private var batteryLevel: Int = 75
-    
-    // Match real notch dimensions
-    private let hudWidth: CGFloat = 280
-    private let notchWidth: CGFloat = 180
-    private let notchHeight: CGFloat = 32
-    
-    private var wingWidth: CGFloat { (hudWidth - notchWidth) / 2 }
-    
-    private var batteryIcon: String {
-        if isCharging {
-            return "battery.100.bolt"
-        } else {
-            switch batteryLevel {
-            case 0...24: return "battery.25"
-            case 25...49: return "battery.50"
-            case 50...74: return "battery.75"
-            default: return "battery.100"
-            }
-        }
-    }
-    
-    private var batteryColor: Color {
-        if isCharging { return .green }
-        if batteryLevel <= 20 { return .red }
-        return .white // White when not charging
-    }
-    
-    var body: some View {
-        ZStack {
-            // Notch background with proper rounded corners
-            NotchShape(bottomRadius: 16)
-                .fill(Color.black)
-                .frame(width: hudWidth, height: notchHeight)
-                .overlay(
-                    NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-            
-            // Wings: Battery (left) | Camera Gap | Percentage (right)
-            HStack(spacing: 0) {
-                // Left wing - Battery icon with animation
-                HStack {
-                    Spacer(minLength: 0)
-                    Image(systemName: batteryIcon)
-                        .font(.system(size: 22))
-                        .foregroundStyle(batteryColor)
-                        .contentTransition(.symbolEffect(.replace))
-                        .symbolEffect(.pulse, options: .repeating, isActive: isCharging)
-                    Spacer(minLength: 0)
-                }
-                .frame(width: wingWidth)
-                
-                // Camera notch gap
-                Spacer().frame(width: notchWidth)
-                
-                // Right wing - Percentage
-                HStack {
-                    Spacer(minLength: 0)
-                    Text("\(batteryLevel)%")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .monospacedDigit()
-                        .contentTransition(.numericText(value: Double(batteryLevel)))
-                    Spacer(minLength: 0)
-                }
-                .frame(width: wingWidth)
-            }
-            .frame(width: hudWidth, height: notchHeight)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            // Animate charging state and battery level
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    isCharging.toggle()
-                    // Animate battery level when charging
-                    if isCharging {
-                        batteryLevel = min(100, batteryLevel + 10)
-                    } else {
-                        batteryLevel = 75 // Reset
+        Button {
+            showPopover.toggle()
+            if showPopover {
+                // Start animation when popover opens
+                animateSwipe = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                        animateSwipe = true
                     }
                 }
             }
-        }
-    }
-}
-
-/// Caps Lock HUD Preview - animated ON/OFF state toggle
-struct CapsLockHUDPreview: View {
-    @State private var isCapsLockOn = true
-    
-    // Match real notch dimensions
-    private let hudWidth: CGFloat = 280
-    private let notchWidth: CGFloat = 180
-    private let notchHeight: CGFloat = 32
-    
-    private var wingWidth: CGFloat { (hudWidth - notchWidth) / 2 }
-    
-    private var capsLockIcon: String {
-        isCapsLockOn ? "capslock.fill" : "capslock"
-    }
-    
-    private var accentColor: Color {
-        isCapsLockOn ? .green : .white
-    }
-    
-    var body: some View {
-        ZStack {
-            // Notch background with proper rounded corners
-            NotchShape(bottomRadius: 16)
-                .fill(Color.black)
-                .frame(width: hudWidth, height: notchHeight)
-                .overlay(
-                    NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-            
-            // Wings: Caps Lock (left) | Camera Gap | ON/OFF (right)
-            HStack(spacing: 0) {
-                // Left wing - Caps Lock icon with animation
-                HStack {
-                    Spacer(minLength: 0)
-                    Image(systemName: capsLockIcon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(accentColor)
-                        .contentTransition(.symbolEffect(.replace))
-                        .symbolEffect(.pulse, options: .repeating, isActive: isCapsLockOn)
-                    Spacer(minLength: 0)
-                }
-                .frame(width: wingWidth)
-                
-                // Camera notch gap
-                Spacer().frame(width: notchWidth)
-                
-                // Right wing - ON/OFF text
-                HStack {
-                    Spacer(minLength: 0)
-                    Text(isCapsLockOn ? "ON" : "OFF")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(accentColor)
-                        .contentTransition(.interpolate)
-                    Spacer(minLength: 0)
-                }
-                .frame(width: wingWidth)
-            }
-            .frame(width: hudWidth, height: notchHeight)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            // Animate ON/OFF state
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    isCapsLockOn.toggle()
-                }
-            }
-        }
-    }
-}
-
-/// Floating Basket Preview - realistic mock matching FloatingBasketView
-struct FloatingBasketPreview: View {
-    @State private var dashPhase: CGFloat = 0
-    
-    private let cornerRadius: CGFloat = 20
-    private let previewWidth: CGFloat = 220
-    private let previewHeight: CGFloat = 150
-    private let insetPadding: CGFloat = 20 // Symmetrical padding from dotted border
-    
-    var body: some View {
-        ZStack {
-                // Background with animated dashed border
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.black)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius - 10, style: .continuous)
-                            .stroke(
-                                Color.white.opacity(0.2),
-                                style: StrokeStyle(
-                                    lineWidth: 1.5,
-                                    lineCap: .round,
-                                    dash: [6, 8],
-                                    dashPhase: dashPhase
-                                )
-                            )
-                            .padding(10)
-                    )
-                
-                // Content - symmetrical padding from dotted border
-                VStack(spacing: 10) {
-                    // Header - moved up for symmetry
-                    HStack(spacing: 8) {
-                        Text("3 items")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        // To Shelf button - single line
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.to.line")
-                                .font(.system(size: 8, weight: .bold))
-                            Text("To Shelf")
-                                .font(.system(size: 8, weight: .semibold))
-                                .fixedSize() // Prevent wrapping
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        
-                        // Clear button
-                        Image(systemName: "eraser.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    
-                    Spacer(minLength: 0)
-                    
-                    // Mock items grid - centered
-                    HStack(spacing: 12) {
-                        MockFileItem(icon: "doc.fill", color: .blue, name: "Document")
-                        MockFileItem(icon: "photo.fill", color: .purple, name: "Image.png")
-                        MockFileItem(icon: "folder.fill", color: .cyan, name: "Folder")
-                    }
-                }
-                .padding(insetPadding) // Symmetrical padding on all sides
-            }
-            .frame(width: previewWidth, height: previewHeight)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            // Dashed border animation
-            withAnimation(.linear(duration: 15).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
-            }
-        }
-    }
-}
-
-/// Animated preview demonstrating the Auto-Hide Peek feature
-struct PeekPreview: View {
-    let edge: String
-    
-    @State private var isPeeking = false
-    @State private var dashPhase: CGFloat = 0
-    
-    private let containerWidth: CGFloat = 280
-    private let containerHeight: CGFloat = 100
-    private let basketWidth: CGFloat = 100
-    private let basketHeight: CGFloat = 70
-    private let peekAmount: CGFloat = 20 // How much stays visible
-    
-    var body: some View {
-        ZStack {
-            // Container representing the screen
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray.opacity(0.12))
-                .overlay(
-                    Text("Screen")
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.quaternary)
-                        .padding(.leading, 8)
-                        .padding(.top, 6)
-                    , alignment: .topLeading
-                )
-            
-            // Mini basket that peeks
-            miniBasket
-                .offset(basketOffset)
-                .rotation3DEffect(
-                    .degrees(isPeeking ? rotationAngle : 0),
-                    axis: rotationAxis,
-                    perspective: 0.5
-                )
-                .scaleEffect(isPeeking ? 0.92 : 1.0)
-                .animation(.easeInOut(duration: isPeeking ? 0.55 : 0.25), value: isPeeking)
-        }
-        .frame(width: containerWidth, height: containerHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .onAppear {
-            // Delay initial start
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                startAnimationCycle()
-            }
-            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
-            }
-        }
-        .onChange(of: edge) { _, _ in
-            isPeeking = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                startAnimationCycle()
-            }
-        }
-    }
-    
-    private let miniBasketScale: CGFloat = 0.5
-    
-    private var miniBasket: some View {
-        ZStack {
-            // Background with animated dashed border
-            RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12 * miniBasketScale, style: .continuous)
-                        .stroke(
-                            Color.white.opacity(0.2),
-                            style: StrokeStyle(
-                                lineWidth: 1.5 * miniBasketScale,
-                                lineCap: .round,
-                                dash: [6 * miniBasketScale, 8 * miniBasketScale],
-                                dashPhase: dashPhase * miniBasketScale
-                            )
-                        )
-                        .padding(10 * miniBasketScale)
-                )
-            
-            // Content - matching real basket layout
-            VStack(spacing: 6 * miniBasketScale) {
-                // Header row
-                HStack(spacing: 4 * miniBasketScale) {
-                    Text("3 items")
-                        .font(.system(size: 10 * miniBasketScale, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    
-                    Spacer()
-                    
-                    // To Shelf button
-                    HStack(spacing: 2 * miniBasketScale) {
-                        Image(systemName: "arrow.up.to.line")
-                            .font(.system(size: 8 * miniBasketScale, weight: .bold))
-                        Text("To Shelf")
-                            .font(.system(size: 8 * miniBasketScale, weight: .semibold))
-                            .fixedSize()
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6 * miniBasketScale)
-                    .padding(.vertical, 4 * miniBasketScale)
-                    .background(Color.blue.opacity(0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 16 * miniBasketScale, style: .continuous))
-                    
-                    // Clear button
-                    Image(systemName: "eraser.fill")
-                        .font(.system(size: 8 * miniBasketScale, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16 * miniBasketScale, height: 16 * miniBasketScale)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 14 * miniBasketScale, style: .continuous))
-                }
-                
-                Spacer(minLength: 0)
-                
-                // File items grid
-                HStack(spacing: 8 * miniBasketScale) {
-                    MiniFileItem(icon: "doc.fill", color: .blue, name: "Document", scale: miniBasketScale)
-                    MiniFileItem(icon: "photo.fill", color: .purple, name: "Image.png", scale: miniBasketScale)
-                    MiniFileItem(icon: "folder.fill", color: .cyan, name: "Folder", scale: miniBasketScale)
-                }
-            }
-            .padding(12 * miniBasketScale)
-        }
-        .frame(width: basketWidth, height: basketHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.25), radius: 8 * miniBasketScale, x: 0, y: 4 * miniBasketScale)
-    }
-    
-    private var basketOffset: CGSize {
-        if isPeeking {
-            switch edge {
-            case "left":
-                return CGSize(width: -(containerWidth/2 - peekAmount + basketWidth/2), height: 0)
-            case "right":
-                return CGSize(width: (containerWidth/2 - peekAmount + basketWidth/2), height: 0)
-            case "bottom":
-                return CGSize(width: 0, height: (containerHeight/2 - peekAmount + basketHeight/2))
-            default:
-                return CGSize(width: (containerWidth/2 - peekAmount + basketWidth/2), height: 0)
-            }
-        } else {
-            return .zero
-        }
-    }
-    
-    private var rotationAngle: Double {
-        // Match real peek: ~10 degrees (0.18 radians ≈ 10.3°)
-        switch edge {
-        case "left": return 10
-        case "right": return -10
-        case "bottom": return 10
-        default: return -10
-        }
-    }
-    
-    private var rotationAxis: (x: CGFloat, y: CGFloat, z: CGFloat) {
-        switch edge {
-        case "left", "right": return (x: 0, y: 1, z: 0)
-        case "bottom": return (x: 1, y: 0, z: 0)
-        default: return (x: 0, y: 1, z: 0)
-        }
-    }
-    
-    private func startAnimationCycle() {
-        // Step 1: Slide to peek position (0.55s - matches real)
-        isPeeking = true
-        
-        // Step 2: Stay peeking for 3 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-            // Step 3: Reveal back (0.25s - matches real)
-            isPeeking = false
-            
-            // Step 4: Stay visible for 3 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-                // Step 5: Wait 4 more seconds before repeating
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                    startAnimationCycle()
-                }
-            }
-        }
-    }
-}
-
-/// Scaled file item for PeekPreview mini basket
-private struct MiniFileItem: View {
-    let icon: String
-    let color: Color
-    let name: String
-    let scale: CGFloat
-    
-    var body: some View {
-        VStack(spacing: 4 * scale) {
-            Image(systemName: icon)
-                .font(.system(size: 22 * scale))
-                .foregroundStyle(color)
-                .frame(width: 44 * scale, height: 44 * scale)
-                .background(Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
-            
-            Text(name)
-                .font(.system(size: 7 * scale))
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-}
-
-/// Mock file item for basket and shelf previews
-private struct MockFileItem: View {
-    let icon: String
-    let color: Color
-    let name: String
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            
-            Text(name)
-                .font(.system(size: 7))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-}
-
-/// Notch Shelf Preview - realistic mock matching NotchShelfView expanded state
-struct NotchShelfPreview: View {
-    @State private var dashPhase: CGFloat = 0
-    @State private var bounce = false
-    
-    // Notch dimensions
-    private let notchWidth: CGFloat = 180
-    private let notchHeight: CGFloat = 32
-    private let shelfWidth: CGFloat = 280
-    private let shelfHeight: CGFloat = 70
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                // Expanded shelf background with NotchShape
-                NotchShape(bottomRadius: 16)
-                    .fill(Color.black)
-                    .frame(width: shelfWidth, height: shelfHeight)
-                    .overlay(
-                        // BLUE marching ants - matches real drag indicator
-                        NotchShape(bottomRadius: 12)
-                            .stroke(
-                                Color.blue,
-                                style: StrokeStyle(
-                                    lineWidth: 2,
-                                    lineCap: .round,
-                                    dash: [6, 8],
-                                    dashPhase: dashPhase
-                                )
-                            )
-                            .padding(8)
-                    )
-                    .overlay(
-                        NotchShape(bottomRadius: 16)
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    )
-                
-                // REAL "Drop!" indicator - exact copy from NotchShelfView.dropIndicatorContent
-                VStack(spacing: 0) {
-                    Spacer()
-                        .frame(height: notchHeight)
-                    
-                    // Real drop indicator content
-                    HStack(spacing: 8) {
-                        Image(systemName: "tray.and.arrow.down.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white, .green)
-                            .symbolEffect(.bounce, value: bounce)
-                        
-                        Text("Drop!")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .shadow(radius: 2)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color.black)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
-                            .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-                    )
-                    
-                    Spacer()
-                }
-            }
-            .frame(width: shelfWidth, height: shelfHeight)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            // Blue marching ants animation
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
-            }
-            // Bounce animation for icon
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                bounce = true
-            }
-        }
-    }
-}
-
-/// Mock shelf item (smaller than basket items)
-private struct MockShelfItem: View {
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        Image(systemName: icon)
-            .font(.system(size: 18))
-            .foregroundStyle(color)
-            .frame(width: 36, height: 36)
-            .background(Color.white.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-}
-
-/// Open Shelf Indicator Preview - REAL component from NotchShelfView
-struct OpenShelfIndicatorPreview: View {
-    @State private var bounce = false
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hand.tap.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white, .blue)
-                .symbolEffect(.bounce, value: bounce)
-            
-            Text("Open Shelf")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
-                .shadow(radius: 2)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-        )
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                bounce = true
-            }
-        }
-    }
-}
-
-/// Drop Indicator Preview - REAL component from NotchShelfView
-struct DropIndicatorPreview: View {
-    @State private var bounce = false
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "tray.and.arrow.down.fill")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white, .green)
-                .symbolEffect(.bounce, value: bounce)
-            
-            Text("Drop!")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.white)
-                .shadow(radius: 2)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-        )
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                bounce = true
-            }
-        }
-    }
-}
-
-// MARK: - AI Background Removal Settings Row
-
-// MARK: - Extensions Shop View
-
-enum ExtensionCategory: String, CaseIterable, Identifiable {
-    case all = "All"
-    case installed = "Installed"
-    case ai = "AI"
-    case productivity = "Productivity"
-    case media = "Media"
-    
-    var id: String { rawValue }
-    
-    var icon: String {
-        switch self {
-        case .all: return "square.grid.2x2"
-        case .installed: return "checkmark.circle.fill"
-        case .ai: return "sparkles"
-        case .productivity: return "bolt.fill"
-        case .media: return "music.note"
-        }
-    }
-    
-    var color: Color {
-        switch self {
-        case .all: return .white
-        case .installed: return .green
-        case .ai: return .purple
-        case .productivity: return .orange
-        case .media: return .green
-        }
-    }
-}
-
-struct ExtensionsShopView: View {
-    @State private var selectedCategory: ExtensionCategory = .all
-    @Namespace private var categoryAnimation
-    @State private var extensionCounts: [String: Int] = [:]
-    @State private var extensionRatings: [String: AnalyticsService.ExtensionRating] = [:]
-    
-    // MARK: - Installed State Checks
-    // Use tracking keys for consistency (set by AnalyticsService.trackExtensionActivation)
-    // OR real-time checks for extensions with observable state
-    
-    // Real-time check: AI model exists on disk
-    private var isAIInstalled: Bool { AIInstallManager.shared.isInstalled }
-    // Tracking key: set when workflow is opened
-    private var isAlfredInstalled: Bool { UserDefaults.standard.bool(forKey: "alfredTracked") }
-    // Tracking key: set when services are enabled
-    private var isFinderInstalled: Bool { UserDefaults.standard.bool(forKey: "finderTracked") }
-    // Tracking key: set when Spotify integration is first used (playing music)
-    private var isSpotifyInstalled: Bool { UserDefaults.standard.bool(forKey: "spotifyTracked") }
-    // Real-time check: has shortcut data
-    private var isElementCaptureInstalled: Bool {
-        UserDefaults.standard.data(forKey: "elementCaptureShortcut") != nil
-    }
-    // Real-time check: has shortcuts configured  
-    private var isWindowSnapInstalled: Bool { !WindowSnapManager.shared.shortcuts.isEmpty }
-    
-    /// Check if extension should be shown based on selected category
-    private func shouldShow(category: ExtensionCategory, isInstalled: Bool) -> Bool {
-        switch selectedCategory {
-        case .all: return true
-        case .installed: return isInstalled
-        default: return selectedCategory == category
-        }
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Category Swiper Header
-            categorySwiperHeader
-                .padding(.bottom, 20)
-            
-            // Extensions Grid
-            extensionsGrid
-        }
-        .onAppear {
-            Task {
-                async let countsTask = AnalyticsService.shared.fetchExtensionCounts()
-                async let ratingsTask = AnalyticsService.shared.fetchExtensionRatings()
-                
-                if let counts = try? await countsTask {
-                    extensionCounts = counts
-                }
-                if let ratings = try? await ratingsTask {
-                    extensionRatings = ratings
-                }
-            }
-        }
-    }
-    
-    // MARK: - Category Swiper
-    
-    private var categorySwiperHeader: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(ExtensionCategory.allCases) { category in
-                    CategoryPillButton(
-                        category: category,
-                        isSelected: selectedCategory == category,
-                        namespace: categoryAnimation
-                    ) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                            selectedCategory = category
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 4)
-        }
-    }
-    
-    // MARK: - Extensions Grid
-    
-    private var extensionsGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ], spacing: 16) {
-            // AI Background Removal
-            if shouldShow(category: .ai, isInstalled: isAIInstalled) {
-                AIBackgroundRemovalCard(
-                    installCount: extensionCounts["aiBackgroundRemoval"],
-                    rating: extensionRatings["aiBackgroundRemoval"]
-                )
-            }
-            
-            // Alfred Integration
-            if shouldShow(category: .productivity, isInstalled: isAlfredInstalled) {
-                AlfredExtensionCard(
-                    installCount: extensionCounts["alfred"],
-                    rating: extensionRatings["alfred"]
-                )
-            }
-            
-            // Finder Integration
-            if shouldShow(category: .productivity, isInstalled: isFinderInstalled) {
-                FinderExtensionCard(
-                    installCount: extensionCounts["finder"],
-                    rating: extensionRatings["finder"]
-                )
-            }
-            
-            // Spotify Integration
-            if shouldShow(category: .media, isInstalled: isSpotifyInstalled) {
-                SpotifyExtensionCard(
-                    installCount: extensionCounts["spotify"],
-                    rating: extensionRatings["spotify"]
-                )
-            }
-            
-            // Element Capture
-            if shouldShow(category: .productivity, isInstalled: isElementCaptureInstalled) {
-                ElementCaptureCard(
-                    installCount: extensionCounts["elementCapture"],
-                    rating: extensionRatings["elementCapture"]
-                )
-            }
-            
-            // Window Snap
-            if shouldShow(category: .productivity, isInstalled: isWindowSnapInstalled) {
-                WindowSnapCard(
-                    installCount: extensionCounts["windowSnap"],
-                    rating: extensionRatings["windowSnap"]
-                )
-            }
-            
-            // Voice Transcribe
-            if shouldShow(category: .ai, isInstalled: VoiceTranscribeManager.shared.isModelDownloaded) {
-                VoiceTranscribeCard(
-                    installCount: extensionCounts["voiceTranscribe"],
-                    rating: extensionRatings["voiceTranscribe"]
-                )
-            }
-        }
-    }
-}
-
-// MARK: - Category Pill Button
-
-struct CategoryPillButton: View {
-    let category: ExtensionCategory
-    let isSelected: Bool
-    let namespace: Namespace.ID
-    let action: () -> Void
-    
-    @State private var isHovering = false
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: category.icon)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(category.rawValue)
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .foregroundStyle(isSelected ? .white : .secondary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background {
-                if isSelected {
-                    Capsule()
-                        .fill(Color.blue.opacity(isHovering ? 1.0 : 0.85))
-                        .matchedGeometryEffect(id: "SelectedCategory", in: namespace)
-                } else {
-                    Capsule()
-                        .fill(Color.white.opacity(isHovering ? 0.12 : 0.06))
-                }
-            }
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
-            )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
-                isHovering = hovering
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Swipe Gesture")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Animated swipe preview with Droppy design
+                HStack(spacing: 16) {
+                    // Media icon - gradient glass style
+                    VStack(spacing: 6) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.pink.opacity(0.25), Color.pink.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(Color.pink.opacity(0.3), lineWidth: 1)
+                                )
+                                .shadow(color: .pink.opacity(0.2), radius: 8, y: 2)
+                            Image(systemName: "music.note")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.pink, .pink.opacity(0.7)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                        .frame(width: 44, height: 44)
+                        
+                        Text("Media")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Animated arrows
+                    VStack(spacing: 4) {
+                        // Left arrows (swipe left for media)
+                        HStack(spacing: 1) {
+                            Image(systemName: "chevron.left")
+                            Image(systemName: "chevron.left")
+                        }
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.pink)
+                        .offset(x: animateSwipe ? -4 : 4)
+                        .opacity(animateSwipe ? 1 : 0.4)
+                        
+                        // Right arrows (swipe right for shelf)
+                        HStack(spacing: 1) {
+                            Image(systemName: "chevron.right")
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.blue)
+                        .offset(x: animateSwipe ? 4 : -4)
+                        .opacity(animateSwipe ? 0.4 : 1)
+                    }
+                    .frame(width: 24)
+                    
+                    // Shelf icon - gradient glass style
+                    VStack(spacing: 6) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.blue.opacity(0.25), Color.blue.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                )
+                                .shadow(color: .blue.opacity(0.2), radius: 8, y: 2)
+                            Image(systemName: "tray.and.arrow.down.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.blue, .blue.opacity(0.7)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                        .frame(width: 44, height: 44)
+                        
+                        Text("Shelf")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+                
+                // Instructions with colored indicators
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(LinearGradient(colors: [.pink, .pink.opacity(0.6)], startPoint: .top, endPoint: .bottom))
+                            .frame(width: 6, height: 6)
+                        Text("Swipe left → Media")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(LinearGradient(colors: [.blue, .blue.opacity(0.6)], startPoint: .top, endPoint: .bottom))
+                            .frame(width: 6, height: 6)
+                        Text("Swipe right → Shelf")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+            .padding(20)
+            .frame(width: 180)
         }
     }
 }
 
+// MARK: - Basket Gesture Info Button
 
-// MARK: - Extension Cards
-
-struct ExtensionCardStyle: ViewModifier {
-    let accentColor: Color
-    @State private var isHovering = false
-    
-    private var borderColor: Color {
-        if isHovering {
-            return accentColor.opacity(0.7)
-        } else {
-            return Color.white.opacity(0.1)
-        }
-    }
-    
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(borderColor, lineWidth: 1)
-            )
-            .scaleEffect(isHovering ? 1.02 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
-            .onHover { hovering in
-                isHovering = hovering
-            }
-    }
-}
-
-extension View {
-    func extensionCardStyle(accentColor: Color) -> some View {
-        modifier(ExtensionCardStyle(accentColor: accentColor))
-    }
-}
-
-// Special AI card style with gradient border on hover
-struct AIExtensionCardStyle: ViewModifier {
-    @State private var isHovering = false
-    
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(Color.white.opacity(0.05))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(
-                        isHovering
-                            ? AnyShapeStyle(LinearGradient(
-                                colors: [.purple.opacity(0.8), .pink.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                            : AnyShapeStyle(Color.white.opacity(0.1)),
-                        lineWidth: 1
-                    )
-            )
-            .scaleEffect(isHovering ? 1.02 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
-            .onHover { hovering in
-                isHovering = hovering
-            }
-    }
-}
-
-extension View {
-    func aiExtensionCardStyle() -> some View {
-        modifier(AIExtensionCardStyle())
-    }
-}
-
-// MARK: - AI Extension Icon with Magic Overlay
-
-/// Droppy icon with subtle magic sparkle overlay for AI feature
-struct AIExtensionIcon: View {
-    var size: CGFloat = 44
+/// Info button explaining the jiggle gesture to summon basket
+struct BasketGestureInfoButton: View {
+    @State private var showPopover = false
+    @State private var animateJiggle = false
     
     var body: some View {
-        ZStack {
-            // Droppy app icon as base
-            if let appIcon = NSApp.applicationIconImage {
-                Image(nsImage: appIcon)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
+        Button {
+            showPopover.toggle()
+            if showPopover {
+                animateJiggle = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
+                        animateJiggle = true
+                    }
+                }
             }
-            
-            // Subtle magic gradient overlay
-            LinearGradient(
-                colors: [
-                    Color.purple.opacity(0.2),
-                    Color.pink.opacity(0.15),
-                    Color.clear
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            
-            // Sparkle accents
-            VStack {
-                HStack {
-                    Spacer()
-                    Image(systemName: "sparkle")
-                        .font(.system(size: size * 0.2, weight: .bold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.white, .purple.opacity(0.8)],
-                                startPoint: .top,
-                                endPoint: .bottom
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Summon Basket")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Jiggle animation preview
+                VStack(spacing: 8) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.purple.opacity(0.25), Color.purple.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .shadow(color: .purple.opacity(0.5), radius: 2)
-                        .offset(x: -2, y: 2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                            )
+                            .shadow(color: .purple.opacity(0.2), radius: 8, y: 2)
+                        
+                        Image(systemName: "doc.fill")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(
+                                LinearGradient(colors: [.purple, .purple.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+                            )
+                    }
+                    .frame(width: 50, height: 50)
+                    .rotationEffect(.degrees(animateJiggle ? 8 : -8))
+                    
+                    Text("Jiggle while dragging")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                HStack {
-                    Image(systemName: "sparkle")
-                        .font(.system(size: size * 0.15, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .shadow(color: .pink.opacity(0.5), radius: 2)
-                        .offset(x: 4, y: -4)
-                    Spacer()
+                .padding(.vertical, 4)
+                
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.draw.fill")
+                        .foregroundStyle(.purple)
+                        .font(.system(size: 11))
+                    Text("Shake files to summon basket")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
+            .padding(20)
+            .frame(width: 180)
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.227, style: .continuous))
     }
 }
 
-// MARK: - Extension Cards (Modular)
-// Extension card structs are now in their own files:
-// - Extensions/AIBackgroundRemoval/AIBackgroundRemovalCard.swift
-// - Extensions/Alfred/AlfredCard.swift
-// - Extensions/FinderServices/FinderServicesCard.swift
-// - Extensions/Spotify/SpotifyCard.swift
-// - Extensions/ElementCapture/ElementCaptureCard.swift
-// - Extensions/WindowSnap/WindowSnapCard.swift
+// MARK: - Peek Mode Info Button
 
-/// Settings row for managing AI background removal with one-click install
-
-struct AIBackgroundRemovalSettingsRow: View {
-    @ObservedObject private var manager = AIInstallManager.shared
-    @State private var showInstallSheet = false
+/// Info button explaining auto-hide with peek behavior
+struct PeekModeInfoButton: View {
+    @State private var showPopover = false
+    @State private var animatePeek = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
-            HStack(alignment: .top) {
-                // AI Icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
+        Button {
+            showPopover.toggle()
+            if showPopover {
+                animatePeek = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+                        animatePeek = true
+                    }
                 }
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                
-                Spacer()
-                
-                // Clean grey badge
-                Text("AI")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
             }
-            
-            // Title & Description
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Background Removal")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Peek Mode")
+                    .font(.system(size: 15, weight: .semibold))
                 
-                Text("Remove backgrounds from images using AI. Works offline.")
+                // Peek animation
+                HStack(spacing: 0) {
+                    // Screen representation
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.white.opacity(0.1))
+                            .frame(width: 80, height: 50)
+                        
+                        Text("Screen")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Basket peeking from edge
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.purple.opacity(0.3), Color.purple.opacity(0.15)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .stroke(Color.purple.opacity(0.4), lineWidth: 1)
+                            )
+                        
+                        Image(systemName: "basket.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.purple)
+                    }
+                    .frame(width: 30, height: 40)
+                    .offset(x: animatePeek ? 0 : 20)
+                    .opacity(animatePeek ? 1 : 0.5)
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.purple)
+                            .frame(width: 5, height: 5)
+                        Text("Slides to edge when idle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.purple)
+                            .frame(width: 5, height: 5)
+                        Text("Hover edge to reveal")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 180)
+        }
+    }
+}
+
+// MARK: - Instant Appear Info Button
+
+/// Info button explaining instant basket appear on drag
+struct InstantAppearInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Instant Appear")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                HStack(spacing: 16) {
+                    // Drag icon
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(LinearGradient(colors: [Color.orange.opacity(0.25), Color.orange.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+                            .shadow(color: .orange.opacity(0.2), radius: 6, y: 2)
+                        Image(systemName: "hand.point.up.left.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(LinearGradient(colors: [.orange, .orange.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                    }
+                    .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "arrow.right")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
+                    
+                    // Basket appears
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(LinearGradient(colors: [Color.purple.opacity(0.25), Color.purple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.purple.opacity(0.3), lineWidth: 1))
+                            .shadow(color: .purple.opacity(0.2), radius: 6, y: 2)
+                        Image(systemName: "basket.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(LinearGradient(colors: [.purple, .purple.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                    }
+                    .frame(width: 40, height: 40)
+                }
+                .padding(.vertical, 4)
+                
+                Text("Basket appears immediately\nwhen you start dragging")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.center)
             }
-            
-            Spacer(minLength: 8)
-            
-            // Status
-            if manager.isInstalled {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                    Text("Installed")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.green)
-                }
-            } else {
-                Text("One-click install")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .frame(minHeight: 160)
-        .aiExtensionCardStyle()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            showInstallSheet = true
-        }
-        .sheet(isPresented: $showInstallSheet) {
-            AIInstallView()
+            .padding(20)
+            .frame(width: 200)
         }
     }
 }
 
-// Keep old struct for compatibility but mark deprecated
-@available(*, deprecated, renamed: "AIBackgroundRemovalSettingsRow")
-struct BackgroundRemovalSettingsRow: View {
+// MARK: - AirDrop Zone Info Button
+
+/// Info button explaining the AirDrop drop zone
+struct AirDropZoneInfoButton: View {
+    @State private var showPopover = false
+    
     var body: some View {
-        AIBackgroundRemovalSettingsRow()
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("AirDrop Zone")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Basket with AirDrop zone visualization
+                HStack(spacing: 2) {
+                    // Regular basket area
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.purple.opacity(0.15))
+                        VStack(spacing: 2) {
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 10))
+                            Image(systemName: "doc.fill")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundStyle(.purple.opacity(0.6))
+                    }
+                    .frame(width: 50, height: 50)
+                    
+                    // AirDrop zone
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(LinearGradient(colors: [Color.cyan.opacity(0.25), Color.blue.opacity(0.15)], startPoint: .top, endPoint: .bottom))
+                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.cyan.opacity(0.4), lineWidth: 1))
+                        
+                        Image(systemName: "airplayaudio")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(LinearGradient(colors: [.cyan, .blue], startPoint: .top, endPoint: .bottom))
+                    }
+                    .frame(width: 40, height: 50)
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                        Text("Drop on right side")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                        Text("Opens AirDrop picker")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 180)
+        }
     }
 }
+
+// MARK: - Clipboard Shortcut Info Button
+
+/// Info button showing the clipboard keyboard shortcut
+struct ClipboardShortcutInfoButton: View {
+    var shortcut: SavedShortcut?
+    @State private var showPopover = false
+    
+    /// Parse shortcut into individual key components for display
+    private var shortcutKeys: [String] {
+        guard let s = shortcut else {
+            // Default fallback
+            return ["⌘", "⇧", "Space"]
+        }
+        
+        var keys: [String] = []
+        let flags = NSEvent.ModifierFlags(rawValue: s.modifiers)
+        
+        if flags.contains(.command) { keys.append("⌘") }
+        if flags.contains(.shift) { keys.append("⇧") }
+        if flags.contains(.option) { keys.append("⌥") }
+        if flags.contains(.control) { keys.append("⌃") }
+        
+        // Add the actual key
+        let keyString = KeyCodeHelper.string(for: UInt16(s.keyCode))
+        keys.append(keyString)
+        
+        return keys
+    }
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Clipboard Tips")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Keyboard shortcut section - dynamic based on user's shortcut
+                VStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        ForEach(shortcutKeys, id: \.self) { key in
+                            KeyCapView(
+                                key: key,
+                                color: .cyan,
+                                isWide: key.count > 1
+                            )
+                        }
+                    }
+                    Text("Open clipboard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Divider()
+                    .padding(.vertical, 2)
+                
+                // Double-tap rename section
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(LinearGradient(colors: [Color.orange.opacity(0.25), Color.orange.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+                            Image(systemName: "doc.text.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(LinearGradient(colors: [.orange, .orange.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                        }
+                        .frame(width: 32, height: 32)
+                        
+                        VStack(spacing: 2) {
+                            Text("×2")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(.orange)
+                            Image(systemName: "hand.tap.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.orange.opacity(0.7))
+                        }
+                        
+                        Image(systemName: "arrow.right")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 10))
+                        
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(LinearGradient(colors: [Color.green.opacity(0.25), Color.green.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.green.opacity(0.3), lineWidth: 1))
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14))
+                                .foregroundStyle(LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                        }
+                        .frame(width: 32, height: 32)
+                    }
+                    Text("Double-tap to rename & save")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(20)
+            .frame(width: 210)
+        }
+    }
+}
+
+/// Styled keycap view for keyboard shortcut display
+struct KeyCapView: View {
+    let key: String
+    var color: Color = .white
+    var isWide: Bool = false
+    
+    var body: some View {
+        Text(key)
+            .font(.system(size: isWide ? 11 : 14, weight: .semibold, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, isWide ? 12 : 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(LinearGradient(colors: [color.opacity(0.2), color.opacity(0.1)], startPoint: .top, endPoint: .bottom))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(color.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .shadow(color: color.opacity(0.15), radius: 4, y: 2)
+    }
+}
+
+// MARK: - External Display Info Button
+
+/// Info button explaining external display behavior
+struct ExternalDisplayInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("External Display")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Monitor icons
+                HStack(spacing: 12) {
+                    // Laptop
+                    VStack(spacing: 4) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 30, height: 20)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.blue.opacity(0.3))
+                                .frame(width: 8, height: 3)
+                                .offset(y: -6)
+                        }
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 36, height: 3)
+                        Text("Built-in")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Image(systemName: "plus")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    
+                    // External monitor
+                    VStack(spacing: 4) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 40, height: 26)
+                            Capsule()
+                                .fill(Color.green.opacity(0.4))
+                                .frame(width: 14, height: 5)
+                                .offset(y: -8)
+                        }
+                        Rectangle()
+                            .fill(Color.white.opacity(0.2))
+                            .frame(width: 4, height: 6)
+                        Text("External")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Choose Notch or Island style")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Or hide completely")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 190)
+        }
+    }
+}
+

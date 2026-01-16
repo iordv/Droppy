@@ -23,8 +23,7 @@ struct ClipboardManagerView: View {
     @State private var selectedItems: Set<UUID> = []
     @State private var isResetHovering = false
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var renamingItemId: UUID?
-    @State private var renamingText: String = ""
+
     
     @State private var isSearchHovering = false
     @State private var dashPhase: CGFloat = 0
@@ -33,6 +32,9 @@ struct ClipboardManagerView: View {
     @State private var searchText = ""
     @State private var isSearchVisible = false
     @FocusState private var isSearchFocused: Bool
+    
+    // Pending selection: When user clicks during search, capture ID here to enforce after list rebuild
+    @State private var pendingSelectionId: UUID? = nil
     
     // Range selection anchor for Shift+Click
     @State private var lastClickedItemId: UUID?
@@ -93,6 +95,22 @@ struct ClipboardManagerView: View {
             }
             .onChange(of: searchText) { _, _ in
                 updateSortedHistory()
+            }
+            // ENFORCE PENDING SELECTION: After sortedHistory changes, apply pending selection
+            .onChange(of: cachedSortedHistory) { _, _ in
+                if let pendingId = pendingSelectionId {
+                    // Clear pending immediately to prevent re-triggering
+                    pendingSelectionId = nil
+                    // Force selection to ONLY the pending item
+                    selectedItems = [pendingId]
+                }
+            }
+            // Issue #33: onAppear might not fire if window is just hidden/shown (cached view)
+            // Use custom notification from Controller to force reset every time window opens
+            .onReceive(NotificationCenter.default.publisher(for: .clipboardWindowDidShow)) { _ in
+                // Clear any pending selection on fresh window open
+                pendingSelectionId = nil
+                handleOnAppear()
             }
     }
     
@@ -186,12 +204,40 @@ struct ClipboardManagerView: View {
     }
     
     private func handleOnAppear() {
-        if selectedItems.isEmpty, let first = sortedHistory.first {
-            selectedItems.insert(first.id)
+        // Block if there's a pending selection - user's click takes priority
+        if pendingSelectionId != nil {
+            return
+        }
+        
+        // Issue #33: Always highlight the last copied item (first in list), not the last selected item
+        // Also reset search state when opening
+        searchText = ""
+        isSearchVisible = false
+        isSearchFocused = false
+        
+        // Logic change: "Last Copied" is the chronologically newest item.
+        // Since manager.history is pre-sorted with Favorites at the top, we must search by date.
+        if let lastCopied = manager.history.max(by: { $0.date < $1.date }) {
+            selectedItems = [lastCopied.id]
+            // Scroll to it in case it's below favorites
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    scrollProxy?.scrollTo(lastCopied.id, anchor: .center)
+                }
+            }
+        } else {
+            selectedItems = []
         }
     }
     
     private func handleHistoryChange(_ new: [ClipboardItem]) {
+        // Block if there's a pending selection - user's click takes priority
+        if pendingSelectionId != nil {
+            // Still need to prune deleted items, but don't add any
+            selectedItems = selectedItems.filter { id in new.contains { $0.id == id } }
+            return
+        }
+        
         // Remove any selected items that no longer exist
         selectedItems = selectedItems.filter { id in new.contains { $0.id == id } }
         
@@ -422,28 +468,12 @@ struct ClipboardManagerView: View {
                                 lineWidth: 1.5,
                                 lineCap: .round,
                                 dash: [3, 3],
-                                dashPhase: dashPhase
+                                dashPhase: 0  // Static dotted border (no animation)
                             )
                         )
                 )
                 .padding(.horizontal, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
-                .onAppear {
-                    // Reset animation state so it triggers every time the view appears
-                    dashPhase = 0
-                    // Animate the marching ants
-                    withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                        dashPhase = 6
-                    }
-                }
-                .onChange(of: isSearchVisible) { _, visible in
-                   if visible {
-                       dashPhase = 0
-                       withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                           dashPhase = 6
-                       }
-                   }
-                }
             }
             
             if !manager.hasAccessibilityPermission {
@@ -476,6 +506,7 @@ struct ClipboardManagerView: View {
                                         return clipboardItemToPasteboardWritings(item)
                                     },
                                     onTap: { modifiers in
+                                        // 1. Handle Selection First (Priority)
                                         if modifiers.contains(.shift) {
                                             // Shift+Click: range selection
                                             if let anchorId = lastClickedItemId,
@@ -502,29 +533,46 @@ struct ClipboardManagerView: View {
                                             selectedItems = [item.id]
                                             lastClickedItemId = item.id
                                         }
+                                        
+                                        // 2. Then Hide Search if active
+                                        // Doing this after selection ensures the selection state is captured 
+                                        // before the list rebuilds (due to searchText change)
+                                        if isSearchVisible {
+                                            // Capture the clicked item ID BEFORE closing search
+                                            // This will be enforced by onChange(cachedSortedHistory) after list rebuilds
+                                            pendingSelectionId = item.id
+                                            
+                                            // Close search - this triggers list rebuild
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                isSearchVisible = false
+                                                searchText = ""
+                                                isSearchFocused = false
+                                            }
+                                        }
+                                    },
+                                    onDoubleClick: {
+                                        RenameWindowController.shared.show(itemTitle: item.title) { newName in
+                                            manager.rename(item: item, to: newName)
+                                        }
                                     },
                                     onRightClick: {
                                         // Select if not already selected
                                         if !selectedItems.contains(item.id) {
                                             selectedItems = [item.id]
                                         }
-                                    }
+                                    },
+                                    // Force DraggableArea to update when selection changes
+                                    selectionSignature: selectedItems.contains(item.id) ? 1 : 0
                                 ) {
                                     ClipboardItemRow(
                                         item: item, 
-                                        isSelected: selectedItems.contains(item.id),
-                                        isRenaming: renamingItemId == item.id,
-                                        renamingText: $renamingText,
-                                        onRename: {
-                                            manager.rename(item: item, to: renamingText)
-                                            renamingItemId = nil
-                                        },
-                                        onCancelRename: {
-                                            renamingItemId = nil
-                                        }
+                                        isSelected: selectedItems.contains(item.id)
                                     )
                                 }
-                                .id(item.id)
+                                // CRITICAL: Make view identity depend on selection state
+                                // This forces SwiftUI to recreate the entire DraggableArea (including NSHostingView)
+                                // when selection changes, ensuring the row visual always matches the state
+                                .id("\(item.id.uuidString)-\(selectedItems.contains(item.id) ? "sel" : "unsel")")
                                 .contextMenu {
                                     if selectedItems.count > 1 {
                                         // Multi-select context menu
@@ -586,12 +634,12 @@ struct ClipboardManagerView: View {
                                         
                                         Divider()
                                         Button {
-                                            renamingText = item.title
-                                            renamingItemId = item.id
+                                            RenameWindowController.shared.show(itemTitle: item.title) { newName in
+                                                manager.rename(item: item, to: newName)
+                                            }
                                         } label: {
                                             Label("Rename", systemImage: "pencil")
                                         }
-                                        Divider()
                                         Button(role: .destructive) {
                                             withAnimation(.easeInOut(duration: 0.2)) {
                                                 manager.delete(item: item)
@@ -902,10 +950,6 @@ struct ClipboardManagerView: View {
 struct ClipboardItemRow: View {
     let item: ClipboardItem
     let isSelected: Bool
-    let isRenaming: Bool
-    @Binding var renamingText: String
-    let onRename: () -> Void
-    let onCancelRename: () -> Void
     
     @State private var isHovering = false
     @State private var dashPhase: CGFloat = 0
@@ -944,14 +988,7 @@ struct ClipboardItemRow: View {
             }
             
             // Title or rename field
-            if isRenaming {
-                ClipboardRenameTextField(
-                    text: $renamingText,
-                    onSubmit: onRename,
-                    onCancel: onCancelRename
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            ZStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
                         .font(.system(size: 12, weight: .medium))
@@ -969,17 +1006,19 @@ struct ClipboardItemRow: View {
                     .foregroundStyle(.secondary)
                 }
             }
+            // Ensure minimum width for title area so it doesn't collapse excessively
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             Spacer()
             
             // Status icons (key + star)
             HStack(spacing: 4) {
-                if item.isConcealed && !isRenaming {
+                if item.isConcealed {
                     Image(systemName: "key.fill")
                         .foregroundStyle(.secondary)
                         .font(.system(size: 9))
                 }
-                if item.isFavorite && !isRenaming {
+                if item.isFavorite {
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)
                         .font(.system(size: 9))
@@ -999,34 +1038,7 @@ struct ClipboardItemRow: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
-        .overlay {
-            if isRenaming {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(
-                        Color.accentColor.opacity(0.8),
-                        style: StrokeStyle(
-                            lineWidth: 1.5,
-                            lineCap: .round,
-                            dash: [4, 4],
-                            dashPhase: dashPhase
-                        )
-                    )
-                    .onAppear {
-                        dashPhase = 0
-                        withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                            dashPhase = 8
-                        }
-                    }
-                    .onChange(of: isRenaming) { _, renaming in
-                        if renaming {
-                            dashPhase = 0
-                            withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                                dashPhase = 8
-                            }
-                        }
-                    }
-            }
-        }
+
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
@@ -1045,79 +1057,7 @@ struct ClipboardItemRow: View {
 }
 
 // MARK: - Clipboard Rename TextField
-private struct ClipboardRenameTextField: NSViewRepresentable {
-    @Binding var text: String
-    let onSubmit: () -> Void
-    let onCancel: () -> Void
-    
-    func makeNSView(context: Context) -> NSTextField {
-        let textField = NSTextField()
-        textField.delegate = context.coordinator
-        textField.isBordered = false
-        textField.drawsBackground = true
-        textField.backgroundColor = NSColor.black.withAlphaComponent(0.3)
-        textField.textColor = .white
-        textField.font = .systemFont(ofSize: 11, weight: .medium)
-        textField.alignment = .left
-        textField.focusRingType = .none
-        textField.stringValue = text
-        textField.wantsLayer = true
-        textField.layer?.cornerRadius = 6 // Match basket corner radius
-        
-        // Add left padding to the text field content if possible, or handle via frame
-        // For NSTextField we can adjust its frame or use a custom cell, but 
-        // let's keep it simple and just ensure font and background match.
-        
-        // Auto-focus and select text
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            guard let window = textField.window else { return }
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-            window.makeFirstResponder(textField)
-            textField.selectText(nil)
-            if let editor = textField.currentEditor() {
-                editor.selectedRange = NSRange(location: 0, length: textField.stringValue.count)
-            }
-        }
-        
-        return textField
-    }
-    
-    func updateNSView(_ nsView: NSTextField, context: Context) {
-        if nsView.stringValue != text {
-            nsView.stringValue = text
-        }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, NSTextFieldDelegate {
-        let parent: ClipboardRenameTextField
-        
-        init(_ parent: ClipboardRenameTextField) {
-            self.parent = parent
-        }
-        
-        func controlTextDidChange(_ notification: Notification) {
-            if let textField = notification.object as? NSTextField {
-                parent.text = textField.stringValue
-            }
-        }
-        
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-                parent.onSubmit()
-                return true
-            } else if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
-                parent.onCancel()
-                return true
-            }
-            return false
-        }
-    }
-}
+
 
 struct ClipboardPreviewView: View {
     let item: ClipboardItem
@@ -1267,12 +1207,7 @@ struct ClipboardPreviewView: View {
                             .scrollContentBackground(.hidden)
                             .foregroundStyle(.white)
                             .padding(12)
-                            .onAppear {
-                                dashPhase = 0
-                                withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                                    dashPhase = 6
-                                }
-                            }
+
                     } else {
                         ScrollView {
                             if let attributed = cachedAttributedText {
@@ -1419,7 +1354,7 @@ struct ClipboardPreviewView: View {
                             lineWidth: 1.5,
                             lineCap: .round,
                             dash: [3, 3],
-                            dashPhase: dashPhase
+                            dashPhase: 0  // Static dotted border (no animation)
                         )
                     )
             )
@@ -1427,12 +1362,6 @@ struct ClipboardPreviewView: View {
             .onChange(of: isEditing) { _, editing in
                 // Sync with shared state so Cmd+V shortcut is disabled during editing
                 manager.isEditingContent = editing
-                if editing {
-                    dashPhase = 0
-                    withAnimation(.linear(duration: 0.5).repeatForever(autoreverses: false)) {
-                        dashPhase = 6
-                    }
-                }
             }
             
             // Metadata Footer

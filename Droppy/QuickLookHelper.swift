@@ -19,14 +19,22 @@ class QuickLookHelper: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
         previewItems = urls
         sourceWindow = window
         
-        DispatchQueue.main.async {
-            if let panel = QLPreviewPanel.shared() {
-                if panel.isVisible {
+        DispatchQueue.main.async { [self] in
+            guard let panel = QLPreviewPanel.shared() else { return }
+            
+            // Always set data source and delegate (they may have been cleared)
+            panel.dataSource = self
+            panel.delegate = self
+            
+            if panel.isVisible {
+                // Panel is visible - just reload with new data
+                panel.reloadData()
+            } else {
+                // Show the panel
+                panel.makeKeyAndOrderFront(nil)
+                // Force reload after display to ensure items are loaded
+                DispatchQueue.main.async {
                     panel.reloadData()
-                } else {
-                    panel.dataSource = self
-                    panel.delegate = self
-                    panel.makeKeyAndOrderFront(nil)
                 }
             }
         }
@@ -34,14 +42,18 @@ class QuickLookHelper: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     
     /// Toggle the Quick Look panel visibility
     func toggle() {
-        DispatchQueue.main.async {
-            if let panel = QLPreviewPanel.shared() {
-                if panel.isVisible {
-                    panel.orderOut(nil)
-                } else if !self.previewItems.isEmpty {
-                    panel.dataSource = self
-                    panel.delegate = self
-                    panel.makeKeyAndOrderFront(nil)
+        DispatchQueue.main.async { [self] in
+            guard let panel = QLPreviewPanel.shared() else { return }
+            
+            if panel.isVisible {
+                panel.orderOut(nil)
+            } else if !self.previewItems.isEmpty {
+                panel.dataSource = self
+                panel.delegate = self
+                panel.makeKeyAndOrderFront(nil)
+                // Force reload after display
+                DispatchQueue.main.async {
+                    panel.reloadData()
                 }
             }
         }

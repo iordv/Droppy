@@ -146,6 +146,8 @@ struct URLSchemeHandler {
             extensionType = .windowSnap
         case "voice-transcribe", "voicetranscribe", "transcribe":
             extensionType = .voiceTranscribe
+        case "video-target-size", "ffmpeg", "video-compression":
+            extensionType = .ffmpegVideoCompression
         default:
             print("⚠️ URLSchemeHandler: Unknown extension ID '\(extensionId)'")
             extensionType = nil

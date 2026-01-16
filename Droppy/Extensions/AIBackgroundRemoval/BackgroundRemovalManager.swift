@@ -25,6 +25,11 @@ final class BackgroundRemovalManager: ObservableObject {
     /// - Parameter url: URL of the source image
     /// - Returns: URL of the output image with transparent background (*_nobg.png)
     func removeBackground(from url: URL) async throws -> URL {
+        // Don't process if extension is disabled
+        guard !ExtensionType.aiBackgroundRemoval.isRemoved else {
+            throw BackgroundRemovalError.extensionDisabled
+        }
+        
         isProcessing = true
         progress = 0
         defer { 
@@ -167,6 +172,7 @@ enum BackgroundRemovalError: LocalizedError {
     case failedToLoadImage
     case pythonNotInstalled
     case pythonScriptFailed(String)
+    case extensionDisabled
     
     var errorDescription: String? {
         switch self {
@@ -176,6 +182,8 @@ enum BackgroundRemovalError: LocalizedError {
             return "Python or transparent-background not installed. Run: pip3 install transparent-background"
         case .pythonScriptFailed(let message):
             return "Background removal failed: \(message)"
+        case .extensionDisabled:
+            return "AI Background Removal is disabled"
         }
     }
 }

@@ -364,6 +364,25 @@ final class SpotifyAuthManager {
         print("SpotifyAuthManager: Signed out")
     }
     
+    // MARK: - Extension Removal Cleanup
+    
+    /// Clean up all Spotify resources when extension is removed
+    func cleanup() {
+        // Sign out (clears tokens)
+        signOut()
+        
+        // Clear tracking state
+        UserDefaults.standard.removeObject(forKey: "spotifyTracked")
+        
+        // Notify controller
+        DispatchQueue.main.async {
+            SpotifyController.shared.updateAuthState()
+        }
+        
+        print("SpotifyAuthManager: Cleanup complete")
+    }
+
+    
     // MARK: - PKCE Helpers
     
     private func generateCodeVerifier() -> String {

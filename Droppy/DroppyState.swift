@@ -320,13 +320,52 @@ final class DroppyState {
     
     // MARK: - Selection (Shelf)
     
+    /// The last item ID that was interacted with (anchor for range selection)
+    var lastSelectionAnchor: UUID?
+    
     /// Toggles selection for an item
     func toggleSelection(_ item: DroppedItem) {
+        lastSelectionAnchor = item.id
         if selectedItems.contains(item.id) {
             selectedItems.remove(item.id)
         } else {
             selectedItems.insert(item.id)
         }
+    }
+    
+    /// Selects an item exclusively (clears others)
+    func select(_ item: DroppedItem) {
+        lastSelectionAnchor = item.id
+        selectedItems = [item.id]
+    }
+    
+    /// Selects a range from the last anchor to this item (Shift+Click)
+    func selectRange(to item: DroppedItem) {
+        // If no anchor or anchor not in current items, treated as single select
+        guard let anchorId = lastSelectionAnchor,
+              let anchorIndex = items.firstIndex(where: { $0.id == anchorId }),
+              let targetIndex = items.firstIndex(where: { $0.id == item.id }) else {
+            select(item)
+            return
+        }
+        
+        let start = min(anchorIndex, targetIndex)
+        let end = max(anchorIndex, targetIndex)
+        
+        let rangeIds = items[start...end].map { $0.id }
+        
+        // Add range to existing selection (standard macOS behavior depends, but additive is common for Shift)
+        // Actually standard macOS behavior for Shift+Click in Finder:
+        // - If previous click was single select: extends selection from anchor to target
+        // - If previous was Cmd select: extends from anchor to target, preserving others? 
+        // Simplest effective behavior: Union the range with existing selection
+        selectedItems.formUnion(rangeIds)
+        
+        // NOTE: We do NOT update lastSelectionAnchor on Shift+Click usually, 
+        // allowing successive Shift+Clicks to modify the range from original anchor.
+        // But for simplicity here, let's keep the anchor as is or update it?
+        // Finder behavior: Click A (anchor=A). Shift-Click C (selects A-C). Shift-Click D (selects A-D).
+        // So anchor should remains A! So we do NOT update lastSelectionAnchor.
     }
     
     /// Selects all items
@@ -337,17 +376,44 @@ final class DroppyState {
     /// Deselects all items
     func deselectAll() {
         selectedItems.removeAll()
+        lastSelectionAnchor = nil
     }
     
     // MARK: - Selection (Basket)
     
+    /// The last basket item ID that was interacted with (anchor for range selection)
+    var lastBasketSelectionAnchor: UUID?
+    
     /// Toggles selection for a basket item
     func toggleBasketSelection(_ item: DroppedItem) {
+        lastBasketSelectionAnchor = item.id
         if selectedBasketItems.contains(item.id) {
             selectedBasketItems.remove(item.id)
         } else {
             selectedBasketItems.insert(item.id)
         }
+    }
+    
+    /// Selects a basket item exclusively
+    func selectBasket(_ item: DroppedItem) {
+        lastBasketSelectionAnchor = item.id
+        selectedBasketItems = [item.id]
+    }
+    
+    /// Selects a range of basket items (Shift+Click)
+    func selectBasketRange(to item: DroppedItem) {
+        guard let anchorId = lastBasketSelectionAnchor,
+              let anchorIndex = basketItems.firstIndex(where: { $0.id == anchorId }),
+              let targetIndex = basketItems.firstIndex(where: { $0.id == item.id }) else {
+            selectBasket(item)
+            return
+        }
+        
+        let start = min(anchorIndex, targetIndex)
+        let end = max(anchorIndex, targetIndex)
+        
+        let rangeIds = basketItems[start...end].map { $0.id }
+        selectedBasketItems.formUnion(rangeIds)
     }
     
     /// Selects all basket items
@@ -358,6 +424,7 @@ final class DroppyState {
     /// Deselects all basket items
     func deselectAllBasket() {
         selectedBasketItems.removeAll()
+        lastBasketSelectionAnchor = nil
     }
     
     // MARK: - Clipboard

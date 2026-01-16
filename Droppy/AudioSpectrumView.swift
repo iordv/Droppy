@@ -13,13 +13,18 @@ import SwiftUI
 // MARK: - AudioSpectrum NSView (BoringNotch style)
 
 /// Native audio spectrum visualizer using CAShapeLayer animations
-/// Matches BoringNotch's implementation for reliable, smooth animation
+/// Supports real audio levels from SystemAudioAnalyzer or enhanced simulation fallback
 class AudioSpectrum: NSView {
     private var barLayers: [CAShapeLayer] = []
     private var barScales: [CGFloat] = []
     private var isPlaying: Bool = false
     private var animationTimer: Timer?
     private var currentColor: NSColor = .white
+    
+    // Audio-reactive pattern generation
+    private var trackProgress: CGFloat = 0.5 // 0.0-1.0 track position
+    private var wavePhase: CGFloat = 0 // Creates wave-like motion across bars
+    private var externalAudioLevel: CGFloat? // Real audio level from SystemAudioAnalyzer
     
     private let barCount: Int
     private let barWidth: CGFloat
@@ -78,7 +83,7 @@ class AudioSpectrum: NSView {
     
     private func startAnimating() {
         guard animationTimer == nil else { return }
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.updateBars()
         }
         // Trigger immediate update
@@ -92,24 +97,89 @@ class AudioSpectrum: NSView {
     }
     
     private func updateBars() {
+        // Advance wave phase for organic motion (simulation mode only)
+        wavePhase += 0.3
+        if wavePhase > 2 * .pi { wavePhase -= 2 * .pi }
+        
         for (i, barLayer) in barLayers.enumerated() {
             let currentScale = barScales[i]
-            let targetScale = CGFloat.random(in: 0.35...1.0)
-            barScales[i] = targetScale
+            let targetScale: CGFloat
             
-            let animation = CABasicAnimation(keyPath: "transform.scale.y")
-            animation.fromValue = currentScale
-            animation.toValue = targetScale
-            animation.duration = 0.3
-            animation.autoreverses = true
-            animation.fillMode = .forwards
-            animation.isRemovedOnCompletion = false
-            
-            if #available(macOS 13.0, *) {
-                animation.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 24, preferred: 24)
+            if let audioLevel = externalAudioLevel {
+                // REAL AUDIO MODE: iPhone-like reactive bars
+                // Each bar gets independent variation for natural look
+                let barVariation = CGFloat.random(in: -0.25...0.25)
+                
+                // Apply audio level with variation - more reactive to loud music
+                // Minimum 0.15 (small bars when quiet), max 1.0 (full height when loud)
+                let baseScale = 0.15 + (audioLevel * 0.85)
+                targetScale = max(0.15, min(1.0, baseScale + barVariation))
+            } else {
+                // SIMULATION MODE: Enhanced wave patterns with track progress
+                let energyMultiplier: CGFloat
+                let baseMin: CGFloat
+                let baseMax: CGFloat
+                
+                if trackProgress < 0.2 {
+                    let introProgress = trackProgress / 0.2
+                    energyMultiplier = 0.6 + (introProgress * 0.4)
+                    baseMin = 0.3
+                    baseMax = 0.7 + (introProgress * 0.3)
+                } else if trackProgress > 0.8 {
+                    let outroProgress = 1.0 - ((trackProgress - 0.8) / 0.2)
+                    energyMultiplier = 0.6 + (outroProgress * 0.4)
+                    baseMin = 0.3
+                    baseMax = 0.7 + (outroProgress * 0.3)
+                } else {
+                    energyMultiplier = 1.0
+                    baseMin = 0.35
+                    baseMax = 1.0
+                }
+                
+                let barPhase = wavePhase + (CGFloat(i) * 0.4)
+                let waveInfluence = (sin(barPhase) + 1) / 2 * 0.3
+                let randomComponent = CGFloat.random(in: baseMin...baseMax)
+                targetScale = max(0.25, min(1.0, (randomComponent * 0.7 + waveInfluence) * energyMultiplier))
             }
             
-            barLayer.add(animation, forKey: "scaleY")
+            barScales[i] = targetScale
+            
+            if externalAudioLevel != nil {
+                // REAL AUDIO: Spring animation for smooth, natural motion
+                let spring = CASpringAnimation(keyPath: "transform.scale.y")
+                spring.fromValue = currentScale
+                spring.toValue = targetScale
+                spring.damping = 12 // Higher = less bounce
+                spring.stiffness = 300 // Higher = faster response
+                spring.mass = 0.8
+                spring.initialVelocity = 0
+                spring.duration = spring.settlingDuration
+                spring.fillMode = .forwards
+                spring.isRemovedOnCompletion = false
+                
+                // Support 120fps on ProMotion displays
+                if #available(macOS 13.0, *) {
+                    spring.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+                }
+                
+                barLayer.add(spring, forKey: "scaleY")
+            } else {
+                // SIMULATION: Basic animation with easeOut
+                let animation = CABasicAnimation(keyPath: "transform.scale.y")
+                animation.fromValue = currentScale
+                animation.toValue = targetScale
+                animation.duration = 0.3
+                animation.autoreverses = true
+                animation.fillMode = .forwards
+                animation.isRemovedOnCompletion = false
+                animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                
+                if #available(macOS 13.0, *) {
+                    animation.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+                }
+                
+                barLayer.add(animation, forKey: "scaleY")
+            }
         }
     }
     
@@ -139,11 +209,22 @@ class AudioSpectrum: NSView {
             barLayer.backgroundColor = color.cgColor
         }
     }
+    
+    /// Update track progress for pattern variation (simulation mode)
+    func setTrackProgress(_ progress: CGFloat) {
+        trackProgress = max(0, min(1, progress))
+    }
+    
+    /// Set external audio level from SystemAudioAnalyzer (real audio mode)
+    /// Pass nil to use simulation mode
+    func setAudioLevel(_ level: CGFloat?) {
+        externalAudioLevel = level
+    }
 }
 
 // MARK: - SwiftUI Wrapper
 
-/// SwiftUI wrapper for AudioSpectrum (BoringNotch-style visualizer)
+/// SwiftUI wrapper for AudioSpectrum (supports real audio or simulation)
 struct AudioSpectrumView: NSViewRepresentable {
     let isPlaying: Bool
     var barCount: Int = 5
@@ -151,17 +232,23 @@ struct AudioSpectrumView: NSViewRepresentable {
     var spacing: CGFloat = 2
     var height: CGFloat = 14
     var color: Color = .white
+    var trackProgress: CGFloat = 0.5 // 0.0-1.0 track position for simulation mode
+    var audioLevel: CGFloat? = nil   // Real audio level (nil = use simulation)
     
     func makeNSView(context: Context) -> AudioSpectrum {
         let nsColor = NSColor(color)
         let spectrum = AudioSpectrum(barCount: barCount, barWidth: barWidth, spacing: spacing, height: height, color: nsColor)
         spectrum.setPlaying(isPlaying)
+        spectrum.setTrackProgress(trackProgress)
+        spectrum.setAudioLevel(audioLevel)
         return spectrum
     }
     
     func updateNSView(_ nsView: AudioSpectrum, context: Context) {
         nsView.setPlaying(isPlaying)
         nsView.setColor(NSColor(color))
+        nsView.setTrackProgress(trackProgress)
+        nsView.setAudioLevel(audioLevel)
     }
 }
 

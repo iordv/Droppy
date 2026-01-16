@@ -29,6 +29,10 @@ final class MediaKeyInterceptor {
     private var runLoopSource: CFRunLoopSource?
     private var isRunning = false
     
+    // Dedicated background queue for event tap (prevents main thread contention on M4 Macs)
+    private var eventTapQueue: DispatchQueue?
+    private var eventTapRunLoop: CFRunLoop?
+    
     /// Callbacks for key events
     var onVolumeUp: (() -> Void)?
     var onVolumeDown: (() -> Void)?
@@ -72,10 +76,21 @@ final class MediaKeyInterceptor {
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         
         if let source = runLoopSource {
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-            CGEvent.tapEnable(tap: tap, enable: true)
+            // Run on dedicated background queue to avoid main thread contention
+            // This fixes double HUD issue on M4 Macs where macOS Sequoia has stricter timing
+            let queue = DispatchQueue(label: "com.droppy.MediaKeyTap", qos: .userInteractive)
+            self.eventTapQueue = queue
+            
+            queue.async { [weak self] in
+                guard let self = self else { return }
+                self.eventTapRunLoop = CFRunLoopGetCurrent()
+                CFRunLoopAddSource(self.eventTapRunLoop, source, .commonModes)
+                CGEvent.tapEnable(tap: tap, enable: true)
+                CFRunLoopRun()
+            }
+            
             isRunning = true
-            print("MediaKeyInterceptor: Started successfully")
+            print("MediaKeyInterceptor: Started successfully on dedicated queue")
             return true
         }
         
@@ -90,12 +105,19 @@ final class MediaKeyInterceptor {
             CGEvent.tapEnable(tap: tap, enable: false)
         }
         
-        if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+        // Stop the dedicated run loop
+        if let runLoop = eventTapRunLoop {
+            CFRunLoopStop(runLoop)
+        }
+        
+        if let source = runLoopSource, let runLoop = eventTapRunLoop {
+            CFRunLoopRemoveSource(runLoop, source, .commonModes)
         }
         
         eventTap = nil
         runLoopSource = nil
+        eventTapQueue = nil
+        eventTapRunLoop = nil
         isRunning = false
         print("MediaKeyInterceptor: Stopped")
     }
@@ -159,6 +181,23 @@ private func mediaKeyCallback(
     
     // Handle tap being disabled (system temporarily disables if we take too long)
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        // CRITICAL CHECK: Before re-enabling, verify we still have permission.
+        // If the user revoked permissions, the system disables the tap.
+        // If we blindly re-enable it here without checking, we create a tight loop
+        // fighting the system, which freezes the WindowServer/whole Mac.
+        if !PermissionManager.shared.isAccessibilityGranted {
+            print("❌ MediaKeyInterceptor: Tap disabled and permissions revoked. Stopping interceptor to prevent system freeze.")
+            
+            // We must stop the interceptor. Since we are in a C callback which might be on a background thread,
+            // we should dispatch the stop call safely.
+            DispatchQueue.main.async {
+                MediaKeyInterceptor.shared.stop()
+            }
+            // Return event to system as is
+            return Unmanaged.passUnretained(event)
+        }
+        
+        print("⚠️ MediaKeyInterceptor: Tap disabled by system (Timeout/User), re-enabling...")
         if let tap = MediaKeyInterceptor.shared.eventTap {
             CGEvent.tapEnable(tap: tap, enable: true)
         }

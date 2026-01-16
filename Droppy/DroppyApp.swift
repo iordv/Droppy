@@ -27,6 +27,17 @@ struct DroppyMenuContent: View {
     // Track shortcut changes via notification
     @State private var shortcutRefreshId = UUID()
     
+    // Check if extensions are disabled
+    private var isElementCaptureDisabled: Bool {
+        _ = shortcutRefreshId // Force refresh
+        return ExtensionType.elementCapture.isRemoved
+    }
+    
+    private var isWindowSnapDisabled: Bool {
+        _ = shortcutRefreshId // Force refresh
+        return ExtensionType.windowSnap.isRemoved
+    }
+    
     // Load saved shortcut for native keyboard shortcut display
     private var savedShortcut: SavedShortcut? {
         // Force re-evaluation when shortcutRefreshId changes
@@ -45,27 +56,31 @@ struct DroppyMenuContent: View {
         
         Divider()
         
-        // Element Capture with native keyboard shortcut styling
-        elementCaptureButton
-            .id(shortcutRefreshId)  // Force rebuild when shortcut changes
+        // Element Capture with native keyboard shortcut styling (hidden when disabled)
+        if !isElementCaptureDisabled {
+            elementCaptureButton
+                .id(shortcutRefreshId)  // Force rebuild when shortcut changes
+        }
         
-        // Window Snap submenu with quick actions
-        Menu("Window Snap") {
-            Button("Left Half") {
-                WindowSnapManager.shared.executeAction(.leftHalf)
-            }
-            Button("Right Half") {
-                WindowSnapManager.shared.executeAction(.rightHalf)
-            }
-            Button("Maximize") {
-                WindowSnapManager.shared.executeAction(.maximize)
-            }
-            Button("Center") {
-                WindowSnapManager.shared.executeAction(.center)
-            }
-            Divider()
-            Button("Configure Shortcuts...") {
-                SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
+        // Window Snap submenu with quick actions (hidden when disabled)
+        if !isWindowSnapDisabled {
+            Menu("Window Snap") {
+                Button("Left Half") {
+                    WindowSnapManager.shared.executeAction(.leftHalf)
+                }
+                Button("Right Half") {
+                    WindowSnapManager.shared.executeAction(.rightHalf)
+                }
+                Button("Maximize") {
+                    WindowSnapManager.shared.executeAction(.maximize)
+                }
+                Button("Center") {
+                    WindowSnapManager.shared.executeAction(.center)
+                }
+                Divider()
+                Button("Configure Shortcuts...") {
+                    SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
+                }
             }
         }
         
@@ -86,6 +101,10 @@ struct DroppyMenuContent: View {
             shortcutRefreshId = UUID()
         }
         .onReceive(NotificationCenter.default.publisher(for: .windowSnapShortcutChanged)) { _ in
+            shortcutRefreshId = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .extensionStateChanged)) { _ in
+            // Refresh when extension is disabled/enabled
             shortcutRefreshId = UUID()
         }
     }
@@ -177,9 +196,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NotchWindowController.shared.setupNotchWindow()
             }
             
-            // 2. Clipboard Global Shortcut (Beta)
+            // 2. Clipboard Global Shortcut
             // This MUST start even if no windows are visible
-            if UserDefaults.standard.bool(forKey: "enableClipboardBeta") {
+            // Default to enabled if key not set
+            let clipboardEnabled = UserDefaults.standard.object(forKey: "enableClipboardBeta") == nil
+                ? true
+                : UserDefaults.standard.bool(forKey: "enableClipboardBeta")
+            if clipboardEnabled {
                 print("⌨️ Droppy: Starting Global Clipboard Monitor")
                 ClipboardWindowController.shared.startMonitoringShortcut()
             }

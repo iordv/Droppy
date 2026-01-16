@@ -19,7 +19,7 @@ struct SpotifyExtensionCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Official Spotify icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.png")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -99,7 +99,7 @@ struct SpotifyExtensionCard: View {
             }
         }
         .frame(minHeight: 160)
-        .extensionCardStyle(accentColor: .blue)
+        .extensionCardStyle(accentColor: Color(red: 0.12, green: 0.84, blue: 0.38))
         .contentShape(Rectangle())
         .onTapGesture {
             showInfoSheet = true

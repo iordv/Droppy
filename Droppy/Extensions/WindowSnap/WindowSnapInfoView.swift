@@ -18,6 +18,7 @@ struct WindowSnapInfoView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringClose = false
     @State private var isHoveringDefaults = false
+    @State private var isHoveringRemoveDefaults = false
     @State private var showReviewsSheet = false
     @State private var isHoveringReviews = false
     
@@ -189,6 +190,28 @@ struct WindowSnapInfoView: View {
                 
                 Spacer()
                 
+                // Remove Defaults button
+                Button {
+                    removeDefaults()
+                } label: {
+                    Text("Remove Defaults")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.red.opacity(isHoveringRemoveDefaults ? 0.25 : 0.15))
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        isHoveringRemoveDefaults = h
+                    }
+                }
+                
+                // Load Defaults button
                 Button {
                     loadDefaults()
                 } label: {
@@ -209,6 +232,7 @@ struct WindowSnapInfoView: View {
                     }
                 }
             }
+
             
             // Two-column grid of snap actions
             LazyVGrid(columns: [
@@ -323,6 +347,9 @@ struct WindowSnapInfoView: View {
             }
             
             Spacer()
+            
+            // Disable/Enable Extension button (always on right)
+            DisableExtensionButton(extensionType: .windowSnap)
         }
         .padding(16)
     }
@@ -373,6 +400,13 @@ struct WindowSnapInfoView: View {
     private func loadDefaults() {
         Task { @MainActor in
             WindowSnapManager.shared.loadDefaults()
+            loadShortcuts()
+        }
+    }
+    
+    private func removeDefaults() {
+        Task { @MainActor in
+            WindowSnapManager.shared.removeDefaults()
             loadShortcuts()
         }
     }

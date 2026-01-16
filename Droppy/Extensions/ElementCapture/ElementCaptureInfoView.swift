@@ -263,6 +263,9 @@ struct ElementCaptureInfoView: View {
             }
             
             Spacer()
+            
+            // Disable/Enable Extension button (always on right)
+            DisableExtensionButton(extensionType: .elementCapture)
         }
         .padding(16)
     }

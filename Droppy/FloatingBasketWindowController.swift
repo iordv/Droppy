@@ -204,6 +204,12 @@ final class FloatingBasketWindowController: NSObject {
             .preferredColorScheme(.dark) // Force dark mode always
         let hostingView = NSHostingView(rootView: basketView)
         
+        // CRITICAL: Prevent NSHostingView from intercepting drags meant for BasketDragContainer
+        // NSHostingView registers for drag types by default, which can steal events from the
+        // underlying NSView. This fixes AirDrop zone detection on some hardware configurations.
+        // See: Knowledge Item - Split Zone Containers v7.7.5 Interception Guard
+        hostingView.unregisterDraggedTypes()
+        
         // Create drag container
         let dragContainer = BasketDragContainer(frame: NSRect(origin: .zero, size: windowFrame.size))
         dragContainer.addSubview(hostingView)
@@ -248,10 +254,14 @@ final class FloatingBasketWindowController: NSObject {
         startMouseTrackingMonitor()
     }
     
+    /// Global keyboard monitor (fallback when panel isn't key window)
+    private var globalKeyboardMonitor: Any?
+    
     /// Starts keyboard monitor for spacebar Quick Look and Cmd+A select all
     private func startKeyboardMonitor() {
         stopKeyboardMonitor() // Clean up any existing
         
+        // Local monitor - catches events when basket is key window
         keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard self?.basketWindow?.isVisible == true,
                   !DroppyState.shared.basketItems.isEmpty else {
@@ -272,6 +282,27 @@ final class FloatingBasketWindowController: NSObject {
             
             return event
         }
+        
+        // Global monitor - catches events when basket is visible but not key window
+        // This ensures spacebar works even when clicking on items briefly loses focus
+        globalKeyboardMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard self?.basketWindow?.isVisible == true,
+                  !DroppyState.shared.basketItems.isEmpty else {
+                return
+            }
+            
+            // Only handle spacebar for Quick Look (not Cmd+A - that requires local focus)
+            if event.keyCode == 49, !DroppyState.shared.isRenaming {
+                // Check if mouse is over the basket window (user intent to interact with basket)
+                if let basketFrame = self?.basketWindow?.frame {
+                    let mouseLocation = NSEvent.mouseLocation
+                    let expandedFrame = basketFrame.insetBy(dx: -20, dy: -20) // Small margin
+                    if expandedFrame.contains(mouseLocation) {
+                        QuickLookHelper.shared.previewSelectedBasketItems()
+                    }
+                }
+            }
+        }
     }
     
     /// Stops the keyboard monitor
@@ -279,6 +310,10 @@ final class FloatingBasketWindowController: NSObject {
         if let monitor = keyboardMonitor {
             NSEvent.removeMonitor(monitor)
             keyboardMonitor = nil
+        }
+        if let monitor = globalKeyboardMonitor {
+            NSEvent.removeMonitor(monitor)
+            globalKeyboardMonitor = nil
         }
     }
     
@@ -538,290 +573,4 @@ final class FloatingBasketWindowController: NSObject {
         }
     }
 }
-// MARK: - Basket Drag Container
 
-class BasketDragContainer: NSView {
-    
-    /// Track if a drop occurred during current drag session
-    private var dropDidOccur = false
-    
-    /// AirDrop zone width (must match FloatingBasketView.airDropZoneWidth)
-    private let airDropZoneWidth: CGFloat = 90
-    
-    /// Base width constants (must match FloatingBasketView)
-    private let itemWidth: CGFloat = 76
-    private let itemSpacing: CGFloat = 8
-    private let horizontalPadding: CGFloat = 24
-    private let columnsPerRow: Int = 4
-    
-    /// Whether AirDrop zone is enabled
-    private var isAirDropZoneEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "enableAirDropZone")
-    }
-    
-    /// Whether AirDrop zone should be shown (enabled AND basket is empty)
-    private var showAirDropZone: Bool {
-        isAirDropZoneEnabled && DroppyState.shared.basketItems.isEmpty
-    }
-    
-    /// Calculate base width (without AirDrop zone)
-    private var baseWidth: CGFloat {
-        if DroppyState.shared.basketItems.isEmpty {
-            return 200
-        } else {
-            return CGFloat(columnsPerRow) * itemWidth + CGFloat(columnsPerRow - 1) * itemSpacing + horizontalPadding * 2
-        }
-    }
-    
-    /// Calculate current basket width
-    private var currentBasketWidth: CGFloat {
-        baseWidth + (showAirDropZone ? airDropZoneWidth : 0)
-    }
-    
-    private var filePromiseQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.qualityOfService = .userInitiated
-        return queue
-    }()
-    
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        
-        var types: [NSPasteboard.PasteboardType] = [
-            .fileURL,
-            .URL,
-            .string,
-            // Email types for Mail.app
-            NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeMessageTransfer"),
-            NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeAutomator"),
-            NSPasteboard.PasteboardType("com.apple.mail.message"),
-            NSPasteboard.PasteboardType(UTType.emailMessage.identifier)
-        ]
-        types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
-        registerForDraggedTypes(types)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    /// Check if point is in the AirDrop zone (right side of basket)
-    private func isPointInAirDropZone(_ point: NSPoint) -> Bool {
-        guard showAirDropZone else { return false }
-        // Calculate offset from center of window to basket edge
-        let windowCenterX = bounds.width / 2
-        let basketRightEdge = windowCenterX + currentBasketWidth / 2
-        let airDropLeftEdge = basketRightEdge - airDropZoneWidth
-        
-        // Point is in AirDrop zone if it's within basket bounds AND in the right portion
-        return point.x >= airDropLeftEdge && point.x <= basketRightEdge
-    }
-    
-    /// Check if point is in the main basket zone (left side)
-    private func isPointInBasketZone(_ point: NSPoint) -> Bool {
-        let windowCenterX = bounds.width / 2
-        let basketLeftEdge = windowCenterX - currentBasketWidth / 2
-        
-        if showAirDropZone {
-            let basketRightEdge = windowCenterX + currentBasketWidth / 2
-            let airDropLeftEdge = basketRightEdge - airDropZoneWidth
-            // Main basket is the left portion (not including AirDrop zone)
-            return point.x >= basketLeftEdge && point.x < airDropLeftEdge
-        } else {
-            let basketRightEdge = windowCenterX + currentBasketWidth / 2
-            return point.x >= basketLeftEdge && point.x <= basketRightEdge
-        }
-    }
-    
-    /// Update zone targeting state based on cursor position
-    private func updateZoneTargeting(for sender: NSDraggingInfo) {
-        let point = convert(sender.draggingLocation, from: nil)
-        
-        if showAirDropZone {
-            let isOverAirDrop = isPointInAirDropZone(point)
-            let isOverBasket = isPointInBasketZone(point)
-            // Synchronous update for responsive feedback
-            DroppyState.shared.isAirDropZoneTargeted = isOverAirDrop
-            DroppyState.shared.isBasketTargeted = isOverBasket
-        } else {
-            DroppyState.shared.isBasketTargeted = true
-            DroppyState.shared.isAirDropZoneTargeted = false
-        }
-    }
-
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        // Reset flag at start of new drag
-        dropDidOccur = false
-        updateZoneTargeting(for: sender)
-        return .copy
-    }
-    
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        // Update targeting as cursor moves between zones
-        updateZoneTargeting(for: sender)
-        return .copy
-    }
-    
-    override func draggingExited(_ sender: NSDraggingInfo?) {
-        DroppyState.shared.isBasketTargeted = false
-        DroppyState.shared.isAirDropZoneTargeted = false
-    }
-    
-    override func draggingEnded(_ sender: NSDraggingInfo) {
-        DroppyState.shared.isBasketTargeted = false
-        DroppyState.shared.isAirDropZoneTargeted = false
-        
-        // Don't hide during file operations
-        guard !DroppyState.shared.isFileOperationInProgress else { return }
-        
-        // Only hide if NO drop occurred during this drag session
-        // and basket is still empty
-        if !dropDidOccur && DroppyState.shared.basketItems.isEmpty {
-            FloatingBasketWindowController.shared.hideBasket()
-        }
-    }
-    
-    /// Handle AirDrop sharing for dropped files
-    private func handleAirDropShare(_ pasteboard: NSPasteboard) -> Bool {
-        // Try to read all file URLs from pasteboard
-        var urls: [URL] = []
-        
-        // Method 1: Read objects
-        if let readUrls = pasteboard.readObjects(forClasses: [NSURL.self], 
-            options: [.urlReadingFileURLsOnly: true]) as? [URL] {
-            urls = readUrls
-        }
-        
-        // Method 2: Fallback - read from pasteboardItems
-        if urls.isEmpty, let items = pasteboard.pasteboardItems {
-            for item in items {
-                if let urlString = item.string(forType: .fileURL),
-                   let url = URL(string: urlString) {
-                    urls.append(url)
-                }
-            }
-        }
-        
-        guard !urls.isEmpty else { return false }
-        
-        print("📡 AirDrop: Sharing \(urls.count) file(s)")
-        
-        guard let airDropService = NSSharingService(named: .sendViaAirDrop) else {
-            print("📡 AirDrop service not available")
-            return false
-        }
-        
-        if airDropService.canPerform(withItems: urls) {
-            airDropService.perform(withItems: urls)
-            // Hide basket immediately after triggering AirDrop
-            FloatingBasketWindowController.shared.hideBasket()
-            return true
-        }
-        return false
-    }
-    
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let point = convert(sender.draggingLocation, from: nil)
-        
-        DroppyState.shared.isBasketTargeted = false
-        DroppyState.shared.isAirDropZoneTargeted = false
-        
-        // Mark that a drop occurred - don't hide on drag end
-        dropDidOccur = true
-        
-        let pasteboard = sender.draggingPasteboard
-        
-        // Check if drop is in AirDrop zone
-        if isPointInAirDropZone(point) {
-            return handleAirDropShare(pasteboard)
-        }
-        
-        // Normal basket behavior below...
-        
-        // Handle Mail.app emails directly via AppleScript
-        let mailTypes: [NSPasteboard.PasteboardType] = [
-            NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeMessageTransfer"),
-            NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeAutomator")
-        ]
-        let isMailAppEmail = mailTypes.contains(where: { pasteboard.types?.contains($0) ?? false })
-        
-        if isMailAppEmail {
-            print("📧 Basket: Mail.app email detected, using AppleScript to export...")
-            
-            Task { @MainActor in
-                let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("DroppyDrops-\(UUID().uuidString)")
-                
-                let savedFiles = await MailHelper.shared.exportSelectedEmails(to: dropLocation)
-                
-                if !savedFiles.isEmpty {
-                    DroppyState.shared.addBasketItems(from: savedFiles)
-                } else {
-                    print("📧 Basket: No emails exported")
-                }
-            }
-            return true
-        }
-        
-        // Handle File Promises (e.g. from Outlook, Photos)
-        if let promiseReceivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
-           !promiseReceivers.isEmpty {
-            
-            let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DroppyDrops-\(UUID().uuidString)")
-            try? FileManager.default.createDirectory(at: dropLocation, withIntermediateDirectories: true, attributes: nil)
-            
-            for receiver in promiseReceivers {
-                receiver.receivePromisedFiles(atDestination: dropLocation, options: [:], operationQueue: filePromiseQueue) { fileURL, error in
-                    guard error == nil else { return }
-                    DispatchQueue.main.async {
-                        DroppyState.shared.addBasketItems(from: [fileURL])
-                    }
-                }
-            }
-            return true
-        }
-        
-        // Handle File URLs
-        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
-            DroppyState.shared.addBasketItems(from: urls)
-            return true
-        }
-        
-        // Handle plain text drops - create a .txt file
-        if let text = pasteboard.string(forType: .string), !text.isEmpty {
-            // Create a temp directory for text files
-            let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DroppyDrops-\(UUID().uuidString)")
-            try? FileManager.default.createDirectory(at: dropLocation, withIntermediateDirectories: true, attributes: nil)
-            
-            // Generate a timestamped filename
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH-mm-ss"
-            let timestamp = formatter.string(from: Date())
-            let filename = "Text \(timestamp).txt"
-            let fileURL = dropLocation.appendingPathComponent(filename)
-            
-            do {
-                try text.write(to: fileURL, atomically: true, encoding: .utf8)
-                DroppyState.shared.addBasketItems(from: [fileURL])
-                return true
-            } catch {
-                print("Error saving text file: \(error)")
-                return false
-            }
-        }
-        
-        return false
-    }
-}
-
-// MARK: - Custom Panel Class
-class BasketPanel: NSPanel {
-    override var canBecomeKey: Bool {
-        return true
-    }
-    
-    // Also allow it to be main if needed, but Key is most important for input
-    override var canBecomeMain: Bool {
-        return true
-    }
-}
