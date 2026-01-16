@@ -216,7 +216,7 @@ struct MediaPlayerView: View {
         }
         // Right-click context menu to hide the notch/island (same as notch background)
         .contextMenu {
-            Button("Hide Dynamic Island") {
+            Button("Hide \(NotchWindowController.shared.displayModeLabel)") {
                 NotchWindowController.shared.setTemporarilyHidden(true)
             }
             Divider()

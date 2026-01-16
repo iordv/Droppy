@@ -1155,6 +1155,16 @@ struct NotchShelfView: View {
                 startAutoShrinkTimer()
             }
         }
+        // Right-click context menu for entire expanded shelf
+        .contextMenu {
+            Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
+                NotchWindowController.shared.setTemporarilyHidden(true)
+            }
+            Divider()
+            Button("Settings...") {
+                SettingsWindowController.shared.showSettings()
+            }
+        }
     }
     
     private var itemsGridView: some View {
