@@ -50,7 +50,7 @@ struct VoiceTranscribeInfoView: View {
             // Action Buttons
             buttonSection
         }
-        .frame(width: 700)  // Wide horizontal layout
+        .frame(width: 920)  // Wide horizontal layout
         .fixedSize(horizontal: false, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .clipped()
@@ -480,6 +480,25 @@ struct VoiceTranscribeInfoView: View {
             
             Spacer()
             
+            // Reset Shortcuts button
+            Button {
+                manager.removeShortcut(for: .quick)
+                manager.removeShortcut(for: .invisi)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Reset Shortcuts")
+                }
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(AdaptiveColors.buttonBackgroundAuto)
+                .foregroundStyle(.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            
             // Disable Extension button
             DisableExtensionButton(extensionType: .voiceTranscribe)
         }
@@ -489,66 +508,68 @@ struct VoiceTranscribeInfoView: View {
     // MARK: - Shortcut Recording
     
     private func shortcutRow(for mode: VoiceRecordingMode) -> some View {
-        HStack(spacing: 8) {
-            // Icon
-            Image(systemName: mode.icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.blue)
-                .frame(width: 20)
+        VStack(spacing: 12) {
+            // Header: Icon + Title
+            HStack(spacing: 8) {
+                Image(systemName: mode.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.blue)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mode.title)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(mode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+            }
             
-            // Title
-            VStack(alignment: .leading, spacing: 1) {
-                Text(mode.title)
-                    .font(.system(size: 12, weight: .medium))
+            // Shortcut display + Record button (matches KeyShortcutRecorder style)
+            HStack(spacing: 8) {
+                // Shortcut display
+                Text(shortcut(for: mode)?.description ?? "None")
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(mode.description)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            // Shortcut button
-            Button {
-                if recordingMode == mode {
-                    stopRecording()
-                } else {
-                    startRecording(for: mode)
-                }
-            } label: {
-                HStack(spacing: 4) {
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(AdaptiveColors.buttonBackgroundAuto)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(recordingMode == mode ? Color.blue : AdaptiveColors.subtleBorderAuto, lineWidth: recordingMode == mode ? 2 : 1)
+                    )
+                
+                // Record button
+                Button {
                     if recordingMode == mode {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 6, height: 6)
-                        Text("...")
-                            .font(.system(size: 11, weight: .medium))
-                    } else if let shortcut = shortcut(for: mode) {
-                        Text(shortcut.description)
-                            .font(.system(size: 11, weight: .semibold))
+                        stopRecording()
                     } else {
-                        Text("Click")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.tertiary)
+                        startRecording(for: mode)
                     }
+                } label: {
+                    Text(recordingMode == mode ? "Press..." : "Record")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background((recordingMode == mode ? Color.red : Color.blue).opacity(0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .foregroundStyle(recordingMode == mode ? .primary : (shortcut(for: mode) != nil ? .primary : .secondary))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(recordingMode == mode ? Color.red.opacity(0.85) : AdaptiveColors.buttonBackgroundAuto)
-                )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(14)
         .background(AdaptiveColors.buttonBackgroundAuto)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
+
+
     
     private func shortcut(for mode: VoiceRecordingMode) -> SavedShortcut? {
         switch mode {

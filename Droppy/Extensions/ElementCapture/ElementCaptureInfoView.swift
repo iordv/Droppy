@@ -183,45 +183,45 @@ struct ElementCaptureInfoView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
             
-            Button {
-                if isRecording {
-                    stopRecording()
-                } else {
-                    startRecording()
-                }
-            } label: {
-                HStack(spacing: 8) {
+            // Shortcut display + Record button (matches KeyShortcutRecorder style)
+            HStack(spacing: 8) {
+                // Shortcut display
+                Text(currentShortcut?.description ?? "None")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(minWidth: 80, alignment: .center)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(AdaptiveColors.buttonBackgroundAuto)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(isRecording ? Color.blue : AdaptiveColors.subtleBorderAuto, lineWidth: isRecording ? 2 : 1)
+                    )
+                
+                // Record button
+                Button {
                     if isRecording {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                        Text("Press keys...")
-                            .font(.system(size: 14, weight: .medium))
-                    } else if let shortcut = currentShortcut {
-                        Image(systemName: "keyboard")
-                            .font(.system(size: 12))
-                        Text(shortcut.description)
-                            .font(.system(size: 14, weight: .semibold))
+                        stopRecording()
                     } else {
-                        Image(systemName: "record.circle")
-                            .font(.system(size: 12))
-                        Text("Click to record shortcut")
-                            .font(.system(size: 14, weight: .medium))
+                        startRecording()
                     }
+                } label: {
+                    Text(isRecording ? "Press Keys..." : "Record Shortcut")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .frame(width: 120)
+                        .padding(.vertical, 10)
+                        .background((isRecording ? Color.red : Color.blue).opacity(0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .foregroundStyle(isRecording ? .primary : (currentShortcut != nil ? .primary : .secondary))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(isRecording ? Color.red.opacity(0.85) : (currentShortcut != nil ? AdaptiveColors.subtleBorderAuto : Color.blue.opacity(0.85)))
-                )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, 20)
     }
+
     
     private var buttonSection: some View {
         HStack(spacing: 10) {
@@ -267,6 +267,27 @@ struct ElementCaptureInfoView: View {
             }
             
             Spacer()
+            
+            // Reset Shortcut button
+            Button {
+                UserDefaults.standard.removeObject(forKey: "elementCaptureShortcut")
+                ElementCaptureManager.shared.shortcut = nil
+                ElementCaptureManager.shared.stopMonitoringShortcut()
+                currentShortcut = nil
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Reset Shortcut")
+                }
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(AdaptiveColors.buttonBackgroundAuto)
+                .foregroundStyle(.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
             
             // Disable/Enable Extension button (always on right)
             DisableExtensionButton(extensionType: .elementCapture)

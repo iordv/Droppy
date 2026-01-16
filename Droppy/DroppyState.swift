@@ -35,8 +35,47 @@ final class DroppyState {
     /// Whether the mouse is hovering over the notch (no files)
     var isMouseHovering: Bool = false
     
-    /// Whether the shelf is expanded to show items (Notch View)
-    var isExpanded: Bool = false
+    /// Tracks which screen (by displayID) has the shelf expanded
+    /// Only one screen can have the shelf expanded at a time to prevent mirroring
+    var expandedDisplayID: CGDirectDisplayID? = nil
+    
+    /// Convenience property for backwards compatibility - true if ANY screen has shelf expanded
+    var isExpanded: Bool {
+        get { expandedDisplayID != nil }
+        set {
+            if !newValue {
+                expandedDisplayID = nil
+            }
+            // Note: Setting to true without screen context is deprecated
+            // Use expandShelf(for:) instead
+        }
+    }
+    
+    /// Expands the shelf on a specific screen (collapses any other expanded shelf)
+    func expandShelf(for displayID: CGDirectDisplayID) {
+        expandedDisplayID = displayID
+    }
+    
+    /// Checks if a specific screen has the expanded shelf
+    func isExpanded(for displayID: CGDirectDisplayID) -> Bool {
+        return expandedDisplayID == displayID
+    }
+    
+    /// Collapses the shelf on a specific screen (only if that screen is expanded)
+    func collapseShelf(for displayID: CGDirectDisplayID) {
+        if expandedDisplayID == displayID {
+            expandedDisplayID = nil
+        }
+    }
+    
+    /// Toggles the shelf expansion on a specific screen
+    func toggleShelfExpansion(for displayID: CGDirectDisplayID) {
+        if expandedDisplayID == displayID {
+            expandedDisplayID = nil
+        } else {
+            expandedDisplayID = displayID
+        }
+    }
     
     /// Whether the floating basket is currently visible
     var isBasketVisible: Bool = false

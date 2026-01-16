@@ -376,10 +376,10 @@ final class NotchWindowController: NSObject, ObservableObject {
             let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
             if isInNotchZone {
-                // Click on notch - toggle shelf
+                // Click on notch - toggle shelf for THIS screen only
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        DroppyState.shared.isExpanded.toggle()
+                        DroppyState.shared.toggleShelfExpansion(for: targetScreen.displayID)
                     }
                 }
             } else if isExpanded && !isInExpandedShelfZone && !self.hasActiveContextMenu() {
@@ -387,7 +387,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 // Don't close if a context menu is active (user is interacting with submenu)
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        DroppyState.shared.isExpanded = false
+                        DroppyState.shared.expandedDisplayID = nil
                         DroppyState.shared.isMouseHovering = false
                     }
                 }
@@ -455,10 +455,10 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
                 if isInNotchZone {
-                    // Click on notch - toggle shelf
+                    // Click on notch - toggle shelf for THIS screen only
                     DispatchQueue.main.async {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                            DroppyState.shared.isExpanded.toggle()
+                            DroppyState.shared.toggleShelfExpansion(for: targetScreen.displayID)
                         }
                     }
                     return nil  // Consume the click event
@@ -467,7 +467,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                     // Don't close if a context menu is active
                     DispatchQueue.main.async {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                            DroppyState.shared.isExpanded = false
+                            DroppyState.shared.expandedDisplayID = nil
                             DroppyState.shared.isMouseHovering = false
                         }
                     }
@@ -552,17 +552,25 @@ final class NotchWindowController: NSObject, ObservableObject {
             guard let cgEvent = CGEvent(source: nil) else { return }
             let cgPoint = cgEvent.location
             
-            // Convert CG coordinates to NS coordinates for proper multi-monitor support
-            // CG: Y=0 at top of main display, increases downward
-            // NS: Y=0 at bottom of main display, increases upward
-            // The conversion: nsY = mainScreenHeight - cgY
+            // Convert CG coordinates (origin top-left of main screen) to NS coordinates (origin bottom-left)
+            // CG Y: 0 at top, increases downward
+            // NS Y: 0 at bottom, increases upward  
+            // For correct multi-monitor: nsY = globalMenuBarHeight - cgY (where globalMenuBarHeight is main screen height + main screen origin offset)
+            // Simpler approach: Use the relationship between frame origins
             guard let mainScreen = NSScreen.screens.first else { return }
-            let mainScreenHeight = mainScreen.frame.height
-            let nsMouseLocation = NSPoint(x: cgPoint.x, y: mainScreenHeight - cgPoint.y)
+            // In CG coords, Y=0 is at top of main screen. In NS, main screen's maxY is at the top.
+            // CG Y increases down, NS Y increases up.
+            // So: nsY = mainScreen.frame.maxY - cgPoint.y
+            let nsMouseLocation = NSPoint(x: cgPoint.x, y: mainScreen.frame.maxY - cgPoint.y)
             
             // Check each window to see if cursor is at the top edge of its screen
             for window in self.notchWindows.values {
                 guard let screen = window.notchScreen else { continue }
+                
+                // CRITICAL FIX: First check if cursor is actually ON this screen
+                // This prevents the "activation lane" bug where the cursor coordinates
+                // incorrectly match another screen's top edge
+                guard screen.frame.contains(nsMouseLocation) else { continue }
                 
                 // Check if cursor is at the top of THIS specific screen
                 let screenTop = screen.frame.maxY
@@ -576,13 +584,14 @@ final class NotchWindowController: NSObject, ObservableObject {
                 
                 if isWithinNotchX && !DroppyState.shared.isMouseHovering {
                     // Cursor is at top edge of this screen within notch range - trigger hover!
-                    DispatchQueue.main.async {
+                    let displayID = screen.displayID  // Capture for async block
+                    DispatchQueue.main.async { [weak self] in
                         DroppyState.shared.validateItems()
                         withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                             DroppyState.shared.isMouseHovering = true
                         }
-                        // Start auto-expand timer
-                        self.startAutoExpandTimer()
+                        // Start auto-expand timer with screen context
+                        self?.startAutoExpandTimer(for: displayID)
                     }
                     break  // Found a match, no need to check other windows
                 }
@@ -710,7 +719,8 @@ final class NotchWindowController: NSObject, ObservableObject {
     }
     
     /// Start timer to auto-expand shelf if hovering persists
-    func startAutoExpandTimer() {
+    /// - Parameter displayID: The display to expand when timer fires (optional for backwards compat)
+    func startAutoExpandTimer(for displayID: CGDirectDisplayID? = nil) {
         guard UserDefaults.standard.bool(forKey: "autoExpandShelf") else { return }
         
         cancelAutoExpandTimer() // Reset if already running
@@ -728,7 +738,16 @@ final class NotchWindowController: NSObject, ObservableObject {
             if DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        DroppyState.shared.isExpanded = true
+                        if let displayID = displayID {
+                            // Expand on the specific screen
+                            DroppyState.shared.expandShelf(for: displayID)
+                        } else {
+                            // Fallback: Find screen containing mouse and expand that
+                            let mouseLocation = NSEvent.mouseLocation
+                            if let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) {
+                                DroppyState.shared.expandShelf(for: screen.displayID)
+                            }
+                        }
                     }
                 }
             }

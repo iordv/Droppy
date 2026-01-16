@@ -245,6 +245,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .help("Right-click the notch to temporarily hide it. Show it again via the menu bar icon.")
                 .onChange(of: enableNotchShelf) { oldValue, newValue in
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()

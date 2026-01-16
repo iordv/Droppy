@@ -611,13 +611,17 @@ struct NotchShelfView: View {
         .animation(.easeOut(duration: 0.4), value: mediaHUDFadedOut)
         .onChange(of: state.items.count) { oldCount, newCount in
              if newCount > oldCount && !state.isExpanded {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                    state.isExpanded = true
+                // Auto-expand shelf on this specific screen when items are added
+                if let displayID = targetScreen?.displayID {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        state.expandShelf(for: displayID)
+                    }
                 }
             }
              if newCount == 0 && state.isExpanded {
+                // Collapse shelf when all items are removed
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    state.isExpanded = false
+                    state.expandedDisplayID = nil
                 }
             }
         }
@@ -881,7 +885,7 @@ struct NotchShelfView: View {
             guard !hasActiveMenu else { return }
             
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                state.isExpanded = false
+                state.expandedDisplayID = nil  // Collapse shelf on all screens
                 state.isMouseHovering = false  // Reset hover state to go directly to regular notch
             }
         }
@@ -955,8 +959,11 @@ struct NotchShelfView: View {
         .onTapGesture {
             // Only allow expanding shelf when shelf is enabled
             guard enableNotchShelf else { return }
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                state.isExpanded.toggle()
+            // Toggle expansion on this specific screen
+            if let displayID = targetScreen?.displayID {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                    state.toggleShelfExpansion(for: displayID)
+                }
             }
         }
         .onHover { isHovering in

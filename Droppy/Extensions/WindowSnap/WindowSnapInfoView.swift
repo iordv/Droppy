@@ -190,27 +190,6 @@ struct WindowSnapInfoView: View {
                 
                 Spacer()
                 
-                // Remove Defaults button
-                Button {
-                    removeDefaults()
-                } label: {
-                    Text("Remove Defaults")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(Color.red.opacity(isHoveringRemoveDefaults ? 0.25 : 0.15))
-                        )
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        isHoveringRemoveDefaults = h
-                    }
-                }
-                
                 // Load Defaults button
                 Button {
                     loadDefaults()
@@ -347,6 +326,24 @@ struct WindowSnapInfoView: View {
             }
             
             Spacer()
+            
+            // Reset Shortcuts button
+            Button {
+                removeDefaults()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Reset Shortcuts")
+                }
+                .fontWeight(.medium)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(AdaptiveColors.buttonBackgroundAuto)
+                .foregroundStyle(.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
             
             // Disable/Enable Extension button (always on right)
             DisableExtensionButton(extensionType: .windowSnap)
