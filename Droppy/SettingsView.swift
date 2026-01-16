@@ -411,21 +411,19 @@ struct SettingsView: View {
                         }
                         
                         // Real Audio Visualizer (opt-in for Screen Recording permission)
-                        if #available(macOS 13.0, *) {
-                            Toggle(isOn: $enableRealAudioVisualizer) {
-                                VStack(alignment: .leading) {
-                                    Text("Real Audio Visualizer")
-                                    Text("Requires Screen Recording permission")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                        Toggle(isOn: $enableRealAudioVisualizer) {
+                            VStack(alignment: .leading) {
+                                Text("Real Audio Visualizer")
+                                Text("Requires Screen Recording permission")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                            .onChange(of: enableRealAudioVisualizer) { _, newValue in
-                                if newValue {
-                                    // Request Screen Recording permission when enabled
-                                    Task {
-                                        await SystemAudioAnalyzer.shared.requestPermission()
-                                    }
+                        }
+                        .onChange(of: enableRealAudioVisualizer) { _, newValue in
+                            if newValue {
+                                // Request Screen Recording permission when enabled
+                                Task {
+                                    await SystemAudioAnalyzer.shared.requestPermission()
                                 }
                             }
                         }
