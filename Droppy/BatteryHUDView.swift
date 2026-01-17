@@ -79,7 +79,7 @@ struct BatteryHUDView: View {
                     Image(systemName: batteryIcon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(accentColor)
-                        .symbolEffect(.variableColor.iterative, options: .repeating, isActive: batteryManager.isCharging)
+                        .symbolEffect(.bounce, value: batteryManager.isCharging)  // Only animate on state change
                         .contentTransition(.symbolEffect(.replace.byLayer))
                         .frame(width: 22, height: 20)
                     
@@ -101,7 +101,7 @@ struct BatteryHUDView: View {
                         Image(systemName: batteryIcon)
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(accentColor)
-                            .symbolEffect(.variableColor.iterative, options: .repeating, isActive: batteryManager.isCharging)
+                            .symbolEffect(.bounce, value: batteryManager.isCharging)  // Only animate on state change
                             .contentTransition(.symbolEffect(.replace.byLayer))
                             .frame(width: 28, height: 26)
                         Spacer(minLength: 0)

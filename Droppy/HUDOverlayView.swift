@@ -65,7 +65,7 @@ struct NotchHUDView: View {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
                             .contentTransition(.symbolEffect(.replace.byLayer))
-                            .symbolEffect(.variableColor.iterative, options: .repeating, isActive: isActive)
+                            .symbolEffect(.bounce, value: value)  // Only animate on value change
                             .frame(width: 24, height: 24)
                         
                         Text(hudType == .brightness ? "Brightness" : "Volume")
@@ -98,7 +98,7 @@ struct NotchHUDView: View {
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
                             .contentTransition(.symbolEffect(.replace.byLayer))
-                            .symbolEffect(.variableColor.iterative, options: .repeating, isActive: isActive)
+                            .symbolEffect(.bounce, value: value)  // Only animate on value change
                             .frame(width: 24, height: 24)
                         
                         Text(hudType == .brightness ? "Brightness" : "Volume")
