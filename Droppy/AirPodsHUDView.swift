@@ -111,7 +111,7 @@ struct AirPodsHUDView: View {
     // MARK: - Dynamic Island Layout
     
     private var dynamicIslandContent: some View {
-        // Using BoringNotch pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
+        // Using Droppy pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
         let iconSize: CGFloat = 18
         let symmetricPadding = (notchHeight - iconSize) / 2
         
@@ -143,7 +143,7 @@ struct AirPodsHUDView: View {
     // MARK: - Notch Mode Layout
     
     private var notchModeContent: some View {
-        // Using BoringNotch pattern: 20px icons with symmetricPadding for outer-wing alignment
+        // Using Droppy pattern: 20px icons with symmetricPadding for outer-wing alignment
         let iconSize: CGFloat = 20
         let symmetricPadding = max((notchHeight - iconSize) / 2, 6)  // Min 6px for visibility
         

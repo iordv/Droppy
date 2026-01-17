@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  Created by Droppy on 05/01/2026.
-//  Adapted from BoringNotch's VolumeManager
+//
 //
 
 import AppKit

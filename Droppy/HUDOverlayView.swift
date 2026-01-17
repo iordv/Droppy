@@ -58,7 +58,7 @@ struct NotchHUDView: View {
         VStack(alignment: .center, spacing: 0) {
             if isDynamicIslandMode {
                 // DYNAMIC ISLAND: Wide horizontal layout - icon + label on left, slider on right
-                // Using BoringNotch pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
+                // Using Droppy pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
                 let iconSize: CGFloat = 18
                 let symmetricPadding = (notchHeight - iconSize) / 2
                 
@@ -94,7 +94,7 @@ struct NotchHUDView: View {
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Wide layout - icon + label on left wing, slider on right wing
-                // Using BoringNotch pattern: 20px icons with symmetricPadding for outer-wing alignment
+                // Using Droppy pattern: 20px icons with symmetricPadding for outer-wing alignment
                 let iconSize: CGFloat = 20
                 let symmetricPadding = max((notchHeight - iconSize) / 2, 6)  // Min 6px for visibility
                 

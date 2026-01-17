@@ -2,7 +2,7 @@
 //  AudioSpectrumView.swift
 //  Droppy
 //
-//  Audio visualizer matching BoringNotch's implementation
+//  Audio visualizer for Droppy
 //  Uses CAShapeLayer with random scale animations
 //  Supports dynamic color from album art
 //
@@ -10,7 +10,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - AudioSpectrum NSView (BoringNotch style)
+// MARK: - AudioSpectrum NSView
 
 /// Native audio spectrum visualizer using CAShapeLayer animations
 /// Supports real audio levels from SystemAudioAnalyzer or enhanced simulation fallback

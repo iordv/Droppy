@@ -125,7 +125,7 @@ struct MediaHUDView: View {
             // Main HUD layout differs for Dynamic Island vs Notch mode
             if isDynamicIslandMode {
                 // DYNAMIC ISLAND: Album on left, Visualizer on right, Title centered
-                // Using BoringNotch pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
+                // Using Droppy pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
                 let iconSize: CGFloat = 18  // Matches all other DI mode HUDs
                 let symmetricPadding = (notchHeight - iconSize) / 2
                 
@@ -173,7 +173,7 @@ struct MediaHUDView: View {
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space
-                // Using BoringNotch pattern: 20px icons with symmetricPadding for outer-wing alignment
+                // Using Droppy pattern: 20px icons with symmetricPadding for outer-wing alignment
                 let iconSize: CGFloat = 20
                 let symmetricPadding = max((notchHeight - iconSize) / 2, 6)  // Min 6px for visibility
                 

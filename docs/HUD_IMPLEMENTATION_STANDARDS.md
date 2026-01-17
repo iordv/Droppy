@@ -31,7 +31,7 @@ let symmetricPadding = max((notchHeight - iconSize) / 2, 6)  // Min 6px
 
 ---
 
-## 2. Layout Pattern (BoringNotch-inspired)
+## 2. Layout Pattern (symmetric padding)
 
 ### Dynamic Island: Single HStack with symmetric padding
 ```swift
