@@ -72,18 +72,19 @@ struct BatteryHUDView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
             if isDynamicIslandMode {
-                // DYNAMIC ISLAND: Compact horizontal layout
-                // Standardized sizing: 18px icons, 13pt text, 14px horizontal padding
-                HStack(spacing: 12) {
-                    // Battery icon
+                // DYNAMIC ISLAND: Icon on left edge, percentage on right edge
+                HStack {
+                    // Battery icon (left edge)
                     Image(systemName: batteryIcon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(accentColor)
                         .symbolEffect(.bounce, value: batteryManager.isCharging)
                         .contentTransition(.symbolEffect(.replace.byLayer))
-                        .frame(width: 20, height: 20)  // Standardized with CapsLock/DND
+                        .frame(width: 22, height: 22)
                     
-                    // Percentage
+                    Spacer()
+                    
+                    // Percentage (right edge)
                     Text("\(batteryManager.batteryLevel)%")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(accentColor)

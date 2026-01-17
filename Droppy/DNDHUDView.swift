@@ -63,21 +63,22 @@ struct DNDHUDView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
             if isDynamicIslandMode {
-                // DYNAMIC ISLAND: Compact horizontal layout
-                // EXACT COPY of CapsLockHUDView Dynamic Island layout
-                HStack(spacing: 12) {
+                // DYNAMIC ISLAND: Icon on left edge, On/Off on right edge
+                HStack {
+                    // Focus icon (left edge)
                     Image(systemName: focusIcon)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(dynamicIslandColor)
                         .symbolEffect(.bounce.up, value: dndManager.isDNDActive)
                         .contentTransition(.symbolEffect(.replace.byLayer.downUp))
-                        .frame(width: 20, height: 20)
+                        .frame(width: 22, height: 22)
                     
-                    // On/Off text - title case
+                    Spacer()
+                    
+                    // On/Off text (right edge)
                     Text(dndManager.isDNDActive ? "On" : "Off")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(dynamicIslandColor)
-                        .monospacedDigit()
                         .contentTransition(.interpolate)
                 }
                 .padding(.horizontal, 14)
