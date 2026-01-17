@@ -156,6 +156,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let serviceProvider = ServiceProvider()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Crash detection: Check if last session crashed and offer to report
+        CrashReporter.shared.checkForCrashAndPrompt()
+        
+        // Crash detection: Mark this session as started (will be cleared on clean exit)
+        CrashReporter.shared.markSessionStarted()
+        
         // Set as accessory app (no dock icon)
         NSApp.setActivationPolicy(.accessory)
         
@@ -258,6 +264,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
+        // Mark clean exit (no crash prompt on next launch)
+        CrashReporter.shared.markCleanExit()
+        
         // Stop drag monitoring
         DragMonitor.shared.stopMonitoring()
         
