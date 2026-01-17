@@ -177,9 +177,22 @@ struct NotchShelfView: View {
     /// This ensures wings are FIXED size regardless of notch size
     private var volumeHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 350  // Wide for icon + label + slider layout
+            return 330  // Icon + "Volume" + slider
         }
         return notchWidth + (volumeWingWidth * 2)
+    }
+    
+    /// Brightness HUD - wider because "Brightness" is longer than "Volume"
+    private var brightnessHudWidth: CGFloat {
+        if isDynamicIslandMode {
+            return 365  // Icon + "Brightness" + slider (longer word)
+        }
+        return notchWidth + (volumeWingWidth * 2) + 20  // 20px wider in notch mode too
+    }
+    
+    /// Returns appropriate HUD width based on current hudType
+    private var currentHudTypeWidth: CGFloat {
+        hudType == .brightness ? brightnessHudWidth : volumeHudWidth
     }
     
     /// Battery HUD - slightly narrower wings
@@ -236,7 +249,7 @@ struct NotchShelfView: View {
         if isExpandedOnThisScreen && enableNotchShelf {
             return expandedWidth
         } else if hudIsVisible {
-            return volumeHudWidth  // Volume/Brightness HUD needs wider wings
+            return currentHudTypeWidth  // Content-based width (Brightness is wider than Volume)
         } else if lockScreenHUDIsVisible && enableLockScreenHUD {
             return batteryHudWidth  // Lock Screen HUD uses same width as battery HUD
         } else if airPodsHUDIsVisible && enableAirPodsHUD {
@@ -525,7 +538,7 @@ struct NotchShelfView: View {
                         isMuted: hudType == .volume && volumeManager.isMuted, // Red when volume is muted
                         notchWidth: notchWidth,
                         notchHeight: notchHeight,
-                        hudWidth: volumeHudWidth,
+                        hudWidth: currentHudTypeWidth,
                         targetScreen: targetScreen,
                         onValueChange: { newValue in
                             if hudType == .volume {
@@ -535,7 +548,7 @@ struct NotchShelfView: View {
                             }
                         }
                     )
-                    .frame(width: volumeHudWidth, height: notchHeight)  // Only expand HORIZONTALLY, never taller
+                    .frame(width: currentHudTypeWidth, height: notchHeight)  // Content-based width
                     // Match media player transition - scale with notch
                     .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                     .zIndex(3)
