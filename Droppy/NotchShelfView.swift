@@ -175,22 +175,24 @@ struct NotchShelfView: View {
     
     /// HUD dimensions calculated as notchWidth + (2 * wingWidth)
     /// This ensures wings are FIXED size regardless of notch size
+    /// Volume and Brightness use IDENTICAL widths for visual consistency
     private var volumeHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 330  // Icon + "Volume" + slider
+            return 365  // Same width as brightness for consistency
         }
-        return notchWidth + (volumeWingWidth * 2)
+        return notchWidth + (volumeWingWidth * 2) + 20  // Same formula as brightness
     }
     
-    /// Brightness HUD - wider because "Brightness" is longer than "Volume"
+    /// Brightness HUD - same width as Volume for visual consistency
     private var brightnessHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 365  // Icon + "Brightness" + slider (longer word)
+            return 365  // Icon + percentage + slider
         }
-        return notchWidth + (volumeWingWidth * 2) + 20  // 20px wider in notch mode too
+        return notchWidth + (volumeWingWidth * 2) + 20
     }
     
     /// Returns appropriate HUD width based on current hudType
+    /// Note: Both types now use same width for consistency
     private var currentHudTypeWidth: CGFloat {
         hudType == .brightness ? brightnessHudWidth : volumeHudWidth
     }
