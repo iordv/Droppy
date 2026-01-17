@@ -17,6 +17,7 @@ enum InlineHUDType: Equatable {
     case brightness
     case battery
     case capsLock
+    case focus
     // Add new HUD types here
     
     /// Icon for this HUD type based on current value
@@ -37,6 +38,8 @@ enum InlineHUDType: Equatable {
             else { return "battery.100percent" }
         case .capsLock:
             return value > 0 ? "capslock.fill" : "capslock"
+        case .focus:
+            return value > 0 ? "moon.fill" : "moon"
         }
     }
     
@@ -47,6 +50,7 @@ enum InlineHUDType: Equatable {
         case .brightness: return .yellow
         case .battery: return .green
         case .capsLock: return .white
+        case .focus: return Color(red: 0.55, green: 0.35, blue: 0.95)
         }
     }
     
@@ -61,6 +65,8 @@ enum InlineHUDType: Equatable {
             return percent >= 100 ? "MAX" : "\(percent)%"
         case .capsLock:
             return value > 0 ? "ON" : "OFF"
+        case .focus:
+            return value > 0 ? "ON" : "OFF"
         }
     }
     
@@ -68,7 +74,7 @@ enum InlineHUDType: Equatable {
     var showsSlider: Bool {
         switch self {
         case .volume, .brightness, .battery: return true
-        case .capsLock: return false
+        case .capsLock, .focus: return false
         }
     }
 }
@@ -88,6 +94,7 @@ struct MediaPlayerView: View {
     @ObservedObject private var brightnessManager = BrightnessManager.shared
     @ObservedObject private var batteryManager = BatteryManager.shared
     @ObservedObject private var capsLockManager = CapsLockManager.shared
+    @ObservedObject private var dndManager = DNDManager.shared
     
     // MARK: - Universal Inline HUD State
     // Handles all HUD types: volume, brightness, battery, caps lock, etc.
@@ -214,6 +221,9 @@ struct MediaPlayerView: View {
         .onChange(of: capsLockManager.lastChangeAt) { _, _ in
             triggerInlineHUD(.capsLock, value: capsLockManager.isCapsLockOn ? 1.0 : 0.0)
         }
+        .onChange(of: dndManager.lastChangeAt) { _, _ in
+            triggerInlineHUD(.focus, value: dndManager.isDNDActive ? 1.0 : 0.0)
+        }
         // Right-click context menu to hide the notch/island (same as notch background)
         .contextMenu {
             Button("Hide \(NotchWindowController.shared.displayModeLabel)") {
@@ -250,6 +260,7 @@ struct MediaPlayerView: View {
         case .brightness: duration = brightnessManager.visibleDuration
         case .battery: duration = batteryManager.visibleDuration
         case .capsLock: duration = capsLockManager.visibleDuration
+        case .focus: duration = dndManager.visibleDuration
         }
         
         // Hide after duration (same as regular HUD: easeOut 0.3)
