@@ -512,6 +512,7 @@ struct NotchShelfView: View {
                         hudType: $hudType,
                         value: $hudValue,
                         isActive: true, // Slider thickens while HUD is visible
+                        isMuted: hudType == .volume && volumeManager.isMuted, // Red when volume is muted
                         notchWidth: notchWidth,
                         notchHeight: notchHeight,
                         hudWidth: volumeHudWidth,

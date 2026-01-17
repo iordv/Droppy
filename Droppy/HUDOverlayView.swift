@@ -23,6 +23,7 @@ struct NotchHUDView: View {
     @Binding var hudType: HUDContentType
     @Binding var value: CGFloat
     var isActive: Bool = true // Whether value is currently changing (for slider thickening)
+    var isMuted: Bool = false // Whether volume is muted (shows red color)
     let notchWidth: CGFloat   // Physical notch width (passed from parent)
     let notchHeight: CGFloat  // Physical notch height (passed from parent)
     let hudWidth: CGFloat     // Total HUD width (passed from parent)
@@ -59,10 +60,10 @@ struct NotchHUDView: View {
                 // DYNAMIC ISLAND: Compact horizontal layout, all content in one row
                 // Standardized sizing: 18px icons, 13pt text, 14px horizontal padding
                 HStack(spacing: 12) {
-                    // Icon
+                    // Icon - red when muted, yellow for brightness, white for volume
                     Image(systemName: hudType.icon(for: value))
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(hudType == .brightness ? .yellow : .white)
+                        .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
                         .contentTransition(.symbolEffect(.replace))
                         .symbolVariant(.fill)
                         .frame(width: 20, height: 20)
@@ -70,7 +71,7 @@ struct NotchHUDView: View {
                     // Mini slider - expands to fill available space
                     HUDSlider(
                         value: $value,
-                        accentColor: hudType == .brightness ? .yellow : .white,
+                        accentColor: isMuted ? .red : (hudType == .brightness ? .yellow : .white),
                         isActive: isActive,
                         onChange: onValueChange
                     )
@@ -95,7 +96,7 @@ struct NotchHUDView: View {
                     HStack {
                         Image(systemName: hudType.icon(for: value))
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(hudType == .brightness ? .yellow : .white)
+                            .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
                             .contentTransition(.symbolEffect(.replace))
                             .symbolVariant(.fill)
                             .frame(width: 26, height: 26)
@@ -127,7 +128,7 @@ struct NotchHUDView: View {
                 // Below notch: Slider (same style as seek slider in expanded media player)
                 HUDSlider(
                     value: $value,
-                    accentColor: hudType == .brightness ? .yellow : .white,
+                    accentColor: isMuted ? .red : (hudType == .brightness ? .yellow : .white),
                     isActive: isActive,
                     onChange: onValueChange
                 )
