@@ -55,8 +55,16 @@ struct UpdateView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
                         if let notes = checker.releaseNotes {
-                            // Helper to strip HTML tags (img, etc.) that markdown can't render
-                            let cleanedNotes = notes.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                            // Strip HTML tags (img, a href, etc.) that markdown can't render
+                            // First strip complete <img .../> and <img ...> tags
+                            var cleanedNotes = notes
+                            // Remove <img...> tags (self-closing or not)
+                            cleanedNotes = cleanedNotes.replacingOccurrences(of: "<img[^>]*>", with: "", options: .regularExpression)
+                            // Remove any remaining HTML tags
+                            cleanedNotes = cleanedNotes.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                            // Clean up multiple consecutive newlines left by removed tags
+                            cleanedNotes = cleanedNotes.replacingOccurrences(of: "\n\\s*\n\\s*\n", with: "\n\n", options: .regularExpression)
+                            
                             ForEach(Array(cleanedNotes.components(separatedBy: .newlines).enumerated()), id: \.offset) { _, line in
                                 if !line.trimmingCharacters(in: .whitespaces).isEmpty {
                                     if let attributed = try? AttributedString(markdown: line) {
