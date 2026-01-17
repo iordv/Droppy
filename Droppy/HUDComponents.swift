@@ -173,9 +173,9 @@ struct MediaHUDView: View {
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space
-                // Using BoringNotch pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
-                let iconSize: CGFloat = 26
-                let symmetricPadding = max((notchHeight - iconSize) / 2, 4)  // Min 4px for very small notches
+                // Using BoringNotch pattern: 20px icons with symmetricPadding for outer-wing alignment
+                let iconSize: CGFloat = 20
+                let symmetricPadding = max((notchHeight - iconSize) / 2, 6)  // Min 6px for visibility
                 
                 HStack(spacing: 0) {
                     // Left wing: Album art near left edge
