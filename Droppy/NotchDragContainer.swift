@@ -256,10 +256,11 @@ class NotchDragContainer: NSView {
             return
         }
         
-        // Toggle the shelf expansion
+        // Toggle the shelf expansion for THIS specific screen
+        let displayID = notchWindow.targetDisplayID
         DispatchQueue.main.async {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                DroppyState.shared.isExpanded.toggle()
+                DroppyState.shared.toggleShelfExpansion(for: displayID)
             }
         }
         // Don't call super - we consumed this click

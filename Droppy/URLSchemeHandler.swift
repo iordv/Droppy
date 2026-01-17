@@ -95,9 +95,11 @@ struct URLSchemeHandler {
             // Add to notch shelf
             state.addItems(from: paths)
             
-            // Show the shelf if it's not visible
+            // Show the shelf if it's not visible (use main display for URL scheme triggers)
             if !state.isExpanded {
-                state.isExpanded = true
+                if let mainDisplayID = NSScreen.main?.displayID {
+                    state.expandShelf(for: mainDisplayID)
+                }
             }
             
             print("✅ URLSchemeHandler: Added \(paths.count) file(s) to shelf")

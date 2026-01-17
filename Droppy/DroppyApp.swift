@@ -30,6 +30,9 @@ struct DroppyMenuContent: View {
     // Observe NotchWindowController for hide state
     @ObservedObject private var notchController = NotchWindowController.shared
     
+    // Check if shelf is enabled (to conditionally show hide/show option)
+    @AppStorage("enableNotchShelf") private var enableNotchShelf = true
+    
     // Check if extensions are disabled
     private var isElementCaptureDisabled: Bool {
         _ = shortcutRefreshId // Force refresh
@@ -53,18 +56,20 @@ struct DroppyMenuContent: View {
     }
     
     var body: some View {
-        // Show/Hide Notch or Dynamic Island toggle
-        if notchController.isTemporarilyHidden {
-            Button("Show \(notchController.displayModeLabel)") {
-                notchController.setTemporarilyHidden(false)
+        // Show/Hide Notch or Dynamic Island toggle (only when shelf is enabled)
+        if enableNotchShelf {
+            if notchController.isTemporarilyHidden {
+                Button("Show \(notchController.displayModeLabel)") {
+                    notchController.setTemporarilyHidden(false)
+                }
+            } else {
+                Button("Hide \(notchController.displayModeLabel)") {
+                    notchController.setTemporarilyHidden(true)
+                }
             }
-        } else {
-            Button("Hide \(notchController.displayModeLabel)") {
-                notchController.setTemporarilyHidden(true)
-            }
+            
+            Divider()
         }
-        
-        Divider()
         
         Button("Check for Updates...") {
             UpdateChecker.shared.checkAndNotify()

@@ -681,6 +681,9 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     /// Sets up observation for DroppyState properties
     private func setupStateObservation() {
+        // Don't set up observation when hidden - prevents unnecessary updates
+        guard !isTemporarilyHidden else { return }
+        
         // Track the specific properties that affect mouse event handling
         withObservationTracking {
             _ = DroppyState.shared.isExpanded
@@ -690,15 +693,23 @@ final class NotchWindowController: NSObject, ObservableObject {
             // onChange fires BEFORE the property changes.
             // dispatch async to run update AFTER the change is applied.
             DispatchQueue.main.async { [weak self] in
-                self?.updateAllWindowsMouseEventHandling()
+                // Skip if hidden - prevents stale events and observation buildup
+                guard let self = self, !self.isTemporarilyHidden else { return }
+                
+                self.updateAllWindowsMouseEventHandling()
                 // Must re-register observation after it fires (one-shot)
-                self?.setupStateObservation()
+                self.setupStateObservation()
             }
         }
     }
     
     /// Updates mouse event handling for all notch windows
+    /// CRITICAL: Skips update if windows are temporarily hidden to prevent
+    /// stale state observers from re-enabling mouse events
     private func updateAllWindowsMouseEventHandling() {
+        // Don't update if hidden - preserves ignoresMouseEvents = true state
+        guard !isTemporarilyHidden else { return }
+        
         for window in notchWindows.values {
             window.updateMouseEventHandling()
         }
@@ -822,8 +833,10 @@ final class NotchWindowController: NSObject, ObservableObject {
             // Route event only to the window for this screen
             window.handleGlobalMouseEvent(event)
         } else {
-            // Mouse is on a screen with no notch window - clear hover if needed
-            if DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+            // Mouse is on a screen with no notch window - reset hover state
+            // This handles rare edge cases (e.g., external monitor without shelf enabled)
+            // and ensures hover state doesn't get stuck when mouse leaves all notch areas
+            if DroppyState.shared.isMouseHovering {
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                         DroppyState.shared.isMouseHovering = false
@@ -1224,8 +1237,9 @@ class NotchWindow: NSPanel {
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
                         DroppyState.shared.isMouseHovering = true
                     }
-                    // Start auto-expand timer
-                    NotchWindowController.shared.startAutoExpandTimer()
+                    // Start auto-expand timer with THIS screen's displayID
+                    // Critical for multi-monitor: ensures correct screen expands
+                    NotchWindowController.shared.startAutoExpandTimer(for: targetScreen.displayID)
                 }
             } else if !isOverNotch && currentlyHovering && !DroppyState.shared.isExpanded {
                 // Only reset hover if not expanded (expanded has its own area)
@@ -1235,8 +1249,9 @@ class NotchWindow: NSPanel {
                     }
                     NotchWindowController.shared.cancelAutoExpandTimer()
                 }
-            } else if DroppyState.shared.isExpanded {
-                // When shelf is expanded, check if cursor is in the expanded shelf zone
+            } else if DroppyState.shared.isExpanded(for: targetScreen.displayID) {
+                // When shelf is expanded ON THIS SCREEN, check if cursor is in the expanded shelf zone
+                // CRITICAL: Only check if THIS screen has the expanded shelf (not just any screen)
                 // If so, maintain hover state to prevent auto-collapse
                 let expandedWidth: CGFloat = 450
                 let centerX = targetScreen.frame.origin.x + targetScreen.frame.width / 2
@@ -1267,6 +1282,14 @@ class NotchWindow: NSPanel {
                     DispatchQueue.main.async {
                         DroppyState.shared.isMouseHovering = false
                     }
+                }
+            } else if DroppyState.shared.isExpanded && currentlyHovering && !isOverNotch {
+                // CRITICAL FIX (2-external-monitor bug):
+                // Shelf is expanded on a DIFFERENT screen, and mouse is on THIS screen,
+                // but NOT over this screen's notch. Reset hover state so the expanded
+                // shelf on the other screen can auto-collapse.
+                DispatchQueue.main.async {
+                    DroppyState.shared.isMouseHovering = false
                 }
             }
         }

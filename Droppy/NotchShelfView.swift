@@ -744,12 +744,18 @@ struct NotchShelfView: View {
             }
         }
         // MARK: - Auto-Shrink Timer Observers
-        .onChange(of: state.isExpanded) { wasExpanded, isExpanded in
-            if isExpanded && !wasExpanded {
-                // Shelf just expanded - start auto-shrink timer
+        // CRITICAL: Use expandedDisplayID (per-screen) instead of isExpanded (global)
+        // This ensures only the screen that actually has the expanded shelf handles its timer
+        .onChange(of: state.expandedDisplayID) { oldDisplayID, newDisplayID in
+            let thisDisplayID = targetScreen?.displayID
+            let wasExpandedOnThis = oldDisplayID == thisDisplayID
+            let isExpandedOnThis = newDisplayID == thisDisplayID
+            
+            if isExpandedOnThis && !wasExpandedOnThis {
+                // Shelf just expanded on THIS screen - start auto-shrink timer
                 startAutoShrinkTimer()
-            } else if !isExpanded {
-                // Shelf collapsed - cancel any pending timer and reset states
+            } else if wasExpandedOnThis && !isExpandedOnThis {
+                // Shelf on THIS screen collapsed (either fully closed or another screen took over)
                 cancelAutoShrinkTimer()
                 isHoveringExpandedContent = false
                 mediaHUDIsHovered = false // Reset media HUD hover state

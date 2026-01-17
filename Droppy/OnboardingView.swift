@@ -14,6 +14,7 @@ enum OnboardingPage: Int, CaseIterable {
     case welcome = 0
     case features
     case setup
+    case basics
     case ready
     
     /// Whether this page should be shown for the current device
@@ -35,13 +36,18 @@ enum OnboardingPage: Int, CaseIterable {
 // MARK: - Onboarding View
 
 struct OnboardingView: View {
-    // Essential toggles only
+    // Essential toggles
     @AppStorage("enableNotchShelf") private var enableShelf = true
     @AppStorage("enableFloatingBasket") private var enableBasket = true
     @AppStorage("enableClipboardBeta") private var enableClipboard = true  // ON by default
     @AppStorage("enableHUDReplacement") private var enableHUDs = true
     @AppStorage("useDynamicIslandStyle") private var useDynamicIslandStyle = true
     @AppStorage("useTransparentBackground") private var useTransparentBackground = false
+    // Additional toggles for 8-toggle grid
+    @AppStorage("showMediaPlayer") private var showMediaPlayer = true
+    @AppStorage("autoExpandShelf") private var autoExpandShelf = true
+    @AppStorage("startAtLogin") private var startAtLogin = false
+    @AppStorage("showInMenuBar") private var showInMenuBar = true
     
     @State private var currentPage: OnboardingPage = .welcome
     @State private var isNextHovering = false
@@ -128,6 +134,9 @@ struct OnboardingView: View {
                                 if currentPage == .features {
                                     triggerFeaturesAnimation()
                                 }
+                                if currentPage == .basics {
+                                    triggerFeaturesAnimation() // Reuse for basics animation
+                                }
                                 if currentPage == .ready {
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                         showConfetti = true
@@ -171,7 +180,7 @@ struct OnboardingView: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(width: 680, height: 580)
+        .frame(width: 780, height: 720)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
@@ -189,6 +198,8 @@ struct OnboardingView: View {
             featuresPage
         case .setup:
             setupPage
+        case .basics:
+            basicsPage
         case .ready:
             readyPage
         }
@@ -264,7 +275,7 @@ struct OnboardingView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(.primary)
             
-            // Feature cards - 2 column grid layout
+            // Feature cards - 2 column grid layout (8 cards total)
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: 12),
                 GridItem(.flexible(), spacing: 12)
@@ -282,7 +293,7 @@ struct OnboardingView: View {
                     color: .purple,
                     title: "Basket",
                     description: "Jiggle to summon drop zone",
-                    delay: 0.08
+                    delay: 0.06
                 )
                 
                 compactFeatureCard(
@@ -290,7 +301,7 @@ struct OnboardingView: View {
                     color: .cyan,
                     title: "Clipboard",
                     description: "History, search, and OCR",
-                    delay: 0.16
+                    delay: 0.12
                 )
                 
                 compactFeatureCard(
@@ -298,6 +309,14 @@ struct OnboardingView: View {
                     color: .orange,
                     title: "System HUDs",
                     description: "Volume, brightness, and more",
+                    delay: 0.18
+                )
+                
+                compactFeatureCard(
+                    icon: "play.circle.fill",
+                    color: .pink,
+                    title: "Media Player",
+                    description: "Control music from your notch",
                     delay: 0.24
                 )
                 
@@ -306,7 +325,15 @@ struct OnboardingView: View {
                     color: .green,
                     title: "Gestures",
                     description: "Swipe between media & shelf",
-                    delay: 0.28
+                    delay: 0.30
+                )
+                
+                compactFeatureCard(
+                    icon: "eye.fill",
+                    color: .yellow,
+                    title: "Quick Look",
+                    description: "Press Space to preview files",
+                    delay: 0.36
                 )
                 
                 // Extensions card
@@ -347,9 +374,9 @@ struct OnboardingView: View {
                 )
                 .opacity(featuresAnimated ? 1 : 0)
                 .offset(y: featuresAnimated ? 0 : 10)
-                .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.32), value: featuresAnimated)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.42), value: featuresAnimated)
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 50)
             
             Spacer()
         }
@@ -452,8 +479,8 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 60)
             
-            // Essential toggles grid with icon bounce animation
-            VStack(spacing: 12) {
+            // Essential toggles grid with icon bounce animation (8 toggles - 2x4 grid)
+            VStack(spacing: 10) {
                 HStack(spacing: 12) {
                     OnboardingToggle(icon: "tray.and.arrow.down.fill", title: "Shelf", color: .blue, isOn: $enableShelf)
                     OnboardingToggle(icon: "basket.fill", title: "Basket", color: .purple, isOn: $enableBasket)
@@ -463,8 +490,18 @@ struct OnboardingView: View {
                     OnboardingToggle(icon: "doc.on.clipboard.fill", title: "Clipboard", color: .cyan, isOn: $enableClipboard)
                     OnboardingToggle(icon: "slider.horizontal.3", title: "System HUDs", color: .orange, isOn: $enableHUDs)
                 }
+                
+                HStack(spacing: 12) {
+                    OnboardingToggle(icon: "music.note", title: "Media Player", color: .pink, isOn: $showMediaPlayer)
+                    OnboardingToggle(icon: "arrow.up.left.and.arrow.down.right", title: "Auto Expand", color: .teal, isOn: $autoExpandShelf)
+                }
+                
+                HStack(spacing: 12) {
+                    OnboardingToggle(icon: "power", title: "Start at Login", color: .indigo, isOn: $startAtLogin)
+                    OnboardingToggle(icon: "menubar.rectangle", title: "Menu Bar Icon", color: .gray, isOn: $showInMenuBar)
+                }
             }
-            .padding(.horizontal, 100)
+            .padding(.horizontal, 60)
             
             // Display mode picker (only for non-notch Macs)
             if !hasNotch {
@@ -537,7 +574,142 @@ struct OnboardingView: View {
             )
     }
     
-    // MARK: - Page 4: Ready
+    // MARK: - Page 4: Basics (Great To Know Tips)
+    
+    private var basicsPage: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            Text("Great to Know")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(.primary)
+            
+            Text("Essential tips to get the most out of Droppy")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            
+            // Tips grid - 2 column layout (8 tips)
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ], spacing: 10) {
+                basicsTip(
+                    icon: "arrow.down.right.and.arrow.up.left",
+                    color: .blue,
+                    title: "Auto Collapse",
+                    description: "Shelf collapses after a delay when you move your mouse away",
+                    delay: 0
+                )
+                
+                basicsTip(
+                    icon: "arrow.up.left.and.arrow.down.right",
+                    color: .teal,
+                    title: "Auto Expand",
+                    description: "Move cursor to top edge to expand the shelf automatically",
+                    delay: 0.06
+                )
+                
+                basicsTip(
+                    icon: "hand.draw.fill",
+                    color: .green,
+                    title: "Swipe Gestures",
+                    description: "Swipe left/right on notch to switch between shelf & media",
+                    delay: 0.12
+                )
+                
+                basicsTip(
+                    icon: "eye.fill",
+                    color: .yellow,
+                    title: "Quick Look",
+                    description: "Select a file and press Space to preview it instantly",
+                    delay: 0.18
+                )
+                
+                basicsTip(
+                    icon: "cursorarrow.click.2",
+                    color: .purple,
+                    title: "Click to Expand",
+                    description: "Single click on the collapsed notch to expand the shelf",
+                    delay: 0.24
+                )
+                
+                basicsTip(
+                    icon: "keyboard",
+                    color: .cyan,
+                    title: "Keyboard Shortcuts",
+                    description: "⌘⇧Space opens Clipboard, customize more in Settings",
+                    delay: 0.30
+                )
+                
+                basicsTip(
+                    icon: "contextualmenu.and.cursorarrow",
+                    color: .orange,
+                    title: "Right-Click Menu",
+                    description: "Right-click on files for compress, convert, share & more",
+                    delay: 0.36
+                )
+                
+                basicsTip(
+                    icon: "gearshape.fill",
+                    color: .gray,
+                    title: "Settings",
+                    description: "Find Droppy in your menu bar to access all settings",
+                    delay: 0.42
+                )
+            }
+            .padding(.horizontal, 50)
+            
+            Spacer()
+        }
+        .onAppear {
+            triggerFeaturesAnimation()
+        }
+        .transition(.asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        ))
+    }
+    
+    /// Compact tip card for basics page grid
+    private func basicsTip(icon: String, color: Color, title: String, description: String, delay: Double) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(color.opacity(0.15))
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(color)
+                    .symbolRenderingMode(.monochrome)
+            }
+            .frame(width: 28, height: 28)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(description)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .background(AdaptiveColors.buttonBackgroundAuto)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+        )
+        .opacity(featuresAnimated ? 1 : 0)
+        .offset(y: featuresAnimated ? 0 : 10)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(delay), value: featuresAnimated)
+    }
+    
+    // MARK: - Page 5: Ready
     
     private var readyPage: some View {
         VStack(spacing: 20) {

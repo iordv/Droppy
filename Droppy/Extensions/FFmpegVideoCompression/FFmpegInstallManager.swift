@@ -150,6 +150,9 @@ final class FFmpegInstallManager: ObservableObject {
             if process.terminationStatus == 0 {
                 installProgress = "FFmpeg installed successfully!"
                 isInstalled = true
+                
+                // Track extension activation for analytics
+                AnalyticsService.shared.trackExtensionActivation(extensionId: "ffmpegVideoCompression")
             } else {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorOutput = String(data: errorData, encoding: .utf8) ?? "Unknown error"

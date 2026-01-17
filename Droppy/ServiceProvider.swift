@@ -30,9 +30,11 @@ class ServiceProvider: NSObject {
             
             if target == "shelf" {
                 state.addItems(from: fileURLs)
-                // Show the shelf
+                // Show the shelf on main display (Services are triggered externally, not from a specific notch)
                 NotchWindowController.shared.setupNotchWindow()
-                state.isExpanded = true
+                if let mainDisplayID = NSScreen.main?.displayID {
+                    state.expandShelf(for: mainDisplayID)
+                }
             } else {
                 state.addBasketItems(from: fileURLs)
                 // Show the basket

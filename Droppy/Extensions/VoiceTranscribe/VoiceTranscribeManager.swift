@@ -480,6 +480,9 @@ final class VoiceTranscribeManager: ObservableObject {
                 isModelDownloaded = true
                 savePreferences()
                 
+                // Track extension activation for analytics (only track once per install)
+                AnalyticsService.shared.trackExtensionActivation(extensionId: "voiceTranscribe")
+                
                 print("VoiceTranscribe: Model \(selectedModel.rawValue) loaded successfully")
                 
             } catch is CancellationError {
