@@ -165,10 +165,9 @@ struct MediaHUDView: View {
                         AudioSpectrumView(isPlaying: musicManager.isPlaying, barCount: 3, barWidth: 2.5, spacing: 2, height: 14, color: visualizerColor)
                             .frame(width: 3 * 2.5 + 2 * 2, height: 14)
                     }
-                    .frame(maxHeight: .infinity, alignment: .center)
+                    .padding(.horizontal, 14)  // MUST be applied to HStack for outer-edge alignment
                 }
                 .frame(height: notchHeight)
-                .padding(.horizontal, 14)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space
                 // Album art and visualizer positioned near outer edges
