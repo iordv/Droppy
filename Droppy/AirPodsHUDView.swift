@@ -125,16 +125,15 @@ struct AirPodsHUDView: View {
             }
             .padding(.horizontal, 40)
             
-            // Icon (left) and Battery (right)
+            // Icon (left edge) and Battery ring (right edge)
             HStack {
-                airPodsIconView(size: 18)  // Standardized: 18pt for DI
+                airPodsIconView(size: 18)
                 Spacer()
-                batteryRingView(size: 20)  // Standardized: 20px for DI
+                batteryRingView(size: 20)
             }
-            .frame(maxHeight: .infinity, alignment: .center)
+            .padding(.horizontal, 14)  // MUST be inside the ZStack, applied to content
         }
         .frame(height: notchHeight)
-        .padding(.horizontal, 14)  // Standardized DI padding
     }
     
     // MARK: - Notch Mode Layout
