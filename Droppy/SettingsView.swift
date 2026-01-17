@@ -74,6 +74,31 @@ struct SettingsView: View {
                     
                     Spacer()
                     
+                    // Buy Me a Coffee button
+                    Link(destination: URL(string: "https://buymeacoffee.com/droppy")!) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "cup.and.saucer.fill")
+                            Text("Support")
+                        }
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        // BMC Yellow: #FFDD00
+                        .background(Color(red: 1.0, green: 0.867, blue: 0.0).opacity(isCoffeeHovering ? 1.0 : 0.9))
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                            isCoffeeHovering = hovering
+                        }
+                    }
+                    
                     // Update button at bottom
                     Button {
                         UpdateChecker.shared.checkAndNotify()
