@@ -91,7 +91,7 @@ struct BatteryHUDView: View {
                         .monospacedDigit()
                         .contentTransition(.numericText(value: Double(batteryManager.batteryLevel)))
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 8)  // Match vertical spacing for symmetry
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Two wings separated by the notch space

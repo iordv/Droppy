@@ -165,7 +165,7 @@ struct MediaHUDView: View {
                         AudioSpectrumView(isPlaying: musicManager.isPlaying, barCount: 3, barWidth: 2.5, spacing: 2, height: 14, color: visualizerColor)
                             .frame(width: 3 * 2.5 + 2 * 2, height: 14)
                     }
-                    .padding(.horizontal, 14)  // MUST be applied to HStack for outer-edge alignment
+                    .padding(.horizontal, 8)  // Match vertical spacing for symmetry
                 }
                 .frame(height: notchHeight)
             } else {

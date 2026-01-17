@@ -86,7 +86,7 @@ struct NotchHUDView: View {
                     .frame(width: 100)
                     .frame(height: 16)
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 8)  // Match vertical spacing for symmetry
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Wide layout - icon + label on left wing, slider on right wing
