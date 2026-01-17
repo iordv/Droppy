@@ -29,23 +29,25 @@ struct HUDSlider: View {
                     .fill(accentColor.opacity(isExpanded ? 0.3 : 0.2))
                     .frame(height: trackHeight)
                 
-                // Filled portion (solid color with glow when active)
+                // Filled portion with ultra-smooth animation
                 if progress > 0 {
                     Capsule()
                         .fill(accentColor)
                         .frame(width: max(trackHeight, progressWidth), height: trackHeight)
                         .shadow(color: isExpanded ? accentColor.opacity(0.4) : .clear, radius: isExpanded ? 4 : 0)
+                        // Fast interpolating spring for buttery smooth fill
+                        .animation(.interpolatingSpring(stiffness: 300, damping: 25), value: progress)
                 }
             }
             .frame(height: trackHeight)
             .frame(maxHeight: .infinity, alignment: .center)
             .scaleEffect(y: isExpanded ? 1.1 : 1.0, anchor: .center)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isExpanded)
+            .animation(.spring(response: 0.2, dampingFraction: 0.75), value: isExpanded)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+                        if !isDragging {
                             isDragging = true
                         }
                         let fraction = max(0, min(1, gesture.location.x / width))
@@ -56,7 +58,7 @@ struct HUDSlider: View {
                         let fraction = max(0, min(1, gesture.location.x / width))
                         value = fraction
                         onChange?(fraction)
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.75)) {
                             isDragging = false
                         }
                     }
