@@ -45,6 +45,7 @@ struct SettingsView: View {
     @State private var dashPhase: CGFloat = 0
     @State private var isHistoryLimitEditing: Bool = false
     @State private var isUpdateHovering = false
+    @State private var showDNDAccessAlert = false  // Full Disk Access alert for Focus Mode HUD
     
     // Hover states for sidebar items
     @State private var hoverFeatures = false
@@ -585,11 +586,25 @@ struct SettingsView: View {
                     .onChange(of: enableDNDHUD) { _, newValue in
                         if newValue {
                             NotchWindowController.shared.setupNotchWindow()
+                            // Show instructions since Full Disk Access can't be prompted
+                            showDNDAccessAlert = true
                         } else {
                             if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD && !enableLockScreenHUD {
                                 NotchWindowController.shared.closeWindow()
                             }
                         }
+                    }
+                    .alert("Full Disk Access Required", isPresented: $showDNDAccessAlert) {
+                        Button("Open Settings") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {
+                            enableDNDHUD = false
+                        }
+                    } message: {
+                        Text("To detect Focus mode changes, Droppy needs Full Disk Access.\n\n1. Click \"Open Settings\"\n2. Enable Droppy in the list\n3. Restart Droppy for changes to take effect")
                     }
                 }
                 .padding(.vertical, 4)
