@@ -116,7 +116,7 @@ struct NotchHUDView: View {
                     Spacer()
                         .frame(width: notchWidth)
                     
-                    // Right wing: Slider
+                    // Right wing: Slider (aligned to outer edge)
                     HStack {
                         HUDSlider(
                             value: $value,
@@ -125,7 +125,7 @@ struct NotchHUDView: View {
                             onChange: onValueChange
                         )
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.trailing, 14)  // Outer-edge alignment (matches left wing .leading)
                     .frame(width: wingWidth)
                 }
                 .frame(height: notchHeight)
