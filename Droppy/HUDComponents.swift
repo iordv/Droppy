@@ -233,7 +233,10 @@ struct MediaHUDView: View {
                 // Show media player when expanding from mini HUD
                 MusicManager.shared.isMediaHUDForced = true
                 MusicManager.shared.isMediaHUDHidden = false
-                DroppyState.shared.isExpanded = true
+                // Expand shelf on THIS screen (use targetScreen if available, else main)
+                if let displayID = targetScreen?.displayID ?? NSScreen.main?.displayID {
+                    DroppyState.shared.expandShelf(for: displayID)
+                }
             }
         }
     }
