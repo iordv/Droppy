@@ -298,6 +298,8 @@ struct MediaPlayerView: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
             )
+            // Composite the entire view before applying shadow to prevent ghosting during animations
+            .compositingGroup()
             .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
