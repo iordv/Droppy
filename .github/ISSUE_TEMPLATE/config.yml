@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://droppy.rocks
+    about: Check the Droppy website for features and FAQs
+  - name: ☕ Support Droppy
+    url: https://buymeacoffee.com/droppy
+    about: Buy me a coffee to support development!

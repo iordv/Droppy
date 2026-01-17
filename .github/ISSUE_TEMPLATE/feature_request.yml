@@ -1,0 +1,56 @@
+name: 💡 Feature Request
+description: Suggest a new feature or improvement for Droppy
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make Droppy better? I'd love to hear it! Please describe your suggestion below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Is your feature request related to a problem? Describe it here.
+      placeholder: |
+        I'm always frustrated when...
+        It would be great if...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe your ideal solution
+      description: What would you like to happen? Be as specific as possible.
+      placeholder: |
+        I would love if Droppy could...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Have you found any workarounds or alternative solutions?
+      placeholder: |
+        Currently I'm using [workaround], but it's not ideal because...
+
+  - type: dropdown
+    id: importance
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Would significantly improve my workflow
+        - Critical - I can't use Droppy effectively without this
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any mockups, screenshots, or examples that might help explain your idea
+      placeholder: Drag and drop images here, or describe similar features in other apps

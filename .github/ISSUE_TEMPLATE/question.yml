@@ -1,0 +1,60 @@
+name: ❓ Question / Help
+description: Ask a question about using Droppy or get help with setup
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help with Droppy? Ask your question below and I'll get back to you!
+
+  - type: input
+    id: version
+    attributes:
+      label: Droppy Version
+      description: "Optional - find this in Settings > About"
+      placeholder: "e.g., 8.1.5"
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: What's your question about?
+      options:
+        - Installation / Setup
+        - Shelf / Basket (drag & drop)
+        - Clipboard feature
+        - Media Player / HUDs
+        - Extensions (Element Capture, Window Snap, etc.)
+        - Settings / Customization
+        - Permissions
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What would you like to know?
+      placeholder: |
+        How do I...?
+        Why doesn't...?
+        What is the best way to...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Have you already tried anything to solve this?
+      placeholder: |
+        I've looked in Settings but couldn't find...
+        I tried restarting but...
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If helpful, add screenshots to clarify your question
+      placeholder: Drag and drop images here
