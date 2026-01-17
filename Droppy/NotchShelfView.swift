@@ -266,8 +266,8 @@ struct NotchShelfView: View {
         if isExpandedOnThisScreen && enableNotchShelf {
             return currentExpandedHeight
         } else if hudIsVisible {
-            // Dynamic Island: keep compact height matching media HUD
-            return isDynamicIslandMode ? notchHeight : hudHeight
+            // Volume/Brightness HUD: ONLY expand horizontally, never taller
+            return notchHeight
         } else if lockScreenHUDIsVisible && enableLockScreenHUD {
             return notchHeight  // Lock Screen HUD just uses notch height
         } else if airPodsHUDIsVisible && enableAirPodsHUD {
