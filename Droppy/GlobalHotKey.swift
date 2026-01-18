@@ -172,17 +172,16 @@ class GlobalHotKey {
         
         // Handle Normal Key Trigger
         if isDown {
-            print("⌨️ GlobalHotKey DEBUG: KeyDown Usage: 0x\(String(format:"%02X", usage))")
+            // DEBUG: Uncomment below to debug key events
+            // print("⌨️ GlobalHotKey DEBUG: KeyDown Usage: 0x\(String(format:"%02X", usage))")
             if let vk = hidToVK[usage] {
                 // Check Match
-                print("   -> VK: \(vk) | Target: \(targetKeyCode)")
                 if vk == targetKeyCode {
                     if checkModifiers() {
-                        print("   -> 🟢 TRIGGER MATCHED!")
+                        print("⌨️ GlobalHotKey: 🟢 Shortcut Triggered via IOHIDManager")
                         DispatchQueue.main.async { self.callback?() }
-                    } else {
-                        print("   -> 🔴 Modifiers mismatch")
                     }
+                    // Else: silent mismatch
                 }
             }
         }
@@ -212,10 +211,11 @@ class GlobalHotKey {
         
         let match = cCmd == tCmd && cOpt == tOpt && cCtrl == tCtrl && cShift == tShift
         
-        if !match {
-            print("   -> Mods Current: [Cmd:\(cCmd) Opt:\(cOpt) Ctrl:\(cCtrl) Shift:\(cShift)]")
-            print("   -> Mods Target:  [Cmd:\(tCmd) Opt:\(tOpt) Ctrl:\(tCtrl) Shift:\(tShift)]")
-        }
+        // DEBUG: Uncomment below to debug modifier matching
+        // if !match {
+        //     print("   -> Mods Current: [Cmd:\(cCmd) Opt:\(cOpt) Ctrl:\(cCtrl) Shift:\(cShift)]")
+        //     print("   -> Mods Target:  [Cmd:\(tCmd) Opt:\(tOpt) Ctrl:\(tCtrl) Shift:\(tShift)]")
+        // }
         
         return match
     }
