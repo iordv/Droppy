@@ -93,6 +93,22 @@ struct ExtensionsShopView: View {
                 }
             }
             
+            // Full-width hero: Window Snap
+            FeaturedExtensionCardWide(
+                title: "Window Snap",
+                subtitle: "Manage windows like a pro",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg",
+                screenshotURL: "https://iordv.github.io/Droppy/assets/images/window-snap-screenshot.png",
+                accentColor: .purple,
+                isInstalled: isWindowSnapInstalled,
+                features: ["Keyboard shortcuts", "Multi-monitor", "Edge snapping"]
+            ) {
+                WindowSnapInfoView(
+                    installCount: extensionCounts["windowSnap"],
+                    rating: extensionRatings["windowSnap"]
+                )
+            }
+            
             // Row 2: Video Target Size + Termi-Notch (NEW)
             HStack(spacing: 12) {
                 FeaturedExtensionCardCompact(
@@ -497,6 +513,130 @@ struct FeaturedExtensionCard<DetailView: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .scaleEffect(isHovering ? 1.01 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .sheet(isPresented: $showSheet) {
+            detailView()
+        }
+    }
+}
+
+
+// MARK: - Featured Extension Card (Wide)
+
+struct FeaturedExtensionCardWide<DetailView: View>: View {
+    let title: String
+    let subtitle: String
+    let iconURL: String
+    let screenshotURL: String?
+    let accentColor: Color
+    let isInstalled: Bool
+    let features: [String]
+    let detailView: () -> DetailView
+    
+    @State private var showSheet = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            showSheet = true
+        } label: {
+            ZStack(alignment: .leading) {
+                // Screenshot background on right side with fade
+                if let screenshotURLString = screenshotURL,
+                   let url = URL(string: screenshotURLString) {
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            Spacer()
+                            
+                            CachedAsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height)
+                                    .clipped()
+                            } placeholder: {
+                                Color.clear
+                            }
+                        }
+                    }
+                    .opacity(0.25)
+                    
+                    // Gradient fade from left
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.black, location: 0.0),
+                            .init(color: Color.black, location: 0.4),
+                            .init(color: Color.black.opacity(0.8), location: 0.6),
+                            .init(color: Color.clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
+                
+                // Content overlay
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        // Title
+                        Text(title)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(.white)
+                        
+                        // Subtitle
+                        Text(subtitle)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.7))
+                        
+                        // Feature badges
+                        HStack(spacing: 8) {
+                            ForEach(features, id: \.self) { feature in
+                                Text(feature)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .fill(Color.white.opacity(0.1))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                    )
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Icon
+                    CachedAsyncImage(url: URL(string: iconURL)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.1))
+                    }
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
+                }
+                .padding(20)
+            }
+            .frame(height: 120)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.01 : 1.0)
