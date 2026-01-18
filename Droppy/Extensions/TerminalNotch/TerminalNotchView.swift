@@ -136,12 +136,12 @@ struct TerminalNotchView: View {
             // Content padding inside the dotted outline
             .padding(24)
         }
-        // EXACT same padding as emptyShelfContent - Island mode: 16pt uniform, Notch mode: asymmetric
+        // EXACT same padding as MediaPlayerView
         .padding(EdgeInsets(
-            top: isDynamicIslandMode ? 16 : notchHeight + 14,
-            leading: isDynamicIslandMode ? 16 : 20,
-            bottom: isDynamicIslandMode ? 16 : 14,
-            trailing: isDynamicIslandMode ? 16 : 20
+            top: notchHeight > 0 ? notchHeight + 6 : 20,
+            leading: 20,
+            bottom: 20,
+            trailing: 20
         ))
         // Start marching ants animation when view appears
         .onAppear {
