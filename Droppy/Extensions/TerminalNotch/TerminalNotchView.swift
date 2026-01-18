@@ -102,6 +102,7 @@ struct TerminalNotchView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, design: .monospaced))
                         .foregroundStyle(.white)
+                        .frame(height: 20) // Fixed height prevents focus shift
                         .focused($isInputFocused)
                         .onSubmit {
                             manager.executeQuickCommand(manager.commandText)
