@@ -560,174 +560,7 @@ struct NotchShelfView: View {
             morphingBackground
             
             // MARK: - Content Overlay
-            ZStack(alignment: .top) {
-                // Always have the drop zone / interaction layer at the top
-                // BUT disable hit testing when expanded so slider/buttons can receive gestures
-                dropZone
-                    .zIndex(1)
-                    .allowsHitTesting(!isExpandedOnThisScreen)
-                
-                // MARK: - HUD Content (embedded in notch)
-                if hudIsVisible && enableHUDReplacement && !isExpandedOnThisScreen {
-                    NotchHUDView(
-                        hudType: $hudType,
-                        value: $hudValue,
-                        isActive: true, // Slider thickens while HUD is visible
-                        isMuted: hudType == .volume && volumeManager.isMuted, // Red when volume is muted
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,
-                        hudWidth: currentHudTypeWidth,
-                        targetScreen: targetScreen,
-                        onValueChange: { newValue in
-                            if hudType == .volume {
-                                volumeManager.setAbsolute(Float32(newValue))
-                            } else {
-                                brightnessManager.setAbsolute(value: Float(newValue))
-                            }
-                        }
-                    )
-                    .frame(width: currentHudTypeWidth, height: notchHeight)  // Content-based width
-                    // Match media player transition - scale with notch
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(3)
-                }
-                
-                // MARK: - Battery HUD (charging/unplugging/low battery)
-                // Takes priority over media HUD - briefly shows then returns to media
-                // Uses WIDER width than media HUD so percentage isn't cut off by notch
-                if batteryHUDIsVisible && enableBatteryHUD && !hudIsVisible && !isExpandedOnThisScreen {
-                    BatteryHUDView(
-                        batteryManager: batteryManager,
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,
-                        hudWidth: batteryHudWidth,  // Slightly narrower than volume HUD
-                        targetScreen: targetScreen
-                    )
-                    .frame(width: batteryHudWidth, height: notchHeight)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(4)  // Higher than media HUD
-                }
-                
-                // MARK: - Caps Lock HUD (ON/OFF indicator)
-                // Takes priority over media HUD - briefly shows then returns to media
-                if capsLockHUDIsVisible && enableCapsLockHUD && !hudIsVisible && !batteryHUDIsVisible && !isExpandedOnThisScreen {
-                    CapsLockHUDView(
-                        capsLockManager: capsLockManager,
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,
-                        hudWidth: batteryHudWidth,  // Same width as battery HUD
-                        targetScreen: targetScreen
-                    )
-                    .frame(width: batteryHudWidth, height: notchHeight)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(5)  // Higher than battery HUD
-                }
-                
-                // MARK: - Focus/DND HUD (moon indicator)
-                // Shows when Focus mode is enabled/disabled
-                if dndHUDIsVisible && enableDNDHUD && !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !isExpandedOnThisScreen {
-                    DNDHUDView(
-                        dndManager: dndManager,
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,
-                        hudWidth: batteryHudWidth,  // Same width as battery/caps lock HUD
-                        targetScreen: targetScreen
-                    )
-                    .frame(width: batteryHudWidth, height: notchHeight)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(5.5)  // Between Caps Lock (5) and AirPods (6)
-                }
-                
-                // MARK: - AirPods HUD (connection animation)
-                // Highest priority - shows spinning AirPods with battery ring on connection
-                if airPodsHUDIsVisible && enableAirPodsHUD && !hudIsVisible && !isExpandedOnThisScreen, let airPods = airPodsManager.connectedAirPods {
-                    AirPodsHUDView(
-                        airPods: airPods,
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,  // Same height as media player mini HUD
-                        hudWidth: hudWidth,  // Same as Media HUD for consistent sizing
-                        targetScreen: targetScreen
-                    )
-                    .frame(width: hudWidth, height: notchHeight)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(6)  // Highest priority - connection events
-                }
-                
-                // MARK: - Lock Screen HUD (lock/unlock animation)
-                // Shows when MacBook lid opens/closes or screen locks/unlocks
-                // Highest priority - hides all other HUDs
-                if lockScreenHUDIsVisible && enableLockScreenHUD && !hudIsVisible && !isExpandedOnThisScreen {
-                    LockScreenHUDView(
-                        lockScreenManager: lockScreenManager,
-                        notchWidth: notchWidth,
-                        notchHeight: notchHeight,
-                        hudWidth: batteryHudWidth,  // Same width as battery/caps lock HUD
-                        targetScreen: targetScreen
-                    )
-                    .frame(width: batteryHudWidth, height: notchHeight)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                    .zIndex(7)  // Higher than AirPods HUD
-                }
-                
-                // MARK: - Media Player HUD (when music is playing OR forced via swipe)
-                // Show if: playing with valid song info OR forced by user swipe (with valid track)
-                // Hide during song transitions for collapse-expand effect
-                // Hide when battery/caps lock/airpods HUD is visible (they take priority briefly)
-                // Debounce check only applies when setting is enabled
-                // Note: shouldShowMediaHUD already handles forced mode, but inline check is needed for view visibility
-                
-                // Break up complex expressions for type checker
-                let noHUDsVisible = !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !dndHUDIsVisible && !airPodsHUDIsVisible && !lockScreenHUDIsVisible
-                let notExpanded = !isExpandedOnThisScreen
-                
-                let shouldShowForced = musicManager.isMediaHUDForced && !musicManager.isPlayerIdle && showMediaPlayer && noHUDsVisible && notExpanded
-                
-                let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
-                let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
-                let debounceOk = !debounceMediaChanges || isMediaStable
-                let shouldShowNormal = showMediaPlayer && mediaIsPlaying && noHUDsVisible && notExpanded && notFadedOrTransitioning && debounceOk
-                
-                if shouldShowForced || shouldShowNormal {
-                    MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth, targetScreen: targetScreen)
-                        .frame(width: hudWidth, alignment: .top)
-                        // Clip to notch shape to prevent ghosting during shrink animation
-                        .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 50)) : AnyShape(NotchShape(bottomRadius: 18)))
-                        // Match other HUD transitions for consistent morphing
-                        .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-                        .zIndex(3)
-                }
-                
-                if isExpandedOnThisScreen && enableNotchShelf {
-                    expandedShelfContent
-                        // Scale + opacity transition matches the HUD's smooth shrinking effect
-                        .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.8)))
-                        .frame(width: expandedWidth, height: currentExpandedHeight)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: currentExpandedHeight)
-                        // Animate height changes on swipe state changes
-                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDForced)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDHidden)
-                        .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 40)) : AnyShape(NotchShape(bottomRadius: 40)))
-                        // Synchronize child view animations with the parent
-                        .geometryGroup()
-                        .zIndex(2)
-                }
-            }
-            // Hide ALL content when notch is temporarily hidden (matches background shape animation)
-            .opacity(notchController.isTemporarilyHidden ? 0 : 1)
-            // CRITICAL: Frame content overlay to match background size - prevents ghosting on shrink
-            .frame(width: currentNotchWidth, height: currentNotchHeight)
-            // Mask content to the notch/island shape so it clips during shrink animation
-            .mask {
-                Group {
-                    if isDynamicIslandMode {
-                        DynamicIslandShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
-                    } else {
-                        NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
-                    }
-                }
-            }
-            // DYNAMIC ISLAND: Match top margin of the background shape
-            .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
+            contentOverlay
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Animate all state changes smoothly (includes isTemporarilyHidden via currentNotchWidth/Height)
@@ -1076,6 +909,175 @@ struct NotchShelfView: View {
     
     // Old glowEffect removed
 
+
+    // MARK: - Content Overlay
+    
+    /// Extracted from shelfContent to reduce type-checker complexity
+    private var contentOverlay: some View {
+        ZStack(alignment: .top) {
+            // Always have the drop zone / interaction layer at the top
+            // BUT disable hit testing when expanded so slider/buttons can receive gestures
+            dropZone
+                .zIndex(1)
+                .allowsHitTesting(!isExpandedOnThisScreen)
+            
+            // MARK: - HUD Views
+            hudContent
+            
+            // MARK: - Media Player HUD
+            mediaPlayerHUD
+            
+            // MARK: - Expanded Shelf Content
+            if isExpandedOnThisScreen && enableNotchShelf {
+                expandedShelfContent
+                    .transition(.scale(scale: 0.85).combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.8)))
+                    .frame(width: expandedWidth, height: currentExpandedHeight)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: currentExpandedHeight)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDForced)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isMediaHUDHidden)
+                    .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 40)) : AnyShape(NotchShape(bottomRadius: 40)))
+                    .geometryGroup()
+                    .zIndex(2)
+            }
+        }
+        .opacity(notchController.isTemporarilyHidden ? 0 : 1)
+        .frame(width: currentNotchWidth, height: currentNotchHeight)
+        .mask {
+            Group {
+                if isDynamicIslandMode {
+                    DynamicIslandShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
+                } else {
+                    NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
+                }
+            }
+        }
+        .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
+    }
+    
+    // MARK: - HUD Content
+    
+    /// All HUD views (volume, battery, caps lock, DND, AirPods, lock screen)
+    @ViewBuilder
+    private var hudContent: some View {
+        // Volume/Brightness HUD
+        if hudIsVisible && enableHUDReplacement && !isExpandedOnThisScreen {
+            NotchHUDView(
+                hudType: $hudType,
+                value: $hudValue,
+                isActive: true,
+                isMuted: hudType == .volume && volumeManager.isMuted,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: currentHudTypeWidth,
+                targetScreen: targetScreen,
+                onValueChange: { newValue in
+                    if hudType == .volume {
+                        volumeManager.setAbsolute(Float32(newValue))
+                    } else {
+                        brightnessManager.setAbsolute(value: Float(newValue))
+                    }
+                }
+            )
+            .frame(width: currentHudTypeWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(3)
+        }
+        
+        // Battery HUD
+        if batteryHUDIsVisible && enableBatteryHUD && !hudIsVisible && !isExpandedOnThisScreen {
+            BatteryHUDView(
+                batteryManager: batteryManager,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(4)
+        }
+        
+        // Caps Lock HUD
+        if capsLockHUDIsVisible && enableCapsLockHUD && !hudIsVisible && !batteryHUDIsVisible && !isExpandedOnThisScreen {
+            CapsLockHUDView(
+                capsLockManager: capsLockManager,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(5)
+        }
+        
+        // Focus/DND HUD
+        if dndHUDIsVisible && enableDNDHUD && !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !isExpandedOnThisScreen {
+            DNDHUDView(
+                dndManager: dndManager,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(5.5)
+        }
+        
+        // AirPods HUD
+        if airPodsHUDIsVisible && enableAirPodsHUD && !hudIsVisible && !isExpandedOnThisScreen, let airPods = airPodsManager.connectedAirPods {
+            AirPodsHUDView(
+                airPods: airPods,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: hudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: hudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(6)
+        }
+        
+        // Lock Screen HUD
+        if lockScreenHUDIsVisible && enableLockScreenHUD && !hudIsVisible && !isExpandedOnThisScreen {
+            LockScreenHUDView(
+                lockScreenManager: lockScreenManager,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(7)
+        }
+    }
+    
+    // MARK: - Media Player HUD
+    
+    /// Media player mini HUD
+    @ViewBuilder
+    private var mediaPlayerHUD: some View {
+        // Break up complex expressions for type checker
+        let noHUDsVisible = !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !dndHUDIsVisible && !airPodsHUDIsVisible && !lockScreenHUDIsVisible
+        let notExpanded = !isExpandedOnThisScreen
+        
+        let shouldShowForced = musicManager.isMediaHUDForced && !musicManager.isPlayerIdle && showMediaPlayer && noHUDsVisible && notExpanded
+        
+        let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
+        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
+        let debounceOk = !debounceMediaChanges || isMediaStable
+        let shouldShowNormal = showMediaPlayer && mediaIsPlaying && noHUDsVisible && notExpanded && notFadedOrTransitioning && debounceOk
+        
+        if shouldShowForced || shouldShowNormal {
+            MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth, targetScreen: targetScreen)
+                .frame(width: hudWidth, alignment: .top)
+                .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 50)) : AnyShape(NotchShape(bottomRadius: 18)))
+                .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+                .zIndex(3)
+        }
+    }
 
     // MARK: - Morphing Background
     
