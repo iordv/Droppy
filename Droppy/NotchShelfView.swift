@@ -79,14 +79,6 @@ struct NotchShelfView: View {
     @State private var mediaDebounceWorkItem: DispatchWorkItem?  // Debounce for media changes
     @State private var isMediaStable = false  // Only show media HUD after debounce delay
     
-    // Pomodoro Timer State
-    @ObservedObject private var pomodoroManager = PomodoroManager.shared
-    @AppStorage("enablePomodoroTimer") private var enablePomodoroTimer = true
-    @State private var pomodoroHUDIsVisible = false
-    @State private var pomodoroHUDWorkItem: DispatchWorkItem?
-    @State private var pomodoroRevealOffset: CGFloat = 0  // Drag offset for reveal gesture
-    @State private var isRevealingPomodoro: Bool = false  // Currently dragging to reveal
-    
     // Idle face preference
     @AppStorage("enableIdleFace") private var enableIdleFace = true
     
@@ -935,13 +927,6 @@ struct NotchShelfView: View {
                     .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 40)) : AnyShape(NotchShape(bottomRadius: 40)))
                     .geometryGroup()
                     .zIndex(2)
-                
-                // MARK: - Pomodoro Reveal Overlay (OUTSIDE clipShape)
-                // Rendered on top so animation extends beyond shelf bounds
-                if enablePomodoroTimer && !pomodoroManager.isActive {
-                    pomodoroRevealOverlay
-                        .zIndex(10) // Above everything so animation is visible
-                }
             }
         }
         .opacity(notchController.isTemporarilyHidden ? 0 : 1)
@@ -1056,21 +1041,6 @@ struct NotchShelfView: View {
             .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
             .zIndex(7)
         }
-        
-        // Pomodoro Timer HUD - uses same width as Volume/Brightness for proper full-width display
-        // Exclude from all other HUDs to prevent overlap
-        if pomodoroManager.showHUD && enablePomodoroTimer && !hudIsVisible && !batteryHUDIsVisible && !capsLockHUDIsVisible && !airPodsHUDIsVisible && !lockScreenHUDIsVisible && !dndHUDIsVisible && !isExpandedOnThisScreen {
-            PomodoroHUDView(
-                pomodoroManager: pomodoroManager,
-                notchWidth: notchWidth,
-                notchHeight: notchHeight,
-                hudWidth: currentHudTypeWidth,  // Use full Volume/Brightness width
-                targetScreen: targetScreen
-            )
-            .frame(width: currentHudTypeWidth, height: notchHeight)
-            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
-            .zIndex(3.5) // Just above media (3), below battery (4)
-        }
     }
     
     // MARK: - Media Player HUD
@@ -1096,75 +1066,6 @@ struct NotchShelfView: View {
                 .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                 .zIndex(3)
         }
-    }
-    
-    // MARK: - Pomodoro Reveal Overlay
-    
-    /// Invisible hit zone on right edge of expanded shelf - drag RIGHT to "pull out" the timer
-    private var pomodoroRevealOverlay: some View {
-        HStack {
-            Spacer()
-            
-            // Hit zone on right edge
-            ZStack(alignment: .trailing) {
-                // Invisible hit area
-                Color.clear
-                    .frame(width: 50)
-                    .contentShape(Rectangle())
-                
-                // Timer icon that follows the drag (moves right as you pull)
-                if isRevealingPomodoro {
-                    PomodoroRevealView(offset: pomodoroRevealOffset, isRevealing: isRevealingPomodoro)
-                        .transition(.scale(scale: 0.5).combined(with: .opacity))
-                }
-                
-                // Subtle edge indicator when not dragging
-                if !isRevealingPomodoro && !pomodoroManager.isActive {
-                    Capsule()
-                        .fill(Color.red.opacity(0.3))
-                        .frame(width: 4, height: 40)
-                        .offset(x: -8)
-                        .transition(.opacity)
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 5)
-                    .onChanged { value in
-                        // Only respond to RIGHTWARD drags (pulling OUT of shelf)
-                        if value.translation.width > 0 {
-                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.7)) {
-                                isRevealingPomodoro = true
-                                // Clamp the offset (positive = dragging right)
-                                pomodoroRevealOffset = min(value.translation.width, 120)
-                            }
-                        }
-                    }
-                    .onEnded { value in
-                        // If dragged far enough right, trigger the timer
-                        if value.translation.width > 60 {
-                            // Success - start timer with default preset
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                                pomodoroManager.start()
-                                isRevealingPomodoro = false
-                                pomodoroRevealOffset = 0
-                                // CRITICAL: Collapse shelf so the HUD can show
-                                state.expandedDisplayID = nil
-                            }
-                            
-                            // Haptic feedback (if available)
-                            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
-                        } else {
-                            // Cancelled - snap back
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                isRevealingPomodoro = false
-                                pomodoroRevealOffset = 0
-                            }
-                        }
-                    }
-            )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isRevealingPomodoro)
     }
 
     // MARK: - Morphing Background
@@ -1459,7 +1360,7 @@ struct NotchShelfView: View {
                             removal: .scale(scale: 0.95).combined(with: .opacity)
                         ))
             }
-            // Pomodoro reveal moved to contentOverlay (outside clipShape)
+            
 
         }
         // Smoother, more premium animation for media state changes
@@ -1813,8 +1714,8 @@ extension NotchShelfView {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isShelfAirDropZoneTargeted)
         // Top padding must clear the physical notch (notchHeight + margin for stroke visibility)
-        // Island mode: uniform padding on ALL sides (16pt) for perfect visual symmetry
-        .padding(EdgeInsets(top: isDynamicIslandMode ? 16 : notchHeight + 14, leading: isDynamicIslandMode ? 16 : 20, bottom: isDynamicIslandMode ? 16 : 14, trailing: isDynamicIslandMode ? 16 : 20))
+        // Island mode: uniform padding on ALL sides (16pt base, 18pt bottom for visual balance with rounded corners)
+        .padding(EdgeInsets(top: isDynamicIslandMode ? 16 : notchHeight + 14, leading: isDynamicIslandMode ? 16 : 20, bottom: isDynamicIslandMode ? 18 : 14, trailing: isDynamicIslandMode ? 16 : 20))
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
                 dropZoneDashPhase -= 280 // Multiple of 14 (6+8) for smooth loop
