@@ -350,7 +350,7 @@ struct NotchShelfView: View {
             
             // Add 50% extra height when there's output to display
             if !terminalManager.lastOutput.isEmpty {
-                return terminalHeight * 1.5
+                return terminalHeight * terminalManager.expansionPercentage
             }
             return terminalHeight
         }

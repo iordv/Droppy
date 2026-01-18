@@ -196,107 +196,27 @@ struct TerminalNotchInfoView: View {
     
     private var settingsSection: some View {
         VStack(spacing: 16) {
-            // Configuration Card
+            // Configuration Card - Expansion Height only
             VStack(spacing: 0) {
-                // Shell Selection Row
+                // Expansion Height Row
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Shell")
+                        Text("Expansion Height")
                             .font(.callout.weight(.medium))
-                        Text("Default shell for commands")
+                        Text("How much taller when showing output")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
                     
                     Spacer()
                     
-                    Menu {
-                        Button {
-                            manager.shellPath = "/bin/zsh"
-                        } label: {
-                            HStack {
-                                Text("zsh")
-                                if manager.shellPath == "/bin/zsh" {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                        Button {
-                            manager.shellPath = "/bin/bash"
-                        } label: {
-                            HStack {
-                                Text("bash")
-                                if manager.shellPath == "/bin/bash" {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(manager.shellPath == "/bin/zsh" ? "zsh" : "bash")
-                                .font(.callout.weight(.medium))
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10))
-                        }
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AdaptiveColors.subtleBorderAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .menuStyle(.borderlessButton)
-                }
-                .padding(16)
-                
-                Divider().padding(.horizontal, 16)
-                
-                // Font Size Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Font Size")
-                            .font(.callout.weight(.medium))
-                        Text("Terminal text size")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Slider(value: $manager.expansionPercentage, in: 1.0...2.0, step: 0.1)
+                        .frame(width: 100)
                     
-                    Spacer()
-                    
-                    Stepper(value: $manager.fontSize, in: 10...20, step: 1) {
-                        Text("\(Int(manager.fontSize))pt")
-                            .font(.callout.weight(.medium))
-                            .monospacedDigit()
-                    }
-                    .labelsHidden()
-                    
-                    Text("\(Int(manager.fontSize))pt")
+                    Text("\(Int((manager.expansionPercentage - 1) * 100))%")
                         .font(.callout.weight(.medium))
                         .monospacedDigit()
                         .frame(width: 40)
-                }
-                .padding(16)
-                
-                Divider().padding(.horizontal, 16)
-                
-                // Terminal Height Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Terminal Height")
-                            .font(.callout.weight(.medium))
-                        Text("Expanded mode height")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
-                    
-                    Slider(value: $manager.terminalHeight, in: 200...500, step: 50)
-                        .frame(width: 100)
-                    
-                    Text("\(Int(manager.terminalHeight))pt")
-                        .font(.callout.weight(.medium))
-                        .monospacedDigit()
-                        .frame(width: 50)
                 }
                 .padding(16)
             }
