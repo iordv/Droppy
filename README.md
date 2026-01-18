@@ -121,7 +121,7 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
 </p>
 
 <p align="center">
-  <img src="docs/assets/images/terminal-notch-screenshot.png" alt="Termi-Notch Extension" width="80%">
+  <img src="docs/assets/images/extension-store.png" alt="Droppy Extension Store" width="80%">
 </p>
 
 <p align="center">
