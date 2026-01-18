@@ -41,28 +41,12 @@ final class ThumbnailCache {
         iconCache.countLimit = 200
         iconCache.totalCostLimit = 512 * 1024 // 512KB max
         
-        // Preload QuickLook's Metal shaders to eliminate first-drop lag
+        // Warmup QuickLook thumbnail generator (icon warmup is handled by IconCache)
         warmupQuickLook()
     }
     
-    /// Warms up the icon rendering system to preload Metal shaders
-    /// This eliminates the ~1 second lag on first file drop by forcing the
-    /// IconRendering.framework Metal shaders to load during app startup
+    /// Warms up QuickLook's thumbnail generator to preload Metal shaders
     private func warmupQuickLook() {
-        // 1. SYNCHRONOUS: Warmup NSWorkspace icon rendering immediately
-        // This is the MAIN cause of first-drop lag - icon() triggers Metal shader compilation
-        // By doing this synchronously during init, we pay the cost during app launch
-        // instead of during first file drop (when user expects instant response)
-        let commonTypes: [UTType] = [
-            .image, .pdf, .plainText, .data, .folder, .application,
-            .jpeg, .png, .gif, .movie, .mp3, .zip
-        ]
-        for type in commonTypes {
-            _ = NSWorkspace.shared.icon(for: type)
-        }
-        
-        // 2. ASYNC: Warmup QuickLook thumbnail generator (secondary lag source)
-        // This can remain async since QuickLook thumbnails load after initial icon display
         Task(priority: .high) {
             let warmupURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
             let request = QLThumbnailGenerator.Request(
