@@ -106,6 +106,9 @@ struct TerminalNotchView: View {
                 }
                 .frame(maxHeight: 200)
             }
+            
+            // Push all content to the top
+            Spacer()
         }
     }
     

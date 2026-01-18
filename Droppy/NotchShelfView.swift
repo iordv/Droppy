@@ -1265,7 +1265,7 @@ struct NotchShelfView: View {
             // TERMINAL VIEW: Highest priority - takes over the shelf when active
             if terminalManager.isInstalled && terminalManager.isVisible {
                 TerminalNotchView(manager: terminalManager)
-                    .frame(height: currentExpandedHeight)
+                    .frame(height: currentExpandedHeight, alignment: .top)
                     .id("terminal-view")
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.95).combined(with: .opacity),
