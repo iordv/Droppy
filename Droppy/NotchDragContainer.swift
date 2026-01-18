@@ -494,11 +494,12 @@ class NotchDragContainer: NSView {
                                      y: windowFrame.origin.y + dragLocation.y)
         
         // AirDrop zone is on the RIGHT side of the expanded shelf
-        // CRITICAL: Account for trailing padding (20) and HStack spacing (20) to match visual layout
+        // CRITICAL: Account for trailing padding (20), HStack spacing (20), and zone padding (4) to match visual layout
         let centerX = screen.frame.origin.x + screen.frame.width / 2
         let shelfRightEdge = centerX + expandedShelfWidth / 2
-        // Visual zone left edge = shelfRight - trailingPadding(20) - zoneWidth(90) so detection matches
-        let airDropLeftEdge = shelfRightEdge - 20 - airDropZoneWidth
+        // Visual layout: [leading 20] [shelf zone flex] [HStack spacing 20] [AirDrop zone 90] [trailing 20]
+        // HStack spacing creates a gap BETWEEN the two zones, so AirDrop left edge is further LEFT
+        let airDropLeftEdge = shelfRightEdge - 20 - airDropZoneWidth - 20 // trailing + zone + hstack spacing
         // Right edge is inset by trailing padding
         let airDropRightEdge = shelfRightEdge - 20
         

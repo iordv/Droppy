@@ -251,7 +251,7 @@ struct FloatingBasketView: View {
                     .frame(width: baseWidth - 20, height: currentHeight - 20)
                     .offset(x: 10)
                 
-                // Right zone outline (AirDrop - cyan when targeted)
+                // Right zone outline (AirDrop - red when targeted)
                 RoundedRectangle(cornerRadius: cornerRadius - 8, style: .continuous)
                     .stroke(
                         state.isAirDropZoneTargeted ? Color.red : Color.white.opacity(0.2),
@@ -263,6 +263,8 @@ struct FloatingBasketView: View {
                         )
                     )
                     .frame(width: airDropZoneWidth - 15, height: currentHeight - 20)
+                    .scaleEffect(state.isAirDropZoneTargeted ? 1.05 : 1.0)  // Match shelf zoom effect
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isAirDropZoneTargeted)
                     .offset(x: baseWidth + 5)
                 
                 // AirDrop icon and label in the right zone (identical style to basket zone but red)
@@ -277,7 +279,7 @@ struct FloatingBasketView: View {
                         .foregroundStyle(state.isAirDropZoneTargeted ? .primary : .secondary)
                 }
                 .frame(width: airDropZoneWidth, height: currentHeight)
-                .scaleEffect(state.isAirDropZoneTargeted ? 1.05 : 1.0)  // Match basket zoom effect
+                .scaleEffect(state.isAirDropZoneTargeted ? 1.05 : 1.0)  // Match shelf zoom effect
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isAirDropZoneTargeted)
                 .offset(x: baseWidth)
             }
