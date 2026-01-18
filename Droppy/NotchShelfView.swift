@@ -549,7 +549,8 @@ struct NotchShelfView: View {
                     }
                 }
                 // Position exactly below the expanded content
-                .offset(y: currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
+                // CRITICAL: Use padding instead of offset so hit area moves with visual position
+                .padding(.top, currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
                 .animation(.spring(response: 0.4, dampingFraction: 0.85), value: currentExpandedHeight)
                 .zIndex(100)
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
