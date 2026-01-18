@@ -21,7 +21,7 @@ struct SwiftTermView: NSViewRepresentable {
     var fontSize: CGFloat
     
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        let terminalView = LocalProcessTerminalView(frame: .zero)
+        let terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         
         // Configure terminal appearance
         terminalView.nativeBackgroundColor = .black
@@ -33,6 +33,12 @@ struct SwiftTermView: NSViewRepresentable {
         
         // Configure terminal options
         terminalView.optionAsMetaKey = true
+        
+        // Set delegate
+        terminalView.processDelegate = context.coordinator
+        
+        // Feed welcome text to verify terminal is working
+        terminalView.feed(text: "Terminal initializing...\r\n")
         
         // Start the shell process
         startShell(in: terminalView)
@@ -68,8 +74,9 @@ struct SwiftTermView: NSViewRepresentable {
             FileManager.default.homeDirectoryForCurrentUser.path
         )
         
+        print("[SwiftTermView] Starting shell: \(shell) with idiom: \(shellIdiom)")
+        
         // Start process using the same pattern as SwiftTerm's sample app
-        // This lets SwiftTerm handle environment variables internally
         terminalView.startProcess(executable: shell, execName: shellIdiom)
     }
     
@@ -92,12 +99,30 @@ struct SwiftTermView: NSViewRepresentable {
     
     // MARK: - Coordinator
     
-    class Coordinator: NSObject {
+    class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var manager: TerminalNotchManager
         weak var terminalView: LocalProcessTerminalView?
         
         init(manager: TerminalNotchManager) {
             self.manager = manager
+        }
+        
+        // MARK: - LocalProcessTerminalViewDelegate
+        
+        func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {
+            print("[SwiftTermView] Size changed: \(newCols)x\(newRows)")
+        }
+        
+        func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
+            print("[SwiftTermView] Title: \(title)")
+        }
+        
+        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+            print("[SwiftTermView] Directory: \(directory ?? "nil")")
+        }
+        
+        func processTerminated(source: TerminalView, exitCode: Int32?) {
+            print("[SwiftTermView] Process terminated with code: \(exitCode ?? -1)")
         }
         
         /// Send input to terminal
@@ -112,7 +137,6 @@ struct SwiftTermView: NSViewRepresentable {
         
         /// Terminate the process
         func terminate() {
-            // Send Ctrl+C to the shell
             terminalView?.send([0x03])
         }
     }
