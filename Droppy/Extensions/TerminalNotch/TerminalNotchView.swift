@@ -298,7 +298,7 @@ struct TerminalNotchView: View {
                     
                     TextField("", text: $manager.commandText)
                         .textFieldStyle(.plain)
-                        .font(.system(size: manager.fontSize, design: .monospaced))
+                        .font(.system(size: 13, design: .monospaced))
                         .foregroundStyle(.white)
                         .focused($isInputFocused)
                         .onSubmit {
