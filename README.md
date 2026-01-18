@@ -90,10 +90,6 @@ Never lose a copy again. Your **full clipboard history** with instant search, fa
 
 Droppy's built-in **Extension Store** adds powerful features on demand. Everything's free.
 
-<p align="center">
-  <img src="docs/assets/images/extension-store-full.png" alt="Extension Store" width="100%">
-</p>
-
 <table align="center">
 <tr>
 <td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg" height="28"> <strong>Voice Transcribe</strong><br>On-device speech-to-text using WhisperKit AI</td>
@@ -110,6 +106,10 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
 <tr>
 <td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/alfred.png" height="28"> <strong>Alfred Workflow</strong><br>Add files to Droppy from Alfred</td>
 <td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/finder.png" height="28"> <strong>Finder Services</strong><br>Right-click in Finder to send files</td>
+</tr>
+<tr>
+<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/termi-notch.jpg" height="28"> <strong>Termi-Notch</strong><br>Quick terminal access from your notch</td>
+<td align="center"></td>
 </tr>
 </table>
 
