@@ -13,44 +13,6 @@ struct DroppyApp: App {
     /// App delegate for handling app lifecycle and notch window setup
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
-    /// CRITICAL: Warmup runs BEFORE SwiftUI body is even evaluated
-    /// This ensures Metal shaders are compiled before user can interact
-    init() {
-        // Trigger icon warmup immediately - this blocks until complete
-        _ = IconCache.shared
-        // Also trigger QuickLook warmup
-        _ = ThumbnailCache.shared
-        
-        // NUCLEAR OPTION: Simulate the ENTIRE drop code path to trigger whatever Metal shader it uses
-        // This creates a temporary DroppedItem and immediately discards it
-        let warmupURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-        let warmupItem = DroppedItem(url: warmupURL)
-        // Access all properties that might trigger lazy Metal compilation
-        _ = warmupItem.icon
-        _ = warmupItem.name
-        _ = warmupItem.fileType
-        
-        // FORCE RENDER: Actually render the icon to a bitmap to trigger Metal shaders in rendering pipeline
-        let icon = NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
-        icon.size = NSSize(width: 64, height: 64)
-        
-        // Create a bitmap representation - this forces the actual GPU rendering
-        if let cgImage = icon.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            // Create a context and draw the image to force Metal shader compilation
-            let context = CGContext(
-                data: nil,
-                width: 64,
-                height: 64,
-                bitsPerComponent: 8,
-                bytesPerRow: 0,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            )
-            context?.draw(cgImage, in: CGRect(x: 0, y: 0, width: 64, height: 64))
-            _ = context?.makeImage()
-        }
-    }
-    
     @AppStorage("showInMenuBar") private var showInMenuBar = true
     
     var body: some Scene {
@@ -216,10 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             andEventID: AEEventID(kAEGetURL)
         )
         
-        // CRITICAL: Pre-cache all file icons FIRST (eliminates Metal shader lag on first drop)
-        // This MUST be done before any UI is shown to guarantee icons are ready
-        _ = IconCache.shared
-        
         // Touch singletons on main thread to ensure proper @AppStorage / UI initialization
         _ = DroppyState.shared
         _ = DragMonitor.shared
@@ -228,18 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = UpdateChecker.shared
         _ = ClipboardManager.shared
         _ = ClipboardWindowController.shared
-        _ = ThumbnailCache.shared  // Warmup QuickLook thumbnails
-        
-        // HIDDEN ITEM WARMUP: Add a dummy item to force full SwiftUI rendering pipeline
-        // This triggers the exact same code path as a real drop
-        let warmupURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-        let warmupItem = DroppedItem(url: warmupURL)
-        DroppyState.shared.items.append(warmupItem)
-        
-        // Give SwiftUI a chance to render, then remove the item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            DroppyState.shared.items.removeAll { $0.id == warmupItem.id }
-        }
+        _ = ThumbnailCache.shared  // Warmup QuickLook Metal shaders early
         
         // Load Element Capture and Window Snap shortcuts (after all other singletons are ready)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

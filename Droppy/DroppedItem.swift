@@ -30,12 +30,13 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         self.url = url
         self.name = url.lastPathComponent
         self.fileType = UTType(filenameExtension: url.pathExtension)
-        // ZERO-LAG: Use pre-cached icon from IconCache to avoid Metal shader compilation block
-        // IconCache.shared pre-loads all common icons at app startup, so this is instant
+        // PERFORMANCE: Use fast UTType-based icon instead of slow per-file icon
+        // NSWorkspace.shared.icon(for: UTType) is ~100x faster than icon(forFile:)
+        // for bulk operations. Visual difference is minimal for most files.
         if let type = UTType(filenameExtension: url.pathExtension) {
-            self.icon = IconCache.shared.icon(for: type)
+            self.icon = NSWorkspace.shared.icon(for: type)
         } else {
-            self.icon = IconCache.shared.icon(for: .data)
+            self.icon = NSWorkspace.shared.icon(for: .data)
         }
         self.dateAdded = Date()
         self.thumbnail = nil
