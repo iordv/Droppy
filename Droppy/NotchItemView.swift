@@ -501,11 +501,18 @@ struct NotchItemView: View {
             }
             }
             .task {
-                // Use cached thumbnail if available, otherwise load async
+                // INSTANT DISPLAY: Show fast icon immediately (zero lag)
+                thumbnail = item.icon
+                
+                // ASYNC UPGRADE: Load high-quality QuickLook thumbnail in background
+                // This may trigger Metal shader compilation on first use, but user sees icon instantly
                 if let cached = ThumbnailCache.shared.cachedThumbnail(for: item) {
                     thumbnail = cached
-                } else {
-                    thumbnail = await ThumbnailCache.shared.loadThumbnailAsync(for: item, size: CGSize(width: 120, height: 120))
+                } else if let asyncThumbnail = await ThumbnailCache.shared.loadThumbnailAsync(for: item, size: CGSize(width: 120, height: 120)) {
+                    // Smooth swap to better thumbnail
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        thumbnail = asyncThumbnail
+                    }
                 }
             }
         } // DraggableArea closes here
