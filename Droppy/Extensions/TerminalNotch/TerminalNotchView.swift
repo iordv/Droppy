@@ -293,7 +293,7 @@ struct TerminalNotchView: View {
                 // Input line
                 HStack(spacing: 8) {
                     Text("$")
-                        .font(.system(size: manager.fontSize, weight: .bold, design: .monospaced))
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .foregroundStyle(.green)
                     
                     TextField("", text: $manager.commandText)
