@@ -100,6 +100,20 @@ class TerminalNotchManager: ObservableObject {
         }
     }
     
+    /// Increase terminal font size
+    func increaseFontSize() {
+        if fontSize < 24 {
+            fontSize += 1
+        }
+    }
+    
+    /// Decrease terminal font size
+    func decreaseFontSize() {
+        if fontSize > 9 {
+            fontSize -= 1
+        }
+    }
+    
     /// Execute a quick command (non-interactive)
     func executeQuickCommand(_ command: String) {
         guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

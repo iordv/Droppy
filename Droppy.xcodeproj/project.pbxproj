@@ -12,6 +12,7 @@
 		BA001A042F11D6E10041AAAA /* MediaRemoteAdapter.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BA001A062F11D6E10041AAAA /* MediaRemoteAdapter.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BAA56D992F16F4D90041C83B /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAA56D982F16F4D90041C83B /* WhisperKit */; };
 		BAA56D9B2F16F4D90041C83B /* whisperkit-cli in Frameworks */ = {isa = PBXBuildFile; productRef = BAA56D9A2F16F4D90041C83B /* whisperkit-cli */; };
+		BAD854462F1D5550000B5751 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = BAD854452F1D5550000B5751 /* SwiftTerm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -49,6 +50,7 @@
 			files = (
 				BAA56D992F16F4D90041C83B /* WhisperKit in Frameworks */,
 				BA001A032F11D6E10041AAAA /* MediaRemoteAdapter.framework in Frameworks */,
+				BAD854462F1D5550000B5751 /* SwiftTerm in Frameworks */,
 				BAA56D9B2F16F4D90041C83B /* whisperkit-cli in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -105,6 +107,7 @@
 			packageProductDependencies = (
 				BAA56D982F16F4D90041C83B /* WhisperKit */,
 				BAA56D9A2F16F4D90041C83B /* whisperkit-cli */,
+				BAD854452F1D5550000B5751 /* SwiftTerm */,
 			);
 			productName = Droppy;
 			productReference = BAC4596C2F07C2D10041BC3E /* Droppy.app */;
@@ -136,6 +139,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				BAA56D972F16F4D90041C83B /* XCRemoteSwiftPackageReference "WhisperKit" */,
+				BAD854442F1D5550000B5751 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BAC4596D2F07C2D10041BC3E /* Products */;
@@ -416,6 +420,14 @@
 				version = 0.15.0;
 			};
 		};
+		BAD854442F1D5550000B5751 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -428,6 +440,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = BAA56D972F16F4D90041C83B /* XCRemoteSwiftPackageReference "WhisperKit" */;
 			productName = "whisperkit-cli";
+		};
+		BAD854452F1D5550000B5751 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BAD854442F1D5550000B5751 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
