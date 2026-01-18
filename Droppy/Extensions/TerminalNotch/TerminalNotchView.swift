@@ -131,12 +131,12 @@ struct TerminalNotchView: View {
             }
             .padding(24)
         }
-        // CRITICAL: Use same padding as MediaPlayerView for proper notch clearance
+        // CRITICAL: Match drop zone padding - symmetrical on left/right/bottom, notch-aware top
         .padding(EdgeInsets(
-            top: notchHeight > 0 ? notchHeight + 6 : 20,
-            leading: 16,
-            bottom: 60, // Extra space for floating buttons
-            trailing: 16
+            top: notchHeight > 0 ? notchHeight + 14 : 20,
+            leading: 20,
+            bottom: 20,
+            trailing: 20
         ))
         // Start marching ants animation when view appears
         .onAppear {
