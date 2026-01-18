@@ -17,6 +17,11 @@ struct TerminalNotchView: View {
         NSScreen.main?.safeAreaInsets.top ?? 0
     }
     
+    /// Dynamic Island mode detection (notchHeight == 0 means external display or Dynamic Island)
+    private var isDynamicIslandMode: Bool {
+        notchHeight == 0
+    }
+    
     /// Animated dash phase for marching ants effect on dotted outline
     @State private var dashPhase: CGFloat = 0
     
@@ -131,12 +136,12 @@ struct TerminalNotchView: View {
             }
             .padding(24)
         }
-        // CRITICAL: Match drop zone padding - symmetrical on left/right/bottom, notch-aware top
+        // CRITICAL: Match drop zone padding - Island mode: 16pt uniform, Notch mode: symmetrical 20pt + notch-aware top
         .padding(EdgeInsets(
-            top: notchHeight > 0 ? notchHeight + 14 : 20,
-            leading: 20,
-            bottom: 20,
-            trailing: 20
+            top: isDynamicIslandMode ? 16 : notchHeight + 14,
+            leading: isDynamicIslandMode ? 16 : 20,
+            bottom: isDynamicIslandMode ? 16 : 20,
+            trailing: isDynamicIslandMode ? 16 : 20
         ))
         // Start marching ants animation when view appears
         .onAppear {
@@ -272,12 +277,12 @@ struct TerminalNotchView: View {
                                 Text(cmd)
                                     .foregroundStyle(.white)
                             }
-                            .font(.system(size: manager.fontSize, design: .monospaced))
+                            .font(.system(size: 13, design: .monospaced))
                         }
                         
                         if !manager.lastOutput.isEmpty {
                             Text(manager.lastOutput)
-                                .font(.system(size: manager.fontSize, design: .monospaced))
+                                .font(.system(size: 13, design: .monospaced))
                                 .foregroundStyle(.white.opacity(0.8))
                         }
                     }
@@ -312,7 +317,7 @@ struct TerminalNotchView: View {
                 .padding(.vertical, 10)
                 .background(Color.white.opacity(0.03))
             }
-            .frame(height: manager.terminalHeight)
+            .frame(height: 300)
         }
     }
     
