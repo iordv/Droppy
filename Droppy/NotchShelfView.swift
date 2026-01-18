@@ -79,6 +79,14 @@ struct NotchShelfView: View {
     @State private var mediaDebounceWorkItem: DispatchWorkItem?  // Debounce for media changes
     @State private var isMediaStable = false  // Only show media HUD after debounce delay
     
+    // Pomodoro Timer State
+    @ObservedObject private var pomodoroManager = PomodoroManager.shared
+    @AppStorage("enablePomodoroTimer") private var enablePomodoroTimer = true
+    @State private var pomodoroHUDIsVisible = false
+    @State private var pomodoroHUDWorkItem: DispatchWorkItem?
+    @State private var pomodoroRevealOffset: CGFloat = 0  // Drag offset for reveal gesture
+    @State private var isRevealingPomodoro: Bool = false  // Currently dragging to reveal
+    
     // Idle face preference
     @AppStorage("enableIdleFace") private var enableIdleFace = true
     
@@ -1041,6 +1049,20 @@ struct NotchShelfView: View {
             .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
             .zIndex(7)
         }
+        
+        // Pomodoro Timer HUD
+        if pomodoroManager.showHUD && enablePomodoroTimer && !hudIsVisible && !batteryHUDIsVisible && !isExpandedOnThisScreen {
+            PomodoroHUDView(
+                pomodoroManager: pomodoroManager,
+                notchWidth: notchWidth,
+                notchHeight: notchHeight,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
+            .zIndex(4.5) // Between Battery (4) and Caps Lock (5)
+        }
     }
     
     // MARK: - Media Player HUD
@@ -1066,6 +1088,73 @@ struct NotchShelfView: View {
                 .transition(.scale(scale: 0.8).combined(with: .opacity).animation(.spring(response: 0.25, dampingFraction: 0.8)))
                 .zIndex(3)
         }
+    }
+    
+    // MARK: - Pomodoro Reveal Overlay
+    
+    /// Invisible hit zone on right edge of expanded shelf - drag left to reveal Pomodoro timer
+    private var pomodoroRevealOverlay: some View {
+        HStack {
+            Spacer()
+            
+            // Hit zone on right edge
+            ZStack(alignment: .trailing) {
+                // Invisible hit area
+                Color.clear
+                    .frame(width: 50)
+                    .contentShape(Rectangle())
+                
+                // Timer icon that follows the drag
+                if isRevealingPomodoro {
+                    PomodoroRevealView(offset: pomodoroRevealOffset, isRevealing: isRevealingPomodoro)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                }
+                
+                // Subtle edge indicator when not dragging
+                if !isRevealingPomodoro && !pomodoroManager.isActive {
+                    Capsule()
+                        .fill(Color.red.opacity(0.3))
+                        .frame(width: 4, height: 40)
+                        .offset(x: -8)
+                        .transition(.opacity)
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 5)
+                    .onChanged { value in
+                        // Only respond to leftward drags
+                        if value.translation.width < 0 {
+                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.7)) {
+                                isRevealingPomodoro = true
+                                // Clamp the offset (negative = dragging left)
+                                pomodoroRevealOffset = max(value.translation.width, -120)
+                            }
+                        }
+                    }
+                    .onEnded { value in
+                        // If dragged far enough left, trigger the timer
+                        if value.translation.width < -60 {
+                            // Success - start timer with default preset
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                                pomodoroManager.start()
+                                isRevealingPomodoro = false
+                                pomodoroRevealOffset = 0
+                            }
+                            
+                            // Haptic feedback (if available)
+                            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                        } else {
+                            // Cancelled - snap back
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isRevealingPomodoro = false
+                                pomodoroRevealOffset = 0
+                            }
+                        }
+                    }
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: isRevealingPomodoro)
     }
 
     // MARK: - Morphing Background
@@ -1361,6 +1450,11 @@ struct NotchShelfView: View {
                         ))
             }
             
+            // MARK: - Pomodoro Reveal Gesture Overlay
+            // Invisible hit zone on right edge to "pull out" the timer
+            if enablePomodoroTimer && !pomodoroManager.isActive {
+                pomodoroRevealOverlay
+            }
 
         }
         // Smoother, more premium animation for media state changes

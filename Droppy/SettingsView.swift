@@ -30,6 +30,7 @@ struct SettingsView: View {
     @AppStorage("enableAirPodsHUD") private var enableAirPodsHUD = true  // AirPods connection HUD
     @AppStorage("enableLockScreenHUD") private var enableLockScreenHUD = true  // Lock/Unlock HUD
     @AppStorage("enableDNDHUD") private var enableDNDHUD = false  // Focus/DND HUD (requires Full Disk Access)
+    @AppStorage("enablePomodoroTimer") private var enablePomodoroTimer = true  // Pomodoro timer
     @AppStorage("showMediaPlayer") private var showMediaPlayer = true
     @AppStorage("autoFadeMediaHUD") private var autoFadeMediaHUD = true
     @AppStorage("debounceMediaChanges") private var debounceMediaChanges = false  // Delay media HUD for rapid changes
@@ -636,6 +637,14 @@ struct SettingsView: View {
                     } message: {
                         Text("To detect Focus mode changes, Droppy needs Full Disk Access.\n\n1. Click \"Open Settings\"\n2. Enable Droppy in the list\n3. Click \"I've Granted Access\"")
                     }
+                    
+                    // Pomodoro Timer
+                    HUDToggleButton(
+                        title: "Pomodoro",
+                        icon: "timer",
+                        isEnabled: $enablePomodoroTimer,
+                        color: .red
+                    )
                 }
                 .padding(.vertical, 4)
             } header: {
