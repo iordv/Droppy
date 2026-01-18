@@ -956,7 +956,13 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Handles scroll wheel events for 2-finger horizontal swipe media HUD toggle
     /// Swipe left = show media HUD, Swipe right = hide media HUD
     /// Works both when collapsed (hover state) and when expanded (shelf view)
+    /// DISABLED when terminal is visible (terminal takes over the shelf)
     private func handleScrollEvent(_ event: NSEvent) {
+        // Disable swipe when terminal is visible (terminal takes over the shelf)
+        if TerminalNotchManager.shared.isInstalled && TerminalNotchManager.shared.isVisible {
+            return
+        }
+        
         // Reset accumulated scroll if too much time has passed (new gesture)
         if Date().timeIntervalSince(lastScrollTime) > 0.3 {
             accumulatedScrollX = 0

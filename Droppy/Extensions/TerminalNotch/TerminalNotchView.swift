@@ -12,6 +12,23 @@ struct TerminalNotchView: View {
     @ObservedObject var manager: TerminalNotchManager
     @FocusState private var isInputFocused: Bool
     
+    /// Whether we're in Dynamic Island mode (no physical notch to clear)
+    private var isDynamicIslandMode: Bool {
+        guard let screen = NSScreen.main else { return true }
+        let hasNotch = screen.safeAreaInsets.top > 0
+        let useDynamicIsland = UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool ?? true
+        // External displays or DI mode = no physical notch
+        return !screen.isBuiltIn || (!hasNotch && useDynamicIsland)
+    }
+    
+    /// Standard padding for content
+    private let uniformPadding: CGFloat = 14
+    
+    /// Extra top padding needed to clear the physical notch
+    private var topPadding: CGFloat {
+        isDynamicIslandMode ? uniformPadding : 36
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             if manager.isExpanded {
@@ -31,10 +48,9 @@ struct TerminalNotchView: View {
     
     private var quickCommandView: some View {
         VStack(spacing: 8) {
-            // Top spacer to align with album art and clear physical notch
-            // This matches the notchHeight + padding used in MediaPlayerView
+            // Top spacer: 36pt for notch mode (clears physical notch), 14pt uniform for DI mode
             Spacer()
-                .frame(height: 36)
+                .frame(height: topPadding)
             
             // Command input row
             HStack(spacing: 10) {
