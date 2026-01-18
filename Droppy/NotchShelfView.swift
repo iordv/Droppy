@@ -555,175 +555,163 @@ struct NotchShelfView: View {
     }
 
     var shelfContent: some View {
-        // Type erasure via AnyView breaks complex type inference chain
-        // that was causing compiler timeout on .onChange modifier chains
-        AnyView(
-            ZStack(alignment: .top) {
-                morphingBackground
-                contentOverlay
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        )
-        // Animate all state changes smoothly (includes isTemporarilyHidden via currentNotchWidth/Height)
+        shelfContentWithObservers
+    }
+    
+    // MARK: - Shelf Content (Split to avoid type-checker timeout)
+    
+    private var shelfContentBase: some View {
+        ZStack(alignment: .top) {
+            morphingBackground
+            contentOverlay
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.35, dampingFraction: 0.7), value: notchController.isTemporarilyHidden)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showMediaPlayer)
         .animation(.easeOut(duration: 0.4), value: mediaHUDFadedOut)
-        .onChange(of: state.items.count) { oldCount, newCount in
-             if newCount > oldCount && !isExpandedOnThisScreen {
-                // Auto-expand shelf on this specific screen when items are added
-                if let displayID = targetScreen?.displayID {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        state.expandShelf(for: displayID)
+    }
+    
+    private var shelfContentWithItemObservers: some View {
+        shelfContentBase
+            .onChange(of: state.items.count) { oldCount, newCount in
+                if newCount > oldCount && !isExpandedOnThisScreen {
+                    if let displayID = targetScreen?.displayID {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            state.expandShelf(for: displayID)
+                        }
                     }
                 }
-            }
-             if newCount == 0 && state.isExpanded {
-                // Collapse shelf when all items are removed
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    state.expandedDisplayID = nil
-                }
-            }
-        }
-        // Show media HUD title when dragging files while music is playing
-        .onChange(of: dragMonitor.isDragging) { _, isDragging in
-            if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                    mediaHUDIsHovered = isDragging
-                }
-            }
-        }
-        // MARK: - HUD Observers
-        .onChange(of: volumeManager.lastChangeAt) { _, _ in
-            guard enableHUDReplacement, !isExpandedOnThisScreen else { return }
-            triggerVolumeHUD()
-        }
-        .onChange(of: brightnessManager.lastChangeAt) { _, _ in
-            guard enableHUDReplacement, !isExpandedOnThisScreen else { return }
-            triggerBrightnessHUD()
-        }
-        .onChange(of: batteryManager.lastChangeAt) { _, _ in
-            guard enableBatteryHUD, !isExpandedOnThisScreen else { return }
-            triggerBatteryHUD()
-        }
-        .onChange(of: capsLockManager.lastChangeAt) { _, _ in
-            guard enableCapsLockHUD, !isExpandedOnThisScreen else { return }
-            triggerCapsLockHUD()
-        }
-        .onChange(of: airPodsManager.lastConnectionAt) { _, _ in
-            guard enableAirPodsHUD, !isExpandedOnThisScreen else { return }
-            triggerAirPodsHUD()
-        }
-        .onChange(of: lockScreenManager.lastChangeAt) { _, _ in
-            guard enableLockScreenHUD, !isExpandedOnThisScreen else { return }
-            triggerLockScreenHUD()
-        }
-        .onChange(of: dndManager.lastChangeAt) { _, _ in
-            guard enableDNDHUD, !isExpandedOnThisScreen else { return }
-            triggerDNDHUD()
-        }
-        // MARK: - Media HUD Auto-Fade
-        .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
-            // Trigger collapse-expand animation on song change
-            if !oldTitle.isEmpty && !newTitle.isEmpty && oldTitle != newTitle {
-                // Start transition: collapse (hide media)
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                    isSongTransitioning = true
-                }
-                // End transition after a delay: expand (show new song)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        isSongTransitioning = false
-                    }
-                }
-            }
-            // Reset fade state when song changes (new song = show HUD again)
-            if !newTitle.isEmpty {
-                mediaHUDFadedOut = false
-                startMediaFadeTimer()
-            }
-        }
-        .onChange(of: musicManager.isPlaying) { wasPlaying, isPlaying in
-            // When playback starts, reset fade state and start debounce timer
-            if isPlaying && !wasPlaying {
-                mediaHUDFadedOut = false
-                // Reset swipe states - natural playback takes over
-                musicManager.isMediaHUDForced = false
-                musicManager.isMediaHUDHidden = false
-                // Start debounce timer - only show HUD after media is stable for 1 second
-                mediaDebounceWorkItem?.cancel()
-                isMediaStable = false
-                let workItem = DispatchWorkItem { [self] in
+                if newCount == 0 && state.isExpanded {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isMediaStable = true
+                        state.expandedDisplayID = nil
                     }
                 }
-                mediaDebounceWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
-                startMediaFadeTimer()
             }
-            // When playback stops, cancel debounce and hide immediately
-            if !isPlaying && wasPlaying {
-                mediaDebounceWorkItem?.cancel()
-                isMediaStable = false
+            .onChange(of: dragMonitor.isDragging) { _, isDragging in
+                if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        mediaHUDIsHovered = isDragging
+                    }
+                }
             }
-        }
-        // MARK: - Auto-Fade Setting Observer
-        .onChange(of: autoFadeMediaHUD) { wasEnabled, isEnabled in
-            if isEnabled && !wasEnabled {
-                // Setting was just enabled - start fade timer if music is playing
-                if musicManager.isPlaying && showMediaPlayer {
+    }
+    
+    private var shelfContentWithHUDObservers: some View {
+        shelfContentWithItemObservers
+            .onChange(of: volumeManager.lastChangeAt) { _, _ in
+                guard enableHUDReplacement, !isExpandedOnThisScreen else { return }
+                triggerVolumeHUD()
+            }
+            .onChange(of: brightnessManager.lastChangeAt) { _, _ in
+                guard enableHUDReplacement, !isExpandedOnThisScreen else { return }
+                triggerBrightnessHUD()
+            }
+            .onChange(of: batteryManager.lastChangeAt) { _, _ in
+                guard enableBatteryHUD, !isExpandedOnThisScreen else { return }
+                triggerBatteryHUD()
+            }
+            .onChange(of: capsLockManager.lastChangeAt) { _, _ in
+                guard enableCapsLockHUD, !isExpandedOnThisScreen else { return }
+                triggerCapsLockHUD()
+            }
+            .onChange(of: airPodsManager.lastConnectionAt) { _, _ in
+                guard enableAirPodsHUD, !isExpandedOnThisScreen else { return }
+                triggerAirPodsHUD()
+            }
+            .onChange(of: lockScreenManager.lastChangeAt) { _, _ in
+                guard enableLockScreenHUD, !isExpandedOnThisScreen else { return }
+                triggerLockScreenHUD()
+            }
+            .onChange(of: dndManager.lastChangeAt) { _, _ in
+                guard enableDNDHUD, !isExpandedOnThisScreen else { return }
+                triggerDNDHUD()
+            }
+    }
+    
+    private var shelfContentWithMediaObservers: some View {
+        shelfContentWithHUDObservers
+            .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
+                if !oldTitle.isEmpty && !newTitle.isEmpty && oldTitle != newTitle {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        isSongTransitioning = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                            isSongTransitioning = false
+                        }
+                    }
+                }
+                if !newTitle.isEmpty {
+                    mediaHUDFadedOut = false
                     startMediaFadeTimer()
                 }
-            } else if !isEnabled && wasEnabled {
-                // Setting was disabled - cancel any pending fade and reset state
-                mediaFadeWorkItem?.cancel()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            }
+            .onChange(of: musicManager.isPlaying) { wasPlaying, isPlaying in
+                if isPlaying && !wasPlaying {
                     mediaHUDFadedOut = false
+                    musicManager.isMediaHUDForced = false
+                    musicManager.isMediaHUDHidden = false
+                    mediaDebounceWorkItem?.cancel()
+                    isMediaStable = false
+                    let workItem = DispatchWorkItem { [self] in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isMediaStable = true
+                        }
+                    }
+                    mediaDebounceWorkItem = workItem
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
+                    startMediaFadeTimer()
+                }
+                if !isPlaying && wasPlaying {
+                    mediaDebounceWorkItem?.cancel()
+                    isMediaStable = false
                 }
             }
-        }
-        // MARK: - Auto-Shrink Timer Observers
-        // CRITICAL: Use expandedDisplayID (per-screen) instead of isExpanded (global)
-        // This ensures only the screen that actually has the expanded shelf handles its timer
-        .onChange(of: state.expandedDisplayID) { oldDisplayID, newDisplayID in
-            let thisDisplayID = targetScreen?.displayID
-            let wasExpandedOnThis = oldDisplayID == thisDisplayID
-            let isExpandedOnThis = newDisplayID == thisDisplayID
-            
-            if isExpandedOnThis && !wasExpandedOnThis {
-                // Shelf just expanded on THIS screen - start auto-shrink timer
-                startAutoShrinkTimer()
-            } else if wasExpandedOnThis && !isExpandedOnThis {
-                // Shelf on THIS screen collapsed (either fully closed or another screen took over)
-                cancelAutoShrinkTimer()
-                isHoveringExpandedContent = false
-                mediaHUDIsHovered = false // Reset media HUD hover state
-                // Reset swipe states to prevent stale forced media showing
-                musicManager.isMediaHUDForced = false
-                musicManager.isMediaHUDHidden = false
-            }
-        }
-        // MARK: - Auto-Collapse Reliability Fix
-        // Restart timer when mouse LEAVES the shelf area while still expanded
-        // This catches cases where the initial timer fired but hover was true at that moment
-        .onChange(of: state.isMouseHovering) { wasHovering, isHovering in
-            // Only trigger when hover ENDS and shelf is still expanded on this screen
-            if wasHovering && !isHovering && isExpandedOnThisScreen && !isHoveringExpandedContent {
-                startAutoShrinkTimer()
-            }
-        }
-        // HUD is now embedded in the notch content (see ZStack above)
-        // MARK: - Keyboard Shortcuts
-        .background {
-            // Hidden button for Cmd+A select all
-            Button("") {
-                if state.isExpanded {
-                    state.selectAll()
+            .onChange(of: autoFadeMediaHUD) { wasEnabled, isEnabled in
+                if isEnabled && !wasEnabled {
+                    if musicManager.isPlaying && showMediaPlayer {
+                        startMediaFadeTimer()
+                    }
+                } else if !isEnabled && wasEnabled {
+                    mediaFadeWorkItem?.cancel()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        mediaHUDFadedOut = false
+                    }
                 }
             }
-            .keyboardShortcut("a", modifiers: .command)
-            .opacity(0)
-        }
+    }
+    
+    private var shelfContentWithObservers: some View {
+        shelfContentWithMediaObservers
+            .onChange(of: state.expandedDisplayID) { oldDisplayID, newDisplayID in
+                let thisDisplayID = targetScreen?.displayID
+                let wasExpandedOnThis = oldDisplayID == thisDisplayID
+                let isExpandedOnThis = newDisplayID == thisDisplayID
+                
+                if isExpandedOnThis && !wasExpandedOnThis {
+                    startAutoShrinkTimer()
+                } else if wasExpandedOnThis && !isExpandedOnThis {
+                    cancelAutoShrinkTimer()
+                    isHoveringExpandedContent = false
+                    mediaHUDIsHovered = false
+                    musicManager.isMediaHUDForced = false
+                    musicManager.isMediaHUDHidden = false
+                }
+            }
+            .onChange(of: state.isMouseHovering) { wasHovering, isHovering in
+                if wasHovering && !isHovering && isExpandedOnThisScreen && !isHoveringExpandedContent {
+                    startAutoShrinkTimer()
+                }
+            }
+            .background {
+                Button("") {
+                    if state.isExpanded {
+                        state.selectAll()
+                    }
+                }
+                .keyboardShortcut("a", modifiers: .command)
+                .opacity(0)
+            }
     }
     // MARK: - HUD Overlay Content (Legacy - now embedded in notch)
     // Kept for reference but no longer used
