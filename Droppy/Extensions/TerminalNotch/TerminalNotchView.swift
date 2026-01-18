@@ -55,6 +55,12 @@ struct TerminalNotchView: View {
         .onAppear {
             isInputFocused = true
         }
+        .onChange(of: manager.isVisible) { _, isVisible in
+            if isVisible {
+                // Focus the text field when terminal becomes visible
+                isInputFocused = true
+            }
+        }
     }
     
     // MARK: - Initial Centered Command View
@@ -129,7 +135,7 @@ struct TerminalNotchView: View {
         .padding(EdgeInsets(
             top: notchHeight > 0 ? notchHeight + 6 : 20,
             leading: 16,
-            bottom: 16,
+            bottom: 60, // Extra space for floating buttons
             trailing: 16
         ))
         // Start marching ants animation when view appears
