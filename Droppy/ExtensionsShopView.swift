@@ -604,11 +604,11 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        Capsule()
                                             .fill(Color.white.opacity(0.1))
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        Capsule()
                                             .stroke(Color.white.opacity(0.15), lineWidth: 1)
                                     )
                             }
