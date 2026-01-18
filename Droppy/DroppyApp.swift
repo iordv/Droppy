@@ -228,7 +228,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = UpdateChecker.shared
         _ = ClipboardManager.shared
         _ = ClipboardWindowController.shared
-        _ = ThumbnailCache.shared  // Warmup QuickLook thumbnails async
+        _ = ThumbnailCache.shared  // Warmup QuickLook thumbnails
+        
+        // HIDDEN ITEM WARMUP: Add a dummy item to force full SwiftUI rendering pipeline
+        // This triggers the exact same code path as a real drop
+        let warmupURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        let warmupItem = DroppedItem(url: warmupURL)
+        DroppyState.shared.items.append(warmupItem)
+        
+        // Give SwiftUI a chance to render, then remove the item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DroppyState.shared.items.removeAll { $0.id == warmupItem.id }
+        }
         
         // Load Element Capture and Window Snap shortcuts (after all other singletons are ready)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
