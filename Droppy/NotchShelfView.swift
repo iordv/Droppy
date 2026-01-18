@@ -935,6 +935,13 @@ struct NotchShelfView: View {
                     .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 40)) : AnyShape(NotchShape(bottomRadius: 40)))
                     .geometryGroup()
                     .zIndex(2)
+                
+                // MARK: - Pomodoro Reveal Overlay (OUTSIDE clipShape)
+                // Rendered on top so animation extends beyond shelf bounds
+                if enablePomodoroTimer && !pomodoroManager.isActive {
+                    pomodoroRevealOverlay
+                        .zIndex(10) // Above everything so animation is visible
+                }
             }
         }
         .opacity(notchController.isTemporarilyHidden ? 0 : 1)
@@ -1452,12 +1459,7 @@ struct NotchShelfView: View {
                             removal: .scale(scale: 0.95).combined(with: .opacity)
                         ))
             }
-            
-            // MARK: - Pomodoro Reveal Gesture Overlay
-            // Invisible hit zone on right edge to "pull out" the timer
-            if enablePomodoroTimer && !pomodoroManager.isActive {
-                pomodoroRevealOverlay
-            }
+            // Pomodoro reveal moved to contentOverlay (outside clipShape)
 
         }
         // Smoother, more premium animation for media state changes
