@@ -108,7 +108,11 @@ struct FinderServicesSetupView: View {
                     .padding(.vertical, 10)
                     .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                     .foregroundStyle(.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -136,10 +140,10 @@ struct FinderServicesSetupView: View {
                 .padding(.vertical, 10)
                 .background((hasOpenedSettings ? Color.green : Color.blue).opacity(isHoveringAction ? 1.0 : 0.85))
                 .foregroundStyle(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
@@ -259,7 +263,11 @@ struct FinderServicesSetupSheetView: View {
                     .padding(.vertical, 10)
                     .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                     .foregroundStyle(.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -287,10 +295,10 @@ struct FinderServicesSetupSheetView: View {
                 .padding(.vertical, 10)
                 .background((hasOpenedSettings ? Color.green : Color.blue).opacity(isHoveringAction ? 1.0 : 0.85))
                 .foregroundStyle(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)

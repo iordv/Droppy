@@ -99,7 +99,11 @@ struct OnboardingView: View {
                             .padding(.vertical, 10)
                             .background((isBackHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                             .foregroundStyle(.secondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                         }
                         .buttonStyle(.plain)
                         .onHover { h in
@@ -158,10 +162,10 @@ struct OnboardingView: View {
                                 .opacity(isNextHovering ? 1.0 : 0.85)
                         )
                         .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -370,7 +374,7 @@ struct OnboardingView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
                 .opacity(featuresAnimated ? 1 : 0)
                 .offset(y: featuresAnimated ? 0 : 10)
@@ -419,7 +423,7 @@ struct OnboardingView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .opacity(featuresAnimated ? 1 : 0)
         .offset(y: featuresAnimated ? 0 : 10)
@@ -456,7 +460,7 @@ struct OnboardingView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .opacity(featuresAnimated ? 1 : 0)
         .offset(y: featuresAnimated ? 0 : 10)
@@ -570,7 +574,7 @@ struct OnboardingView: View {
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 0.5)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
             )
     }
     
@@ -651,10 +655,10 @@ struct OnboardingView: View {
                 )
                 
                 basicsTip(
-                    icon: "gearshape.fill",
+                    icon: "eye.slash.fill",
                     color: .gray,
-                    title: "Settings",
-                    description: "Find Droppy in your menu bar to access all settings",
+                    title: "Hide & Show",
+                    description: "Right-click on the notch to hide or show it again",
                     delay: 0.42
                 )
             }
@@ -695,14 +699,14 @@ struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
         .background(AdaptiveColors.buttonBackgroundAuto)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .opacity(featuresAnimated ? 1 : 0)
         .offset(y: featuresAnimated ? 0 : 10)

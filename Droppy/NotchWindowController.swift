@@ -245,11 +245,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 )
                 
                 if notchArea.contains(clickLocation) {
-                    // Right-click in notch area - re-show the notch/island and open settings
+                    // Right-click in notch area - re-show the notch/island
                     DispatchQueue.main.async {
                         self.setTemporarilyHidden(false)
-                        // User right-clicked to access settings - open them
-                        SettingsWindowController.shared.showSettings()
                     }
                     return
                 }
@@ -476,16 +474,9 @@ final class NotchWindowController: NSObject, ObservableObject {
             
             // Check if right-click is in the notch zone
             if clickZone.contains(mouseLocation) {
-                // Right-click on notch - activate hover state so window accepts events,
-                // then the SwiftUI contextMenu will handle the actual menu display
+                // Right-click on notch - temporarily hide it
                 DispatchQueue.main.async {
-                    // First, make sure the window is "awake" to receive the context menu
-                    DroppyState.shared.isMouseHovering = true
-                    targetWindow.ignoresMouseEvents = false
-                    
-                    // Open settings directly since context menu may not trigger reliably
-                    // from a global monitor. Users right-clicking the notch want settings access.
-                    SettingsWindowController.shared.showSettings()
+                    self.setTemporarilyHidden(true)
                 }
             }
         }
@@ -526,9 +517,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 )
                 
                 if clickZone.contains(mouseLocation) {
-                    // Right-click on notch - open settings
+                    // Right-click on notch - temporarily hide it
                     DispatchQueue.main.async {
-                        SettingsWindowController.shared.showSettings()
+                        self.setTemporarilyHidden(true)
                     }
                     return nil // Consume the event
                 }

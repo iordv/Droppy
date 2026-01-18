@@ -192,7 +192,7 @@ struct VoiceRecordingOverlayView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             }
             
@@ -213,7 +213,7 @@ struct VoiceRecordingOverlayView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
             
             // Stop button (full width, Droppy hover style)
@@ -233,7 +233,7 @@ struct VoiceRecordingOverlayView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             }
             .buttonStyle(.plain)
@@ -263,8 +263,14 @@ struct VoiceRecordingOverlayView: View {
                     .foregroundColor(.blue)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color.blue.opacity(0.2))
-                    .clipShape(Capsule())
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.blue.opacity(0.2))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             
             // Progress bar (matching download UI)
@@ -304,7 +310,7 @@ struct VoiceRecordingOverlayView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(AdaptiveColors.hoverBackgroundAuto, lineWidth: 1)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
             
             // AI badge

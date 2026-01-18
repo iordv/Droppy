@@ -17,6 +17,7 @@ struct ElementCaptureInfoView: View {
     @State private var isHoveringAction = false
     @State private var isHoveringClose = false
     @State private var isRecording = false
+    @State private var isHoveringRecord = false
     @State private var recordMonitor: Any?
     @State private var showReviewsSheet = false
     @State private var isHoveringReviews = false
@@ -212,15 +213,22 @@ struct ElementCaptureInfoView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background((isRecording ? Color.red : Color.blue).opacity(0.85))
+                        .background((isRecording ? Color.red : Color.blue).opacity(isHoveringRecord ? 1.0 : 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringRecord = h }
+                }
             }
         }
         .padding(16)
         .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
     
@@ -238,6 +246,10 @@ struct ElementCaptureInfoView: View {
                     .padding(.vertical, 8)
                     .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -258,7 +270,11 @@ struct ElementCaptureInfoView: View {
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in

@@ -391,6 +391,10 @@ struct FFmpegInstallView: View {
         .padding(12)
         .background(Color.green.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
     
     private func featureRow(icon: String, text: String, color: Color = .green) -> some View {
@@ -443,7 +447,11 @@ struct FFmpegInstallView: View {
                         .padding(.vertical, 10)
                         .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                         .foregroundStyle(.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
                 }
                 .buttonStyle(.plain)
                 .onHover { h in
@@ -467,7 +475,11 @@ struct FFmpegInstallView: View {
                 .padding(.vertical, 10)
                 .background((isHoveringReviews ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                 .foregroundStyle(.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -495,10 +507,10 @@ struct FFmpegInstallView: View {
                     .padding(.vertical, 10)
                     .background(Color.green.opacity(isHoveringAction ? 1.0 : 0.85))
                     .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)

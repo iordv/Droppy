@@ -285,5 +285,9 @@ struct ReviewCard: View {
         .padding(16)
         .background(AdaptiveColors.buttonBackgroundAuto)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 }

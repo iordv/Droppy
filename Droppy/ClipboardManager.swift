@@ -735,17 +735,39 @@ class ClipboardManager: ObservableObject {
         // Set flag to favorite the next captured item
         favoriteNextCapture = true
         
-        // Issue #61: Add small delay before simulating Cmd+C
-        // This breaks the detection window for apps like DeepL that listen for Cmd+CC (double-C)
-        // The delay ensures the user's trigger shortcut has fully completed before we inject Cmd+C
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Issue #61: Clear any held modifiers first, then wait before simulating Cmd+C
+        // This breaks the detection window for apps like DeepL that listen for key sequences
+        // Step 1: Release all modifiers to reset the keyboard state
+        clearModifierState()
+        
+        // Step 2: Wait for DeepL's detection window to expire (200ms is safer than 100ms)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.simulateCopyCommand()
         }
     }
     
+    /// Clears all modifier keys to reset keyboard state
+    /// This helps prevent third-party apps from detecting our simulated keys as part of a sequence
+    private func clearModifierState() {
+        // Use privateState to make events less visible to other apps
+        let source = CGEventSource(stateID: .privateState)
+        
+        // Post events to release all modifier keys
+        let modifierKeys: [CGKeyCode] = [55, 56, 58, 59, 60, 61, 62] // Cmd, Shift, Option, Control variants
+        for key in modifierKeys {
+            if let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false) {
+                event.post(tap: .cghidEventTap)
+            }
+        }
+    }
+    
     /// Simulates Cmd+C key press to copy current selection
+    /// Uses privateState source to minimize interference from third-party apps
     private func simulateCopyCommand() {
-        let source = CGEventSource(stateID: .hidSystemState)
+        // Use privateState - these events are less visible to event taps from other apps
+        let source = CGEventSource(stateID: .privateState)
+        source?.localEventsSuppressionInterval = 0.0
+        
         let cmdKey: CGKeyCode = 55 // kVK_Command
         let cKey: CGKeyCode = 8    // kVK_ANSI_C
         
@@ -771,7 +793,7 @@ class ClipboardManager: ObservableObject {
         cUp.post(tap: loc)
         cmdUp.post(tap: loc)
         
-        print("⭐ Droppy: Simulated Cmd+C")
+        print("⭐ Droppy: Simulated Cmd+C (privateState source)")
     }
     
     // MARK: - Image Compression (for NEW entries only)

@@ -12,6 +12,7 @@ struct WindowSnapInfoView: View {
     @State private var shortcuts: [SnapAction: SavedShortcut] = [:]
     @State private var recordingAction: SnapAction?
     @State private var recordMonitor: Any?
+    @State private var isHoveringShortcut: [SnapAction: Bool] = [:]
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
     
@@ -50,7 +51,7 @@ struct WindowSnapInfoView: View {
             // Buttons (fixed, non-scrolling)
             buttonSection
         }
-        .frame(width: 450)
+        .frame(width: 540)
         .fixedSize(horizontal: true, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -197,11 +198,21 @@ struct WindowSnapInfoView: View {
                     Text("Load Defaults")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.cyan)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.cyan.opacity(0.15)))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.cyan.opacity(isHoveringDefaults ? 0.25 : 0.15))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
                 }
                 .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringDefaults = h }
+                }
             }
             
             // Two-column grid
@@ -217,6 +228,10 @@ struct WindowSnapInfoView: View {
         .padding(16)
         .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
     
     private func shortcutRow(for action: SnapAction) -> some View {
@@ -264,15 +279,22 @@ struct WindowSnapInfoView: View {
                 .padding(.vertical, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(recordingAction == action ? Color.red.opacity(0.85) : AdaptiveColors.buttonBackgroundAuto)
+                        .fill(recordingAction == action ? Color.red.opacity(isHoveringShortcut[action] == true ? 1.0 : 0.85) : (isHoveringShortcut[action] == true ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                 )
             }
             .buttonStyle(.plain)
+            .onHover { h in
+                withAnimation(.easeInOut(duration: 0.15)) { isHoveringShortcut[action] = h }
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(AdaptiveColors.buttonBackgroundAuto)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
     
     @State private var isHoveringReset = false
@@ -289,6 +311,10 @@ struct WindowSnapInfoView: View {
                     .padding(.vertical, 8)
                     .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -306,7 +332,11 @@ struct WindowSnapInfoView: View {
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in

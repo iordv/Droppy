@@ -53,6 +53,10 @@ struct DisableExtensionButton: View {
             .padding(.vertical, 8)
             .background((isDisabled ? Color.green : Color.red).opacity(isHovering ? 0.25 : 0.15))
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .disabled(isProcessing)

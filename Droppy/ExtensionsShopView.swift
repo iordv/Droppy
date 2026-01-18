@@ -11,52 +11,32 @@ struct ExtensionsShopView: View {
     @State private var refreshTrigger = UUID() // Force view refresh
     
     // MARK: - Installed State Checks
-    // Use tracking keys for consistency (set by AnalyticsService.trackExtensionActivation)
-    // OR real-time checks for extensions with observable state
-    
-    // Real-time check: AI model exists on disk
     private var isAIInstalled: Bool { AIInstallManager.shared.isInstalled }
-    // Tracking key: set when workflow is opened
     private var isAlfredInstalled: Bool { UserDefaults.standard.bool(forKey: "alfredTracked") }
-    // Tracking key: set when services are enabled
     private var isFinderInstalled: Bool { UserDefaults.standard.bool(forKey: "finderTracked") }
-    // Tracking key: set when Spotify integration is first used (playing music)
     private var isSpotifyInstalled: Bool { UserDefaults.standard.bool(forKey: "spotifyTracked") }
-    // Real-time check: has shortcut data
     private var isElementCaptureInstalled: Bool {
         UserDefaults.standard.data(forKey: "elementCaptureShortcut") != nil
     }
-    // Real-time check: has shortcuts configured  
     private var isWindowSnapInstalled: Bool { !WindowSnapManager.shared.shortcuts.isEmpty }
-    // Real-time check: FFmpeg installed
     private var isFFmpegInstalled: Bool { FFmpegInstallManager.shared.isInstalled }
-    
-    /// Check if extension should be shown based on selected category
-    private func shouldShow(extensionType: ExtensionType, category: ExtensionCategory, isInstalled: Bool) -> Bool {
-        let isRemoved = extensionType.isRemoved
-        
-        switch selectedCategory {
-        case .all:
-            return true // Show all extensions including disabled
-        case .installed:
-            return isInstalled && !isRemoved
-        case .disabled:
-            return isRemoved
-        default:
-            return !isRemoved && selectedCategory == category
-        }
-    }
+    private var isVoiceTranscribeInstalled: Bool { VoiceTranscribeManager.shared.isModelDownloaded }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Category Swiper Header
-            categorySwiperHeader
-                .padding(.bottom, 20)
-            
-            // Extensions Grid
-            extensionsGrid
+        ScrollView {
+            VStack(spacing: 24) {
+                // Featured Hero Section
+                featuredSection
+                
+                // Category Pills
+                categorySwiperHeader
+                
+                // Extensions List
+                extensionsList
+            }
+            .padding(.top, 4)
         }
-        .id(refreshTrigger) // Force refresh when trigger changes
+        .id(refreshTrigger)
         .onAppear {
             Task {
                 async let countsTask = AnalyticsService.shared.fetchExtensionCounts()
@@ -71,9 +51,67 @@ struct ExtensionsShopView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .extensionStateChanged)) { _ in
-            // Force refresh when extension is disabled/enabled
             refreshTrigger = UUID()
         }
+    }
+    
+    // MARK: - Featured Hero Section
+    
+    private var featuredSection: some View {
+        VStack(spacing: 16) {
+            // Large Featured Card (AI Background Removal)
+            FeaturedExtensionCard(
+                category: "AI POWERED",
+                title: "Remove Backgrounds",
+                subtitle: "Instantly with local AI. Works offline.",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg",
+                screenshotURL: "https://iordv.github.io/Droppy/assets/images/ai-bg-screenshot.png",
+                accentColor: .cyan,
+                isInstalled: isAIInstalled,
+                installCount: extensionCounts["aiBackgroundRemoval"]
+            ) {
+                AIInstallView(
+                    installCount: extensionCounts["aiBackgroundRemoval"],
+                    rating: extensionRatings["aiBackgroundRemoval"]
+                )
+            }
+            
+            // Two-column featured row
+            HStack(spacing: 12) {
+                // Voice Transcribe
+                FeaturedExtensionCardCompact(
+                    category: "AI POWERED",
+                    title: "Voice Transcribe",
+                    subtitle: "Speech to text",
+                    iconURL: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg",
+                    screenshotURL: "https://iordv.github.io/Droppy/assets/images/voice-transcribe-screenshot.png",
+                    accentColor: .cyan,
+                    isInstalled: isVoiceTranscribeInstalled
+                ) {
+                    VoiceTranscribeInfoView(
+                        installCount: extensionCounts["voiceTranscribe"],
+                        rating: extensionRatings["voiceTranscribe"]
+                    )
+                }
+                
+                // Video Target Size
+                FeaturedExtensionCardCompact(
+                    category: "MEDIA",
+                    title: "Video Target Size",
+                    subtitle: "Compress videos",
+                    iconURL: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png",
+                    screenshotURL: "https://iordv.github.io/Droppy/assets/images/video-target-size-screenshot.png",
+                    accentColor: .green,
+                    isInstalled: isFFmpegInstalled
+                ) {
+                    FFmpegInstallView(
+                        installCount: extensionCounts["ffmpegVideoCompression"],
+                        rating: extensionRatings["ffmpegVideoCompression"]
+                    )
+                }
+            }
+        }
+        .padding(4) // Allow room for hover scale animation
     }
     
     // MARK: - Category Swiper
@@ -98,82 +136,534 @@ struct ExtensionsShopView: View {
         }
     }
     
-    private var extensionsGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 16),
-            GridItem(.flexible(), spacing: 16)
-        ], spacing: 16) {
-            // AI Background Removal
-            if shouldShow(extensionType: .aiBackgroundRemoval, category: .ai, isInstalled: isAIInstalled) {
-                AIBackgroundRemovalCard(
+    // MARK: - Extensions List
+    
+    private var extensionsList: some View {
+        VStack(spacing: 0) {
+            // Filter extensions based on selected category
+            let extensions = filteredExtensions
+            
+            ForEach(Array(extensions.enumerated()), id: \.1.id) { index, ext in
+                CompactExtensionRow(
+                    iconURL: ext.iconURL,
+                    title: ext.title,
+                    subtitle: ext.subtitle,
+                    isInstalled: ext.isInstalled,
+                    installCount: extensionCounts[ext.analyticsKey]
+                ) {
+                    ext.detailView()
+                }
+                
+                if index < extensions.count - 1 {
+                    Divider()
+                        .padding(.leading, 60)
+                }
+            }
+        }
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - Filtered Extensions
+    
+    private var filteredExtensions: [ExtensionListItem] {
+        let allExtensions: [ExtensionListItem] = [
+            // AI Extensions
+            ExtensionListItem(
+                id: "aiBackgroundRemoval",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg",
+                title: "AI Background Removal",
+                subtitle: "Remove backgrounds instantly",
+                category: .ai,
+                isInstalled: isAIInstalled,
+                analyticsKey: "aiBackgroundRemoval",
+                extensionType: .aiBackgroundRemoval
+            ) {
+                AnyView(AIInstallView(
                     installCount: extensionCounts["aiBackgroundRemoval"],
                     rating: extensionRatings["aiBackgroundRemoval"]
-                )
-                .opacity(ExtensionType.aiBackgroundRemoval.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Alfred Integration
-            if shouldShow(extensionType: .alfred, category: .productivity, isInstalled: isAlfredInstalled) {
-                AlfredExtensionCard(
-                    installCount: extensionCounts["alfred"],
-                    rating: extensionRatings["alfred"]
-                )
-                .opacity(ExtensionType.alfred.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Element Capture
-            if shouldShow(extensionType: .elementCapture, category: .productivity, isInstalled: isElementCaptureInstalled) {
-                ElementCaptureCard(
-                    installCount: extensionCounts["elementCapture"],
-                    rating: extensionRatings["elementCapture"]
-                )
-                .opacity(ExtensionType.elementCapture.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Finder Services
-            if shouldShow(extensionType: .finder, category: .productivity, isInstalled: isFinderInstalled) {
-                FinderExtensionCard(
-                    installCount: extensionCounts["finder"],
-                    rating: extensionRatings["finder"]
-                )
-                .opacity(ExtensionType.finder.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Spotify Integration
-            if shouldShow(extensionType: .spotify, category: .media, isInstalled: isSpotifyInstalled) {
-                SpotifyExtensionCard(
-                    installCount: extensionCounts["spotify"],
-                    rating: extensionRatings["spotify"]
-                )
-                .opacity(ExtensionType.spotify.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Voice Transcribe
-            if shouldShow(extensionType: .voiceTranscribe, category: .ai, isInstalled: VoiceTranscribeManager.shared.isModelDownloaded) {
-                VoiceTranscribeCard(
+                ))
+            },
+            ExtensionListItem(
+                id: "voiceTranscribe",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg",
+                title: "Voice Transcribe",
+                subtitle: "Speech to text with AI",
+                category: .ai,
+                isInstalled: isVoiceTranscribeInstalled,
+                analyticsKey: "voiceTranscribe",
+                extensionType: .voiceTranscribe
+            ) {
+                AnyView(VoiceTranscribeInfoView(
                     installCount: extensionCounts["voiceTranscribe"],
                     rating: extensionRatings["voiceTranscribe"]
-                )
-                .opacity(ExtensionType.voiceTranscribe.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // Window Snap
-            if shouldShow(extensionType: .windowSnap, category: .productivity, isInstalled: isWindowSnapInstalled) {
-                WindowSnapCard(
-                    installCount: extensionCounts["windowSnap"],
-                    rating: extensionRatings["windowSnap"]
-                )
-                .opacity(ExtensionType.windowSnap.isRemoved ? 0.5 : 1.0)
-            }
-            
-            // FFmpeg Video Compression
-            if shouldShow(extensionType: .ffmpegVideoCompression, category: .media, isInstalled: isFFmpegInstalled) {
-                FFmpegVideoCompressionCard(
+                ))
+            },
+            // Media Extensions
+            ExtensionListItem(
+                id: "ffmpegVideoCompression",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png",
+                title: "Video Target Size",
+                subtitle: "Compress videos to size",
+                category: .media,
+                isInstalled: isFFmpegInstalled,
+                analyticsKey: "ffmpegVideoCompression",
+                extensionType: .ffmpegVideoCompression
+            ) {
+                AnyView(FFmpegInstallView(
                     installCount: extensionCounts["ffmpegVideoCompression"],
                     rating: extensionRatings["ffmpegVideoCompression"]
-                )
-                .opacity(ExtensionType.ffmpegVideoCompression.isRemoved ? 0.5 : 1.0)
+                ))
+            },
+            // Productivity Extensions
+            ExtensionListItem(
+                id: "alfred",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/alfred.png",
+                title: "Alfred Workflow",
+                subtitle: "Push files via keyboard",
+                category: .productivity,
+                isInstalled: isAlfredInstalled,
+                analyticsKey: "alfred",
+                extensionType: .alfred
+            ) {
+                AnyView(ExtensionInfoView(
+                    extensionType: .alfred,
+                    onAction: {
+                        if let path = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        }
+                    },
+                    installCount: extensionCounts["alfred"],
+                    rating: extensionRatings["alfred"]
+                ))
+            },
+            ExtensionListItem(
+                id: "elementCapture",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg",
+                title: "Element Capture",
+                subtitle: "Screenshot UI elements",
+                category: .productivity,
+                isInstalled: isElementCaptureInstalled,
+                analyticsKey: "elementCapture",
+                extensionType: .elementCapture
+            ) {
+                AnyView(ElementCaptureInfoViewWrapper(
+                    installCount: extensionCounts["elementCapture"],
+                    rating: extensionRatings["elementCapture"]
+                ))
+            },
+            ExtensionListItem(
+                id: "finder",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/finder.png",
+                title: "Finder Services",
+                subtitle: "Right-click integration",
+                category: .productivity,
+                isInstalled: isFinderInstalled,
+                analyticsKey: "finder",
+                extensionType: .finder
+            ) {
+                AnyView(ExtensionInfoView(
+                    extensionType: .finder,
+                    onAction: {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Library/PreferencePanes/Extensions.prefPane"))
+                    },
+                    installCount: extensionCounts["finder"],
+                    rating: extensionRatings["finder"]
+                ))
+            },
+            ExtensionListItem(
+                id: "spotify",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/spotify.png",
+                title: "Spotify Integration",
+                subtitle: "Control music playback",
+                category: .media,
+                isInstalled: isSpotifyInstalled,
+                analyticsKey: "spotify",
+                extensionType: .spotify
+            ) {
+                AnyView(ExtensionInfoView(
+                    extensionType: .spotify,
+                    onAction: {
+                        if let url = URL(string: "spotify://") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    },
+                    installCount: extensionCounts["spotify"],
+                    rating: extensionRatings["spotify"]
+                ))
+            },
+            ExtensionListItem(
+                id: "windowSnap",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg",
+                title: "Window Snap",
+                subtitle: "Snap with shortcuts",
+                category: .productivity,
+                isInstalled: isWindowSnapInstalled,
+                analyticsKey: "windowSnap",
+                extensionType: .windowSnap
+            ) {
+                AnyView(WindowSnapInfoView(
+                    installCount: extensionCounts["windowSnap"],
+                    rating: extensionRatings["windowSnap"]
+                ))
             }
+        ]
+        
+        switch selectedCategory {
+        case .all:
+            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+        case .installed:
+            return allExtensions.filter { $0.isInstalled && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+        case .disabled:
+            return allExtensions.filter { $0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+        default:
+            return allExtensions.filter { $0.category == selectedCategory && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+        }
+    }
+}
+
+// MARK: - Extension List Item Model
+
+private struct ExtensionListItem: Identifiable {
+    let id: String
+    let iconURL: String
+    let title: String
+    let subtitle: String
+    let category: ExtensionCategory
+    let isInstalled: Bool
+    let analyticsKey: String
+    let extensionType: ExtensionType
+    let detailView: () -> AnyView
+}
+
+// MARK: - Featured Extension Card (Large)
+
+struct FeaturedExtensionCard<DetailView: View>: View {
+    let category: String
+    let title: String
+    let subtitle: String
+    let iconURL: String
+    let screenshotURL: String?
+    let accentColor: Color
+    let isInstalled: Bool
+    var installCount: Int?
+    let detailView: () -> DetailView
+    
+    @State private var showSheet = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            showSheet = true
+        } label: {
+            ZStack(alignment: .leading) {
+                // Screenshot background on right side with fade
+                if let screenshotURLString = screenshotURL,
+                   let url = URL(string: screenshotURLString) {
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            Spacer()
+                            
+                            CachedAsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height)
+                                    .clipped()
+                            } placeholder: {
+                                Color.clear
+                            }
+                        }
+                    }
+                    .opacity(0.25)  // Very dark/faded
+                    
+                    // Gradient fade from left to blend the screenshot
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.black, location: 0.0),
+                            .init(color: Color.black, location: 0.4),
+                            .init(color: Color.black.opacity(0.8), location: 0.6),
+                            .init(color: Color.clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
+                
+                // Content overlay
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Category label
+                        Text(category)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(accentColor.opacity(0.9))
+                            .tracking(0.5)
+                        
+                        // Title
+                        Text(title)
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white)
+                        
+                        // Subtitle
+                        Text(subtitle)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.7))
+                        
+                        Spacer()
+                        
+                        // Get/Open Button
+                        HStack(spacing: 12) {
+                            Text(isInstalled ? "Open" : "Get")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(accentColor.opacity(0.4))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                )
+                            
+                            if let count = installCount, count > 0 {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                        .font(.system(size: 10))
+                                    Text("\(count)")
+                                        .font(.caption2.weight(.medium))
+                                }
+                                .foregroundStyle(.white.opacity(0.5))
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Icon
+                    CachedAsyncImage(url: URL(string: iconURL)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.1))
+                    }
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
+                }
+                .padding(20)
+            }
+            .frame(height: 160)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .scaleEffect(isHovering ? 1.01 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .sheet(isPresented: $showSheet) {
+            detailView()
+        }
+    }
+}
+
+
+// MARK: - Featured Extension Card (Compact)
+
+struct FeaturedExtensionCardCompact<DetailView: View>: View {
+    let category: String
+    let title: String
+    let subtitle: String
+    let iconURL: String
+    let screenshotURL: String?
+    let accentColor: Color
+    let isInstalled: Bool
+    let detailView: () -> DetailView
+    
+    @State private var showSheet = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            showSheet = true
+        } label: {
+            ZStack(alignment: .leading) {
+                // Screenshot background on right side with fade
+                if let screenshotURLString = screenshotURL,
+                   let url = URL(string: screenshotURLString) {
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            Spacer()
+                            
+                            CachedAsyncImage(url: url) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: geometry.size.width * 0.7, height: geometry.size.height)
+                                    .clipped()
+                            } placeholder: {
+                                Color.clear
+                            }
+                        }
+                    }
+                    .opacity(0.2)  // Very dark/faded
+                    
+                    // Gradient fade from left
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.black, location: 0.0),
+                            .init(color: Color.black, location: 0.35),
+                            .init(color: Color.black.opacity(0.7), location: 0.55),
+                            .init(color: Color.clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
+                
+                // Content overlay
+                VStack(alignment: .leading, spacing: 8) {
+                    // Category + Icon row
+                    HStack {
+                        Text(category)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(accentColor.opacity(0.9))
+                            .tracking(0.5)
+                        
+                        Spacer()
+                        
+                        CachedAsyncImage(url: URL(string: iconURL)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle().fill(Color.white.opacity(0.1))
+                        }
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    
+                    Spacer()
+                    
+                    // Title
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    
+                    // Subtitle
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(1)
+                }
+                .padding(14)
+            }
+            .frame(maxWidth: .infinity, minHeight: 110)
+            .background(Color.black)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
+            .scaleEffect(isHovering ? 1.02 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isHovering)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .sheet(isPresented: $showSheet) {
+            detailView()
+        }
+    }
+}
+
+// MARK: - Compact Extension Row
+
+struct CompactExtensionRow<DetailView: View>: View {
+    let iconURL: String
+    let title: String
+    let subtitle: String
+    let isInstalled: Bool
+    var installCount: Int?
+    let detailView: () -> DetailView
+    
+    @State private var showSheet = false
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            showSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                // Icon
+                CachedAsyncImage(url: URL(string: iconURL)) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.1))
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                
+                // Title + Subtitle
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary)
+                    
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                // Get/Open Button
+                Text(isInstalled ? "Open" : "Get")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(AdaptiveColors.buttonBackgroundAuto)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(isHovering ? Color.white.opacity(0.03) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+        .sheet(isPresented: $showSheet) {
+            detailView()
         }
     }
 }
@@ -201,17 +691,17 @@ struct CategoryPillButton: View {
             .padding(.vertical, 8)
             .background {
                 if isSelected {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.blue.opacity(isHovering ? 1.0 : 0.85))
                         .matchedGeometryEffect(id: "SelectedCategory", in: namespace)
                 } else {
-                    Capsule()
-                        .fill(Color.white.opacity(isHovering ? 0.12 : 0.06))
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                 }
             }
             .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(isSelected ? 0.3 : 0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -223,8 +713,7 @@ struct CategoryPillButton: View {
     }
 }
 
-
-// MARK: - Extension Cards
+// MARK: - Legacy Card Styles (kept for compatibility)
 
 struct ExtensionCardStyle: ViewModifier {
     let accentColor: Color
@@ -261,7 +750,6 @@ extension View {
     }
 }
 
-// Special AI card style with gradient border on hover
 struct AIExtensionCardStyle: ViewModifier {
     @State private var isHovering = false
     
@@ -297,22 +785,19 @@ extension View {
     }
 }
 
-// MARK: - AI Extension Icon with Magic Overlay
+// MARK: - AI Extension Icon
 
-/// Droppy icon with subtle magic sparkle overlay for AI feature
 struct AIExtensionIcon: View {
     var size: CGFloat = 44
     
     var body: some View {
         ZStack {
-            // Droppy app icon as base
             if let appIcon = NSApp.applicationIconImage {
                 Image(nsImage: appIcon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             }
             
-            // Subtle magic gradient overlay
             LinearGradient(
                 colors: [
                     Color.purple.opacity(0.2),
@@ -323,7 +808,6 @@ struct AIExtensionIcon: View {
                 endPoint: .bottomTrailing
             )
             
-            // Sparkle accents
             VStack {
                 HStack {
                     Spacer()
@@ -355,16 +839,7 @@ struct AIExtensionIcon: View {
     }
 }
 
-// MARK: - Extension Cards (Modular)
-// Extension card structs are now in their own files:
-// - Extensions/AIBackgroundRemoval/AIBackgroundRemovalCard.swift
-// - Extensions/Alfred/AlfredCard.swift
-// - Extensions/FinderServices/FinderServicesCard.swift
-// - Extensions/Spotify/SpotifyCard.swift
-// - Extensions/ElementCapture/ElementCaptureCard.swift
-// - Extensions/WindowSnap/WindowSnapCard.swift
-
-/// Settings row for managing AI background removal with one-click install
+// MARK: - Legacy Cards (kept for compatibility)
 
 struct AIBackgroundRemovalSettingsRow: View {
     @ObservedObject private var manager = AIInstallManager.shared
@@ -372,9 +847,7 @@ struct AIBackgroundRemovalSettingsRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with icon
             HStack(alignment: .top) {
-                // AI Icon from remote URL (cached to prevent flashing)
                 CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
@@ -385,19 +858,14 @@ struct AIBackgroundRemovalSettingsRow: View {
                 
                 Spacer()
                 
-                // Clean grey badge
                 Text("AI")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.white.opacity(0.1))
-                    )
+                    .background(Capsule().fill(Color.white.opacity(0.1)))
             }
             
-            // Title & Description
             VStack(alignment: .leading, spacing: 4) {
                 Text("Background Removal")
                     .font(.headline)
@@ -412,12 +880,9 @@ struct AIBackgroundRemovalSettingsRow: View {
             
             Spacer(minLength: 8)
             
-            // Status
             if manager.isInstalled {
                 HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                    Circle().fill(Color.green).frame(width: 6, height: 6)
                     Text("Installed")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.green)
@@ -431,19 +896,38 @@ struct AIBackgroundRemovalSettingsRow: View {
         .frame(minHeight: 160)
         .aiExtensionCardStyle()
         .contentShape(Rectangle())
-        .onTapGesture {
-            showInstallSheet = true
-        }
-        .sheet(isPresented: $showInstallSheet) {
-            AIInstallView()
-        }
+        .onTapGesture { showInstallSheet = true }
+        .sheet(isPresented: $showInstallSheet) { AIInstallView() }
     }
 }
 
-// Keep old struct for compatibility but mark deprecated
 @available(*, deprecated, renamed: "AIBackgroundRemovalSettingsRow")
 struct BackgroundRemovalSettingsRow: View {
     var body: some View {
         AIBackgroundRemovalSettingsRow()
+    }
+}
+
+// MARK: - Element Capture Info View Wrapper
+// Provides the binding for currentShortcut since the view requires it
+
+struct ElementCaptureInfoViewWrapper: View {
+    var installCount: Int?
+    var rating: AnalyticsService.ExtensionRating?
+    
+    @State private var currentShortcut: SavedShortcut? = {
+        if let data = UserDefaults.standard.data(forKey: "elementCaptureShortcut"),
+           let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            return shortcut
+        }
+        return nil
+    }()
+    
+    var body: some View {
+        ElementCaptureInfoView(
+            currentShortcut: $currentShortcut,
+            installCount: installCount,
+            rating: rating
+        )
     }
 }

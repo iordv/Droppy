@@ -81,13 +81,21 @@ class BasketDragContainer: NSView {
     /// Check if point is in the AirDrop zone (right side of basket)
     private func isPointInAirDropZone(_ point: NSPoint) -> Bool {
         guard showAirDropZone else { return false }
-        // Calculate offset from center of window to basket edge
+        
+        // Calculate zone boundaries based on window center and basket width
         let windowCenterX = bounds.width / 2
         let basketRightEdge = windowCenterX + currentBasketWidth / 2
         let airDropLeftEdge = basketRightEdge - airDropZoneWidth
         
         // Point is in AirDrop zone if it's within basket bounds AND in the right portion
-        return point.x >= airDropLeftEdge && point.x <= basketRightEdge
+        let result = point.x >= airDropLeftEdge && point.x <= basketRightEdge
+        
+        // Debug logging for Issue #62
+        if result {
+            print("📡 AirDrop Zone HIT: point.x=\(Int(point.x)) zone=[\(Int(airDropLeftEdge))...\(Int(basketRightEdge))]")
+        }
+        
+        return result
     }
     
     /// Check if point is in the main basket zone (left side)
@@ -113,6 +121,14 @@ class BasketDragContainer: NSView {
         if showAirDropZone {
             let isOverAirDrop = isPointInAirDropZone(point)
             let isOverBasket = isPointInBasketZone(point)
+            
+            // Debug logging for Issue #62 - help diagnose zone detection issues
+            let windowCenterX = bounds.width / 2
+            let basketRightEdge = windowCenterX + currentBasketWidth / 2
+            let airDropLeftEdge = basketRightEdge - airDropZoneWidth
+            let basketLeftEdge = windowCenterX - currentBasketWidth / 2
+            print("🎯 Zone: point.x=\(Int(point.x)) basket=[\(Int(basketLeftEdge))...\(Int(airDropLeftEdge))] airdrop=[\(Int(airDropLeftEdge))...\(Int(basketRightEdge))] isAirDrop=\(isOverAirDrop) isBasket=\(isOverBasket)")
+            
             // Synchronous update for responsive feedback
             DroppyState.shared.isAirDropZoneTargeted = isOverAirDrop
             DroppyState.shared.isBasketTargeted = isOverBasket

@@ -197,6 +197,10 @@ struct ExtensionInfoView: View {
                     .padding(.vertical, 8)
                     .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -218,6 +222,10 @@ struct ExtensionInfoView: View {
                         .padding(.vertical, 8)
                         .background(extensionType.categoryColor.opacity(isHoveringAction ? 1.0 : 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
                 }
                 .buttonStyle(.plain)
                 .onHover { h in

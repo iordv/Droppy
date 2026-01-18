@@ -488,10 +488,16 @@ struct SettingsView: View {
                             Text("Requires macOS 15")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.orange.opacity(0.15))
-                                .clipShape(Capsule())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.orange.opacity(0.15))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                )
                         }
                         Text("Media player features require macOS 15.0 (Sequoia) or later.")
                             .font(.caption)

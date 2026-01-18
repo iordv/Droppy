@@ -40,18 +40,22 @@ struct RenameWindowView: View {
                 )
                 
                 // Buttons
-                HStack {
+                HStack(spacing: 12) {
                     // Cancel button - styled like extension popup buttons
                     Button {
                         onCancel()
                     } label: {
                         Text("Cancel")
                             .fontWeight(.medium)
-                            .padding(.horizontal, 16)
+                            .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                             .foregroundStyle(.secondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .onHover { h in
@@ -61,19 +65,21 @@ struct RenameWindowView: View {
                     }
                     .keyboardShortcut(.escape, modifiers: [])
                     
-                    Spacer()
-                    
                     // Save button - blue accent button
                     Button {
                         onRename(text)
                     } label: {
                         Text("Save")
                             .fontWeight(.semibold)
-                            .padding(.horizontal, 20)
+                            .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(Color.accentColor.opacity(isHoveringSave ? 1.0 : 0.85))
                             .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .onHover { h in

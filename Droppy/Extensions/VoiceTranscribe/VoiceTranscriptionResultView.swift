@@ -161,10 +161,10 @@ struct VoiceTranscriptionResultView: View {
                         .padding(.vertical, 8)
                         .background((isCloseHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                         .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -189,10 +189,10 @@ struct VoiceTranscriptionResultView: View {
                         .padding(.vertical, 8)
                         .background((isSaveHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                         .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -228,10 +228,10 @@ struct VoiceTranscriptionResultView: View {
                     .padding(.vertical, 8)
                     .background((showCopiedFeedback ? Color.green : Color.blue).opacity(isCopyHovering ? 1.0 : 0.8))
                     .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)

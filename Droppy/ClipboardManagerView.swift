@@ -702,7 +702,11 @@ struct ClipboardManagerView: View {
                     .padding(.vertical, 4)
                     .frame(maxWidth: .infinity)
                     .background(Color.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
         }
@@ -1582,6 +1586,10 @@ struct ClipboardPreviewView: View {
                             .background(Color.green.opacity(isSaveHovering ? 1.0 : 0.8))
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "PrimaryAction", in: animationNamespace)
@@ -1601,6 +1609,10 @@ struct ClipboardPreviewView: View {
                             .background(Color.red.opacity(isCancelHovering ? 1.0 : 0.8))
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)

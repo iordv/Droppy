@@ -87,7 +87,7 @@ struct AnimatedHUDToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
@@ -163,7 +163,7 @@ struct AnimatedHUDToggleWithSubtitle: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(isHovering && isEnabled ? 1.02 : 1.0)
@@ -254,7 +254,7 @@ struct VolumeAndBrightnessToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
@@ -339,7 +339,7 @@ struct DisplayModeButton<Icon: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.blue.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isPressed ? 0.97 : (isHovering ? 1.02 : 1.0))
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)
@@ -418,7 +418,7 @@ struct AnimatedSubSettingToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(.spring(response: DesignConstants.springResponse, dampingFraction: DesignConstants.springDamping), value: isHovering)

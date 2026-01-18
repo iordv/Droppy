@@ -53,7 +53,7 @@ struct OnboardingToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
         }
@@ -126,7 +126,7 @@ struct OnboardingDisplayModeButton<Icon: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(isSelected ? Color.blue.opacity(0.3) : AdaptiveColors.buttonBackgroundAuto, lineWidth: 1)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
         }

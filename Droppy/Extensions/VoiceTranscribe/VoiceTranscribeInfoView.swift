@@ -16,6 +16,7 @@ struct VoiceTranscribeInfoView: View {
     @State private var isHoveringReviews = false
     @State private var isHoveringDownload = false
     @State private var isHoveringDelete = false
+    @State private var isHoveringRecord: [VoiceRecordingMode: Bool] = [:]
     @State private var showReviewsSheet = false
     @State private var isDownloading = false
     @State private var recordingMode: VoiceRecordingMode?
@@ -283,6 +284,10 @@ struct VoiceTranscribeInfoView: View {
             }
             .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
             
 
             // Download Section
@@ -346,6 +351,10 @@ struct VoiceTranscribeInfoView: View {
                     .padding(.vertical, 12)
                     .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .onHover { h in
@@ -377,6 +386,10 @@ struct VoiceTranscribeInfoView: View {
                 .padding(16)
                 .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
             }
             
             // Installed Models Section (only when model is installed)
@@ -433,6 +446,10 @@ struct VoiceTranscribeInfoView: View {
                 .padding(16)
                 .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
             }
         }
     }
@@ -453,6 +470,10 @@ struct VoiceTranscribeInfoView: View {
                     .padding(.vertical, 8)
                     .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -471,7 +492,11 @@ struct VoiceTranscribeInfoView: View {
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
             }
             .buttonStyle(.plain)
             .onHover { h in
@@ -537,15 +562,22 @@ struct VoiceTranscribeInfoView: View {
                         .lineLimit(1)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background((recordingMode == mode ? Color.red : Color.blue).opacity(0.85))
+                        .background((recordingMode == mode ? Color.red : Color.blue).opacity(isHoveringRecord[mode] == true ? 1.0 : 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringRecord[mode] = h }
+                }
             }
         }
         .padding(14)
         .background(AdaptiveColors.buttonBackgroundAuto)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 
 
