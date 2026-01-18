@@ -18,11 +18,22 @@ struct TerminalNotchView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            if manager.isExpanded {
-                expandedTerminalView
-            } else {
-                quickCommandView
+        ZStack {
+            VStack(spacing: 0) {
+                if manager.isExpanded {
+                    expandedTerminalView
+                } else {
+                    quickCommandView
+                }
+            }
+            
+            // Green edge pulse on command execution
+            if manager.showPulse {
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.green, lineWidth: 2)
+                    .opacity(manager.showPulse ? 0.8 : 0)
+                    .blur(radius: 4)
+                    .animation(.easeOut(duration: 0.4), value: manager.showPulse)
             }
         }
         // No external styling - terminal lives inside shelf's content area
