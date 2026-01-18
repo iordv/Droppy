@@ -21,6 +21,7 @@ struct ExtensionsShopView: View {
     private var isWindowSnapInstalled: Bool { !WindowSnapManager.shared.shortcuts.isEmpty }
     private var isFFmpegInstalled: Bool { FFmpegInstallManager.shared.isInstalled }
     private var isVoiceTranscribeInstalled: Bool { VoiceTranscribeManager.shared.isModelDownloaded }
+    private var isTerminalNotchInstalled: Bool { TerminalNotchManager.shared.isInstalled }
     
     var body: some View {
         ScrollView {
@@ -310,6 +311,18 @@ struct ExtensionsShopView: View {
                     installCount: extensionCounts["windowSnap"],
                     rating: extensionRatings["windowSnap"]
                 ))
+            },
+            ExtensionListItem(
+                id: "terminalNotch",
+                iconURL: "https://iordv.github.io/Droppy/assets/icons/terminal-notch.png",
+                title: "Terminal Notch",
+                subtitle: "Quick terminal access",
+                category: .productivity,
+                isInstalled: isTerminalNotchInstalled,
+                analyticsKey: "terminalNotch",
+                extensionType: .terminalNotch
+            ) {
+                AnyView(TerminalNotchInfoView())
             }
         ]
         

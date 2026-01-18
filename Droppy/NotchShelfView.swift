@@ -457,28 +457,55 @@ struct NotchShelfView: View {
         ZStack(alignment: .top) {
             shelfContent
             
-            // Floating Close Button (Bottom Centered)
+            // Floating buttons (Bottom Centered)
             // Visible whenever the shelf is expanded and sticky (auto-collapse disabled)
             if enableNotchShelf && isExpandedOnThisScreen && !autoCollapseShelf {
-                 Button(action: {
-                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                         state.expandedDisplayID = nil
-                         state.isMouseHovering = false
-                     }
-                 }) {
-                     Image(systemName: "xmark")
-                         .font(.system(size: 13, weight: .bold))
-                         .foregroundStyle(.white)
-                         .frame(width: 26, height: 26) // Compact size
-                         .padding(10) // Compact padding
-                         .background(indicatorBackground)
-                 }
-                 .buttonStyle(.plain)
-                 // Position exactly below the expanded content
-                 // Dynamic Island needs specific offset to account for visual margins
-                 .offset(y: currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
-                 .zIndex(100) // Ensure it's above everything
-                 .transition(.scale(scale: 0.8).combined(with: .opacity))
+                HStack(spacing: 12) {
+                    // Terminal button (if extension installed)
+                    if TerminalNotchManager.shared.isInstalled {
+                        Button(action: {
+                            TerminalNotchManager.shared.toggle()
+                        }) {
+                            Image(systemName: "terminal")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 26, height: 26)
+                                .padding(10)
+                                .background(indicatorBackground)
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
+                    
+                    // Close button
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            state.expandedDisplayID = nil
+                            state.isMouseHovering = false
+                        }
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .padding(10)
+                            .background(indicatorBackground)
+                    }
+                    .buttonStyle(.plain)
+                }
+                // Position exactly below the expanded content
+                .offset(y: currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
+                .zIndex(100)
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
+            
+            // Terminal overlay
+            if TerminalNotchManager.shared.isInstalled && TerminalNotchManager.shared.isVisible {
+                TerminalNotchView(manager: TerminalNotchManager.shared)
+                    .frame(width: min(currentNotchWidth, 500))
+                    .offset(y: currentExpandedHeight + 70) // Below the buttons
+                    .zIndex(200)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
     }

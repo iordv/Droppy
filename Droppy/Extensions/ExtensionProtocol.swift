@@ -19,6 +19,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     case windowSnap
     case voiceTranscribe
     case ffmpegVideoCompression
+    case terminalNotch
     
     /// URL-safe ID for deep links
     case finderServices  // Alias for finder
@@ -35,8 +36,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .windowSnap: return "Window Snap"
         case .voiceTranscribe: return "Voice Transcribe"
         case .ffmpegVideoCompression: return "Video Target Size"
+        case .terminalNotch: return "Terminal Notch"
         }
-    }
     
     var subtitle: String {
         switch self {
@@ -48,8 +49,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .windowSnap: return "Keyboard-driven window management"
         case .voiceTranscribe: return "On-device speech-to-text transcription"
         case .ffmpegVideoCompression: return "Compress videos to exact file sizes"
+        case .terminalNotch: return "Quick access terminal in your notch"
         }
-    }
     
     var category: String {
         switch self {
@@ -58,8 +59,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .spotify: return "Media"
         case .voiceTranscribe: return "AI"
         case .ffmpegVideoCompression: return "Media"
+        case .terminalNotch: return "Productivity"
         }
-    }
     
     // Colors matching the extension card accent colors
     var categoryColor: Color {
@@ -72,6 +73,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .windowSnap: return .cyan
         case .voiceTranscribe: return .blue
         case .ffmpegVideoCompression: return Color(red: 0.0, green: 0.5, blue: 0.25) // Dark green
+        case .terminalNotch: return .green
         }
     }
     
@@ -93,6 +95,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             return "Transcribe audio recordings to text using WhisperKit AI. 100% on-device processing means your voice never leaves your Mac—completely private."
         case .ffmpegVideoCompression:
             return "Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect for file size limits on Discord, email, or social media."
+        case .terminalNotch:
+            return "A Quake-style drop-down terminal embedded in your notch. Run quick commands without switching apps, or expand for a full terminal experience."
         }
     }
     
@@ -154,6 +158,13 @@ enum ExtensionType: String, CaseIterable, Identifiable {
                 ("arrow.down.circle", "One-time FFmpeg install"),
                 ("bolt.fill", "Fast H.264/AAC processing")
             ]
+        case .terminalNotch:
+            return [
+                ("terminal", "Full terminal emulation"),
+                ("keyboard", "Customizable keyboard shortcut"),
+                ("rectangle.expand.vertical", "Quick command & expanded modes"),
+                ("arrow.up.forward.app", "Open in Terminal.app anytime")
+            ]
         }
     }
     
@@ -177,6 +188,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             return URL(string: baseURL + "voice-transcribe-screenshot.png")
         case .ffmpegVideoCompression:
             return URL(string: baseURL + "video-target-size-screenshot.png")
+        case .terminalNotch:
+            return URL(string: baseURL + "terminal-notch-screenshot.png")
         }
     }
     
@@ -247,6 +260,14 @@ enum ExtensionType: String, CaseIterable, Identifiable {
             }
             .frame(width: 64, height: 64)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        case .terminalNotch:
+            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/terminal-notch.png")) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Image(systemName: "terminal").font(.system(size: 32, weight: .medium)).foregroundStyle(.green)
+            }
+            .frame(width: 64, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
     }
     
@@ -296,6 +317,10 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         case .ffmpegVideoCompression:
             // Clear FFmpeg installed state
             FFmpegInstallManager.shared.cleanup()
+            
+        case .terminalNotch:
+            // Terminal cleanup handled by manager
+            TerminalNotchManager.shared.cleanup()
         }
     }
 }
