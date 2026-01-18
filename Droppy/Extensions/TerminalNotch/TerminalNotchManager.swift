@@ -48,9 +48,6 @@ class TerminalNotchManager: ObservableObject {
     
     // MARK: - Settings
     
-    /// Expansion height percentage when output is present (1.0 = no change, 1.5 = 50% taller)
-    @AppStorage("terminalNotch_expansionPercentage") var expansionPercentage: Double = 1.5
-    
     /// Whether extension is installed
     @AppStorage("terminalNotch_installed") var isInstalled: Bool = false
     

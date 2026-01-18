@@ -196,36 +196,7 @@ struct TerminalNotchInfoView: View {
     
     private var settingsSection: some View {
         VStack(spacing: 16) {
-            // Configuration Card - Expansion Height only
-            VStack(spacing: 0) {
-                // Expansion Height Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Expansion Height")
-                            .font(.callout.weight(.medium))
-                        Text("How much taller when showing output")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    
-                    Spacer()
-                    
-                    Slider(value: $manager.expansionPercentage, in: 1.0...2.0, step: 0.1)
-                        .frame(width: 100)
-                    
-                    Text("\(Int((manager.expansionPercentage - 1) * 100))%")
-                        .font(.callout.weight(.medium))
-                        .monospacedDigit()
-                        .frame(width: 40)
-                }
-                .padding(16)
-            }
-            .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
+            // No terminal-specific settings - height is now fixed
             
             // Keyboard Shortcut Section
             VStack(spacing: 12) {

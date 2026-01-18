@@ -37,9 +37,35 @@ struct TerminalNotchView: View {
                     quickCommandView
                 }
             }
+            
+            // Sweeping green pulse on command execution (left to right)
+            if manager.showPulse {
+                // Sweeping trim animation
+                RoundedRectangle(cornerRadius: 20)
+                    .trim(from: max(0, manager.pulsePosition - 0.15), to: min(1, manager.pulsePosition))
+                    .stroke(
+                        LinearGradient(
+                            colors: [.clear, .green, .green, .clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .blur(radius: 2)
+                    .animation(.easeInOut(duration: 0.5), value: manager.pulsePosition)
+            }
         }
         // No external styling - terminal lives inside shelf's content area
         // which already has its own black background
+        .onAppear {
+            isInputFocused = true
+        }
+        .onChange(of: manager.isVisible) { _, isVisible in
+            if isVisible {
+                // Focus the text field when terminal becomes visible
+                isInputFocused = true
+            }
+        }
     }
     
     // MARK: - Initial Centered Command View
@@ -76,7 +102,6 @@ struct TerminalNotchView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, design: .monospaced))
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)  // Stable width prevents layout recursion
                         .focused($isInputFocused)
                         .onSubmit {
                             manager.executeQuickCommand(manager.commandText)
@@ -146,7 +171,6 @@ struct TerminalNotchView: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, design: .monospaced))
                     .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, alignment: .leading)  // Stable width
                     .focused($isInputFocused)
                     .onSubmit {
                         manager.executeQuickCommand(manager.commandText)
@@ -276,7 +300,6 @@ struct TerminalNotchView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, design: .monospaced))
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, alignment: .leading)  // Stable width
                         .focused($isInputFocused)
                         .onSubmit {
                             manager.executeQuickCommand(manager.commandText)
