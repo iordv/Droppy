@@ -2,89 +2,109 @@
 //  IconCache.swift
 //  Droppy
 //
-//  Pre-caches file type icons at app startup to eliminate Metal shader lag on first drop
+//  Provides instant file type icons using SF Symbols to avoid Metal shader lag
 //
 
 import AppKit
 import UniformTypeIdentifiers
 
-/// Pre-caches all common file type icons at app startup
-/// This eliminates the Metal shader compilation lag that occurs on first NSWorkspace.icon() call
+/// Provides instant file type icons using SF Symbols
+/// This completely avoids the Metal shader compilation lag from NSWorkspace.icon()
 final class IconCache {
     static let shared = IconCache()
     
-    /// Pre-cached icons by UTType identifier
-    private var cache: [String: NSImage] = [:]
+    /// SF Symbol mapping for common file types
+    private let symbolMap: [String: String] = [
+        // Generic
+        "public.item": "doc.fill",
+        "public.data": "doc.fill",
+        "public.content": "doc.fill",
+        "public.text": "doc.text.fill",
+        "public.plain-text": "doc.text.fill",
+        
+        // Documents
+        "com.adobe.pdf": "doc.richtext.fill",
+        "public.presentation": "doc.text.fill",
+        "public.spreadsheet": "tablecells.fill",
+        
+        // Images
+        "public.image": "photo.fill",
+        "public.jpeg": "photo.fill",
+        "public.png": "photo.fill",
+        "public.gif": "photo.fill",
+        "public.heic": "photo.fill",
+        "public.tiff": "photo.fill",
+        "public.svg-image": "photo.fill",
+        
+        // Audio
+        "public.audio": "waveform.circle.fill",
+        "public.mp3": "waveform.circle.fill",
+        "com.apple.m4a-audio": "waveform.circle.fill",
+        "public.aiff-audio": "waveform.circle.fill",
+        
+        // Video
+        "public.movie": "film.fill",
+        "public.video": "film.fill",
+        "public.mpeg-4": "film.fill",
+        "com.apple.quicktime-movie": "film.fill",
+        
+        // Archives
+        "public.archive": "archivebox.fill",
+        "public.zip-archive": "archivebox.fill",
+        "org.gnu.gnu-zip-archive": "archivebox.fill",
+        
+        // Code
+        "public.source-code": "chevron.left.forwardslash.chevron.right",
+        "public.swift-source": "swift",
+        "public.script": "chevron.left.forwardslash.chevron.right",
+        "public.shell-script": "terminal.fill",
+        
+        // System
+        "public.folder": "folder.fill",
+        "public.directory": "folder.fill",
+        "com.apple.application-bundle": "app.fill",
+        "public.executable": "gearshape.fill",
+        
+        // Other
+        "public.url": "link",
+        "public.vcard": "person.crop.square.fill",
+        "public.font": "textformat",
+        "public.disk-image": "externaldrive.fill"
+    ]
     
-    /// Fallback icon used during cache miss (should never happen after warmup)
+    /// Fallback icon
     private let fallbackIcon: NSImage
     
     private init() {
-        // Create fallback icon FIRST (this is instant - uses system image)
         self.fallbackIcon = NSImage(systemSymbolName: "doc.fill", accessibilityDescription: "File")
-            ?? NSImage(named: NSImage.multipleDocumentsName) ?? NSImage()
-        
-        // Pre-cache ALL common file types at startup
-        // This triggers Metal shader compilation NOW, not during first drop
-        preloadIcons()
+            ?? NSImage()
     }
     
-    /// Returns cached icon for UTType (instant, no Metal shader compilation)
+    /// Returns an SF Symbol-based icon for the UTType (instant, no Metal shaders)
     func icon(for type: UTType) -> NSImage {
         let key = type.identifier
-        if let cached = cache[key] {
-            return cached
+        
+        // Try direct match
+        if let symbolName = symbolMap[key],
+           let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: type.localizedDescription) {
+            return configuredIcon(image)
         }
         
-        // Cache miss - load and cache (should only happen for rare file types)
-        let icon = NSWorkspace.shared.icon(for: type)
-        cache[key] = icon
-        return icon
+        // Try parent types
+        for (typeId, symbolName) in symbolMap {
+            if let parentType = UTType(typeId), type.conforms(to: parentType),
+               let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: type.localizedDescription) {
+                return configuredIcon(image)
+            }
+        }
+        
+        return configuredIcon(fallbackIcon)
     }
     
-    /// Pre-loads icons for all common file types
-    /// This is called synchronously during init to ensure completion before UI is ready
-    private func preloadIcons() {
-        // Comprehensive list of file types users might drop
-        let commonTypes: [UTType] = [
-            // Generic
-            .item, .data, .content, .text, .plainText, .utf8PlainText,
-            .rtf, .html, .xml, .json, .yaml,
-            
-            // Documents
-            .pdf, .presentation, .spreadsheet, .database,
-            .rtfd, .epub,
-            
-            // Images
-            .image, .jpeg, .png, .gif, .tiff, .bmp, .ico, .icns,
-            .heic, .heif, .webP, .svg, .rawImage,
-            
-            // Audio
-            .audio, .mp3, .wav, .aiff, .midi,
-            
-            // Video
-            .movie, .video, .mpeg, .mpeg2Video, .mpeg4Movie, .quickTimeMovie, .avi,
-            
-            // Archives
-            .archive, .zip, .gzip, .bz2,
-            
-            // Code
-            .sourceCode, .swiftSource, .cSource, .cPlusPlusSource,
-            .objectiveCSource, .script, .shellScript,
-            .pythonScript, .rubyScript, .perlScript, .phpScript, .javaScript,
-            
-            // System
-            .folder, .directory, .volume, .application, .bundle,
-            .package, .framework, .executable, .aliasFile, .symbolicLink,
-            
-            // Other
-            .url, .fileURL, .bookmark, .vCard, .emailMessage, .calendarEvent,
-            .font, .log, .diskImage
-        ]
-        
-        // Load each icon - this triggers Metal shader compilation during startup
-        for type in commonTypes {
-            cache[type.identifier] = NSWorkspace.shared.icon(for: type)
-        }
+    /// Configures the icon with appropriate size and styling
+    private func configuredIcon(_ image: NSImage) -> NSImage {
+        // Set a reasonable size for the icon
+        image.size = NSSize(width: 64, height: 64)
+        return image
     }
 }
