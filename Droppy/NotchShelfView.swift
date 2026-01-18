@@ -465,6 +465,24 @@ struct NotchShelfView: View {
                 HStack(spacing: 12) {
                     // Terminal button (if extension installed)
                     if terminalManager.isInstalled {
+                        // Open in Terminal.app button (only when terminal is visible)
+                        if terminalManager.isVisible {
+                            Button(action: {
+                                terminalManager.openInTerminalApp()
+                            }) {
+                                Image(systemName: "arrow.up.forward.app")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 26, height: 26)
+                                    .padding(10)
+                                    .background(indicatorBackground)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Open in Terminal.app")
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                        }
+                        
+                        // Toggle terminal button (shows terminal icon when hidden, X when visible)
                         Button(action: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 terminalManager.toggle()

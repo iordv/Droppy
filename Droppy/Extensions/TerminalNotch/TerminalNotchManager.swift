@@ -207,7 +207,9 @@ class TerminalNotchManager: ObservableObject {
             let pipe = Pipe()
             
             process.executableURL = URL(fileURLWithPath: shellPath)
-            process.arguments = ["-c", command]
+            // Use -l for login shell (sources profile with PATH including brew)
+            // and -c to run the command
+            process.arguments = ["-l", "-c", command]
             process.standardOutput = pipe
             process.standardError = pipe
             process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
