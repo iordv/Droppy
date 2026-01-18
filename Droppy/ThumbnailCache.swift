@@ -9,6 +9,7 @@
 import AppKit
 import Foundation
 import QuickLookThumbnailing
+import UniformTypeIdentifiers
 
 /// Centralized cache for clipboard image thumbnails
 /// Uses NSCache for automatic memory pressure eviction
@@ -44,22 +45,32 @@ final class ThumbnailCache {
         warmupQuickLook()
     }
     
-    /// Warms up QuickLook's thumbnail generator to preload Metal shaders
+    /// Warms up the icon rendering system to preload Metal shaders
     /// This eliminates the ~1 second lag on first file drop by forcing the
     /// IconRendering.framework Metal shaders to load during app startup
     private func warmupQuickLook() {
-        Task.detached(priority: .background) {
-            // Use a system file that always exists for warmup
+        // 1. SYNCHRONOUS: Warmup NSWorkspace icon rendering immediately
+        // This is the MAIN cause of first-drop lag - icon() triggers Metal shader compilation
+        // By doing this synchronously during init, we pay the cost during app launch
+        // instead of during first file drop (when user expects instant response)
+        let commonTypes: [UTType] = [
+            .image, .pdf, .plainText, .data, .folder, .application,
+            .jpeg, .png, .gif, .movie, .mp3, .zip
+        ]
+        for type in commonTypes {
+            _ = NSWorkspace.shared.icon(for: type)
+        }
+        
+        // 2. ASYNC: Warmup QuickLook thumbnail generator (secondary lag source)
+        // This can remain async since QuickLook thumbnails load after initial icon display
+        Task(priority: .high) {
             let warmupURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
-            
             let request = QLThumbnailGenerator.Request(
                 fileAt: warmupURL,
                 size: CGSize(width: 32, height: 32),
                 scale: 1.0,
                 representationTypes: .thumbnail
             )
-            
-            // Generate a throwaway thumbnail to trigger Metal shader compilation
             _ = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request)
         }
     }
