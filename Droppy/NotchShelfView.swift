@@ -500,7 +500,7 @@ struct NotchShelfView: View {
                                 Button(action: {
                                     terminalManager.clearOutput()
                                 }) {
-                                    Image(systemName: "trash")
+                                    Image(systemName: "arrow.counterclockwise")
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundStyle(.white)
                                         .frame(width: 26, height: 26)

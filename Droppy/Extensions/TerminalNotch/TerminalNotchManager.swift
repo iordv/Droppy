@@ -37,6 +37,9 @@ class TerminalNotchManager: ObservableObject {
     /// Is command currently running
     @Published var isRunning: Bool = false
     
+    /// Pulse animation trigger (set briefly on command execution)
+    @Published var showPulse: Bool = false
+    
     // MARK: - Settings
     
     /// Default shell path
@@ -117,6 +120,15 @@ class TerminalNotchManager: ObservableObject {
         
         isRunning = true
         lastOutput = ""
+        
+        // Trigger pulse animation
+        withAnimation(.easeOut(duration: 0.3)) {
+            showPulse = true
+        }
+        // Auto-reset pulse after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            self.showPulse = false
+        }
         
         Task {
             do {
