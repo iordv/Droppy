@@ -62,7 +62,7 @@ struct ExtensionsShopView: View {
         VStack(spacing: 16) {
             // Large Featured Card (AI Background Removal)
             FeaturedExtensionCard(
-                category: "AI POWERED",
+                category: "",
                 title: "Remove Backgrounds",
                 subtitle: "Instantly with local AI. Works offline.",
                 iconURL: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg",
@@ -81,7 +81,7 @@ struct ExtensionsShopView: View {
             HStack(spacing: 12) {
                 // Voice Transcribe
                 FeaturedExtensionCardCompact(
-                    category: "AI POWERED",
+                    category: "",
                     title: "Voice Transcribe",
                     subtitle: "Speech to text",
                     iconURL: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg",
@@ -97,7 +97,7 @@ struct ExtensionsShopView: View {
                 
                 // Video Target Size
                 FeaturedExtensionCardCompact(
-                    category: "MEDIA",
+                    category: "",
                     title: "Video Target Size",
                     subtitle: "Compress videos",
                     iconURL: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png",
