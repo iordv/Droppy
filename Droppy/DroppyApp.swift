@@ -178,6 +178,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             andEventID: AEEventID(kAEGetURL)
         )
         
+        // CRITICAL: Pre-cache all file icons FIRST (eliminates Metal shader lag on first drop)
+        // This MUST be done before any UI is shown to guarantee icons are ready
+        _ = IconCache.shared
+        
         // Touch singletons on main thread to ensure proper @AppStorage / UI initialization
         _ = DroppyState.shared
         _ = DragMonitor.shared
@@ -186,7 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = UpdateChecker.shared
         _ = ClipboardManager.shared
         _ = ClipboardWindowController.shared
-        _ = ThumbnailCache.shared  // Warmup QuickLook Metal shaders early
+        _ = ThumbnailCache.shared  // Warmup QuickLook thumbnails async
         
         // Load Element Capture and Window Snap shortcuts (after all other singletons are ready)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
