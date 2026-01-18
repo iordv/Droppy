@@ -20,14 +20,19 @@ struct SwiftTermView: NSViewRepresentable {
     /// Font size for terminal text
     var fontSize: CGFloat
     
-    func makeNSView(context: Context) -> LocalProcessTerminalView {
-        let terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+    func makeNSView(context: Context) -> NSView {
+        // Create a container view to handle layout
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = NSColor.black.cgColor
         
-        // Configure terminal appearance - set explicit colors
+        // Create terminal view
+        let terminalView = LocalProcessTerminalView(frame: containerView.bounds)
+        terminalView.autoresizingMask = [.width, .height]
+        
+        // Configure terminal appearance
         terminalView.nativeBackgroundColor = NSColor.black
         terminalView.nativeForegroundColor = NSColor.white
-        
-        // Set caret (cursor) color to be visible
         terminalView.caretColor = NSColor.systemGreen
         
         // Set font
@@ -40,27 +45,31 @@ struct SwiftTermView: NSViewRepresentable {
         // Set delegate
         terminalView.processDelegate = context.coordinator
         
+        // Add to container
+        containerView.addSubview(terminalView)
+        
         // Store reference for coordinator
         context.coordinator.terminalView = terminalView
         
-        // Start the shell process AFTER setup
-        DispatchQueue.main.async {
+        // Start the shell process after a brief delay to allow layout
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             self.startShell(in: terminalView)
         }
         
-        return terminalView
+        return containerView
     }
     
-    func updateNSView(_ nsView: LocalProcessTerminalView, context: Context) {
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let terminalView = context.coordinator.terminalView else { return }
+        
+        // Update terminal frame to match container
+        terminalView.frame = nsView.bounds
+        
         // Update font if changed
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        if nsView.font != font {
-            nsView.font = font
+        if terminalView.font != font {
+            terminalView.font = font
         }
-        
-        // Ensure colors are set
-        nsView.nativeBackgroundColor = NSColor.black
-        nsView.nativeForegroundColor = NSColor.white
     }
     
     func makeCoordinator() -> Coordinator {
@@ -82,10 +91,11 @@ struct SwiftTermView: NSViewRepresentable {
         
         print("[SwiftTermView] Starting shell: \(shell) with idiom: \(shellIdiom)")
         
-        // Start process using the same pattern as SwiftTerm's sample app
+        // Start process
         terminalView.startProcess(executable: shell, execName: shellIdiom)
         
-        // Force a redraw after starting
+        // Force layout update
+        terminalView.needsLayout = true
         terminalView.needsDisplay = true
     }
     
