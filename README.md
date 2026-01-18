@@ -35,23 +35,13 @@
 
 ## What is Droppy?
 
-At its core, Droppy turns your MacBook's notch (or a Dynamic Island pill on any Mac) into a powerful **file management hub**. Drop files into it, stash them for later, drag them out anywhere. Shake your mouse and a floating basket appears wherever you need it.
+Droppy started as a simple idea: make the MacBook notch actually useful. Drop files into it, drag them out later. That's it.
 
-But that's just the start. Droppy grew into something much bigger:
+Then it kept growing. Clipboard history felt obvious, so that went in. Then a media player that actually looks good. Then I thought — why am I opening five different apps for things that should just... work?
 
-- **Clipboard history** with instant search, favorites, and bulk paste
-- **Media player** with album art, tap-to-seek, and a real-time audio visualizer
-- **System HUDs** for volume, brightness, battery, AirPods, Caps Lock, and Focus mode
-- **Voice transcription** — record and transcribe directly from the notch
-- **AI background removal** — drop an image, get a transparent PNG
-- **Terminal in your notch** — run quick commands without switching apps
-- **Window snapping** with keyboard shortcuts
-- **Bulk file conversions** — images, documents, videos
-- **Custom shortcuts** for nearly everything
+So now Droppy does a lot: file stashing, clipboard manager, media controls with a live visualizer, system HUDs for volume and brightness, voice transcription, AI background removal, a quick terminal, window snapping, bulk file conversions, and shortcuts for basically everything. It all lives in your notch (or a Dynamic Island pill if you don't have one).
 
-No subscriptions. No tracking. **100% free and open-source**, built entirely in Swift.
-
-Droppy replaces a handful of separate utilities with one native app that feels like it belongs on your Mac.
+It's free. It's open-source. No subscriptions, no telemetry, no weird permissions you don't understand. Just one native Swift app that replaces a bunch of separate tools.
 
 ---
 
