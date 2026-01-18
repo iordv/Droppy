@@ -123,6 +123,14 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
 </p>
 
 <p align="center">
+  Or Voice Transcribe — on-device AI speech-to-text, right in your notch.
+</p>
+
+<p align="center">
+  <img src="docs/assets/images/voice-transcribe-recording.png" alt="Voice Transcribe Extension" width="50%">
+</p>
+
+<p align="center">
   <strong>📊 Visit the live Extension Store to see real reviews, ratings, and install counts!</strong><br>
   Available both in the app and on the web.
 </p>
