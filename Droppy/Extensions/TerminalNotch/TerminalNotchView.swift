@@ -133,11 +133,16 @@ struct TerminalNotchView: View {
                         .fill(Color.white.opacity(0.05))
                 )
             }
-            // Content padding inside the ZStack
+            // Content padding inside the dotted outline
             .padding(24)
         }
-        // NO external padding - let the dotted outline fill the available space
-        // The shelf view provides the proper insets
+        // EXACT same padding as emptyShelfContent - Island mode: 16pt uniform, Notch mode: asymmetric
+        .padding(EdgeInsets(
+            top: isDynamicIslandMode ? 16 : notchHeight + 14,
+            leading: isDynamicIslandMode ? 16 : 20,
+            bottom: isDynamicIslandMode ? 16 : 14,
+            trailing: isDynamicIslandMode ? 16 : 20
+        ))
         // Start marching ants animation when view appears
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
