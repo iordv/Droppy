@@ -494,16 +494,20 @@ class NotchDragContainer: NSView {
                                      y: windowFrame.origin.y + dragLocation.y)
         
         // AirDrop zone is on the RIGHT side of the expanded shelf
+        // CRITICAL: Account for trailing padding (20) and HStack spacing (20) to match visual layout
         let centerX = screen.frame.origin.x + screen.frame.width / 2
         let shelfRightEdge = centerX + expandedShelfWidth / 2
-        let airDropLeftEdge = shelfRightEdge - airDropZoneWidth
+        // Visual zone left edge = shelfRight - trailingPadding(20) - zoneWidth(90) so detection matches
+        let airDropLeftEdge = shelfRightEdge - 20 - airDropZoneWidth
+        // Right edge is inset by trailing padding
+        let airDropRightEdge = shelfRightEdge - 20
         
         // Calculate shelf height
         let expandedHeight: CGFloat = 110 + 54 // Empty shelf height
         let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
         let yMax = screen.frame.origin.y + screen.frame.height
         
-        return screenLocation.x >= airDropLeftEdge && screenLocation.x <= shelfRightEdge &&
+        return screenLocation.x >= airDropLeftEdge && screenLocation.x <= airDropRightEdge &&
                screenLocation.y >= yMin && screenLocation.y <= yMax
     }
     

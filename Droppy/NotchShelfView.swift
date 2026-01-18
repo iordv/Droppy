@@ -1579,8 +1579,8 @@ extension NotchShelfView {
             }
         }
         // Top padding must clear the physical notch (notchHeight + margin for stroke visibility)
-        // Island mode: minimal padding since there's no physical obstruction
-        .padding(EdgeInsets(top: isDynamicIslandMode ? 10 : notchHeight + 14, leading: 20, bottom: 20, trailing: 20))
+        // Island mode: uniform padding for perfect visual balance (14pt all around)
+        .padding(EdgeInsets(top: isDynamicIslandMode ? 14 : notchHeight + 14, leading: 20, bottom: 14, trailing: 20))
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
                 dropZoneDashPhase -= 280 // Multiple of 14 (6+8) for smooth loop
