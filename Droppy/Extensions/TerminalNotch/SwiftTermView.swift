@@ -23,9 +23,12 @@ struct SwiftTermView: NSViewRepresentable {
     func makeNSView(context: Context) -> LocalProcessTerminalView {
         let terminalView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         
-        // Configure terminal appearance
-        terminalView.nativeBackgroundColor = .black
-        terminalView.nativeForegroundColor = .white
+        // Configure terminal appearance - set explicit colors
+        terminalView.nativeBackgroundColor = NSColor.black
+        terminalView.nativeForegroundColor = NSColor.white
+        
+        // Set caret (cursor) color to be visible
+        terminalView.caretColor = NSColor.systemGreen
         
         // Set font
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -37,14 +40,13 @@ struct SwiftTermView: NSViewRepresentable {
         // Set delegate
         terminalView.processDelegate = context.coordinator
         
-        // Feed welcome text to verify terminal is working
-        terminalView.feed(text: "Terminal initializing...\r\n")
-        
-        // Start the shell process
-        startShell(in: terminalView)
-        
         // Store reference for coordinator
         context.coordinator.terminalView = terminalView
+        
+        // Start the shell process AFTER setup
+        DispatchQueue.main.async {
+            self.startShell(in: terminalView)
+        }
         
         return terminalView
     }
@@ -55,6 +57,10 @@ struct SwiftTermView: NSViewRepresentable {
         if nsView.font != font {
             nsView.font = font
         }
+        
+        // Ensure colors are set
+        nsView.nativeBackgroundColor = NSColor.black
+        nsView.nativeForegroundColor = NSColor.white
     }
     
     func makeCoordinator() -> Coordinator {
@@ -78,6 +84,9 @@ struct SwiftTermView: NSViewRepresentable {
         
         // Start process using the same pattern as SwiftTerm's sample app
         terminalView.startProcess(executable: shell, execName: shellIdiom)
+        
+        // Force a redraw after starting
+        terminalView.needsDisplay = true
     }
     
     /// Get the user's default shell from the system
