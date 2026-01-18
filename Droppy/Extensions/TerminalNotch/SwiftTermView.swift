@@ -59,25 +59,34 @@ struct SwiftTermView: NSViewRepresentable {
         // Get shell path
         let shell = shellPath.isEmpty ? "/bin/zsh" : shellPath
         
+        // Extract shell name from path (e.g., "zsh" from "/bin/zsh")
+        let shellName = (shell as NSString).lastPathComponent
+        
+        // For login shell, the execName should be prefixed with "-" (e.g., "-zsh")
+        let loginShellName = "-" + shellName
+        
         // Get environment variables
         var env = ProcessInfo.processInfo.environment
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
         env["LANG"] = "en_US.UTF-8"
+        env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
+        env["SHELL"] = shell
         
-        // Change to home directory before starting
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        FileManager.default.changeCurrentDirectoryPath(homeDir)
-        
-        // Convert environment to array format
+        // Convert environment to array format (KEY=VALUE)
         let envArray = env.map { "\($0.key)=\($0.value)" }
         
-        // Start the process (no initialDirectory parameter)
+        // Home directory for starting location
+        let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+        
+        // Start the process
+        // args: [loginShellName] means the shell sees itself as a login shell
+        // execName: is what goes in argv[0]
         terminalView.startProcess(
             executable: shell,
-            args: [shell, "-l"],  // Login shell
+            args: [],  // Arguments AFTER the shell name
             environment: envArray,
-            execName: shell
+            execName: loginShellName  // Makes it a login shell
         )
     }
     
