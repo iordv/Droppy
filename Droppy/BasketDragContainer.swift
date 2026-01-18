@@ -20,8 +20,10 @@ class BasketDragContainer: NSView {
     private let columnsPerRow: Int = 4
     
     /// Whether AirDrop zone is enabled
+    /// CRITICAL: Must use object(forKey:) with nil-coalescing to true, matching @AppStorage default
+    /// Using bool(forKey:) alone returns false when key doesn't exist, causing Issue #62
     private var isAirDropZoneEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "enableAirDropZone")
+        (UserDefaults.standard.object(forKey: "enableAirDropZone") as? Bool) ?? true
     }
     
     /// Whether AirDrop zone should be shown (enabled AND basket is empty)

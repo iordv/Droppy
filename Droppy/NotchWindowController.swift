@@ -267,7 +267,7 @@ final class NotchWindowController: NSObject, ObservableObject {
     var displayModeLabel: String {
         // Check if any connected screen has a notch
         let hasNotch = NSScreen.builtInWithNotch?.safeAreaInsets.top ?? 0 > 0
-        let useDynamicIsland = UserDefaults.standard.bool(forKey: "useDynamicIslandStyle")
+        let useDynamicIsland = (UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool) ?? true
         
         if hasNotch && !useDynamicIsland {
             return "Notch"
@@ -301,7 +301,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 if let window = notchWindows[displayID] {
                     // Reposition existing window
                     let windowWidth: CGFloat = 500
-                    let windowHeight: CGFloat = 200
+                    let windowHeight: CGFloat = 500
                     let xPosition = screen.frame.origin.x + (screen.frame.width - windowWidth) / 2
                     let yPosition = screen.frame.origin.y + screen.frame.height - windowHeight
                     let newFrame = NSRect(x: xPosition, y: yPosition, width: windowWidth, height: windowHeight)
@@ -383,7 +383,8 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Also handles closing shelf when clicking outside (desktop click to close)
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
             guard let self = self,
-                  UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return }
+                  // CRITICAL: Use object() ?? true to match @AppStorage defaults
+                  (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true else { return }
             
             let mouseLocation = NSEvent.mouseLocation
             
@@ -416,6 +417,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
                     expandedHeight += 100
                 }
+                
+                // Add buffer for the floating close button
+                expandedHeight += 60
 
                 expandedShelfZone = NSRect(
                     x: centerX - expandedWidth / 2,
@@ -439,7 +443,17 @@ final class NotchWindowController: NSObject, ObservableObject {
             } else if isExpanded && !isInExpandedShelfZone && !self.hasActiveContextMenu() {
                 // CLICK OUTSIDE TO CLOSE: Shelf is open, click is outside shelf area
                 // Don't close if a context menu is active (user is interacting with submenu)
-                DispatchQueue.main.async {
+                // Don't close if auto-collapse is disabled (user wants manual control)
+                // CRITICAL: Use object() ?? true to match @AppStorage default for new users
+                let autoCollapseEnabled = (UserDefaults.standard.object(forKey: "autoCollapseShelf") as? Bool) ?? true
+                guard autoCollapseEnabled else { return }
+                
+                // DELAYED CLOSE: Wait 150ms to see if a drag operation starts
+                // This prevents shelf from closing when user clicks to start dragging a file
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    // Check if drag started during the delay - if so, don't close
+                    guard !DragMonitor.shared.isDragging else { return }
+                    
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                         DroppyState.shared.expandedDisplayID = nil
                         DroppyState.shared.isMouseHovering = false
@@ -453,7 +467,8 @@ final class NotchWindowController: NSObject, ObservableObject {
         // This monitor catches right-clicks on the notch area and programmatically shows the context menu.
         globalRightClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.rightMouseDown]) { [weak self] event in
             guard let self = self,
-                  UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return }
+                  // CRITICAL: Use object() ?? true to match @AppStorage defaults
+                  (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true else { return }
             
             let mouseLocation = NSEvent.mouseLocation
             
@@ -498,7 +513,9 @@ final class NotchWindowController: NSObject, ObservableObject {
             // When Bartender is installed, it may intercept global right-click events
             // This ensures right-click still works by handling it locally
             if event.type == .rightMouseDown {
-                guard UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return event }
+                // Only intercept clicks if shelf is enabled
+                // CRITICAL: Use object() ?? true to match @AppStorage defaults
+                guard (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true else { return event }
                 
                 let mouseLocation = NSEvent.mouseLocation
                 
@@ -528,7 +545,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
             // Handle click - single-click shelf toggle and click-outside-to-close
             if event.type == .leftMouseDown {
-                guard UserDefaults.standard.bool(forKey: "enableNotchShelf") else { return event }
+                guard (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true else { return event }
 
                 let mouseLocation = NSEvent.mouseLocation
                 
@@ -562,6 +579,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                     if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
                         expandedHeight += 100
                     }
+                    
+                    // Add buffer for the floating close button
+                    expandedHeight += 60
 
                     expandedShelfZone = NSRect(
                         x: centerX - expandedWidth / 2,
@@ -585,13 +605,21 @@ final class NotchWindowController: NSObject, ObservableObject {
                 } else if isExpanded && !isInExpandedShelfZone && !self.hasActiveContextMenu() {
                     // CLICK OUTSIDE TO CLOSE: Click is outside the shelf area
                     // Don't close if a context menu is active
-                    DispatchQueue.main.async {
+                    // Don't close if auto-collapse is disabled (user wants manual control)
+                    // CRITICAL: Use object() ?? true to match @AppStorage default for new users
+                    let autoCollapseEnabled = (UserDefaults.standard.object(forKey: "autoCollapseShelf") as? Bool) ?? true
+                    guard autoCollapseEnabled else { return event }
+                    
+                    // DELAYED CLOSE: Wait 150ms to see if a drag operation starts
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        // Check if drag started during the delay - if so, don't close
+                        guard !DragMonitor.shared.isDragging else { return }
+                        
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
                             DroppyState.shared.expandedDisplayID = nil
                             DroppyState.shared.isMouseHovering = false
                         }
                     }
-                    return nil  // Consume the click event
                 }
             }
 
@@ -663,7 +691,8 @@ final class NotchWindowController: NSObject, ObservableObject {
         let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
             guard let self = self,
                   !self.notchWindows.isEmpty,
-                  UserDefaults.standard.bool(forKey: "enableNotchShelf"),
+                  // CRITICAL: Use object() ?? true to match @AppStorage defaults
+                  (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true,
                   !DroppyState.shared.isExpanded,  // Don't need edge detection when expanded
                   !DragMonitor.shared.isDragging   // Drag monitor handles its own detection
             else { return }
@@ -857,7 +886,8 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Start timer to auto-expand shelf if hovering persists
     /// - Parameter displayID: The display to expand when timer fires (optional for backwards compat)
     func startAutoExpandTimer(for displayID: CGDirectDisplayID? = nil) {
-        guard UserDefaults.standard.bool(forKey: "autoExpandShelf") else { return }
+        // CRITICAL: Use object() ?? true to match @AppStorage default for new users
+        guard (UserDefaults.standard.object(forKey: "autoExpandShelf") as? Bool) ?? true else { return }
         
         cancelAutoExpandTimer() // Reset if already running
         
@@ -868,7 +898,8 @@ final class NotchWindowController: NSObject, ObservableObject {
             guard self != nil else { return }
             
             // Check setting again (in case user disabled it during the delay)
-            guard UserDefaults.standard.bool(forKey: "autoExpandShelf") else { return }
+            // CRITICAL: Use object() ?? true to match @AppStorage default
+            guard (UserDefaults.standard.object(forKey: "autoExpandShelf") as? Bool) ?? true else { return }
             
             // Only expand if still hovering and not already expanded
             if DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
@@ -1075,7 +1106,7 @@ class NotchWindow: NSPanel {
             // Default to true for external displays - use DI style by default
             // Check if the key exists, otherwise use default value of true
             if UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") != nil {
-                return UserDefaults.standard.bool(forKey: "externalDisplayUseDynamicIsland")
+                return (UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool) ?? true
             }
             return true  // Default: use Dynamic Island on external displays
         }
@@ -1084,7 +1115,7 @@ class NotchWindow: NSPanel {
         // Check if the key exists, otherwise use default value of true
         var useDynamicIsland = true  // Default
         if UserDefaults.standard.object(forKey: "useDynamicIslandStyle") != nil {
-            useDynamicIsland = UserDefaults.standard.bool(forKey: "useDynamicIslandStyle")
+            useDynamicIsland = (UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool) ?? true
         }
         // Use Dynamic Island if: no physical notch OR force test is enabled (and style is enabled)
         return (!hasNotch || forceTest) && useDynamicIsland
@@ -1344,6 +1375,10 @@ class NotchWindow: NSPanel {
                     expandedHeight += 100
                 }
                 
+                
+                // Add buffer for the floating close button (approx 64pt + spacing + margin)
+                expandedHeight += 60
+                
                 let expandedShelfZone = NSRect(
                     x: centerX - expandedWidth / 2,
                     y: targetScreen.frame.origin.y + targetScreen.frame.height - expandedHeight,
@@ -1422,7 +1457,7 @@ class NotchWindow: NSPanel {
                 // Use global coordinates
                 let centerX = screen.frame.origin.x + screen.frame.width / 2
                 let rowCount = ceil(Double(state.items.count) / 5.0)
-                let expandedHeight = max(1, rowCount) * 110 + 54
+                let expandedHeight = max(1, rowCount) * 110 + 54 + 90 // +90 for close button buffer
 
                 let expandedZone = NSRect(
                     x: centerX - expandedWidth / 2,
@@ -1438,7 +1473,8 @@ class NotchWindow: NSPanel {
         // for shelf-related interactions (hover, expand, drag-to-drop on notch).
         // User only wants floating basket, not the notch/island UI blocking their screen.
         // HUDs are handled separately and render passively without needing click interaction.
-        let enableNotchShelf = UserDefaults.standard.bool(forKey: "enableNotchShelf")
+        // CRITICAL: Use object() ?? true to match @AppStorage defaults
+        let enableNotchShelf = (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true
         
         // Window should accept mouse events when:
         // - Shelf is expanded AND shelf is enabled (need to interact with items)

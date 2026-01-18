@@ -455,6 +455,36 @@ struct NotchShelfView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
+            shelfContent
+            
+            // Floating Close Button (Bottom Centered)
+            // Visible whenever the shelf is expanded and sticky (auto-collapse disabled)
+            if enableNotchShelf && isExpandedOnThisScreen && !autoCollapseShelf {
+                 Button(action: {
+                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                         state.expandedDisplayID = nil
+                         state.isMouseHovering = false
+                     }
+                 }) {
+                     Image(systemName: "xmark")
+                         .font(.system(size: 13, weight: .bold))
+                         .foregroundStyle(.white)
+                         .frame(width: 26, height: 26) // Compact size
+                         .padding(10) // Compact padding
+                         .background(indicatorBackground)
+                 }
+                 .buttonStyle(.plain)
+                 // Position exactly below the expanded content
+                 // Dynamic Island needs specific offset to account for visual margins
+                 .offset(y: currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
+                 .zIndex(100) // Ensure it's above everything
+                 .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
+        }
+    }
+
+    var shelfContent: some View {
+        ZStack(alignment: .top) {
             // MARK: - Main Morphing Background
             // This is the persistent black shape that grows/shrinks
             // NOTE: The shelf/notch always uses solid black background.
@@ -1135,8 +1165,8 @@ struct NotchShelfView: View {
     
     private var dropIndicatorContent: some View {
         // Show NotchFace in the indicator - excited when hovering on notch, idle otherwise
-        NotchFace(size: 40, isExcited: state.isDropTargeted)
-            .padding(16) // Symmetrical padding for centered appearance
+        NotchFace(size: 26, isExcited: state.isDropTargeted)
+            .padding(10) // Compact padding
             .background(indicatorBackground)
     }
     
@@ -1160,13 +1190,13 @@ struct NotchShelfView: View {
     // NOTE: In regular notch mode, indicators are solid black.
     // In transparent DI mode, indicators use glass material to match the DI style.
     private var indicatorBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
             .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+            .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
     }
 
     // MARK: - Expanded Content
@@ -1176,7 +1206,8 @@ struct NotchShelfView: View {
         // No header row - auto-collapse handles hiding, right-click for settings/clipboard
         ZStack {
             // Show drop zone when dragging over (takes priority)
-            if state.isDropTargeted && state.items.isEmpty {
+            // ALSO show when hovering over AirDrop zone (isShelfAirDropZoneTargeted) to prevent snap-back to media
+            if (state.isDropTargeted || state.isShelfAirDropZoneTargeted) && state.items.isEmpty {
                 emptyShelfContent
                     .frame(height: currentExpandedHeight)
                     .transition(.asymmetric(
@@ -1187,8 +1218,8 @@ struct NotchShelfView: View {
                 // MEDIA PLAYER VIEW: Show if:
                 // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused
                 // 2. Music is playing AND user hasn't hidden it (isMediaHUDHidden)
-                // Both require: not idle, not drop targeted, media enabled
-                else if showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && 
+                // Both require: not idle, not drop targeted, not AirDrop zone targeted, media enabled
+                else if showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && !state.isShelfAirDropZoneTargeted &&
                         (musicManager.isMediaHUDForced || 
                          ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
                     MediaPlayerView(musicManager: musicManager, notchHeight: isDynamicIslandMode ? 0 : notchHeight)
@@ -1228,6 +1259,8 @@ struct NotchShelfView: View {
                             removal: .scale(scale: 0.95).combined(with: .opacity)
                         ))
             }
+            
+
         }
         // Smoother, more premium animation for media state changes
         // NOTE: isDropTargeted animation REMOVED to prevent sliding effect when files hover over shelf
@@ -1541,10 +1574,8 @@ extension NotchShelfView {
                             dashPhase: dropZoneDashPhase
                         )
                     )
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
-            )
-            .scaleEffect(state.isDropTargeted ? 1.03 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
+            )
             
             // AirDrop zone (right side, only when enabled)
             if enableShelfAirDropZone {
@@ -1575,10 +1606,12 @@ extension NotchShelfView {
                         )
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isShelfAirDropZoneTargeted)
                 )
-                .scaleEffect(state.isShelfAirDropZoneTargeted ? 1.05 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isShelfAirDropZoneTargeted)
             }
         }
+        // Whole shelf content zooms when either zone is targeted (matches basket behavior)
+        .scaleEffect((state.isDropTargeted || state.isShelfAirDropZoneTargeted) ? 1.03 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isShelfAirDropZoneTargeted)
         // Top padding must clear the physical notch (notchHeight + margin for stroke visibility)
         // Island mode: uniform padding on ALL sides (16pt) for perfect visual symmetry
         .padding(EdgeInsets(top: isDynamicIslandMode ? 16 : notchHeight + 14, leading: isDynamicIslandMode ? 16 : 20, bottom: isDynamicIslandMode ? 16 : 14, trailing: isDynamicIslandMode ? 16 : 20))

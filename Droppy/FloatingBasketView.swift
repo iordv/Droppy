@@ -134,8 +134,9 @@ struct FloatingBasketView: View {
                 }
                 .frame(width: currentWidth, height: currentHeight)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .scaleEffect(state.isBasketTargeted ? 1.03 : 1.0)
+                .scaleEffect((state.isBasketTargeted || state.isAirDropZoneTargeted) ? 1.03 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isBasketTargeted)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isAirDropZoneTargeted)
                 // Use same spring animation as shelf for row expansion
                 .animation(.spring(response: 0.35, dampingFraction: 0.7), value: state.basketItems.count)
                 .coordinateSpace(name: "basketContainer")
@@ -263,8 +264,6 @@ struct FloatingBasketView: View {
                         )
                     )
                     .frame(width: airDropZoneWidth - 15, height: currentHeight - 20)
-                    .scaleEffect(state.isAirDropZoneTargeted ? 1.05 : 1.0)  // Match shelf zoom effect
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isAirDropZoneTargeted)
                     .offset(x: baseWidth + 5)
                 
                 // AirDrop icon and label in the right zone (identical style to basket zone but red)
@@ -279,8 +278,6 @@ struct FloatingBasketView: View {
                         .foregroundStyle(state.isAirDropZoneTargeted ? .primary : .secondary)
                 }
                 .frame(width: airDropZoneWidth, height: currentHeight)
-                .scaleEffect(state.isAirDropZoneTargeted ? 1.05 : 1.0)  // Match shelf zoom effect
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isAirDropZoneTargeted)
                 .offset(x: baseWidth)
             }
         } else {

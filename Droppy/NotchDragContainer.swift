@@ -111,6 +111,9 @@ class NotchDragContainer: NSView {
                 expandedHeight += 100
             }
             
+            // Add buffer for the floating close button
+            expandedHeight += 60
+            
             trackingRect = NSRect(
                 x: centerX - expandedWidth / 2,
                 y: bounds.height - expandedHeight,
@@ -245,7 +248,8 @@ class NotchDragContainer: NSView {
     // This bypasses the issue where first click focuses app and second opens shelf
     override func mouseDown(with event: NSEvent) {
         // Only proceed if notch shelf is enabled
-        guard UserDefaults.standard.bool(forKey: "enableNotchShelf") else {
+        // CRITICAL: Use object() ?? true to match @AppStorage default
+        guard (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true else {
             super.mouseDown(with: event)
             return
         }
@@ -318,6 +322,9 @@ class NotchDragContainer: NSView {
             if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
                 expandedHeight += 100
             }
+            
+            // Add buffer for the floating close button
+            expandedHeight += 60
              
             // Y is from top (bounds.height) down to (bounds.height - expandedHeight)
             let yRange = (bounds.height - expandedHeight)...bounds.height
@@ -369,6 +376,9 @@ class NotchDragContainer: NSView {
                 if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
                     expandedHeight += 100
                 }
+                
+                // Add buffer for the floating close button
+                expandedHeight += 60
 
                 let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
                 let yMax = screen.frame.origin.y + screen.frame.height
@@ -474,6 +484,9 @@ class NotchDragContainer: NSView {
         if DroppyState.shared.items.isEmpty && shouldShowPlayer && !MusicManager.shared.isPlayerIdle {
             expandedHeight += 100
         }
+        
+        // Add buffer for the floating close button
+        expandedHeight += 60
 
         let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
         let yMax = screen.frame.origin.y + screen.frame.height
