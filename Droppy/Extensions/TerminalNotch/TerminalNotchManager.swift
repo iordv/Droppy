@@ -76,9 +76,9 @@ class TerminalNotchManager: ObservableObject {
             isVisible.toggle()
             if isVisible {
                 // CRITICAL: Also expand the shelf - terminal renders inside expanded shelf
-                // Use built-in display (with notch), or fall back to main screen
-                if let notchScreen = NSScreen.builtInWithNotch {
-                    DroppyState.shared.expandShelf(for: notchScreen.displayID)
+                // Use built-in display (works for both notch and island modes)
+                if let builtInScreen = NSScreen.screens.first(where: { $0.isBuiltIn }) {
+                    DroppyState.shared.expandShelf(for: builtInScreen.displayID)
                 } else if let mainScreen = NSScreen.main {
                     DroppyState.shared.expandShelf(for: mainScreen.displayID)
                 }
