@@ -93,16 +93,18 @@ struct TerminalNotchView: View {
                     .foregroundStyle(.green.opacity(0.6))
                 
                 // Command input row with fixed frame to prevent shift
-                HStack(spacing: 8) {
+                HStack(alignment: .center, spacing: 8) {
                     Text("$")
                         .font(.system(size: 16, weight: .bold, design: .monospaced))
                         .foregroundStyle(.green)
+                        .frame(height: 20)
                     
                     TextField("Enter command...", text: $manager.commandText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 16, design: .monospaced))
                         .foregroundStyle(.white)
-                        .frame(height: 20) // Fixed height prevents focus shift
+                        .frame(height: 20, alignment: .leading) // Fixed height + alignment prevents focus shift
+                        .fixedSize(horizontal: false, vertical: true)
                         .focused($isInputFocused)
                         .onSubmit {
                             manager.executeQuickCommand(manager.commandText)
@@ -127,6 +129,7 @@ struct TerminalNotchView: View {
                             .frame(width: 16, height: 16)
                     }
                 }
+                .frame(height: 20) // Fixed HStack height
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(
