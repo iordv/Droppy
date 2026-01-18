@@ -343,12 +343,12 @@ struct NotchShelfView: View {
     private var currentExpandedHeight: CGFloat {
         // TERMINAL: Expanded height when terminal has output
         if terminalManager.isInstalled && terminalManager.isVisible {
-            // Base height for terminal (same as media player)
-            let baseTerminalHeight: CGFloat = 140
+            // Base height for terminal - increased to 180 to accommodate initial dotted outline view
+            let baseTerminalHeight: CGFloat = 180
             let topPaddingDelta: CGFloat = isDynamicIslandMode ? 0 : (notchHeight - 14)
             let terminalHeight = baseTerminalHeight + topPaddingDelta
             
-            // Add 50% extra height when there's output to display
+            // Add extra height when there's output to display
             if !terminalManager.lastOutput.isEmpty {
                 return terminalHeight * terminalManager.expansionPercentage
             }
