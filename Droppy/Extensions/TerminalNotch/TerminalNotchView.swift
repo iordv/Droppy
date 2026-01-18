@@ -97,26 +97,39 @@ struct TerminalNotchView: View {
                     Text("$")
                         .font(.system(size: 16, weight: .bold, design: .monospaced))
                         .foregroundStyle(.green)
-                        .frame(height: 20)
                     
-                    TextField("Enter command...", text: $manager.commandText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 16, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .frame(height: 20, alignment: .leading) // Fixed height + alignment prevents focus shift
-                        .fixedSize(horizontal: false, vertical: true)
-                        .focused($isInputFocused)
-                        .onSubmit {
-                            manager.executeQuickCommand(manager.commandText)
+                    // Use ZStack with fixed frame to prevent any layout shift
+                    ZStack(alignment: .leading) {
+                        // Invisible sizing reference that never changes
+                        Text("Enter command...")
+                            .font(.system(size: 16, design: .monospaced))
+                            .opacity(0)
+                        
+                        // Placeholder text (only visible when empty and not focused)
+                        if manager.commandText.isEmpty && !isInputFocused {
+                            Text("Enter command...")
+                                .font(.system(size: 16, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.4))
                         }
-                        .onKeyPress(.upArrow) {
-                            manager.historyUp()
-                            return .handled
-                        }
-                        .onKeyPress(.downArrow) {
-                            manager.historyDown()
-                            return .handled
-                        }
+                        
+                        // Actual text field with no placeholder (avoids SwiftUI's placeholder shift bug)
+                        TextField("", text: $manager.commandText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16, design: .monospaced))
+                            .foregroundStyle(.white)
+                            .focused($isInputFocused)
+                            .onSubmit {
+                                manager.executeQuickCommand(manager.commandText)
+                            }
+                            .onKeyPress(.upArrow) {
+                                manager.historyUp()
+                                return .handled
+                            }
+                            .onKeyPress(.downArrow) {
+                                manager.historyDown()
+                                return .handled
+                            }
+                    }
                     
                     // Placeholder for running indicator to prevent shift
                     if manager.isRunning {
@@ -129,7 +142,6 @@ struct TerminalNotchView: View {
                             .frame(width: 16, height: 16)
                     }
                 }
-                .frame(height: 20) // Fixed HStack height
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(
