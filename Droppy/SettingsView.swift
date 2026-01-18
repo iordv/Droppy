@@ -1217,9 +1217,6 @@ struct SettingsView: View {
                 }
                 
                 // Copy+Favorite Shortcut (Issue #43)
-                Divider()
-                    .padding(.vertical, 4)
-                
                 Toggle(isOn: $copyFavoriteEnabled) {
                     VStack(alignment: .leading) {
                         Text("Copy + Favorite Shortcut")
