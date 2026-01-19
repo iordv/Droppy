@@ -64,6 +64,12 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Monitor for global right-click events (context menu access in idle state) - Issue #57 fix
     private var globalRightClickMonitor: Any?
     
+    /// Watchdog timer for self-healing - validates window state periodically
+    private var watchdogTimer: Timer?
+    
+    /// System observers for wake/display changes
+    private var systemObservers: [NSObjectProtocol] = []
+    
     /// Shared instance
     static let shared = NotchWindowController()
     
@@ -73,10 +79,13 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     private override init() {
         super.init()
+        setupSystemObservers()
     }
     
     deinit {
         stopMonitors()
+        stopWatchdog()
+        removeSystemObservers()
     }
     
     /// Checks if a context menu is currently open (prevents shelf closure during menu interactions)
@@ -332,6 +341,7 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Starts monitoring mouse events to handle expands/collapses
     private func startMonitors() {
         stopMonitors() // Idempotency
+        startWatchdog() // Start self-healing watchdog
         
         // 0. Monitor screen configuration changes (dock/undock, resolution changes)
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
@@ -821,6 +831,7 @@ final class NotchWindowController: NSObject, ObservableObject {
     }    
     /// Stops and releases all monitors and timers
     private func stopMonitors() {
+        stopWatchdog() // Stop self-healing watchdog
         cancellables.removeAll()
         
         isFullscreenMonitoring = false
@@ -870,6 +881,112 @@ final class NotchWindowController: NSObject, ObservableObject {
             globalRightClickMonitor = nil
         }
     }
+    
+    // MARK: - Professional Self-Healing System
+    
+    /// Sets up system observers for wake/display changes that can break monitors
+    private func setupSystemObservers() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        let center = NotificationCenter.default
+        
+        // Wake from sleep - monitors may need re-registration
+        let wakeObserver = workspace.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("🔄 NotchWindowController: System woke from sleep - validating monitors")
+            self?.handleSystemTransition()
+        }
+        systemObservers.append(wakeObserver)
+        
+        // Display configuration change (plug/unplug monitors)
+        let displayObserver = center.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("🔄 NotchWindowController: Display configuration changed - validating monitors")
+            // Small delay to let display settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self?.handleSystemTransition()
+            }
+        }
+        systemObservers.append(displayObserver)
+    }
+    
+    /// Removes all system observers
+    private func removeSystemObservers() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        let center = NotificationCenter.default
+        
+        for observer in systemObservers {
+            workspace.removeObserver(observer)
+            center.removeObserver(observer)
+        }
+        systemObservers.removeAll()
+    }
+    
+    /// Handles system transitions (wake, display change) by re-validating state
+    private func handleSystemTransition() {
+        // Skip if intentionally hidden
+        guard !isTemporarilyHidden else { return }
+        
+        // Force re-validation of all window states
+        for window in notchWindows.values {
+            window.ignoresMouseEvents = false  // Reset to interactive
+            window.updateMouseEventHandling()  // Re-apply correct state
+        }
+        
+        // Re-register monitors if needed
+        if !isFullscreenMonitoring && !notchWindows.isEmpty {
+            stopMonitors()
+            startMonitors()
+        }
+    }
+    
+    /// Starts the watchdog timer for self-healing (called when monitors start)
+    private func startWatchdog() {
+        stopWatchdog()  // Ensure no duplicate timers
+        
+        // Run every 5 seconds - cheap check, guaranteed recovery
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            self?.validateWindowState()
+        }
+    }
+    
+    /// Stops the watchdog timer
+    private func stopWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
+    }
+    
+    /// Validates and self-heals window state if stuck
+    /// Called periodically by watchdog timer
+    private func validateWindowState() {
+        // Skip if intentionally hidden
+        guard !isTemporarilyHidden else { return }
+        
+        // Check if any window is incorrectly ignoring mouse events
+        let enableNotchShelf = (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true
+        
+        for window in notchWindows.values {
+            // If shelf is enabled but window is ignoring events AND not in a valid ignore state
+            if enableNotchShelf && window.ignoresMouseEvents {
+                // Check if this is actually correct
+                let isExpanded = DroppyState.shared.isExpanded
+                let isHovering = DroppyState.shared.isMouseHovering
+                
+                // If shelf is expanded or mouse is hovering, window SHOULD accept events
+                if isExpanded || isHovering {
+                    print("⚠️ Watchdog: Self-healing - window stuck with ignoresMouseEvents=true")
+                    window.ignoresMouseEvents = false
+                    window.updateMouseEventHandling()
+                }
+            }
+        }
+    }
+    
     
     private func checkFullscreenState() {
         for window in notchWindows.values {
