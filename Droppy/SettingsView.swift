@@ -603,9 +603,9 @@ struct SettingsView: View {
                     // AirPods HUD
                     HUDToggleButton(
                         title: "AirPods",
-                        icon: "airpodspro",
+                        icon: "airpods",
                         isEnabled: $enableAirPodsHUD,
-                        color: .blue
+                        color: .white
                     )
                     .onChange(of: enableAirPodsHUD) { _, newValue in
                         if newValue {

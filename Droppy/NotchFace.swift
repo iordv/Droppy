@@ -38,12 +38,12 @@ struct NotchFace: View {
                 )
                 .offset(x: -size * 0.18, y: -size * 0.12)
             
-            // Right eye (winks normally, goes wide on hover)
+            // Right eye (winks in all states, goes wide on hover)
             Ellipse()
                 .fill(faceGradient)
                 .frame(
                     width: size * 0.22,
-                    height: size * 0.22 * (isExcited ? 1.4 : eyeScale)
+                    height: size * 0.22 * (isExcited ? 1.4 : 1.0) * eyeScale
                 )
                 .offset(x: size * 0.18, y: -size * 0.12)
             
@@ -87,16 +87,20 @@ struct NotchFace: View {
     }
     
     private func performWink() {
-        guard !isExcited else { return }
+        // Wink animation works in all states (including excited)
         
-        // Ultra-smooth close with slight overshoot
-        eyeScale = 0.04
-        smileScale = 1.08
+        // Close eyes smoothly
+        withAnimation(.easeOut(duration: 0.1)) {
+            eyeScale = 0.04
+            smileScale = 1.08
+        }
         
-        // Smooth open with gentle bounce
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
-            eyeScale = 1.0
-            smileScale = 1.0
+        // Open eyes with gentle bounce
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                eyeScale = 1.0
+                smileScale = 1.0
+            }
         }
     }
 }

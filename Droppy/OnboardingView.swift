@@ -66,16 +66,18 @@ struct OnboardingView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with NotchFace
-            headerSection
-                .frame(height: 110)
+            // Header with NotchFace (hidden on welcome page - content has its own)
+            if currentPage != .welcome {
+                headerSection
+                    .frame(height: 110)
+            }
             
-            // Content - fixed height
+            // Content - fixed height, centered within
             contentSection
-                .frame(height: 400)
+                .frame(height: currentPage == .welcome ? 510 : 400)
                 .clipped()
             
-            // Footer
+            // Footer - fixed at bottom
             footerSection
                 .frame(height: 70)
         }
@@ -104,27 +106,33 @@ struct OnboardingView: View {
     
     private var headerSection: some View {
         VStack(spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 65, height: 65)
-                    .blur(radius: 14)
-                    .scaleEffect(faceScale)
-                
-                NotchFace(size: 48, isExcited: currentPage == .welcome || currentPage == .ready)
-                    .scaleEffect(faceScale)
-                    .rotationEffect(.degrees(faceRotation))
+            // Hide header NotchFace on welcome page (it has its own big one)
+            if currentPage != .welcome {
+                ZStack {
+                    Circle()
+                        .fill(Color.blue.opacity(0.1))
+                        .frame(width: 65, height: 65)
+                        .blur(radius: 14)
+                        .scaleEffect(faceScale)
+                    
+                    NotchFace(size: 48, isExcited: currentPage == .ready)
+                        .scaleEffect(faceScale)
+                        .rotationEffect(.degrees(faceRotation))
+                }
             }
             
-            Text(pageTitle)
-                .font(.system(size: 22, weight: .bold))
-            
-            Text(pageSubtitle)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .frame(maxWidth: 480)
+            // Hide header text on welcome page (shown in content area instead)
+            if currentPage != .welcome {
+                Text(pageTitle)
+                    .font(.system(size: 22, weight: .bold))
+                
+                Text(pageSubtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .frame(maxWidth: 480)
+            }
         }
         .padding(.top, 24)
         .onChange(of: currentPage) { _, _ in
@@ -171,11 +179,15 @@ struct OnboardingView: View {
                         Text("Back")
                     }
                     .font(.system(size: 13, weight: .medium))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(isBackHovering ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
                     .foregroundStyle(.secondary)
-                    .clipShape(Capsule())
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(isBackHovering ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .onHover { isBackHovering = $0 }
@@ -205,11 +217,15 @@ struct OnboardingView: View {
                         .font(.system(size: 11, weight: .semibold))
                 }
                 .font(.system(size: 13, weight: .semibold))
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .background((currentPage == .ready ? Color.green : Color.blue).opacity(isNextHovering ? 1.0 : 0.85))
                 .foregroundStyle(.white)
-                .clipShape(Capsule())
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background((currentPage == .ready ? Color.green : Color.blue).opacity(isNextHovering ? 1.0 : 0.85))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
             .onHover { isNextHovering = $0 }
@@ -297,36 +313,42 @@ private struct WelcomeContent: View {
     @Binding var useDynamicIslandStyle: Bool
     
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        VStack(spacing: 20) {
+            // Big centered NotchFace (winks naturally via its internal timer)
+            NotchFace(size: 100, isExcited: true)
             
-            // App icon
-            ZStack {
-                Circle()
-                    .fill(Color.blue.opacity(0.12))
-                    .frame(width: 85, height: 85)
-                    .blur(radius: 18)
+            // Title and subtitle
+            VStack(spacing: 6) {
+                Text("Hey there! 👋")
+                    .font(.system(size: 22, weight: .bold))
                 
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 56, height: 56)
+                Text("I'm Droppy, your new productivity companion")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
             
-            // Feature list - properly centered
-            VStack(spacing: 16) {
-                Text("Your Mac's Missing Productivity Layer")
-                    .font(.system(size: 15, weight: .semibold))
+            // Feature list in card style
+            VStack(spacing: 12) {
+                Text("The native productivity layer macOS is missing")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
                 
-                VStack(alignment: .leading, spacing: 10) {
-                    FeatureLine(icon: "tray.and.arrow.down.fill", text: "Drag files to your notch for quick access", color: .blue)
-                    FeatureLine(icon: "doc.on.clipboard.fill", text: "Search your clipboard history with OCR", color: .cyan)
-                    FeatureLine(icon: "music.note", text: "See Now Playing right in your menu bar", color: .green)
-                    FeatureLine(icon: "wand.and.stars", text: "Auto-compress images and convert files", color: .pink)
+                VStack(spacing: 0) {
+                    WelcomeFeatureRow(icon: "tray.and.arrow.down.fill", color: .blue, text: "Drag files to your notch for quick access", isFirst: true)
+                    WelcomeFeatureRow(icon: "doc.on.clipboard.fill", color: .cyan, text: "Search your clipboard history with OCR")
+                    WelcomeFeatureRow(icon: "music.note", color: .green, text: "See Now Playing right in your menu bar")
+                    WelcomeFeatureRow(icon: "wand.and.stars", color: .pink, text: "Auto-compress images and convert files", isLast: true)
                 }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
             }
+            .frame(width: 380)
             
-            // Style picker
+            // Style picker (for non-notch Macs)
             if !hasNotch {
                 VStack(spacing: 10) {
                     Text("Choose your display style")
@@ -343,10 +365,41 @@ private struct WelcomeContent: View {
                     }
                 }
             }
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+}
+
+/// Feature row for welcome page (matches GuideRow style from ReadyContent)
+private struct WelcomeFeatureRow: View {
+    let icon: String
+    let color: Color
+    let text: String
+    var isFirst: Bool = false
+    var isLast: Bool = false
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+                .frame(width: 22)
+            
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary.opacity(0.85))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.02))
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle()
+                    .fill(Color.white.opacity(0.04))
+                    .frame(height: 0.5)
+            }
+        }
     }
 }
 
@@ -357,9 +410,7 @@ private struct ShelfContent: View {
     @Binding var enableAutoClean: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
+        VStack(spacing: 14) {
             NotchShelfPreview()
                 .scaleEffect(0.78)
             
@@ -386,10 +437,8 @@ private struct ShelfContent: View {
                 FeatureChip(icon: "square.stack.3d.up.fill", text: "Multiple files")
                 FeatureChip(icon: "airplane", text: "AirDrop zone")
             }
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
@@ -400,9 +449,7 @@ private struct BasketContent: View {
     @Binding var instantBasketOnDrag: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
+        VStack(spacing: 14) {
             FloatingBasketPreview()
                 .scaleEffect(0.72)
             
@@ -431,10 +478,8 @@ private struct BasketContent: View {
                 FeatureChip(icon: "hand.draw.fill", text: instantBasketOnDrag ? "Appears on drag" : "Shake to summon")
                 FeatureChip(icon: "arrow.left.and.right", text: "Auto-hides to edge")
             }
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
@@ -444,9 +489,7 @@ private struct ClipboardContent: View {
     @Binding var enableClipboard: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
+        VStack(spacing: 14) {
             ClipboardPreview()
                 .scaleEffect(0.92)
             
@@ -482,10 +525,8 @@ private struct ClipboardContent: View {
                 FeatureChip(icon: "text.viewfinder", text: "OCR images")
                 FeatureChip(icon: "star.fill", text: "Favorites")
             }
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
@@ -500,9 +541,7 @@ private struct MediaContent: View {
     @Binding var enableDNDHUD: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
+        VStack(spacing: 14) {
             OnboardingMediaPreview()
             
             // HUD toggles - 7 HUDs in organized grid
@@ -519,7 +558,7 @@ private struct MediaContent: View {
                 
                 HStack(spacing: 8) {
                     HUDToggle(icon: "capslock.fill", title: "Caps Lock", color: .orange, isOn: $enableCapsLockHUD, available: true)
-                    HUDToggle(icon: "airpodspro", title: "AirPods", color: .white, isOn: $enableAirPodsHUD, available: true)
+                    HUDToggle(icon: "airpods", title: "AirPods", color: .white, isOn: $enableAirPodsHUD, available: true)
                 }
                 
                 HStack(spacing: 8) {
@@ -533,10 +572,8 @@ private struct MediaContent: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
     
     private var isMediaAvailable: Bool {
@@ -689,9 +726,7 @@ private struct ExtrasContent: View {
     @Binding var enableSmartExport: Bool
     
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
+        VStack(spacing: 14) {
             // Power Folders
             VStack(spacing: 6) {
                 OnboardingToggle(icon: "folder.fill.badge.gear", title: "Power Folders", color: .orange, isOn: $enablePowerFolders)
@@ -738,10 +773,8 @@ private struct ExtrasContent: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(Color.white.opacity(0.05), lineWidth: 1)
             )
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 
@@ -783,9 +816,7 @@ private struct ReadyContent: View {
     @State private var pulseGlow = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
+        VStack(spacing: 16) {
             // Success icon with celebration animation
             ZStack {
                 // Expanding pulse rings
@@ -851,16 +882,8 @@ private struct ReadyContent: View {
                 )
             }
             .frame(width: 380)
-            
-            Text("Droppy runs quietly in the background ✨")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-                .opacity(showFooter ? 1 : 0)
-                .animation(.easeOut(duration: 0.3).delay(1.0), value: showFooter)
-            
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .onAppear {
             // Trigger staged animations
             withAnimation {

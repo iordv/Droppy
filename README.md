@@ -81,6 +81,8 @@ Never lose a copy again. Your **full clipboard history** with instant search, fa
 |:---|:---|
 | **File Shelf & Basket** | Drag files to the notch. Jiggle your mouse to summon a floating basket with peek & hide animations. |
 | **Clipboard Manager** | Full history, instant search, favorites, OCR text extraction, rename entries, bulk copy, drag-out |
+| **Power Folders** | Pin folders to the shelf and drop files directly into them—organize on the fly |
+| **Smart Export** | Auto-save processed files to a folder and reveal them in Finder with one click |
 | **Native HUDs** | Volume, brightness, battery, caps lock, screen unlock, AirPods connection—all beautifully animated |
 | **Media Controls** | Album art, tap-to-seek slider, playback controls, shuffle, repeat, live audio visualizer |
 | **Quick Actions** | Right-click to compress, convert formats, extract text, remove backgrounds, share via AirDrop |

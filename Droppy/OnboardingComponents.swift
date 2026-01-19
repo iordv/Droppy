@@ -281,7 +281,17 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         newWindow.isReleasedWhenClosed = false  // Prevent premature deallocation
         newWindow.delegate = self  // Handle window close
         newWindow.contentView = hostingView
-        newWindow.center()
+        
+        // Precisely center on the main screen (MacBook's built-in display)
+        if let screen = NSScreen.main {
+            let screenFrame = screen.visibleFrame
+            let windowFrame = newWindow.frame
+            let x = screenFrame.midX - windowFrame.width / 2
+            let y = screenFrame.midY - windowFrame.height / 2
+            newWindow.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            newWindow.center()
+        }
         newWindow.level = .floating
         
         // Store reference AFTER setup
