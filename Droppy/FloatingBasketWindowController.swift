@@ -204,11 +204,7 @@ final class FloatingBasketWindowController: NSObject {
             .preferredColorScheme(.dark) // Force dark mode always
         let hostingView = NSHostingView(rootView: basketView)
         
-        // CRITICAL: Prevent NSHostingView from intercepting drags meant for BasketDragContainer
-        // NSHostingView registers for drag types by default, which can steal events from the
-        // underlying NSView. This fixes AirDrop zone detection on some hardware configurations.
-        // See: Knowledge Item - Split Zone Containers v7.7.5 Interception Guard
-        hostingView.unregisterDraggedTypes()
+
         
         // Create drag container
         let dragContainer = BasketDragContainer(frame: NSRect(origin: .zero, size: windowFrame.size))
@@ -365,23 +361,18 @@ final class FloatingBasketWindowController: NSObject {
     }
     
     /// Starts mouse tracking for auto-hide behavior
+    /// Starts mouse tracking for auto-hide behavior (Peek Mode Only)
+    /// When basket is fully visible, BasketDragContainer handles tracking efficiently    /// Starts mouse tracking for auto-hide behavior (Peek Mode Only)
+    /// When basket is fully visible, BasketDragContainer handles tracking efficiently via NSTrackingArea
     func startMouseTrackingMonitor() {
         guard isAutoHideEnabled else { return }
         stopMouseTrackingMonitor() // Clean up existing
         
-        mouseTrackingMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
+        // GLOBAL monitor: Only needed when peeking (to detect hover near edge)
+        mouseTrackingMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
             self?.handleMouseMovement()
         }
-        
-        // Also add local monitor for when basket window is focused
-        // Include leftMouseDragged and leftMouseUp to catch drop completion inside basket
-        localMouseTrackingMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
-            self?.handleMouseMovement()
-            return event
-        }
-    }
-    
-    /// Stops mouse tracking monitors
+    }/// Stops mouse tracking monitors
     private func stopMouseTrackingMonitor() {
         if let monitor = mouseTrackingMonitor {
             NSEvent.removeMonitor(monitor)
@@ -393,9 +384,11 @@ final class FloatingBasketWindowController: NSObject {
         }
     }
     
-    /// Handles mouse movement for auto-hide logic
+    /// Handles mouse movement for auto-hide logic (Peek Mode Only)
     private func handleMouseMovement() {
-        guard let panel = basketWindow, panel.isVisible, !isShowingOrHiding else { return }
+        // We only care about this global check if we are peeking!
+        // If fully visible, BasketDragContainer handles mouseEntered/Exited
+        guard let panel = basketWindow, panel.isVisible, isInPeekMode, !isShowingOrHiding else { return }
         
         // Don't interrupt during peek animations
         guard !isPeekAnimating else { return }
@@ -403,25 +396,17 @@ final class FloatingBasketWindowController: NSObject {
         let mouseLocation = NSEvent.mouseLocation
         let currentFrame = panel.frame
         
-        // Add a small margin for comfortable hover detection
+        // Add a small margin for comfortable hover detection around the peek sliver
         let hoverFrame = currentFrame.insetBy(dx: -10, dy: -10)
         let isMouseOverBasket = hoverFrame.contains(mouseLocation)
         
         if isMouseOverBasket {
-            // Mouse is over basket - cancel any pending hide and reveal if peeking
+            // Mouse hovered over peek sliver - reveal
             cancelHideTimer()
-            if isInPeekMode {
-                revealFromEdge()
-            }
-        } else {
-            // Skip auto-hide logic during file operations
-            guard !DroppyState.shared.isFileOperationInProgress else { return }
-            
-            // Mouse left basket - start hide timer if not already peeking
-            if !isInPeekMode && !DroppyState.shared.basketItems.isEmpty {
-                startHideTimer()
-            }
-        }
+            revealFromEdge()
+        } 
+        // Note: We don't need "else" here because startHideTimer is for "exiting" the basket.
+        // If we are peeking, we are essentially "already hidden".
     }
     
     /// Starts the delayed hide timer (0.5 second delay)
@@ -498,6 +483,9 @@ final class FloatingBasketWindowController: NSObject {
         isInPeekMode = true
         isPeekAnimating = true
         
+        // CRITICAL: Start global monitoring to detect hover over the peek sliver
+        startMouseTrackingMonitor()
+        
         // Ensure layer is optimized for animation
         layer.drawsAsynchronously = true
         layer.shouldRasterize = true
@@ -529,6 +517,9 @@ final class FloatingBasketWindowController: NSObject {
         
         isInPeekMode = false
         isPeekAnimating = true
+        
+        // CRITICAL: Stop global monitoring - rely on BasketDragContainer efficiently
+        stopMouseTrackingMonitor()
         
         // Pre-warm layer for immediate response
         layer.drawsAsynchronously = true
@@ -567,6 +558,8 @@ final class FloatingBasketWindowController: NSObject {
         
         // Don't trigger hide during file operations
         guard !DroppyState.shared.isFileOperationInProgress else { return }
+        // Don't trigger hide during animations (prevent race conditions)
+        guard !isPeekAnimating else { return }
         
         if !isInPeekMode {
             startHideTimer()

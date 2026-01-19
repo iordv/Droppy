@@ -52,9 +52,11 @@ enum AppPreferenceKey {
     static let enableBasketAutoHide = "enableBasketAutoHide"
     static let basketAutoHideEdge = "basketAutoHideEdge"
     static let instantBasketOnDrag = "instantBasketOnDrag"
+    static let instantBasketDelay = "instantBasketDelay"
     static let enableAutoClean = "enableAutoClean"
     static let enableAirDropZone = "enableAirDropZone"
     static let enableShelfAirDropZone = "enableShelfAirDropZone"
+    static let enablePowerFolders = "enablePowerFolders"
     
     // MARK: - Clipboard
     static let clipboardAutoFocusSearch = "clipboardAutoFocusSearch"
@@ -77,6 +79,22 @@ enum AppPreferenceKey {
     
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = "terminalNotch_installed"
+    
+    // MARK: - Extension: Video Compression (Legacy - migrated to Smart Export)
+    static let compressionAutoSaveToFolder = "compressionAutoSaveToFolder"
+    static let compressionAutoSaveFolder = "compressionAutoSaveFolder"  // URL path string
+    static let compressionRevealInFinder = "compressionRevealInFinder"
+    
+    // MARK: - Smart Export
+    static let smartExportEnabled = "smartExportEnabled"
+    // Compression
+    static let smartExportCompressionEnabled = "smartExportCompressionEnabled"
+    static let smartExportCompressionFolder = "smartExportCompressionFolder"
+    static let smartExportCompressionReveal = "smartExportCompressionReveal"
+    // Conversion
+    static let smartExportConversionEnabled = "smartExportConversionEnabled"
+    static let smartExportConversionFolder = "smartExportConversionFolder"
+    static let smartExportConversionReveal = "smartExportConversionReveal"
 }
 
 // MARK: - Default Values (Single Source of Truth)
@@ -123,9 +141,11 @@ enum PreferenceDefault {
     static let enableBasketAutoHide = false
     static let basketAutoHideEdge = "right"
     static let instantBasketOnDrag = false
+    static let instantBasketDelay: Double = 0.15  // Seconds, minimum 0.15 to let drag settle
     static let enableAutoClean = false
     static let enableAirDropZone = true
     static let enableShelfAirDropZone = true
+    static let enablePowerFolders = true
     
     // MARK: - Clipboard
     static let clipboardAutoFocusSearch = false
@@ -147,6 +167,22 @@ enum PreferenceDefault {
     
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = false
+    
+    // MARK: - Extension: Video Compression (Legacy)
+    static let compressionAutoSaveToFolder = false
+    static let compressionAutoSaveFolder = ""  // Empty = Downloads folder
+    static let compressionRevealInFinder = true
+    
+    // MARK: - Smart Export
+    static let smartExportEnabled = false
+    // Compression
+    static let smartExportCompressionEnabled = false
+    static let smartExportCompressionFolder = ""  // Empty = Downloads folder
+    static let smartExportCompressionReveal = true
+    // Conversion
+    static let smartExportConversionEnabled = false
+    static let smartExportConversionFolder = ""  // Empty = Downloads folder
+    static let smartExportConversionReveal = true
 }
 
 // MARK: - UserDefaults Extension

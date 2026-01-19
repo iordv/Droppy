@@ -100,6 +100,9 @@ final class DroppyState {
     /// Auto-hide is blocked when this is > 0
     private(set) var fileOperationCount: Int = 0
     
+    /// Global flag to block hover interactions (e.g. tooltips) when context menus are open
+    var isInteractionBlocked: Bool = false
+    
     /// Increment the file operation counter (called at start of operation)
     func beginFileOperation() {
         fileOperationCount += 1
@@ -226,6 +229,58 @@ final class DroppyState {
         items.removeAll()
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
+    }
+    
+    // MARK: - Folder Pinning
+    
+    /// Toggles the pinned state of a folder item
+    func togglePin(_ item: DroppedItem) {
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index].isPinned.toggle()
+            savePinnedFolders()
+        }
+        if let index = basketItems.firstIndex(where: { $0.id == item.id }) {
+            basketItems[index].isPinned.toggle()
+            savePinnedFolders()
+        }
+    }
+    
+    /// Saves pinned folder URLs to UserDefaults for persistence across sessions
+    private func savePinnedFolders() {
+        let pinnedURLs = (items + basketItems)
+            .filter { $0.isPinned }
+            .map { $0.url.absoluteString }
+        UserDefaults.standard.set(pinnedURLs, forKey: "pinnedFolderURLs")
+    }
+    
+    /// Restores pinned folders from previous session
+    func restorePinnedFolders() {
+        guard let savedURLs = UserDefaults.standard.stringArray(forKey: "pinnedFolderURLs") else { return }
+        let pinnedSet = Set(savedURLs)
+        
+        // Restore pinned state for matching items
+        for i in items.indices {
+            if pinnedSet.contains(items[i].url.absoluteString) {
+                items[i].isPinned = true
+            }
+        }
+        for i in basketItems.indices {
+            if pinnedSet.contains(basketItems[i].url.absoluteString) {
+                basketItems[i].isPinned = true
+            }
+        }
+        
+        // Re-add pinned folders that aren't currently in shelf/basket
+        let currentURLs = Set((items + basketItems).map { $0.url.absoluteString })
+        for urlString in savedURLs {
+            guard !currentURLs.contains(urlString),
+                  let url = URL(string: urlString),
+                  FileManager.default.fileExists(atPath: url.path) else { continue }
+            
+            var item = DroppedItem(url: url)
+            item.isPinned = true
+            items.append(item)
+        }
     }
     
     /// Validates that all items still exist on disk and removes ghost items

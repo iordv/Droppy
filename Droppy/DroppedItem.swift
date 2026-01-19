@@ -16,10 +16,57 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     let url: URL
     let name: String
     let fileType: UTType?
-    let icon: NSImage  // PERFORMANCE: UTType-based icon (fast) instead of per-file icon
+    let icon: NSImage  // PERFORMANCE: Static placeholder - real icon loads async via ThumbnailCache
     var thumbnail: NSImage?
     let dateAdded: Date
     var isTemporary: Bool = false  // Tracks if this file was created as a temp file (conversion, ZIP, etc.)
+    var isPinned: Bool = false  // Pinned folders persist across auto-clean and sessions
+    
+    /// Universal placeholder icon - never triggers Metal shader compilation
+    /// Used as immediate fallback while real icons load async
+    static let placeholderIcon: NSImage = {
+        // SF Symbol rendered to static image - no Metal shaders involved
+        let config = NSImage.SymbolConfiguration(pointSize: 32, weight: .regular)
+        if let symbol = NSImage(systemSymbolName: "doc.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(config) {
+            return symbol
+        }
+        // Ultimate fallback: empty image
+        return NSImage(size: NSSize(width: 32, height: 32))
+    }()
+    
+    /// Whether this item is a directory/folder
+    var isDirectory: Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+    }
+    
+    /// Generates a tooltip string listing the folder's contents (up to 8 items)
+    var folderContentsTooltip: String? {
+        guard isDirectory else { return nil }
+        
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+            
+            if contents.isEmpty {
+                return "Empty folder"
+            }
+            
+            let maxItems = 8
+            let sortedContents = contents.sorted { $0.lastPathComponent.localizedCaseInsensitiveCompare($1.lastPathComponent) == .orderedAscending }
+            let displayItems = sortedContents.prefix(maxItems)
+            
+            var lines = displayItems.map { "• \($0.lastPathComponent)" }
+            
+            if contents.count > maxItems {
+                lines.append("...and \(contents.count - maxItems) more")
+            }
+            
+            return lines.joined(separator: "\n")
+        } catch {
+            return nil
+        }
+    }
     
     // Conformance to Transferable using the URL as a proxy
     static var transferRepresentation: some TransferRepresentation {
@@ -30,14 +77,9 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         self.url = url
         self.name = url.lastPathComponent
         self.fileType = UTType(filenameExtension: url.pathExtension)
-        // PERFORMANCE: Use fast UTType-based icon instead of slow per-file icon
-        // NSWorkspace.shared.icon(for: UTType) is ~100x faster than icon(forFile:)
-        // for bulk operations. Visual difference is minimal for most files.
-        if let type = UTType(filenameExtension: url.pathExtension) {
-            self.icon = NSWorkspace.shared.icon(for: type)
-        } else {
-            self.icon = NSWorkspace.shared.icon(for: .data)
-        }
+        // PERFORMANCE: Use static placeholder to avoid Metal shader compilation lag
+        // Real icon/thumbnail loads asynchronously via ThumbnailCache.loadThumbnailAsync()
+        self.icon = DroppedItem.placeholderIcon
         self.dateAdded = Date()
         self.thumbnail = nil
         self.isTemporary = isTemporary

@@ -1,0 +1,96 @@
+ProductHunt Post for Droppy v8.4.0
+
+---
+
+TAGLINE:
+Turn your MacBook notch into a file shelf, media controller, and productivity hub
+
+
+---
+
+DESCRIPTION:
+
+Hey everyone! 👋
+
+I've spent the past couple of months turning the MacBook notch (you know, that black bar everyone hates) into something actually useful. What started as a weekend project has grown into a full-featured productivity tool.
+
+Here's what it does:
+
+📁 File Shelf
+Drop anything on your notch and it stays there. Drag it out when you need it. Simple as that. Works with AirDrop too - just drop files into the AirDrop zone and share instantly.
+
+🎵 Media Player
+Your music lives in the notch now. Album art, controls, real-time audio visualizer that actually reacts to what's playing. It even shows a glowing ambient light that matches your album art.
+
+⌨️ Terminal in Your Notch
+This one's for the devs - hit a shortcut, type a command, get instant results. Quick scripts, git commands, whatever you need. All without leaving what you're working on.
+
+📋 Clipboard History
+Every copy is saved. Search through it, favorite stuff, paste with a shortcut. Never lose that thing you copied 20 minutes ago.
+
+🧠 AI Background Removal
+Right-click any image, remove the background locally. No cloud, no upload, no privacy concerns. Just works.
+
+Recent updates since I last posted:
+• Completely rebuilt the notch "face" with buttery smooth 120fps animations 
+• Real audio visualizer that responds to actual system audio
+• Terminal-in-notch with timeout protection (won't freeze anymore!)
+• Extension store redesign with better discovery
+• Zero-lag first drops (used to stutter, fixed that)
+• AirPods connection HUD with battery levels
+• Focus/DND indicator
+• Multi-monitor support that actually works
+• Auto-expand when you hover with files
+
+The whole thing is built in pure Swift, no Electron, tiny ~24MB footprint. It's free, open-source, and runs on GitHub if you want to peek at the code.
+
+Works on any MacBook with a notch, and also supports Dynamic Island-style on external displays or older Macs.
+
+Would love to hear what you think, and happy to answer any questions!
+
+— Jordy
+
+
+---
+
+FIRST COMMENT:
+
+Hey! I'm Jordy, the solo developer behind Droppy. Been using a MacBook Pro for a few years and always felt like that notch was just... wasted space. 
+
+This is my attempt to make it useful. Built it in Swift because I wanted it to feel native (and honestly, Electron apps on Mac drive me a little crazy).
+
+A few things I'm particularly proud of:
+• The audio visualizer samples real system audio through ScreenCaptureKit
+• The AI background removal runs entirely on-device using InSPyReNet
+• Multi-monitor support was a nightmare to get right but it works now
+• The NotchFace character has this little wink animation that I spent way too long perfecting
+
+It's completely free. No Pro version, no subscription, nothing. Open source on GitHub with GPL-3.0 license.
+
+I'm around all day if you have questions or feedback. Especially interested in hearing about edge cases or things that feel broken.
+
+Thanks for checking it out! 🙏
+
+
+---
+
+KEY FEATURES (for PH listing):
+
+1. File Shelf - Stash files in your notch for easy access
+2. Media Player - Control music with real-time audio visualization  
+3. Terminal-in-Notch - Quick command execution without context switching
+4. Clipboard History - Search and paste from your copy history
+5. AI Background Removal - On-device image processing
+6. AirDrop Integration - Drag to share instantly
+7. System HUDs - Volume, brightness, battery, AirPods all in the notch
+8. Extension Store - Grow functionality with add-ons
+
+
+---
+
+QUICK LINKS:
+
+Website: https://iordv.github.io/Droppy
+GitHub: https://github.com/iordv/Droppy
+Install: brew install iordv/tap/droppy
+Discord: https://discord.gg/ghMSjHRa

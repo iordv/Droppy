@@ -229,10 +229,13 @@ struct FFmpegInstallView: View {
     
     private var contentSection: some View {
         Group {
-            if manager.isInstalling || (manager.isInstalled && !manager.isInstalling) {
-                // Show step progress during/after install
+            if manager.isInstalling {
+                // Show step progress during install
                 stepsView
-            } else if !manager.isInstalled {
+            } else if manager.isInstalled {
+                // Show settings when installed
+                settingsView
+            } else {
                 // Show features before install
                 featuresView
             }
@@ -258,6 +261,59 @@ struct FFmpegInstallView: View {
                     .padding(.leading, 36)
                     .padding(.top, 8)
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 20)
+    }
+    
+    private var settingsView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Status indicator
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+                Text("Installed & Ready")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.green)
+            }
+            
+            // Smart Export info card - clickable to open settings
+            Button {
+                // Open Settings and navigate to Smart Export section
+                SettingsWindowController.shared.showSettings()
+                // Post notification to navigate to Features tab where Smart Export is located
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NotificationCenter.default.post(name: .openSmartExportSettings, object: nil)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    // Use the shared animated Smart Export icon
+                    SmartExportAnimatedIcon(size: 40)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-Save Compressed Files")
+                            .font(.callout.weight(.medium))
+                        Text("Configure export settings in Settings → Shared Features → Smart Export")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+            .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 20)

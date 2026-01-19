@@ -12,8 +12,10 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
     @AppStorage(AppPreferenceKey.enableAirDropZone) private var enableAirDropZone = PreferenceDefault.enableAirDropZone
     @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone = PreferenceDefault.enableShelfAirDropZone
+    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
     @AppStorage(AppPreferenceKey.basketAutoHideEdge) private var basketAutoHideEdge = PreferenceDefault.basketAutoHideEdge
     @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag = PreferenceDefault.instantBasketOnDrag
+    @AppStorage(AppPreferenceKey.instantBasketDelay) private var instantBasketDelay = PreferenceDefault.instantBasketDelay
     @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton = PreferenceDefault.showClipboardButton
     @AppStorage(AppPreferenceKey.showOpenShelfIndicator) private var showOpenShelfIndicator = PreferenceDefault.showOpenShelfIndicator
     @AppStorage(AppPreferenceKey.hideNotchOnExternalDisplays) private var hideNotchOnExternalDisplays = PreferenceDefault.hideNotchOnExternalDisplays
@@ -222,6 +224,10 @@ struct SettingsView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSmartExportSettings)) { _ in
+            // Navigate to Features tab where Smart Export is located
+            selectedTab = "Features"
+        }
     }
     
     // MARK: - Sidebar Button Helper
@@ -264,6 +270,59 @@ struct SettingsView: View {
     
     private var featuresSettings: some View {
         Group {
+            // MARK: Shared Features Section
+            Section {
+                // AirDrop Zone (affects both shelf and basket)
+                // Uses || so existing users with mixed settings see ON (not stuck)
+                HStack(spacing: 8) {
+                    AirDropZoneInfoButton()
+                    Toggle(isOn: Binding(
+                        get: { enableAirDropZone || enableShelfAirDropZone },
+                        set: { newValue in
+                            enableAirDropZone = newValue
+                            enableShelfAirDropZone = newValue
+                        }
+                    )) {
+                        VStack(alignment: .leading) {
+                            Text("AirDrop Zone")
+                            Text("Drop files on the right side to share via AirDrop")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                // Auto-Clean (affects both shelf and basket)
+                Toggle(isOn: $enableAutoClean) {
+                    VStack(alignment: .leading) {
+                        Text("Auto-Clean")
+                        Text("Remove files automatically after dragging out")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                // Power Folders (affects both shelf and basket)
+                HStack(spacing: 8) {
+                    PowerFoldersInfoButton()
+                    Toggle(isOn: $enablePowerFolders) {
+                        VStack(alignment: .leading) {
+                            Text("Power Folders")
+                            Text("Pin folders and drop files directly into them")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                // Smart Export (auto-save processed files)
+                SmartExportSettingsRow()
+            } header: {
+                Text("Shared Features")
+            } footer: {
+                Text("These features apply to both Notch Shelf and Floating Basket.")
+            }
+            
             // MARK: Notch Shelf Section
             Section {
                 HStack(spacing: 8) {
@@ -291,31 +350,6 @@ struct SettingsView: View {
                 
                 if enableNotchShelf {
                     NotchShelfPreview()
-                    
-                    // Shelf AirDrop Zone toggle
-                    HStack(spacing: 8) {
-                        AirDropZoneInfoButton()
-                        Toggle(isOn: $enableShelfAirDropZone) {
-                            VStack(alignment: .leading) {
-                                Text("AirDrop Zone")
-                                Text("Drop files on the right side of empty shelf to AirDrop")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                
-                // Auto-Clean toggle (applies to both shelf and basket)
-                if enableNotchShelf || enableFloatingBasket {
-                    Toggle(isOn: $enableAutoClean) {
-                        VStack(alignment: .leading) {
-                            Text("Auto-Clean")
-                            Text("Auto-remove files from shelf & basket after dragging out")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
             } header: {
                 Text("Notch Shelf")
@@ -358,6 +392,21 @@ struct SettingsView: View {
                         }
                     }
                     
+                    // Delay slider (only when instant appear is enabled)
+                    if instantBasketOnDrag {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Delay")
+                                Spacer()
+                                Text(instantBasketDelay < 0.2 ? "Instant" : String(format: "%.1fs", instantBasketDelay))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $instantBasketDelay, in: 0.15...3.0, step: 0.1)
+                        }
+                        .padding(.leading, 28)  // Align with toggle content
+                    }
+                    
                     // Auto-hide with peek toggle
                     HStack(spacing: 8) {
                         PeekModeInfoButton()
@@ -389,19 +438,6 @@ struct SettingsView: View {
                         
                         // Animated peek preview
                         PeekPreview(edge: basketAutoHideEdge)
-                    }
-                    
-                    // AirDrop Zone toggle
-                    HStack(spacing: 8) {
-                        AirDropZoneInfoButton()
-                        Toggle(isOn: $enableAirDropZone) {
-                            VStack(alignment: .leading) {
-                                Text("AirDrop Zone")
-                                Text("Drop files on the right side to AirDrop instantly")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
                     }
                 }
             } header: {
@@ -2053,6 +2089,80 @@ struct AirDropZoneInfoButton: View {
             }
             .padding(20)
             .frame(width: 180)
+        }
+    }
+}
+
+// MARK: - Power Folders Info Button
+struct PowerFoldersInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Power Folders")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Folder visualization
+                HStack(spacing: 12) {
+                    // Regular folder
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.blue.opacity(0.15))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.blue.opacity(0.3), lineWidth: 1))
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.blue)
+                    }
+                    .frame(width: 45, height: 45)
+                    
+                    Image(systemName: "arrow.right")
+                        .foregroundStyle(.secondary)
+                    
+                    // Pinned folder
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.yellow.opacity(0.15))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(Color.yellow.opacity(0.5), lineWidth: 2))
+                        VStack(spacing: 2) {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.yellow)
+                            Image(systemName: "folder.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.yellow)
+                        }
+                    }
+                    .frame(width: 45, height: 45)
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.yellow).frame(width: 5, height: 5)
+                        Text("Pin folders to keep them")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.yellow).frame(width: 5, height: 5)
+                        Text("Drop files directly into them")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.yellow).frame(width: 5, height: 5)
+                        Text("Hover to preview contents")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 200)
         }
     }
 }

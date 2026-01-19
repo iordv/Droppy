@@ -35,6 +35,9 @@ extension Notification.Name {
     /// Posted when a deep link opens an extension page
     static let openExtensionFromDeepLink = Notification.Name("openExtensionFromDeepLink")
     
+    /// Posted when navigating to Smart Export settings from an extension
+    static let openSmartExportSettings = Notification.Name("openSmartExportSettings")
+    
     // MARK: - Shortcuts
     
     /// Posted when Element Capture shortcut is changed

@@ -197,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Touch singletons on main thread to ensure proper @AppStorage / UI initialization
         _ = DroppyState.shared
+        DroppyState.shared.restorePinnedFolders()  // Restore pinned folders from previous session
         _ = DragMonitor.shared
         _ = NotchWindowController.shared
         _ = FloatingBasketWindowController.shared

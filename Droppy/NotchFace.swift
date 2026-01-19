@@ -29,21 +29,21 @@ struct NotchFace: View {
     
     var body: some View {
         ZStack {
-            // Left eye
+            // Left eye (goes wide on hover)
             Ellipse()
                 .fill(faceGradient)
                 .frame(
                     width: size * 0.22,
-                    height: size * 0.22 * (isExcited ? 1.25 : 1.0)
+                    height: size * 0.22 * (isExcited ? 1.4 : 1.0)
                 )
                 .offset(x: -size * 0.18, y: -size * 0.12)
             
-            // Right eye (winks)
+            // Right eye (winks normally, goes wide on hover)
             Ellipse()
                 .fill(faceGradient)
                 .frame(
                     width: size * 0.22,
-                    height: size * 0.22 * (isExcited ? 1.25 : eyeScale)
+                    height: size * 0.22 * (isExcited ? 1.4 : eyeScale)
                 )
                 .offset(x: size * 0.18, y: -size * 0.12)
             
@@ -53,23 +53,14 @@ struct NotchFace: View {
                 .frame(width: size * 0.14, height: size * 0.14)
                 .offset(y: size * 0.04)
             
-            // Mouth
-            if isExcited {
-                // Open mouth (surprised)
-                Ellipse()
-                    .fill(faceGradient)
-                    .frame(width: size * 0.18, height: size * 0.28)
-                    .offset(y: size * 0.26)
-            } else {
-                // Smile curve
-                SmileCurve()
-                    .stroke(faceGradient, style: StrokeStyle(
-                        lineWidth: size * 0.1,
-                        lineCap: .round
-                    ))
-                    .frame(width: size * 0.42 * smileScale, height: size * 0.18 * smileScale)
-                    .offset(y: size * 0.26)
-            }
+            // Mouth - always smile curve (no change on hover)
+            SmileCurve()
+                .stroke(faceGradient, style: StrokeStyle(
+                    lineWidth: size * 0.1,
+                    lineCap: .round
+                ))
+                .frame(width: size * 0.42 * smileScale, height: size * 0.18 * smileScale)
+                .offset(y: size * 0.26)
         }
         .frame(width: size, height: size)
         .shadow(color: .black.opacity(0.25), radius: size * 0.03, y: size * 0.03)

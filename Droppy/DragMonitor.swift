@@ -106,8 +106,11 @@ final class DragMonitor: ObservableObject {
                     // Check if instant basket mode is enabled
                     let instantMode = UserDefaults.standard.bool(forKey: "instantBasketOnDrag")
                     if instantMode {
-                        // Small delay (150ms) to let drag "settle" - feels snappy but intentional
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                        // Get user-configured delay (minimum 0.15s to let drag "settle")
+                        let configuredDelay = UserDefaults.standard.double(forKey: "instantBasketDelay")
+                        let delay = max(0.15, configuredDelay > 0 ? configuredDelay : 0.15)
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                             // Only show if drag is still active (user didn't release)
                             guard self?.dragActive == true else { return }
                             let enabled = UserDefaults.standard.bool(forKey: "enableFloatingBasket")

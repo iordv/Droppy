@@ -266,7 +266,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         
         // Use NSPanel with borderless style to match extension windows (no traffic lights)
         let newWindow = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 780, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 580),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

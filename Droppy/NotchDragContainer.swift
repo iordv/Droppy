@@ -25,6 +25,10 @@ class NotchDragContainer: NSView {
     /// Expanded shelf width constant
     private let expandedShelfWidth: CGFloat = 450
     
+    /// Track if current drag is valid (for Power Folders restriction)
+    private var currentDragIsValid: Bool = true
+
+    
     /// Whether AirDrop zone is enabled for shelf
     private var isShelfAirDropZoneEnabled: Bool {
         UserDefaults.standard.bool(forKey: "enableShelfAirDropZone")
@@ -560,6 +564,30 @@ class NotchDragContainer: NSView {
     }
     
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        currentDragIsValid = true
+        
+        // Check Power Folders restriction
+        // CRITICAL: Use object() ?? true to match @AppStorage default
+        let powerFoldersEnabled = (UserDefaults.standard.object(forKey: "enablePowerFolders") as? Bool) ?? true
+        
+        if !powerFoldersEnabled {
+            let pasteboard = sender.draggingPasteboard
+            // Only read URLs if we need to check for folders
+            if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+                // Check if any URL is a directory
+                let hasFolder = urls.prefix(10).contains { url in
+                    var isDir: ObjCBool = false
+                    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+                }
+                
+                if hasFolder {
+                    print("🚫 Shelf: Rejected folder drop (Power Folders disabled)")
+                    currentDragIsValid = false
+                    return []
+                }
+            }
+        }
+
         let overNotch = isDragOverNotch(sender)
         let isExpanded = DroppyState.shared.isExpanded
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
@@ -593,6 +621,9 @@ class NotchDragContainer: NSView {
     }
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // Respect validity check from draggingEntered
+        if !currentDragIsValid { return [] }
+        
         let overNotch = isDragOverNotch(sender)
         let isExpanded = DroppyState.shared.isExpanded
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
@@ -643,6 +674,9 @@ class NotchDragContainer: NSView {
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // Respect validity check
+        if !currentDragIsValid { return false }
+        
         let isExpanded = DroppyState.shared.isExpanded
         let overNotch = isDragOverNotch(sender)
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)

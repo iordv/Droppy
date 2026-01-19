@@ -2,7 +2,9 @@
 //  OnboardingView.swift
 //  Droppy
 //
-//  Clean, focused onboarding wizard - 4 pages only
+//  Onboarding 3.0 - Polished, comprehensive guided experience
+//  All toggles mirror SettingsView exactly
+//  Fixed position stability during page transitions
 //
 
 import SwiftUI
@@ -12,799 +14,993 @@ import AppKit
 
 enum OnboardingPage: Int, CaseIterable {
     case welcome = 0
-    case features
-    case setup
-    case basics
+    case shelf
+    case basket
+    case clipboard
+    case media
+    case extras
     case ready
-    
-    /// Whether this page should be shown for the current device
-    var shouldShow: Bool { true }
 }
 
-// MARK: - Onboarding Toggle
-
-/// Toggle button for onboarding with icon bounce animation
-/// Designed for the 2x2 grid layout in Quick Setup page
-
-
-// MARK: - Onboarding Display Mode Button
-
-/// Display mode button for onboarding with icon bounce animation
-/// Designed for the Notch/Dynamic Island selection
-
-
-// MARK: - Onboarding View
+// MARK: - Main Onboarding View
 
 struct OnboardingView: View {
-    // Essential toggles
+    // Shelf & Basket
     @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableShelf = PreferenceDefault.enableNotchShelf
     @AppStorage(AppPreferenceKey.enableFloatingBasket) private var enableBasket = PreferenceDefault.enableFloatingBasket
+    @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag = PreferenceDefault.instantBasketOnDrag
+    @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
+    
+    // Clipboard
     @AppStorage(AppPreferenceKey.enableClipboard) private var enableClipboard = PreferenceDefault.enableClipboard
-    @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDs = PreferenceDefault.enableHUDReplacement
-    @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle = PreferenceDefault.useDynamicIslandStyle
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
-    // Additional toggles for 8-toggle grid
+    
+    // Media & HUDs
     @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault.showMediaPlayer
-    @AppStorage(AppPreferenceKey.autoExpandShelf) private var autoExpandShelf = PreferenceDefault.autoExpandShelf
-    @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault.startAtLogin
-    @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault.showInMenuBar
+    @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUD = PreferenceDefault.enableHUDReplacement
+    @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault.enableBatteryHUD
+    @AppStorage(AppPreferenceKey.enableCapsLockHUD) private var enableCapsLockHUD = PreferenceDefault.enableCapsLockHUD
+    @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
+    @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
+    
+    // Extras
+    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
+    @AppStorage(AppPreferenceKey.smartExportEnabled) private var enableSmartExport = PreferenceDefault.smartExportEnabled
+    
+    // Appearance
+    @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle = PreferenceDefault.useDynamicIslandStyle
     
     @State private var currentPage: OnboardingPage = .welcome
     @State private var isNextHovering = false
     @State private var isBackHovering = false
     @State private var showConfetti = false
-    
-    // Animation states for features page
-    @State private var featuresAnimated = false
+    @State private var direction: Int = 1
+    @State private var faceScale: CGFloat = 1.0
+    @State private var faceRotation: Double = 0
     
     let onComplete: () -> Void
     
-    /// Check if this Mac has a notch
     private var hasNotch: Bool {
         guard let screen = NSScreen.main else { return false }
         return screen.safeAreaInsets.top > 0
     }
     
     var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                // Page Content
-                pageContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .id(currentPage)
-                
-                Divider()
-                    .padding(.horizontal, 20)
-                
-                // Navigation
-                HStack {
-                    // Back button
-                    if currentPage != .welcome {
-                        Button {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                currentPage = OnboardingPage(rawValue: currentPage.rawValue - 1) ?? .welcome
-                                if currentPage == .features {
-                                    featuresAnimated = false
-                                    triggerFeaturesAnimation()
-                                }
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 12, weight: .semibold))
-                                Text("Back")
-                            }
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background((isBackHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                            .foregroundStyle(.secondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .onHover { h in
-                            withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                                isBackHovering = h
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Page indicators
-                    HStack(spacing: 6) {
-                        ForEach(OnboardingPage.allCases, id: \.rawValue) { page in
-                            Circle()
-                                .fill(page == currentPage ? Color.blue : AdaptiveColors.subtleBorderAuto)
-                                .frame(width: 8, height: 8)
-                                .scaleEffect(page == currentPage ? 1.2 : 1.0)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentPage)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Next/Done button
-                    Button {
-                        if currentPage == .ready {
-                            onComplete()
-                        } else {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                currentPage = OnboardingPage(rawValue: currentPage.rawValue + 1) ?? .ready
-                                if currentPage == .features {
-                                    triggerFeaturesAnimation()
-                                }
-                                if currentPage == .basics {
-                                    triggerFeaturesAnimation() // Reuse for basics animation
-                                }
-                                if currentPage == .ready {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        showConfetti = true
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text(currentPage == .ready ? "Get Started" : "Next")
-                            Image(systemName: currentPage == .ready ? "arrow.right.circle.fill" : "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(
-                            (currentPage == .ready ? Color.green : Color.blue)
-                                .opacity(isNextHovering ? 1.0 : 0.85)
-                        )
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            isNextHovering = h
-                        }
-                    }
-                }
-                .padding(20)
-            }
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            headerSection
+                .frame(height: 110)
             
-            // Confetti overlay
+            // Content - fixed height
+            contentSection
+                .frame(height: 400)
+                .clipped()
+            
+            // Footer
+            footerSection
+                .frame(height: 70)
+        }
+        .frame(width: 700, height: 580)
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .overlay {
             if showConfetti {
                 OnboardingConfettiView()
                     .allowsHitTesting(false)
             }
         }
-        .frame(width: 780, height: 720)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-        )
-    }
-    
-    @ViewBuilder
-    private var pageContent: some View {
-        switch currentPage {
-        case .welcome:
-            welcomePage
-        case .features:
-            featuresPage
-        case .setup:
-            setupPage
-        case .basics:
-            basicsPage
-        case .ready:
-            readyPage
-        }
-    }
-    
-    private func triggerFeaturesAnimation() {
-        featuresAnimated = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                featuresAnimated = true
+        .onAppear {
+            // Initial face animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                animateNotchFace()
             }
         }
     }
     
-    // MARK: - Page 1: Welcome
+    // MARK: - Header Section
     
-    private var welcomePage: some View {
+    private var headerSection: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 65, height: 65)
+                    .blur(radius: 14)
+                    .scaleEffect(faceScale)
+                
+                NotchFace(size: 48, isExcited: currentPage == .welcome || currentPage == .ready)
+                    .scaleEffect(faceScale)
+                    .rotationEffect(.degrees(faceRotation))
+            }
+            
+            Text(pageTitle)
+                .font(.system(size: 22, weight: .bold))
+            
+            Text(pageSubtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(maxWidth: 480)
+        }
+        .padding(.top, 24)
+        .onChange(of: currentPage) { _, _ in
+            animateNotchFace()
+        }
+    }
+    
+    private func animateNotchFace() {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.45)) {
+            faceScale = 1.2
+            faceRotation = direction > 0 ? 12 : -12
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+                faceScale = 1.0
+                faceRotation = 0
+            }
+        }
+    }
+    
+    // MARK: - Content Section
+    
+    private var contentSection: some View {
+        ZStack {
+            ForEach(OnboardingPage.allCases, id: \.rawValue) { page in
+                if page == currentPage {
+                    pageContent(for: page)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                }
+            }
+        }
+    }
+    
+    // MARK: - Footer Section
+    
+    private var footerSection: some View {
+        HStack {
+            // Back button
+            if currentPage != .welcome {
+                Button(action: navigateBack) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Back")
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(isBackHovering ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
+                    .foregroundStyle(.secondary)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .onHover { isBackHovering = $0 }
+            } else {
+                Spacer().frame(width: 90)
+            }
+            
+            Spacer()
+            
+            // Page dots
+            HStack(spacing: 6) {
+                ForEach(OnboardingPage.allCases, id: \.rawValue) { page in
+                    Circle()
+                        .fill(page == currentPage ? Color.white : Color.white.opacity(0.25))
+                        .frame(width: page == currentPage ? 8 : 6, height: page == currentPage ? 8 : 6)
+                        .animation(.easeOut(duration: 0.15), value: currentPage)
+                }
+            }
+            
+            Spacer()
+            
+            // Next button
+            Button(action: { currentPage == .ready ? onComplete() : navigateNext() }) {
+                HStack(spacing: 5) {
+                    Text(currentPage == .ready ? "Get Started" : "Continue")
+                    Image(systemName: currentPage == .ready ? "arrow.right" : "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background((currentPage == .ready ? Color.green : Color.blue).opacity(isNextHovering ? 1.0 : 0.85))
+                .foregroundStyle(.white)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .onHover { isNextHovering = $0 }
+        }
+        .padding(.horizontal, 30)
+    }
+    
+    // MARK: - Navigation
+    
+    private func navigateNext() {
+        direction = 1
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentPage = OnboardingPage(rawValue: currentPage.rawValue + 1) ?? .ready
+        }
+        if currentPage == .ready {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { showConfetti = true }
+        }
+    }
+    
+    private func navigateBack() {
+        direction = -1
+        withAnimation(.easeInOut(duration: 0.25)) {
+            currentPage = OnboardingPage(rawValue: currentPage.rawValue - 1) ?? .welcome
+        }
+    }
+    
+    private var pageTitle: String {
+        switch currentPage {
+        case .welcome: return "Hey there! 👋"
+        case .shelf: return "The Notch Shelf"
+        case .basket: return "Floating Basket"
+        case .clipboard: return "Clipboard Manager"
+        case .media: return "Media & HUDs"
+        case .extras: return "Power Features"
+        case .ready: return "You're All Set!"
+        }
+    }
+    
+    private var pageSubtitle: String {
+        switch currentPage {
+        case .welcome: return "I'm Droppy, your new productivity companion"
+        case .shelf: return "A temporary storage area right in your menu bar"
+        case .basket: return "A drop zone that appears wherever you need it"
+        case .clipboard: return "Your complete clipboard history at your fingertips"
+        case .media: return "Beautiful notifications for music, volume, and more"
+        case .extras: return "Advanced features to supercharge your workflow"
+        case .ready: return "Droppy is ready to make your Mac more productive"
+        }
+    }
+    
+    // MARK: - Page Content Router
+    
+    @ViewBuilder
+    private func pageContent(for page: OnboardingPage) -> some View {
+        switch page {
+        case .welcome:
+            WelcomeContent(hasNotch: hasNotch, useDynamicIslandStyle: $useDynamicIslandStyle)
+        case .shelf:
+            ShelfContent(enableShelf: $enableShelf, enableAutoClean: $enableAutoClean)
+        case .basket:
+            BasketContent(enableBasket: $enableBasket, instantBasketOnDrag: $instantBasketOnDrag)
+        case .clipboard:
+            ClipboardContent(enableClipboard: $enableClipboard)
+        case .media:
+            MediaContent(
+                showMediaPlayer: $showMediaPlayer,
+                enableHUD: $enableHUD,
+                enableBatteryHUD: $enableBatteryHUD,
+                enableCapsLockHUD: $enableCapsLockHUD,
+                enableAirPodsHUD: $enableAirPodsHUD,
+                enableDNDHUD: $enableDNDHUD
+            )
+        case .extras:
+            ExtrasContent(enablePowerFolders: $enablePowerFolders, enableSmartExport: $enableSmartExport)
+        case .ready:
+            ReadyContent()
+        }
+    }
+}
+
+// MARK: - Page 1: Welcome
+
+private struct WelcomeContent: View {
+    let hasNotch: Bool
+    @Binding var useDynamicIslandStyle: Bool
+    
+    var body: some View {
         VStack(spacing: 24) {
             Spacer()
             
-            // App Icon with glow
+            // App icon
             ZStack {
                 Circle()
-                    .fill(Color.blue.opacity(0.25))
-                    .frame(width: 140, height: 140)
-                    .blur(radius: 40)
+                    .fill(Color.blue.opacity(0.12))
+                    .frame(width: 85, height: 85)
+                    .blur(radius: 18)
                 
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 90, height: 90)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
+                    .frame(width: 56, height: 56)
             }
             
-            VStack(spacing: 10) {
-                Text("Your all-in-one Mac")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.primary)
-                Text("productivity companion")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.primary)
-            }
-            
-            VStack(spacing: 8) {
-                Text("Free forever. No subscriptions. No hidden costs.")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(.blue)
+            // Feature list - properly centered
+            VStack(spacing: 16) {
+                Text("Your Mac's Missing Productivity Layer")
+                    .font(.system(size: 15, weight: .semibold))
                 
-                Text("We built Droppy because you deserve a beautiful,\npowerful tool without paying monthly.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(2)
-            }
-            .padding(.top, 4)
-            
-            Spacer()
-        }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
-    }
-    
-    // MARK: - Page 2: Features Overview
-    
-    private var featuresPage: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            Text("Everything in one place")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(.primary)
-            
-            // Feature cards - 2 column grid layout (8 cards total)
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ], spacing: 12) {
-                compactFeatureCard(
-                    icon: "tray.and.arrow.down.fill",
-                    color: .blue,
-                    title: "Shelf",
-                    description: "Drop files into your notch",
-                    delay: 0
-                )
-                
-                compactFeatureCard(
-                    icon: "basket.fill",
-                    color: .purple,
-                    title: "Basket",
-                    description: "Jiggle to summon drop zone",
-                    delay: 0.06
-                )
-                
-                compactFeatureCard(
-                    icon: "doc.on.clipboard.fill",
-                    color: .cyan,
-                    title: "Clipboard",
-                    description: "History, search, and OCR",
-                    delay: 0.12
-                )
-                
-                compactFeatureCard(
-                    icon: "slider.horizontal.3",
-                    color: .orange,
-                    title: "System HUDs",
-                    description: "Volume, brightness, and more",
-                    delay: 0.18
-                )
-                
-                compactFeatureCard(
-                    icon: "play.circle.fill",
-                    color: .pink,
-                    title: "Media Player",
-                    description: "Control music from your notch",
-                    delay: 0.24
-                )
-                
-                compactFeatureCard(
-                    icon: "hand.draw.fill",
-                    color: .green,
-                    title: "Gestures",
-                    description: "Swipe between media & shelf",
-                    delay: 0.30
-                )
-                
-                compactFeatureCard(
-                    icon: "eye.fill",
-                    color: .yellow,
-                    title: "Quick Look",
-                    description: "Press Space to preview files",
-                    delay: 0.36
-                )
-                
-                // Extensions card
-                VStack(spacing: 8) {
-                    CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.purple, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    .frame(width: 36, height: 36)
-                    
-                    VStack(spacing: 2) {
-                        Text("Extensions")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text("AI, Alfred, Spotify, & more")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .padding(.horizontal, 12)
-                .background(AdaptiveColors.buttonBackgroundAuto)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .opacity(featuresAnimated ? 1 : 0)
-                .offset(y: featuresAnimated ? 0 : 10)
-                .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.42), value: featuresAnimated)
-            }
-            .padding(.horizontal, 50)
-            
-            Spacer()
-        }
-        .onAppear {
-            triggerFeaturesAnimation()
-        }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
-    }
-    
-    private func featureRow(icon: String, color: Color, title: String, description: String, delay: Double) -> some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(color.opacity(0.15))
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(color)
-                    .symbolRenderingMode(.monochrome)
-            }
-            .frame(width: 44, height: 44)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(AdaptiveColors.buttonBackgroundAuto)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .opacity(featuresAnimated ? 1 : 0)
-        .offset(y: featuresAnimated ? 0 : 10)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(delay), value: featuresAnimated)
-    }
-    
-    /// Compact feature card for 2-column grid layout
-    private func compactFeatureCard(icon: String, color: Color, title: String, description: String, delay: Double) -> some View {
-        VStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(color.opacity(0.15))
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(color)
-                    .symbolRenderingMode(.monochrome)
-            }
-            .frame(width: 36, height: 36)
-            
-            VStack(spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .padding(.horizontal, 12)
-        .background(AdaptiveColors.buttonBackgroundAuto)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .opacity(featuresAnimated ? 1 : 0)
-        .offset(y: featuresAnimated ? 0 : 10)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(delay), value: featuresAnimated)
-    }
-    
-    // MARK: - Page 3: Quick Setup
-    
-    private var setupPage: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            Text("Quick Setup")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(.primary)
-            
-            Text("Toggle the features you want. You can always change these in Settings.")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 60)
-            
-            // Essential toggles grid with icon bounce animation (8 toggles - 2x4 grid)
-            VStack(spacing: 10) {
-                HStack(spacing: 12) {
-                    OnboardingToggle(icon: "tray.and.arrow.down.fill", title: "Shelf", color: .blue, isOn: $enableShelf)
-                    OnboardingToggle(icon: "basket.fill", title: "Basket", color: .purple, isOn: $enableBasket)
-                }
-                
-                HStack(spacing: 12) {
-                    OnboardingToggle(icon: "doc.on.clipboard.fill", title: "Clipboard", color: .cyan, isOn: $enableClipboard)
-                    OnboardingToggle(icon: "slider.horizontal.3", title: "System HUDs", color: .orange, isOn: $enableHUDs)
-                }
-                
-                HStack(spacing: 12) {
-                    OnboardingToggle(icon: "music.note", title: "Media Player", color: .pink, isOn: $showMediaPlayer)
-                    OnboardingToggle(icon: "arrow.up.left.and.arrow.down.right", title: "Auto Expand", color: .teal, isOn: $autoExpandShelf)
-                }
-                
-                HStack(spacing: 12) {
-                    OnboardingToggle(icon: "power", title: "Start at Login", color: .indigo, isOn: $startAtLogin)
-                    OnboardingToggle(icon: "menubar.rectangle", title: "Menu Bar Icon", color: .gray, isOn: $showInMenuBar)
+                VStack(alignment: .leading, spacing: 10) {
+                    FeatureLine(icon: "tray.and.arrow.down.fill", text: "Drag files to your notch for quick access", color: .blue)
+                    FeatureLine(icon: "doc.on.clipboard.fill", text: "Search your clipboard history with OCR", color: .cyan)
+                    FeatureLine(icon: "music.note", text: "See Now Playing right in your menu bar", color: .green)
+                    FeatureLine(icon: "wand.and.stars", text: "Auto-compress images and convert files", color: .pink)
                 }
             }
-            .padding(.horizontal, 60)
             
-            // Display mode picker (only for non-notch Macs)
+            // Style picker
             if !hasNotch {
-                VStack(spacing: 12) {
-                    Text("Display Mode")
-                        .font(.subheadline.weight(.semibold))
+                VStack(spacing: 10) {
+                    Text("Choose your display style")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                     
-                    HStack(spacing: 12) {
-                        OnboardingDisplayModeButton(
-                            title: "Notch",
-                            isSelected: !useDynamicIslandStyle,
-                            action: { useDynamicIslandStyle = false }
-                        ) {
-                            // Notch icon (simple rounded rectangle)
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .fill(!useDynamicIslandStyle ? Color.blue : AdaptiveColors.buttonBackgroundAuto)
-                                .frame(width: 50, height: 16)
+                    HStack(spacing: 16) {
+                        StyleButton(title: "Notch", isSelected: !useDynamicIslandStyle, isNotch: true) {
+                            useDynamicIslandStyle = false
                         }
-                        
-                        OnboardingDisplayModeButton(
-                            title: "Dynamic Island",
-                            isSelected: useDynamicIslandStyle,
-                            action: { useDynamicIslandStyle = true }
-                        ) {
-                            // Dynamic Island icon
-                            Capsule()
-                                .fill(useDynamicIslandStyle ? Color.blue : AdaptiveColors.buttonBackgroundAuto)
-                                .frame(width: 44, height: 14)
+                        StyleButton(title: "Dynamic Island", isSelected: useDynamicIslandStyle, isNotch: false) {
+                            useDynamicIslandStyle = true
                         }
                     }
-                    .padding(.horizontal, 60)
                 }
-                .padding(.top, 8)
             }
-            
-            // Keyboard shortcut hint
-            HStack(spacing: 6) {
-                Text("Tip:")
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 3) {
-                    keyBadge("⌘")
-                    keyBadge("⇧")
-                    keyBadge("Space")
-                }
-                Text("opens Clipboard")
-                    .foregroundStyle(.secondary)
-            }
-            .font(.subheadline)
-            .padding(.top, 8)
             
             Spacer()
         }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
-    }
-        
-    private func keyBadge(_ key: String) -> some View {
-        Text(key)
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .background(AdaptiveColors.hoverBackgroundAuto)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-            )
-    }
-    
-    // MARK: - Page 4: Basics (Great To Know Tips)
-    
-    private var basicsPage: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
-            Text("Great to Know")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(.primary)
-            
-            Text("Essential tips to get the most out of Droppy")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            
-            // Tips grid - 2 column layout (8 tips)
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12)
-            ], spacing: 10) {
-                basicsTip(
-                    icon: "arrow.down.right.and.arrow.up.left",
-                    color: .blue,
-                    title: "Auto Collapse",
-                    description: "Shelf collapses after a delay when you move your mouse away",
-                    delay: 0
-                )
-                
-                basicsTip(
-                    icon: "arrow.up.left.and.arrow.down.right",
-                    color: .teal,
-                    title: "Auto Expand",
-                    description: "Move cursor to top edge to expand the shelf automatically",
-                    delay: 0.06
-                )
-                
-                basicsTip(
-                    icon: "hand.draw.fill",
-                    color: .green,
-                    title: "Swipe Gestures",
-                    description: "Swipe left/right on notch to switch between shelf & media",
-                    delay: 0.12
-                )
-                
-                basicsTip(
-                    icon: "eye.fill",
-                    color: .yellow,
-                    title: "Quick Look",
-                    description: "Select a file and press Space to preview it instantly",
-                    delay: 0.18
-                )
-                
-                basicsTip(
-                    icon: "cursorarrow.click.2",
-                    color: .purple,
-                    title: "Click to Expand",
-                    description: "Single click on the collapsed notch to expand the shelf",
-                    delay: 0.24
-                )
-                
-                basicsTip(
-                    icon: "keyboard",
-                    color: .cyan,
-                    title: "Keyboard Shortcuts",
-                    description: "⌘⇧Space opens Clipboard, customize more in Settings",
-                    delay: 0.30
-                )
-                
-                basicsTip(
-                    icon: "contextualmenu.and.cursorarrow",
-                    color: .orange,
-                    title: "Right-Click Menu",
-                    description: "Right-click on files for compress, convert, share & more",
-                    delay: 0.36
-                )
-                
-                basicsTip(
-                    icon: "eye.slash.fill",
-                    color: .gray,
-                    title: "Hide & Show",
-                    description: "Right-click on the notch to hide or show it again",
-                    delay: 0.42
-                )
-            }
-            .padding(.horizontal, 50)
-            
-            Spacer()
-        }
-        .onAppear {
-            triggerFeaturesAnimation()
-        }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
-    }
-    
-    /// Compact tip card for basics page grid
-    private func basicsTip(icon: String, color: Color, title: String, description: String, delay: Double) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(color.opacity(0.15))
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(color)
-                    .symbolRenderingMode(.monochrome)
-            }
-            .frame(width: 28, height: 28)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Text(description)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background(AdaptiveColors.buttonBackgroundAuto)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .opacity(featuresAnimated ? 1 : 0)
-        .offset(y: featuresAnimated ? 0 : 10)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(delay), value: featuresAnimated)
-    }
-    
-    // MARK: - Page 5: Ready
-    
-    private var readyPage: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(0.2))
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 30)
-                
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.green)
-            }
-            
-            VStack(spacing: 8) {
-                Text("You're all set!")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.green)
-                
-                Text("Droppy is ready to boost your productivity")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-            }
-            
-            // Extension Store preview card
-            Button {
-                // Open Settings → Extensions tab
-                onComplete() // Close onboarding first
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    SettingsWindowController.shared.showSettings(openingExtension: nil)
-                    // Navigate to Extensions tab
-                    NotificationCenter.default.post(name: .openExtensionFromDeepLink, object: nil)
-                }
-            } label: {
-                HStack(spacing: 14) {
-                    CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/extensions.png")) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Image(systemName: "puzzlepiece.extension.fill")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.purple, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                    .frame(width: 48, height: 48)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Explore Extensions")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Text("AI background removal, Alfred, Spotify & more")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(16)
-                .background(AdaptiveColors.buttonBackgroundAuto)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 80)
-            .padding(.top, 8)
-            
-            Text("Look for Droppy in your menu bar")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
-            
-            Spacer()
-        }
-        .transition(.asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        ))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
+// MARK: - Page 2: Shelf
 
+private struct ShelfContent: View {
+    @Binding var enableShelf: Bool
+    @Binding var enableAutoClean: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            NotchShelfPreview()
+                .scaleEffect(0.78)
+            
+            Text("Drag any file to your notch to store it temporarily.\nGrab it later and drop it anywhere you need.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+                .frame(maxWidth: 360)
+            
+            VStack(spacing: 10) {
+                OnboardingToggle(icon: "tray.and.arrow.down.fill", title: "Enable Notch Shelf", color: .blue, isOn: $enableShelf)
+                
+                if enableShelf {
+                    OnboardingToggle(icon: "trash.fill", title: "Auto-Clean after dragging out", color: .gray, isOn: $enableAutoClean)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: 400)
+            .animation(.easeOut(duration: 0.15), value: enableShelf)
+            
+            HStack(spacing: 14) {
+                FeatureChip(icon: "folder.fill", text: "Pin folders")
+                FeatureChip(icon: "square.stack.3d.up.fill", text: "Multiple files")
+                FeatureChip(icon: "airplane", text: "AirDrop zone")
+            }
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Page 3: Basket
+
+private struct BasketContent: View {
+    @Binding var enableBasket: Bool
+    @Binding var instantBasketOnDrag: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            FloatingBasketPreview()
+                .scaleEffect(0.72)
+            
+            Text(instantBasketOnDrag
+                ? "A floating drop zone appears instantly when you drag.\nPerfect when your notch is on a different screen."
+                : "Shake files to summon a floating drop zone anywhere.\nPerfect when your notch is on a different screen."
+            )
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+                .frame(maxWidth: 380)
+            
+            VStack(spacing: 10) {
+                OnboardingToggle(icon: "basket.fill", title: "Enable Floating Basket", color: .purple, isOn: $enableBasket)
+                
+                if enableBasket {
+                    OnboardingToggle(icon: "bolt.fill", title: "Instant Appear (no shake needed)", color: .yellow, isOn: $instantBasketOnDrag)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: 400)
+            .animation(.easeOut(duration: 0.15), value: enableBasket)
+            
+            HStack(spacing: 14) {
+                FeatureChip(icon: "hand.draw.fill", text: instantBasketOnDrag ? "Appears on drag" : "Shake to summon")
+                FeatureChip(icon: "arrow.left.and.right", text: "Auto-hides to edge")
+            }
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Page 4: Clipboard
+
+private struct ClipboardContent: View {
+    @Binding var enableClipboard: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            ClipboardPreview()
+                .scaleEffect(0.92)
+            
+            // Shortcut badge
+            HStack(spacing: 5) {
+                Image(systemName: "command")
+                Text("+")
+                    .foregroundStyle(.secondary)
+                Image(systemName: "shift")
+                Text("+")
+                    .foregroundStyle(.secondary)
+                Text("Space")
+                    .fontWeight(.semibold)
+            }
+            .font(.system(size: 13, weight: .medium, design: .rounded))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color.cyan.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .foregroundStyle(.cyan)
+            
+            Text("Access everything you've copied. Search instantly,\nextract text from images, and pin your favorites.")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(2)
+            
+            OnboardingToggle(icon: "doc.on.clipboard.fill", title: "Enable Clipboard Manager", color: .cyan, isOn: $enableClipboard)
+                .frame(width: 400)
+            
+            HStack(spacing: 14) {
+                FeatureChip(icon: "magnifyingglass", text: "Instant search")
+                FeatureChip(icon: "text.viewfinder", text: "OCR images")
+                FeatureChip(icon: "star.fill", text: "Favorites")
+            }
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Page 5: Media & HUDs
+
+private struct MediaContent: View {
+    @Binding var showMediaPlayer: Bool
+    @Binding var enableHUD: Bool
+    @Binding var enableBatteryHUD: Bool
+    @Binding var enableCapsLockHUD: Bool
+    @Binding var enableAirPodsHUD: Bool
+    @Binding var enableDNDHUD: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            OnboardingMediaPreview()
+            
+            // HUD toggles - 7 HUDs in organized grid
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    HUDToggle(icon: "music.note", title: "Now Playing", color: .green, isOn: $showMediaPlayer, available: isMediaAvailable)
+                    HUDToggle(icon: "speaker.wave.2.fill", title: "Volume", color: .blue, isOn: $enableHUD, available: true)
+                }
+                
+                HStack(spacing: 8) {
+                    HUDToggle(icon: "sun.max.fill", title: "Brightness", color: .yellow, isOn: $enableHUD, available: true)
+                    HUDToggle(icon: "battery.100.bolt", title: "Battery", color: .green, isOn: $enableBatteryHUD, available: true)
+                }
+                
+                HStack(spacing: 8) {
+                    HUDToggle(icon: "capslock.fill", title: "Caps Lock", color: .orange, isOn: $enableCapsLockHUD, available: true)
+                    HUDToggle(icon: "airpodspro", title: "AirPods", color: .white, isOn: $enableAirPodsHUD, available: true)
+                }
+                
+                HStack(spacing: 8) {
+                    HUDToggle(icon: "moon.fill", title: "Do Not Disturb", color: .purple, isOn: $enableDNDHUD, available: true)
+                        .frame(width: 195) // Single centered toggle
+                }
+            }
+            .frame(width: 400)
+            
+            Text("Beautiful HUDs appear in your notch\ninstead of the default macOS overlays")
+                .font(.system(size: 12))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var isMediaAvailable: Bool {
+        if #available(macOS 15.0, *) { return true }
+        return false
+    }
+}
+
+/// Uniform HUD toggle for the grid
+private struct HUDToggle: View {
+    let icon: String
+    let title: String
+    let color: Color
+    @Binding var isOn: Bool
+    let available: Bool
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button {
+            guard available else { return }
+            isOn.toggle()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 15))
+                    .foregroundStyle(available ? color : .secondary)
+                    .frame(width: 22)
+                
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(available ? .primary : .secondary)
+                
+                Spacer()
+                
+                if available {
+                    Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 17))
+                        .foregroundStyle(isOn ? .green : .secondary.opacity(0.4))
+                } else {
+                    Text("15+")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(isHovering && available ? Color.white.opacity(0.06) : Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isOn && available ? color.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .opacity(available ? 1.0 : 0.65)
+    }
+}
+
+/// Media preview
+private struct OnboardingMediaPreview: View {
+    @State private var progress: CGFloat = 0.3
+    
+    private let hudWidth: CGFloat = 260
+    private let notchWidth: CGFloat = 170
+    private let notchHeight: CGFloat = 30
+    
+    var body: some View {
+        ZStack {
+            NotchShape(bottomRadius: 14)
+                .fill(Color.black)
+                .frame(width: hudWidth, height: notchHeight + 28)
+                .overlay(
+                    NotchShape(bottomRadius: 14)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+            
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    HStack {
+                        Spacer(minLength: 0)
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.white.opacity(0.85))
+                            )
+                        Spacer(minLength: 0)
+                    }
+                    .frame(width: (hudWidth - notchWidth) / 2)
+                    
+                    Spacer().frame(width: notchWidth)
+                    
+                    HStack {
+                        Spacer(minLength: 0)
+                        HStack(spacing: 2) {
+                            ForEach(0..<4, id: \.self) { i in
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(Color.green)
+                                    .frame(width: 3, height: [9, 14, 7, 12][i])
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(width: (hudWidth - notchWidth) / 2)
+                }
+                .frame(height: notchHeight)
+                
+                Text("Purple Rain — Prince")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(height: 18)
+                
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.12))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.green)
+                            .frame(width: geo.size.width * progress)
+                    }
+                }
+                .frame(height: 3)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 5)
+            }
+            .frame(width: hudWidth)
+        }
+        .padding(.vertical, 8)
+        .onAppear {
+            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+                progress = 0.8
+            }
+        }
+    }
+}
+
+// MARK: - Page 6: Extras
+
+private struct ExtrasContent: View {
+    @Binding var enablePowerFolders: Bool
+    @Binding var enableSmartExport: Bool
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            // Power Folders
+            VStack(spacing: 6) {
+                OnboardingToggle(icon: "folder.fill.badge.gear", title: "Power Folders", color: .orange, isOn: $enablePowerFolders)
+                
+                Text("Pin folders to the shelf and drop files directly into them")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(width: 400)
+            
+            // Smart Export
+            VStack(spacing: 6) {
+                OnboardingToggle(icon: "square.and.arrow.down.fill", title: "Smart Export", color: .pink, isOn: $enableSmartExport)
+                
+                Text("Auto-save processed files and reveal in Finder")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(width: 400)
+            
+            // Extensions showcase with REAL icons from registry
+            VStack(spacing: 12) {
+                Text("Plus Extensions")
+                    .font(.system(size: 13, weight: .semibold))
+                
+                HStack(spacing: 16) {
+                    OnboardingExtensionIcon(definition: VoiceTranscribeExtension.self, name: "Transcribe")
+                    OnboardingExtensionIcon(definition: AIBackgroundRemovalExtension.self, name: "AI Removal")
+                    OnboardingExtensionIcon(definition: TermiNotchExtension.self, name: "Terminal")
+                    OnboardingExtensionIcon(definition: SpotifyExtension.self, name: "Spotify")
+                    OnboardingExtensionIcon(definition: VideoTargetSizeExtension.self, name: "Compress")
+                    OnboardingExtensionIcon(definition: ElementCaptureExtension.self, name: "Capture")
+                }
+                
+                Text("Settings → Extensions")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 24)
+            .background(Color.white.opacity(0.025))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            )
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Uses real extension icons from ExtensionDefinition (same as extension store)
+private struct OnboardingExtensionIcon<T: ExtensionDefinition>: View {
+    let definition: T.Type
+    let name: String
+    
+    var body: some View {
+        VStack(spacing: 5) {
+            CachedAsyncImage(url: definition.iconURL) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(definition.iconPlaceholderColor.opacity(0.15))
+                    .overlay(
+                        Image(systemName: definition.iconPlaceholder)
+                            .font(.system(size: 17))
+                            .foregroundStyle(definition.iconPlaceholderColor)
+                    )
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            
+            Text(name)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Page 7: Ready
+
+private struct ReadyContent: View {
+    @State private var showCheckmark = false
+    @State private var showGuide = false
+    @State private var showRows: [Bool] = [false, false, false, false]
+    @State private var showFooter = false
+    @State private var pulseGlow = false
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            // Success icon with celebration animation
+            ZStack {
+                // Expanding pulse rings
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .stroke(Color.green.opacity(pulseGlow ? 0 : 0.3), lineWidth: 2)
+                        .frame(width: pulseGlow ? 120 + CGFloat(i * 30) : 60, height: pulseGlow ? 120 + CGFloat(i * 30) : 60)
+                        .animation(.easeOut(duration: 1.0).delay(Double(i) * 0.15), value: pulseGlow)
+                }
+                
+                // Glow
+                Circle()
+                    .fill(Color.green.opacity(showCheckmark ? 0.15 : 0))
+                    .frame(width: 90, height: 90)
+                    .blur(radius: 20)
+                    .scaleEffect(showCheckmark ? 1 : 0.5)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showCheckmark)
+                
+                // Checkmark
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(.green)
+                    .scaleEffect(showCheckmark ? 1 : 0)
+                    .rotationEffect(.degrees(showCheckmark ? 0 : -30))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.5).delay(0.1), value: showCheckmark)
+            }
+            
+            // Quick start guide
+            VStack(spacing: 14) {
+                Text("Quick Start Guide")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .opacity(showGuide ? 1 : 0)
+                    .offset(y: showGuide ? 0 : 10)
+                    .animation(.easeOut(duration: 0.3).delay(0.4), value: showGuide)
+                
+                VStack(spacing: 0) {
+                    GuideRow(icon: "cursorarrow.motionlines", color: .blue, action: "Move mouse to notch", result: "Opens shelf", isFirst: true)
+                        .opacity(showRows[0] ? 1 : 0)
+                        .offset(x: showRows[0] ? 0 : -20)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.5), value: showRows[0])
+                    
+                    GuideRow(icon: "hand.draw.fill", color: .purple, action: "Shake while dragging", result: "Summons basket")
+                        .opacity(showRows[1] ? 1 : 0)
+                        .offset(x: showRows[1] ? 0 : -20)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.6), value: showRows[1])
+                    
+                    GuideRow(icon: "command", color: .cyan, action: "Press ⌘⇧Space", result: "Opens clipboard")
+                        .opacity(showRows[2] ? 1 : 0)
+                        .offset(x: showRows[2] ? 0 : -20)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.7), value: showRows[2])
+                    
+                    GuideRow(icon: "gearshape.fill", color: .gray, action: "Right-click notch", result: "Opens settings", isLast: true)
+                        .opacity(showRows[3] ? 1 : 0)
+                        .offset(x: showRows[3] ? 0 : -20)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.8), value: showRows[3])
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .frame(width: 380)
+            
+            Text("Droppy runs quietly in the background ✨")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .opacity(showFooter ? 1 : 0)
+                .animation(.easeOut(duration: 0.3).delay(1.0), value: showFooter)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            // Trigger staged animations
+            withAnimation {
+                showCheckmark = true
+                pulseGlow = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showGuide = true
+                showRows = [true, true, true, true]
+                showFooter = true
+            }
+        }
+    }
+}
+
+private struct GuideRow: View {
+    let icon: String
+    let color: Color
+    let action: String
+    let result: String
+    var isFirst: Bool = false
+    var isLast: Bool = false
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Icon column
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+                .frame(width: 40)
+            
+            // Action column - fixed width
+            Text(action)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 160, alignment: .leading)
+            
+            // Arrow
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.quaternary)
+                .frame(width: 30)
+            
+            // Result column - fixed width
+            Text(result)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 120, alignment: .leading)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle()
+                    .fill(Color.white.opacity(0.04))
+                    .frame(height: 1)
+                    .padding(.leading, 40)
+            }
+        }
+    }
+}
+
+// MARK: - Shared Components
+
+private struct FeatureLine: View {
+    let icon: String
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundStyle(color)
+                .frame(width: 26)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct StyleButton: View {
+    let title: String
+    let isSelected: Bool
+    let isNotch: Bool
+    let action: () -> Void
+    @State private var hovering = false
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(0.03))
+                        .frame(width: 90, height: 55)
+                    
+                    if isNotch {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.black)
+                            .frame(width: 48, height: 14)
+                    } else {
+                        Capsule()
+                            .fill(Color.black)
+                            .frame(width: 40, height: 12)
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(isSelected ? Color.blue : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
+                )
+                .scaleEffect(hovering ? 1.03 : 1.0)
+                
+                Text(title)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: hovering)
+    }
+}
+
+private struct FeatureChip: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(.blue)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.04))
+        .clipShape(Capsule())
+    }
+}

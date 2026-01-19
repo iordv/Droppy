@@ -1256,10 +1256,11 @@ struct NotchShelfView: View {
                                             .frame(height: currentExpandedHeight)
                         // Stable identity for animation
                         .id("empty-shelf-view")
-                        // In-place morph instead of sliding (matches NotchFace behavior)
+                        // Carousel Symmetry Standard: Slides from LEFT (opposite to media which slides from RIGHT)
+                        // This creates a seamless handoff without ghosting artifacts
                         .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .scale(scale: 0.95).combined(with: .opacity)
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
                         ))
                 }
                 // Show items grid when items exist
@@ -1268,10 +1269,11 @@ struct NotchShelfView: View {
                                             .frame(height: currentExpandedHeight)
                         // Stable identity for animation
                         .id("items-grid-view")
-                        // In-place morph instead of sliding (matches NotchFace behavior)
+                        // Carousel Symmetry Standard: Slides from LEFT (opposite to media which slides from RIGHT)
+                        // This creates a seamless handoff without ghosting artifacts
                         .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .scale(scale: 0.95).combined(with: .opacity)
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
                         ))
             }
             
@@ -1402,6 +1404,7 @@ struct NotchShelfView: View {
                 .padding(.bottom, 6)
             }
         }
+        .scrollDisabled(true)  // Disable scrolling - shelf doesn't scroll like basket
         .clipped() // Prevent hover effects from bleeding past shelf edges
         .contentShape(Rectangle())
         // Removed .onTapGesture from here to prevent swallowing touches on children

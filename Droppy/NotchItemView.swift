@@ -10,6 +10,8 @@ struct NotchItemView: View {
     @Binding var renamingItemId: UUID?
     let onRemove: () -> Void
     
+    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
+    
     @State private var thumbnail: NSImage?
     @State private var isHovering = false
     @State private var isConverting = false
@@ -25,6 +27,9 @@ struct NotchItemView: View {
     // Feedback State
     @State private var shakeOffset: CGFloat = 0
     @State private var isShakeAnimating = false
+    @State private var isDropTargeted = false  // For pinned folder drop zone
+    @State private var showFolderPreview = false  // Delayed folder preview popover
+    @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover
     
     // MARK: - Bulk Operation Helpers
     
@@ -143,6 +148,45 @@ struct NotchItemView: View {
             }
         }
     }
+    
+    /// Moves external files (from drag) into a pinned folder
+    /// Only COPIES files - never deletes source (safe operation)
+    private func moveFilesToFolder(urls: [URL], destination: URL) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            for url in urls {
+                // Skip if trying to drop a folder into itself
+                guard url != destination else { continue }
+                
+                // Skip if file is already inside this folder (parent is destination)
+                let parent = url.deletingLastPathComponent().standardizedFileURL
+                let dest = destination.standardizedFileURL
+                if parent == dest {
+                    print("📁 File already in folder, skipping: \(url.lastPathComponent)")
+                    continue
+                }
+                
+                do {
+                    let destURL = destination.appendingPathComponent(url.lastPathComponent)
+                    var finalDestURL = destURL
+                    var counter = 1
+                    
+                    while FileManager.default.fileExists(atPath: finalDestURL.path) {
+                        let ext = destURL.pathExtension
+                        let name = destURL.deletingPathExtension().lastPathComponent
+                        let newName = "\(name) \(counter)" + (ext.isEmpty ? "" : ".\(ext)")
+                        finalDestURL = destination.appendingPathComponent(newName)
+                        counter += 1
+                    }
+                    
+                    // Copy file into folder (don't move - safer for drag operations)
+                    try FileManager.default.copyItem(at: url, to: finalDestURL)
+                    print("📁 Copied \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                } catch {
+                    print("❌ Failed to copy file into folder: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
 
     var body: some View {
         DraggableArea(
@@ -168,25 +212,36 @@ struct NotchItemView: View {
                 }
             },
             onRightClick: {
+                // Cancel folder preview preventing overlap with context menu
+                hoverTask?.cancel()
+                hoverTask = nil
+                showFolderPreview = false
+                
                 // Select if not selected
                  if !state.selectedItems.contains(item.id) {
                     state.deselectAll()
                     state.select(item)
                 }
             },
+            onDragStart: {
+                // Dismiss tooltip immediately when drag starts
+                hoverTask?.cancel()
+                hoverTask = nil
+                showFolderPreview = false
+            },
             onDragComplete: { [weak state] operation in
                 guard let state = state else { return }
-                // Auto-clean: remove only the dragged items, not everything
+                // Auto-clean: remove only the dragged items, not everything (skip pinned items)
                 let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
                 if enableAutoClean {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        // If this item was selected, remove all selected items
+                        // If this item was selected, remove all selected non-pinned items
                         if state.selectedItems.contains(item.id) {
                             let idsToRemove = state.selectedItems
-                            state.items.removeAll { idsToRemove.contains($0.id) }
+                            state.items.removeAll { idsToRemove.contains($0.id) && !$0.isPinned }
                             state.selectedItems.removeAll()
-                        } else {
-                            // Otherwise just remove this single item
+                        } else if !item.isPinned {
+                            // Otherwise just remove this single item (if not pinned)
                             state.items.removeAll { $0.id == item.id }
                         }
                     }
@@ -237,10 +292,67 @@ struct NotchItemView: View {
                         )
                 }
             }
+            // Drop target for pinned folders - drop files INTO the folder
+            .dropDestination(for: URL.self) { urls, location in
+                guard enablePowerFolders && item.isPinned && item.isDirectory else { return false }
+                moveFilesToFolder(urls: urls, destination: item.url)
+                return true
+            } isTargeted: { targeted in
+                // Only show targeting if Power Folders is enabled and this is a pinned folder
+                guard enablePowerFolders && item.isPinned && item.isDirectory else { return }
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isDropTargeted = targeted
+                }
+                // Cancel folder preview when drop is happening
+                if targeted {
+                    hoverTask?.cancel()
+                    showFolderPreview = false
+                }
+            }
+            .overlay {
+                // Visual feedback when dropping files onto pinned folder
+                if isDropTargeted && item.isPinned {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.yellow, lineWidth: 3)
+                        .frame(width: 60, height: 60)
+                        .offset(y: -12)
+                }
+            }
             .onHover { hovering in
+                // CRITICAL: Ignore interaction if blocked (e.g. context menu open)
+                guard !state.isInteractionBlocked else { return }
+                
                 withAnimation(.easeOut(duration: 0.15)) {
                     isHovering = hovering
                 }
+                
+                // Delayed folder preview for ALL folders (not just pinned)
+                if item.isDirectory {
+                    if hovering && !isDropTargeted {
+                        hoverTask = Task {
+                            try? await Task.sleep(nanoseconds: 800_000_000)  // 0.8s delay
+                            if !Task.isCancelled && !isDropTargeted && !state.isInteractionBlocked {
+                                showFolderPreview = true
+                            }
+                        }
+                    } else {
+                        // Clean dismiss - cancel pending task and hide popover
+                        hoverTask?.cancel()
+                        hoverTask = nil
+                        showFolderPreview = false
+                    }
+                }
+            }
+            .onChange(of: state.isInteractionBlocked) { _, blocked in
+                if blocked {
+                    hoverTask?.cancel()
+                    hoverTask = nil
+                    showFolderPreview = false
+                    isHovering = false
+                }
+            }
+            .popover(isPresented: $showFolderPreview, arrowEdge: .bottom) {
+                FolderPreviewPopover(folderURL: item.url)
             }
             .onChange(of: state.poofingItemIds) { _, newIds in
                 if newIds.contains(item.id) {
@@ -488,18 +600,34 @@ struct NotchItemView: View {
                 }
             }
             
+            // Pin/Unpin option for folders
+            if item.isDirectory && state.selectedItems.count <= 1 {
+                Button {
+                    state.togglePin(item)
+                } label: {
+                    if item.isPinned {
+                        Label("Unpin Folder", systemImage: "pin.slash")
+                    } else {
+                        Label("Pin Folder", systemImage: "pin")
+                    }
+                }
+            }
+            
             Divider()
             
-            Button(role: .destructive, action: {
-                 if state.selectedItems.contains(item.id) {
-                     state.removeSelectedItems()
-                 } else {
-                     onRemove()
-                 }
-            }) {
-                Label("Remove from Shelf", systemImage: "xmark")
+            // Hide delete button for pinned folders - must unpin first
+            if !item.isPinned {
+                Button(role: .destructive, action: {
+                     if state.selectedItems.contains(item.id) {
+                         state.removeSelectedItems()
+                     } else {
+                         onRemove()
+                     }
+                }) {
+                    Label("Remove from Shelf", systemImage: "xmark")
+                }
             }
-            }
+        }
             .task {
                 // INSTANT DISPLAY: Show fast icon immediately (zero lag)
                 thumbnail = item.icon
@@ -558,6 +686,11 @@ struct NotchItemView: View {
             if let convertedURL = await FileConverter.convert(item.url, to: format) {
                 // Create new DroppedItem from converted file (marked as temporary for cleanup)
                 let newItem = DroppedItem(url: convertedURL, isTemporary: true)
+                
+                // Smart Export: auto-save converted file if enabled
+                _ = await MainActor.run {
+                    SmartExportManager.shared.saveFile(convertedURL, for: .conversion)
+                }
                 
                 await MainActor.run {
                     isConverting = false
@@ -672,6 +805,11 @@ struct NotchItemView: View {
                 // Mark compressed file as temporary for cleanup when removed
                 let newItem = DroppedItem(url: compressedURL, isTemporary: true)
                 
+                // Smart Export: auto-save to folder if enabled
+                _ = await MainActor.run {
+                    SmartExportManager.shared.saveFile(compressedURL, for: .compression)
+                }
+                
                 await MainActor.run {
                     isCompressing = false
                     state.endFileOperation()
@@ -715,6 +853,7 @@ struct NotchItemView: View {
             }
         }
     }
+    
     
     // MARK: - Background Removal
     
@@ -772,6 +911,12 @@ struct NotchItemView: View {
             for selectedItem in selectedItems {
                 if let convertedURL = await FileConverter.convert(selectedItem.url, to: format) {
                     let newItem = DroppedItem(url: convertedURL, isTemporary: true)
+                    
+                    // Smart Export: auto-save converted file if enabled
+                    _ = await MainActor.run {
+                        SmartExportManager.shared.saveFile(convertedURL, for: .conversion)
+                    }
+                    
                     await MainActor.run {
                         state.replaceItem(selectedItem, with: newItem)
                         state.triggerPoof(for: newItem.id)
@@ -796,6 +941,12 @@ struct NotchItemView: View {
             for selectedItem in selectedItems {
                 if let compressedURL = await FileCompressor.shared.compress(url: selectedItem.url, mode: mode) {
                     let newItem = DroppedItem(url: compressedURL, isTemporary: true)
+                    
+                    // Smart Export: auto-save to folder if enabled
+                    _ = await MainActor.run {
+                        SmartExportManager.shared.saveFile(compressedURL, for: .compression)
+                    }
+                    
                     await MainActor.run {
                         state.replaceItem(selectedItem, with: newItem)
                         state.triggerPoof(for: newItem.id)
@@ -950,20 +1101,41 @@ private struct NotchItemContent: View {
         state.selectedItems.contains(item.id)
     }
     
+    // Extracted to fix compiler timeout on complex ternary
+    private var containerFillColor: Color {
+        if isSelected { return Color.blue.opacity(0.3) }
+        if item.isPinned { return Color.yellow.opacity(0.15) }
+        if item.isDirectory { return Color.blue.opacity(0.15) }
+        return Color.white.opacity(0.1)
+    }
+    
+    private var containerStrokeColor: Color {
+        if isSelected { return Color.blue }
+        if item.isPinned { return Color.yellow.opacity(0.5) }
+        if item.isDirectory { return Color.blue.opacity(0.3) }
+        return Color.clear
+    }
+    
     var body: some View {
         VStack(spacing: 6) {
             ZStack(alignment: .topTrailing) {
-                // Thumbnail container
+                // Thumbnail container with folder-aware styling
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.1))
+                    .fill(containerFillColor)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                            .stroke(containerStrokeColor, lineWidth: 2)
                     )
                     .frame(width: 60, height: 60)
                     .overlay {
                         Group {
-                            if let thumbnail = thumbnail {
+                            if item.isDirectory {
+                                // Custom folder icon matching NotchFace style
+                                FolderIcon(size: 36, isPinned: item.isPinned, isHovering: isHovering)
+                            } else if item.url.pathExtension.lowercased() == "zip" {
+                                // Custom ZIP file icon with zipper detail
+                                ZIPFileIcon(size: 36, isHovering: isHovering)
+                            } else if let thumbnail = thumbnail {
                                 Image(nsImage: thumbnail)
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
@@ -995,8 +1167,8 @@ private struct NotchItemContent: View {
                         }
                     }
                 
-                // Remove button on hover
-                if isHovering && !isPoofing && renamingItemId != item.id {
+                // Remove button on hover - hidden for pinned folders (must unpin first)
+                if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
                     Button(action: onRemove) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1050,6 +1222,7 @@ private struct NotchItemContent: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(isHovering && !isSelected ? Color.white.opacity(0.1) : Color.clear)
         )
+        .id(item.id)  // Force view identity update when item changes
         .poofEffect(isPoofing: $isPoofing) {
             // Replace item when poof completes
             if let newItem = pendingConvertedItem {

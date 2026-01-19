@@ -13,6 +13,10 @@ class BasketDragContainer: NSView {
     /// AirDrop zone width (must match FloatingBasketView.airDropZoneWidth)
     private let airDropZoneWidth: CGFloat = 90
     
+    /// Track if current drag is valid (for Power Folders restriction)
+    private var currentDragIsValid: Bool = true
+
+    
     /// Base width constants (must match FloatingBasketView)
     private let itemWidth: CGFloat = 76
     private let itemSpacing: CGFloat = 8
@@ -66,15 +70,52 @@ class BasketDragContainer: NSView {
         ]
         types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
         registerForDraggedTypes(types)
+        registerForDraggedTypes(types)
     }
     
-    // CRITICAL: Enable periodic updates so zone targeting works even when mouse is stationary
-    // Without this, draggingUpdated() is not called when the user pauses during a drag,
-    // causing the AirDrop zone to appear unresponsive on some hardware.
-    // See: Knowledge Item - Split Zone Containers v7.7.5 Fix
-    override func wantsPeriodicDraggingUpdates() -> Bool {
-        return true
+    // MARK: - Efficient Mouse Tracking (v8.4.3 Lag Fix)
+    // Replaces expensive global/local NSEvent monitoring in FloatingBasketWindowController
+    
+    private var trackingArea: NSTrackingArea?
+    
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        
+        if let trackingArea = trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+        
+        // Track enter/exit for auto-hide logic
+        // Track mouseMoved for hover effects if needed (but SwiftUI handles that)
+        let options: NSTrackingArea.Options = [
+            .mouseEnteredAndExited,
+            .activeAlways,
+            .inVisibleRect
+        ]
+        
+        trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(trackingArea!)
     }
+    
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        // Mouse entered basket: prevent auto-hide
+        FloatingBasketWindowController.shared.cancelHideTimer()
+        
+        // If peeking, reveal
+        if FloatingBasketWindowController.shared.isInPeekMode {
+            FloatingBasketWindowController.shared.revealFromEdge()
+        }
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        // Mouse exited basket: start auto-hide
+        // Only if not dragging something
+        FloatingBasketWindowController.shared.onBasketHoverExit() 
+    }
+    
+
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -143,11 +184,39 @@ class BasketDragContainer: NSView {
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         // Reset flag at start of new drag
         dropDidOccur = false
+        currentDragIsValid = true
+        
+        // Check Power Folders restriction
+        // CRITICAL: Use object() ?? true to match @AppStorage default
+        let powerFoldersEnabled = (UserDefaults.standard.object(forKey: "enablePowerFolders") as? Bool) ?? true
+        
+        if !powerFoldersEnabled {
+            let pasteboard = sender.draggingPasteboard
+            // Only read URLs if we need to check for folders
+            if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+                // Check if any URL is a directory
+                // We use a quick check on the first few items to avoid stalling the UI on massive drops
+                let hasFolder = urls.prefix(10).contains { url in
+                    var isDir: ObjCBool = false
+                    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+                }
+                
+                if hasFolder {
+                    print("🚫 Basket: Rejected folder drop (Power Folders disabled)")
+                    currentDragIsValid = false
+                    return []
+                }
+            }
+        }
+        
         updateZoneTargeting(for: sender)
         return .copy
     }
     
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        // Respect validity check from draggingEntered
+        if !currentDragIsValid { return [] }
+        
         // Update targeting as cursor moves between zones
         updateZoneTargeting(for: sender)
         return .copy
@@ -222,6 +291,9 @@ class BasketDragContainer: NSView {
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // Respect validity check
+        if !currentDragIsValid { return false }
+        
         let point = convert(sender.draggingLocation, from: nil)
         
         DroppyState.shared.isBasketTargeted = false

@@ -17,6 +17,7 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
     let onTap: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
     let onRightClick: () -> Void
+    let onDragStart: (() -> Void)?
     let onDragComplete: ((NSDragOperation) -> Void)?  // Called when drag ends successfully
     let selectionSignature: Int // Force update
     
@@ -25,6 +26,7 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
         onTap: @escaping (NSEvent.ModifierFlags) -> Void,
         onDoubleClick: @escaping () -> Void = {},
         onRightClick: @escaping () -> Void,
+        onDragStart: (() -> Void)? = nil,  // Default to nil for backward compatibility
         onDragComplete: ((NSDragOperation) -> Void)? = nil,
         selectionSignature: Int = 0,
         @ViewBuilder content: () -> Content
@@ -33,13 +35,14 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
         self.onTap = onTap
         self.onDoubleClick = onDoubleClick
         self.onRightClick = onRightClick
+        self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
         self.selectionSignature = selectionSignature
         self.content = content()
     }
     
     func makeNSView(context: Context) -> DraggableAreaView<Content> {
-        return DraggableAreaView(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragComplete: onDragComplete)
+        return DraggableAreaView(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete)
     }
     
     func updateNSView(_ nsView: DraggableAreaView<Content>, context: Context) {
@@ -53,14 +56,16 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
             if className.contains("BasketPanel") ||
                className.contains("ClipboardPanel") ||
                className.contains("NotchWindow") ||
-               className.contains("NSHosting") {
+               className.contains("NSHosting") ||
+               className.contains("Popover") ||
+               className.contains("Tooltip") {
                 return false
             }
             return true
         }
         guard !hasActiveMenu else { return }
         
-        nsView.update(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragComplete: onDragComplete)
+        nsView.update(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete)
     }
 }
 
@@ -69,6 +74,7 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     var onTap: (NSEvent.ModifierFlags) -> Void
     var onDoubleClick: () -> Void
     var onRightClick: () -> Void
+    var onDragStart: (() -> Void)?
     var onDragComplete: ((NSDragOperation) -> Void)?
     
     private var hostingView: NSHostingView<Content>
@@ -79,11 +85,12 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     /// causing crashes in RB::SurfacePool::collect / release_image.
     private var dragSessionImages: [NSImage] = []
     
-    init(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragComplete: ((NSDragOperation) -> Void)?) {
+    init(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?) {
         self.items = items
         self.onTap = onTap
         self.onDoubleClick = onDoubleClick
         self.onRightClick = onRightClick
+        self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
         self.hostingView = NSHostingView(rootView: rootView)
         super.init(frame: .zero)
@@ -104,12 +111,13 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func update(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragComplete: ((NSDragOperation) -> Void)?) {
+    func update(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?) {
         self.hostingView.rootView = rootView
         self.items = items
         self.onTap = onTap
         self.onDoubleClick = onDoubleClick
         self.onRightClick = onRightClick
+        self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
     }
     
@@ -136,9 +144,25 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     
     override func rightMouseDown(with event: NSEvent) {
         // Handle right click manually if needed, or pass through
-        // But for our use case we want to catch it for selection logic
-        super.rightMouseDown(with: event)
+        // Call handler FIRST to ensure UI state (like tooltips) is cleared before menu opens
         onRightClick()
+        
+        // CRITICAL: Block interactions (hover/tooltips) globally while menu is open
+        DroppyState.shared.isInteractionBlocked = true
+        
+        // CRITICAL: Dispatch async to allow SwiftUI State updates (closing tooltips) 
+        // to process/render on the runloop BEFORE the context menu (modal) blocks everything.
+        // The event object is valid for this block.
+        DispatchQueue.main.async {
+            super.rightMouseDown(with: event)
+            
+            // CRITICAL: Add safe delay to ensure menu window is fully gone/deallocated
+            // If we update state too early while menu is fading out, updateNSView will
+            // skip the update (hasActiveMenu check), leaving the UI in a "stuck" state.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                DroppyState.shared.isInteractionBlocked = false
+            }
+        }
     }
     
     override func mouseDragged(with event: NSEvent) {
@@ -203,6 +227,7 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         
         guard !draggingItems.isEmpty else { return }
         
+        onDragStart?()
         beginDraggingSession(with: draggingItems, event: mouseDown, source: self)
         self.mouseDownEvent = nil
     }
