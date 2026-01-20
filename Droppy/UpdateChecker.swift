@@ -144,9 +144,20 @@ class UpdateChecker: ObservableObject {
     }
     
     /// Compare version strings (supports semantic versioning)
+    /// Special handling: If current is 8.x+ and remote is 1.x, treat 1.x as newer
+    /// This handles the version numbering reset from development versions
     private func isNewerVersion(_ remote: String, than current: String) -> Bool {
         let remoteParts = remote.split(separator: ".").compactMap { Int($0) }
         let currentParts = current.split(separator: ".").compactMap { Int($0) }
+        
+        // Handle version reset: old 8.x/7.x development versions should update to 1.x production
+        // If user is running 2.0+ (old dev versions) and remote is 1.x (new production), force update
+        let currentMajor = currentParts.first ?? 0
+        let remoteMajor = remoteParts.first ?? 0
+        if currentMajor >= 2 && remoteMajor == 1 {
+            print("UpdateChecker: Version reset detected (\\(current) → \\(remote)), treating as update")
+            return true
+        }
         
         for i in 0..<max(remoteParts.count, currentParts.count) {
             let r = i < remoteParts.count ? remoteParts[i] : 0
