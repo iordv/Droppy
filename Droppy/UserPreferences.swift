@@ -55,6 +55,7 @@ enum AppPreferenceKey {
     static let instantBasketOnDrag = "instantBasketOnDrag"
     static let instantBasketDelay = "instantBasketDelay"
     static let enableAutoClean = "enableAutoClean"
+    static let alwaysCopyOnDrag = "alwaysCopyOnDrag"
     static let enableAirDropZone = "enableAirDropZone"
     static let enableShelfAirDropZone = "enableShelfAirDropZone"
     static let enablePowerFolders = "enablePowerFolders"
@@ -145,6 +146,7 @@ enum PreferenceDefault {
     static let instantBasketOnDrag = false
     static let instantBasketDelay: Double = 0.15  // Seconds, minimum 0.15 to let drag settle
     static let enableAutoClean = false
+    static let alwaysCopyOnDrag = false  // Off by default (standard macOS behavior), advanced users enable for protection
     static let enableAirDropZone = true
     static let enableShelfAirDropZone = true
     static let enablePowerFolders = true

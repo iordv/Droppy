@@ -10,16 +10,17 @@ import SwiftUI
 /// Quick command terminal view that appears in the notch area
 struct TerminalNotchView: View {
     @ObservedObject var manager: TerminalNotchManager
+    var notchHeight: CGFloat = 0  // Physical notch height from parent (0 for Dynamic Island)
     @FocusState private var isInputFocused: Bool
     
-    /// Physical notch height from safe area insets (matches MediaPlayerView)
-    private var notchHeight: CGFloat {
-        NSScreen.main?.safeAreaInsets.top ?? 0
-    }
-    
-    /// Dynamic Island mode detection (notchHeight == 0 means external display or Dynamic Island)
+    /// Dynamic Island mode detection based on notchHeight
     private var isDynamicIslandMode: Bool {
         notchHeight == 0
+    }
+    
+    /// Content padding from SSOT - ensures perfect consistency
+    private var contentPadding: EdgeInsets {
+        NotchLayoutConstants.contentEdgeInsets(notchHeight: notchHeight)
     }
     
     /// Animated dash phase for marching ants effect on dotted outline
@@ -74,8 +75,10 @@ struct TerminalNotchView: View {
     private var initialCommandView: some View {
         ZStack {
             // Dotted outline container with marching ants animation (like empty shelf)
+            // NOTE: Using strokeBorder instead of stroke to draw INSIDE the shape bounds,
+            // preventing the stroke from being clipped at content edges
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
+                .strokeBorder(
                     Color.green.opacity(0.4),
                     style: StrokeStyle(
                         lineWidth: 1.5,
@@ -152,13 +155,8 @@ struct TerminalNotchView: View {
             // Content padding inside the dotted outline
             .padding(24)
         }
-        // EXACT same padding as MediaPlayerView
-        .padding(EdgeInsets(
-            top: notchHeight > 0 ? notchHeight + 6 : 20,
-            leading: 20,
-            bottom: 20,
-            trailing: 20
-        ))
+        // Use SSOT for consistent padding across all expanded views
+        .padding(contentPadding)
         // Start marching ants animation when view appears
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
@@ -225,13 +223,8 @@ struct TerminalNotchView: View {
             
             Spacer(minLength: 0)
         }
-        // CRITICAL: Use exact same padding as MediaPlayerView for alignment
-        .padding(EdgeInsets(
-            top: notchHeight > 0 ? notchHeight + 6 : 20,
-            leading: 20,
-            bottom: 20,
-            trailing: 20
-        ))
+        // Use SSOT for consistent padding across all expanded views
+        .padding(contentPadding)
     }
     
     // MARK: - Expanded Terminal View

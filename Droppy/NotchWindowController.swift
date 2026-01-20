@@ -218,6 +218,10 @@ final class NotchWindowController: NSObject, ObservableObject {
         UserDefaults.standard.set(hidden, forKey: AppPreferenceKey.isNotchHidden)
         
         if hidden {
+            // Stop intercepting media keys so system HUDs can appear
+            // This ensures volume/brightness indicators show when notch is hidden
+            MediaKeyInterceptor.shared.stop()
+            
             // Disable hit testing when hidden
             for window in notchWindows.values {
                 window.ignoresMouseEvents = true
@@ -226,6 +230,12 @@ final class NotchWindowController: NSObject, ObservableObject {
             startHiddenRightClickMonitor()  // Start listening for right-click to re-show
         } else {
             stopHiddenRightClickMonitor()  // Stop listening for right-click
+            
+            // Restart media key interceptor if HUD replacement is enabled
+            let hudEnabled = (UserDefaults.standard.object(forKey: "enableHUDReplacement") as? Bool) ?? true
+            if hudEnabled {
+                MediaKeyInterceptor.shared.start()
+            }
             
             // Enable hit testing when shown
             for window in notchWindows.values {
@@ -735,13 +745,13 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let notchRect = window.getNotchRect()
                 let isWithinNotchX = nsMouseLocation.x >= notchRect.minX - 40 && nsMouseLocation.x <= notchRect.maxX + 40
                 
-                if isWithinNotchX && !DroppyState.shared.isMouseHovering {
+                if isWithinNotchX && !DroppyState.shared.isHovering(for: screen.displayID) {
                     // Cursor is at top edge of this screen within notch range - trigger hover!
                     let displayID = screen.displayID  // Capture for async block
                     DispatchQueue.main.async { [weak self] in
                         DroppyState.shared.validateItems()
                         withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            DroppyState.shared.isMouseHovering = true
+                            DroppyState.shared.setHovering(for: displayID, isHovering: true)
                         }
                         // Start auto-expand timer with screen context
                         self?.startAutoExpandTimer(for: displayID)
@@ -1463,7 +1473,7 @@ class NotchWindow: NSPanel {
                     DroppyState.shared.validateItems()
 
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        DroppyState.shared.isMouseHovering = true
+                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: true)
                     }
                     // Start auto-expand timer with THIS screen's displayID
                     // Critical for multi-monitor: ensures correct screen expands
@@ -1473,7 +1483,7 @@ class NotchWindow: NSPanel {
                 // Only reset hover if not expanded (expanded has its own area)
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        DroppyState.shared.isMouseHovering = false
+                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
                     }
                     NotchWindowController.shared.cancelAutoExpandTimer()
                 }
@@ -1497,13 +1507,13 @@ class NotchWindow: NSPanel {
                 let isInExpandedShelf = expandedShelfZone.contains(mouseLocation)
                 if isInExpandedShelf && !currentlyHovering {
                     DispatchQueue.main.async {
-                        DroppyState.shared.isMouseHovering = true
+                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: true)
                     }
                 }
                 // Reset hover state if user moves OUT of the expanded shelf
                 else if !isInExpandedShelf && currentlyHovering {
                     DispatchQueue.main.async {
-                        DroppyState.shared.isMouseHovering = false
+                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
                     }
                 }
             } else if DroppyState.shared.isExpanded && currentlyHovering && !isOverNotch {

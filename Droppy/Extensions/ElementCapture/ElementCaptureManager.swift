@@ -226,19 +226,20 @@ final class ElementCaptureManager: ObservableObject {
     }
     
     private func showPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Permissions Required"
-        alert.informativeText = "Element Capture requires Accessibility and Screen Recording permissions.\n\nPlease grant these in System Settings > Privacy & Security."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "Cancel")
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            // Check which permission is missing and open the right pane
-            if !PermissionManager.shared.isScreenRecordingGranted {
-                PermissionManager.shared.openScreenRecordingSettings()
-            } else if !PermissionManager.shared.isAccessibilityGranted {
-                PermissionManager.shared.openAccessibilitySettings()
+        Task { @MainActor in
+            let shouldOpen = await DroppyAlertController.shared.showPermissions(
+                title: "Permissions Required",
+                message: "Element Capture requires Accessibility and Screen Recording permissions.\n\nPlease grant these in System Settings > Privacy & Security.",
+                actionButtonTitle: "Open Settings"
+            )
+            
+            if shouldOpen {
+                // Check which permission is missing and open the right pane
+                if !PermissionManager.shared.isScreenRecordingGranted {
+                    PermissionManager.shared.openScreenRecordingSettings()
+                } else if !PermissionManager.shared.isAccessibilityGranted {
+                    PermissionManager.shared.openAccessibilitySettings()
+                }
             }
         }
     }

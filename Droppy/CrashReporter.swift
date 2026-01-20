@@ -115,17 +115,17 @@ final class CrashReporter {
     // MARK: - User Prompt
     
     private func showCrashReportPrompt(crashLog: String?) {
-        let alert = NSAlert()
-        alert.messageText = "Droppy Crashed"
-        alert.informativeText = "It looks like Droppy crashed during your last session. Would you like to send a crash report to help improve the app?"
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Send Report")
-        alert.addButton(withTitle: "Not Now")
-        
-        let response = alert.runModal()
-        
-        if response == .alertFirstButtonReturn {
-            openGitHubIssue(crashLog: crashLog)
+        Task { @MainActor in
+            let shouldSend = await DroppyAlertController.shared.showWarning(
+                title: "Droppy Crashed",
+                message: "It looks like Droppy crashed during your last session. Would you like to send a crash report to help improve the app?",
+                actionButtonTitle: "Send Report",
+                showCancel: true
+            )
+            
+            if shouldSend {
+                openGitHubIssue(crashLog: crashLog)
+            }
         }
     }
     

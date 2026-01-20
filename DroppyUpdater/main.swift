@@ -54,13 +54,116 @@ class UpdateState: ObservableObject {
     static let shared = UpdateState()
 }
 
+// MARK: - NotchFace Component (Standalone copy for updater)
+
+/// Custom NotchFace with winking animation - matches main app
+struct NotchFace: View {
+    var size: CGFloat = 30
+    var isExcited: Bool = false
+    
+    @State private var eyeScale: CGFloat = 1.0
+    @State private var smileScale: CGFloat = 1.0
+    @State private var winkTimer: Timer?
+    
+    private var faceGradient: LinearGradient {
+        LinearGradient(
+            colors: [.white, Color(red: 0.72, green: 0.86, blue: 1.0)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+    
+    var body: some View {
+        ZStack {
+            // Left eye
+            Ellipse()
+                .fill(faceGradient)
+                .frame(
+                    width: size * 0.22,
+                    height: size * 0.22 * (isExcited ? 1.4 : 1.0)
+                )
+                .offset(x: -size * 0.18, y: -size * 0.12)
+            
+            // Right eye (winks)
+            Ellipse()
+                .fill(faceGradient)
+                .frame(
+                    width: size * 0.22,
+                    height: size * 0.22 * (isExcited ? 1.4 : 1.0) * eyeScale
+                )
+                .offset(x: size * 0.18, y: -size * 0.12)
+            
+            // Nose
+            Circle()
+                .fill(faceGradient)
+                .frame(width: size * 0.14, height: size * 0.14)
+                .offset(y: size * 0.04)
+            
+            // Mouth
+            SmileCurve()
+                .stroke(faceGradient, style: StrokeStyle(
+                    lineWidth: size * 0.1,
+                    lineCap: .round
+                ))
+                .frame(width: size * 0.42 * smileScale, height: size * 0.18 * smileScale)
+                .offset(y: size * 0.26)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: .black.opacity(0.25), radius: size * 0.03, y: size * 0.03)
+        .scaleEffect(isExcited ? 1.1 : 1.0, anchor: .center)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isExcited)
+        .animation(.interpolatingSpring(stiffness: 180, damping: 14), value: eyeScale)
+        .animation(.interpolatingSpring(stiffness: 180, damping: 14), value: smileScale)
+        .onAppear { startWinking() }
+        .onDisappear { stopWinking() }
+    }
+    
+    private func startWinking() {
+        winkTimer?.invalidate()
+        winkTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            performWink()
+        }
+    }
+    
+    private func stopWinking() {
+        winkTimer?.invalidate()
+        winkTimer = nil
+        eyeScale = 1.0
+        smileScale = 1.0
+    }
+    
+    private func performWink() {
+        withAnimation(.easeOut(duration: 0.1)) {
+            eyeScale = 0.04
+            smileScale = 1.08
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+                eyeScale = 1.0
+                smileScale = 1.0
+            }
+        }
+    }
+}
+
+/// Smile curve shape
+private struct SmileCurve: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: rect.midY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.width, y: rect.midY),
+            control: CGPoint(x: rect.midX, y: rect.height)
+        )
+        return path
+    }
+}
+
 // MARK: - Update View
 
 struct UpdaterView: View {
     @ObservedObject var state = UpdateState.shared
     @State private var isLaunchHovering = false
-    @State private var pulseAnimation = false
-    @State private var showSuccessGlow = false
     @State private var showConfetti = false
     
     // Read transparency setting from shared UserDefaults
@@ -71,58 +174,25 @@ struct UpdaterView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 12) {
-                    // App icon with pulse animation when updating
-                    ZStack {
-                        // Success glow ring when complete
-                        if state.isComplete {
-                            Circle()
-                                .stroke(Color.green.opacity(0.6), lineWidth: 3)
-                                .frame(width: 76, height: 76)
-                                .scaleEffect(showSuccessGlow ? 1.3 : 1.0)
-                                .opacity(showSuccessGlow ? 0 : 1)
-                                .animation(.easeOut(duration: 0.8), value: showSuccessGlow)
-                        }
-                        
-                        // Pulse animation while updating
-                        if !state.isComplete && !state.hasError {
-                            Circle()
-                                .fill(Color.blue.opacity(0.3))
-                                .frame(width: 80, height: 80)
-                                .scaleEffect(pulseAnimation ? 1.2 : 1.0)
-                                .opacity(pulseAnimation ? 0 : 0.5)
-                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: pulseAnimation)
-                        }
-                        
-                        Image(nsImage: NSApp.applicationIconImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 64, height: 64)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .shadow(color: state.isComplete ? .green.opacity(0.4) : .black.opacity(0.3), radius: 8, y: 4)
-                            .scaleEffect(state.isComplete ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.6), value: state.isComplete)
-                    }
-                    .onAppear {
-                        pulseAnimation = true
-                    }
-                    .onChange(of: state.isComplete) { _, complete in
-                        if complete {
-                            showSuccessGlow = true
-                            // Trigger confetti after a tiny delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                showConfetti = true
+                // Header with NotchFace
+                VStack(spacing: 16) {
+                    // NotchFace - excited when complete
+                    NotchFace(size: 60, isExcited: state.isComplete)
+                        .onChange(of: state.isComplete) { _, complete in
+                            if complete {
+                                // Trigger confetti after a tiny delay
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    showConfetti = true
+                                }
                             }
                         }
-                    }
                     
                     Text(state.hasError ? "Update Failed" : (state.isComplete ? "Update Complete!" : "Updating Droppy..."))
                         .font(.title2.bold())
-                        .foregroundStyle(state.isComplete ? .green : .white)
+                        .foregroundStyle(state.hasError ? .red : (state.isComplete ? .green : .primary))
                         .animation(.easeInOut(duration: 0.3), value: state.isComplete)
                 }
-                .padding(.top, 24)
+                .padding(.top, 28)
                 .padding(.bottom, 20)
                 
                 // Progress Steps
@@ -225,7 +295,7 @@ struct UpdaterView: View {
     }
 }
 
-// MARK: - Confetti View
+// MARK: - Confetti View (Optimized for Performance)
 
 struct ConfettiView: View {
     @State private var particles: [ConfettiParticle] = []
@@ -236,14 +306,15 @@ struct ConfettiView: View {
             if isVisible {
                 Canvas { context, size in
                     for particle in particles {
+                        // Simple rectangle without rotation for performance
                         let rect = CGRect(
                             x: particle.currentX - particle.size / 2,
-                            y: particle.currentY - particle.size * 0.75,
+                            y: particle.currentY - particle.size / 2,
                             width: particle.size,
                             height: particle.size * 1.5
                         )
                         context.fill(
-                            RoundedRectangle(cornerRadius: 1).path(in: rect),
+                            RoundedRectangle(cornerRadius: 2).path(in: rect),
                             with: .color(particle.color.opacity(particle.opacity))
                         )
                     }
@@ -257,50 +328,57 @@ struct ConfettiView: View {
     }
     
     private func createParticles(in size: CGSize) {
-        let colors: [Color] = [.green, .blue, .yellow, .orange, .pink, .purple, .cyan]
+        let colors: [Color] = [.green, .blue, .yellow, .orange, .pink, .purple, .cyan, .mint]
+        let centerX = size.width / 2
         
-        // Reduced from 40 to 18 particles for performance
-        for i in 0..<18 {
+        // 20 particles - good balance of visual effect and performance
+        for i in 0..<20 {
+            let spreadAngle = Double.random(in: -0.7...0.7)
+            let velocity = CGFloat.random(in: 150...280)
+            let targetX = centerX + cos(spreadAngle - .pi/2) * velocity
+            let targetY = sin(spreadAngle - .pi/2) * velocity + CGFloat.random(in: 30...100)
+            
             var particle = ConfettiParticle(
                 id: i,
-                x: CGFloat.random(in: 20...(size.width - 20)),
+                x: targetX,
                 startY: size.height + 10,
-                endY: CGFloat.random(in: -20...size.height * 0.4),
+                endY: targetY,
                 color: colors[i % colors.count],
-                size: CGFloat.random(in: 5...7),
+                size: CGFloat.random(in: 5...8),
                 delay: Double(i) * 0.02 // Staggered for natural look
             )
-            particle.currentX = particle.x
-            particle.currentY = particle.startY
+            particle.currentX = centerX + CGFloat.random(in: -15...15)
+            particle.currentY = size.height + 10
             particles.append(particle)
         }
     }
     
     private func startAnimation() {
-        // Animate all particles
+        // Batch all particles into single animation phases for better performance
+        
+        // Phase 1: All burst upward together (staggered by delay)
         for i in 0..<particles.count {
-            let delay = particles[i].delay
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + particles[i].delay) { [self] in
                 guard i < particles.count else { return }
-                
-                withAnimation(.easeOut(duration: 1.0)) {
+                withAnimation(.easeOut(duration: 0.6)) {
                     particles[i].currentY = particles[i].endY
-                    particles[i].currentX = particles[i].x + CGFloat.random(in: -25...25)
+                    particles[i].currentX = particles[i].x
                 }
             }
-            
-            // Fade out
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.7) {
-                guard i < particles.count else { return }
-                withAnimation(.easeIn(duration: 0.3)) {
+        }
+        
+        // Phase 2: All fall and fade together
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [self] in
+            withAnimation(.easeIn(duration: 0.6)) {
+                for i in 0..<particles.count {
+                    particles[i].currentY = 350
                     particles[i].opacity = 0
                 }
             }
         }
         
-        // Remove confetti view after animation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // Cleanup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
             isVisible = false
         }
     }

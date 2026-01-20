@@ -70,40 +70,64 @@ struct DroppyAlertView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(spacing: 14) {
-                Image(systemName: style.icon)
-                    .font(.system(size: 28))
-                    .foregroundStyle(style.iconColor)
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: false)
                 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.headline)
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                Spacer()
+                Text(title)
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
             }
-            .padding(20)
+            .padding(.top, 28)
+            .padding(.bottom, 20)
             
             Divider()
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 24)
             
-            // Action buttons
-            HStack(spacing: 10) {
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                // Message card
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: style.icon)
+                            .foregroundStyle(style.iconColor)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text(message)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Action buttons (secondary left, Spacer, primary right)
+            HStack(spacing: 8) {
                 if let secondaryTitle = secondaryButtonTitle, let onSecondary = onSecondary {
                     Button {
                         onSecondary()
                     } label: {
                         Text(secondaryTitle)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 16)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background((isSecondaryHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                            .foregroundStyle(.primary)
+                            .background(isSecondaryHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -112,9 +136,7 @@ struct DroppyAlertView: View {
                     }
                     .buttonStyle(.plain)
                     .onHover { h in
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                            isSecondaryHovering = h
-                        }
+                        withAnimation(.easeInOut(duration: 0.15)) { isSecondaryHovering = h }
                     }
                 }
                 
@@ -124,11 +146,11 @@ struct DroppyAlertView: View {
                     onPrimary()
                 } label: {
                     Text(primaryButtonTitle)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 16)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isPrimaryHovering ? 1.0 : 0.8))
-                        .foregroundStyle(.primary)
+                        .background(Color.blue.opacity(isPrimaryHovering ? 1.0 : 0.85))
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -137,16 +159,15 @@ struct DroppyAlertView: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { h in
-                    withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
-                        isPrimaryHovering = h
-                    }
+                    withAnimation(.easeInOut(duration: 0.15)) { isPrimaryHovering = h }
                 }
             }
             .padding(16)
         }
-        .frame(width: 420)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

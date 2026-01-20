@@ -282,22 +282,22 @@ final class VoiceTranscribeManager: ObservableObject {
     }
     
     private func showMicPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Microphone Access Required"
-        alert.informativeText = "Voice Transcribe needs microphone access to record audio. Please enable it in System Settings → Privacy & Security → Microphone."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Cancel")
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            // Open Privacy & Security settings
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
-                NSWorkspace.shared.open(url)
+        Task { @MainActor in
+            let shouldOpen = await DroppyAlertController.shared.showPermissions(
+                title: "Microphone Access Required",
+                message: "Voice Transcribe needs microphone access to record audio. Please enable it in System Settings → Privacy & Security → Microphone.",
+                actionButtonTitle: "Open System Settings"
+            )
+            
+            if shouldOpen {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                    NSWorkspace.shared.open(url)
+                }
             }
+            
+            // Hide recording window since we can't record
+            VoiceRecordingWindowController.shared.hideWindow()
         }
-        
-        // Hide recording window since we can't record
-        VoiceRecordingWindowController.shared.hideWindow()
     }
     
     /// Stop recording and start transcription

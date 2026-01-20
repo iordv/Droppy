@@ -94,11 +94,11 @@ struct NotchShelfView: View {
     /// Dynamic notch width based on screen's actual safe areas
     /// This properly handles all resolutions including "More Space" settings
     private var notchWidth: CGFloat {
-        // Dynamic Island uses fixed size
-        if isDynamicIslandMode { return 210 }
+        // Dynamic Island uses SSOT fixed size
+        if isDynamicIslandMode { return NotchLayoutConstants.dynamicIslandWidth }
 
         // Use target screen or fallback to built-in
-        guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return 180 }
+        guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return NotchLayoutConstants.physicalNotchWidth }
         
         // Use auxiliary areas to calculate true notch width
         // The notch is the gap between the right edge of the left safe area
@@ -109,17 +109,17 @@ struct NotchShelfView: View {
             // This is more accurate than (screen.width - leftWidth - rightWidth)
             // which can have sub-pixel rounding errors on different display configurations
             let notchGap = rightArea.minX - leftArea.maxX
-            return max(notchGap, 180)
+            return max(notchGap, NotchLayoutConstants.physicalNotchWidth)
         }
         
         // Fallback for screens without notch data
-        return 180
+        return NotchLayoutConstants.physicalNotchWidth
     }
     
     /// Notch height - scales with resolution
     private var notchHeight: CGFloat {
-        // Dynamic Island uses fixed size
-        if isDynamicIslandMode { return 37 }
+        // Dynamic Island uses SSOT fixed size
+        if isDynamicIslandMode { return NotchLayoutConstants.dynamicIslandHeight }
 
         // Use target screen or fallback to built-in
         guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return 32 }
@@ -143,10 +143,22 @@ struct NotchShelfView: View {
         return (!hasNotch || forceTest) && useDynamicIslandStyle
     }
     
+    /// Whether this view is on an external display (non-built-in)
+    private var isExternalDisplay: Bool {
+        guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return false }
+        return !screen.isBuiltIn
+    }
+    
     /// Whether the Dynamic Island should use transparent glass effect
-    /// Only applies when in DI mode AND the transparent DI setting is enabled
+    /// Uses the MAIN "Transparent Background" setting - one toggle controls all transparency
     private var shouldUseDynamicIslandTransparent: Bool {
-        isDynamicIslandMode && useDynamicIslandTransparent
+        isDynamicIslandMode && useTransparentBackground
+    }
+    
+    /// Whether the external display notch should use transparent glass effect
+    /// Only applies to external displays in notch mode (not built-in, as physical notch is black)
+    private var shouldUseExternalNotchTransparent: Bool {
+        isExternalDisplay && !isDynamicIslandMode && useTransparentBackground
     }
     
     /// Whether THIS specific screen has the shelf expanded
@@ -159,8 +171,18 @@ struct NotchShelfView: View {
         return state.isExpanded(for: displayID)
     }
     
-    /// Top margin for Dynamic Island - creates floating effect like iPhone
-    private let dynamicIslandTopMargin: CGFloat = 4
+    /// Whether THIS specific screen has hover state
+    /// This is screen-specific - only returns true for the screen that is actually being hovered
+    /// Fixes issue where BOTH screens would show hover animation when hovering any screen
+    private var isHoveringOnThisScreen: Bool {
+        guard let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID else {
+            return state.isMouseHovering  // Fallback to global check if no displayID
+        }
+        return state.isHovering(for: displayID)
+    }
+    
+    /// Top margin for Dynamic Island from SSOT - creates floating effect like iPhone
+    private var dynamicIslandTopMargin: CGFloat { NotchLayoutConstants.dynamicIslandTopMargin }
     
     private let expandedWidth: CGFloat = 450
     
@@ -183,7 +205,7 @@ struct NotchShelfView: View {
     /// Volume and Brightness use IDENTICAL widths for visual consistency
     private var volumeHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 365  // Same width as brightness for consistency
+            return 260  // Compact width for island mode
         }
         return notchWidth + (volumeWingWidth * 2) + 20  // Same formula as brightness
     }
@@ -191,7 +213,7 @@ struct NotchShelfView: View {
     /// Brightness HUD - same width as Volume for visual consistency
     private var brightnessHudWidth: CGFloat {
         if isDynamicIslandMode {
-            return 365  // Icon + percentage + slider
+            return 260  // Compact width for island mode
         }
         return notchWidth + (volumeWingWidth * 2) + 20
     }
@@ -269,7 +291,7 @@ struct NotchShelfView: View {
             return batteryHudWidth  // Focus/DND HUD uses same width as battery HUD
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
-        } else if enableNotchShelf && state.isMouseHovering {
+        } else if enableNotchShelf && isHoveringOnThisScreen {
             // Only expand on mouse hover, NOT when dragging files (prevents sliding animation)
             return notchWidth + 20
         } else {
@@ -315,7 +337,7 @@ struct NotchShelfView: View {
             // Only expand on media hover, NOT when dragging files (prevents sliding animation)
             let shouldExpand = mediaHUDIsHovered && mediaHUDVisible
             return shouldExpand ? notchHeight + 28 : notchHeight
-        } else if enableNotchShelf && (state.isMouseHovering || dragMonitor.isDragging) {
+        } else if enableNotchShelf && (isHoveringOnThisScreen || dragMonitor.isDragging) {
             // Dynamic Island stays fixed height - no vertical extension on hover
             if isDynamicIslandMode {
                 return notchHeight
@@ -390,8 +412,8 @@ struct NotchShelfView: View {
             }
             // Shelf-specific triggers only apply when shelf is enabled
             if enableNotchShelf {
-                // Show when hovering (to access shelf)
-                if state.isMouseHovering || state.isDropTargeted { return true }
+                // Show when hovering (to access shelf) - SCREEN-SPECIFIC
+                if isHoveringOnThisScreen || state.isDropTargeted { return true }
                 // Show when dragging files
                 if dragMonitor.isDragging { return true }
                 // Show when expanded
@@ -410,7 +432,7 @@ struct NotchShelfView: View {
         // Shelf-specific triggers only apply when shelf is enabled
         if enableNotchShelf {
             if isExpandedOnThisScreen { return true }
-            if dragMonitor.isDragging || state.isMouseHovering || state.isDropTargeted { return true }
+            if dragMonitor.isDragging || isHoveringOnThisScreen || state.isDropTargeted { return true }
         }
         
         // Hide on external displays when setting is enabled (static state only)
@@ -517,7 +539,7 @@ struct NotchShelfView: View {
                         Button(action: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 state.expandedDisplayID = nil
-                                state.isMouseHovering = false
+                                state.hoveringDisplayID = nil  // Clear hover on all screens when closing
                             }
                         }) {
                             Image(systemName: "xmark")
@@ -530,8 +552,13 @@ struct NotchShelfView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                // Position exactly below the expanded content
-                .offset(y: currentExpandedHeight + (isDynamicIslandMode ? 8 : 12))
+                // Position exactly below the expanded content using SSOT gap
+                // NOTE: In notch mode, currentExpandedHeight includes top padding compensation which
+                // naturally pushes buttons lower. Island mode needs extra offset from SSOT to match.
+                .offset(y: currentExpandedHeight + NotchLayoutConstants.floatingButtonGap + (isDynamicIslandMode ? NotchLayoutConstants.floatingButtonIslandCompensation : 0))
+                .opacity(notchController.isTemporarilyHidden ? 0 : 1)
+                .scaleEffect(notchController.isTemporarilyHidden ? 0.5 : 1)
+                .animation(.spring(response: 0.35, dampingFraction: 0.7), value: notchController.isTemporarilyHidden)
                 .zIndex(100)
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
@@ -683,7 +710,7 @@ struct NotchShelfView: View {
                     musicManager.isMediaHUDHidden = false
                 }
             }
-            .onChange(of: state.isMouseHovering) { wasHovering, isHovering in
+            .onChange(of: isHoveringOnThisScreen) { wasHovering, isHovering in
                 if wasHovering && !isHovering && isExpandedOnThisScreen && !isHoveringExpandedContent {
                     startAutoShrinkTimer()
                 }
@@ -711,7 +738,7 @@ struct NotchShelfView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             hudIsVisible = true
             // Reset hover states to prevent layout shift when HUD appears
-            state.isMouseHovering = false
+            state.hoveringDisplayID = nil  // Clear hover on all screens
             mediaHUDIsHovered = false
         }
         
@@ -731,7 +758,7 @@ struct NotchShelfView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
             hudIsVisible = true
             // Reset hover states to prevent layout shift when HUD appears
-            state.isMouseHovering = false
+            state.hoveringDisplayID = nil  // Clear hover on all screens
             mediaHUDIsHovered = false
         }
         
@@ -800,8 +827,8 @@ struct NotchShelfView: View {
         // Start timer to auto-shrink shelf
         let workItem = DispatchWorkItem { [self] in
             // Only shrink if still expanded and not hovering over the content
-            // Check both local hover state AND global mouse hover (NotchWindowController tracking)
-            guard isExpandedOnThisScreen && !isHoveringExpandedContent && !state.isMouseHovering && !state.isDropTargeted else { return }
+            // Check both local hover state AND screen-specific mouse hover
+            guard isExpandedOnThisScreen && !isHoveringExpandedContent && !isHoveringOnThisScreen && !state.isDropTargeted else { return }
             
             // CRITICAL: Don't auto-shrink if a context menu is open
             let hasActiveMenu = NSApp.windows.contains { $0.level.rawValue >= NSWindow.Level.popUpMenu.rawValue }
@@ -809,7 +836,7 @@ struct NotchShelfView: View {
             
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 state.expandedDisplayID = nil  // Collapse shelf on all screens
-                state.isMouseHovering = false  // Reset hover state to go directly to regular notch
+                state.hoveringDisplayID = nil  // Reset hover state to go directly to regular notch
             }
         }
         autoShrinkWorkItem = workItem
@@ -1018,9 +1045,11 @@ struct NotchShelfView: View {
                 .opacity(isDynamicIslandMode ? 1 : 0)
                 .scaleEffect(isDynamicIslandMode ? 1 : 0.85)
             
-            // Notch shape (U-shaped) - always black (physical notch is black)
+            // Notch shape (U-shaped)
+            // Built-in: always black (physical notch is black)
+            // External: can be transparent when transparency setting is enabled
             NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
-                .fill(Color.black)
+                .fill(shouldUseExternalNotchTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
                 .opacity(isDynamicIslandMode ? 0 : 1)
                 .scaleEffect(isDynamicIslandMode ? 0.85 : 1)
         }
@@ -1095,9 +1124,9 @@ struct NotchShelfView: View {
                 .foregroundStyle(Color.blue)
                 .opacity(isDynamicIslandMode ? 0 : 1)
         }
-        .opacity((enableNotchShelf && shouldShowVisualNotch && !isExpandedOnThisScreen && (dragMonitor.isDragging || state.isMouseHovering)) ? 1 : 0)
+        .opacity((enableNotchShelf && shouldShowVisualNotch && !isExpandedOnThisScreen && (dragMonitor.isDragging || isHoveringOnThisScreen)) ? 1 : 0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragMonitor.isDragging)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isMouseHovering)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHoveringOnThisScreen)
     }
 
     // MARK: - Drop Zone
@@ -1109,7 +1138,7 @@ struct NotchShelfView: View {
         // - Vertical: EXACT height matching the visual - NO downward expansion
         // This ensures we don't block Safari URL bars, Outlook search fields, etc.
         // CRITICAL: Never expand when volume/brightness HUD is visible (prevents position shift)
-        let isActive = enableNotchShelf && !hudIsVisible && (isExpandedOnThisScreen || state.isMouseHovering || dragMonitor.isDragging || state.isDropTargeted)
+        let isActive = enableNotchShelf && !hudIsVisible && (isExpandedOnThisScreen || isHoveringOnThisScreen || dragMonitor.isDragging || state.isDropTargeted)
         
         // Both modes: Horizontal expansion when active, but height is ALWAYS exact
         let dropAreaWidth: CGFloat = isActive ? (currentNotchWidth + 40) : currentNotchWidth
@@ -1140,30 +1169,35 @@ struct NotchShelfView: View {
             // Only update hover state if not dragging (drag state handles its own)
             // AND not when volume/brightness HUD is visible (prevents layout shift)
             if !dragMonitor.isDragging && !hudIsVisible {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                    // Only set mouse hovering if shelf is enabled
-                    if enableNotchShelf {
-                        state.isMouseHovering = isHovering
-                    }
-                    // Propagate hover to media HUD when music is playing (works independently)
-                    if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
-                        mediaHUDIsHovered = isHovering
+                // Get the displayID for this specific screen
+                if let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        // Only set mouse hovering if shelf is enabled
+                        if enableNotchShelf {
+                            state.setHovering(for: displayID, isHovering: isHovering)
+                        }
+                        // Propagate hover to media HUD when music is playing (works independently)
+                        if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
+                            mediaHUDIsHovered = isHovering
+                        }
                     }
                 }
             } else if hudIsVisible {
                 // CRITICAL: Force reset hover states when HUD is visible to prevent any layout shift
                 // This handles edge case where cursor was already over area when HUD appeared
-                if state.isMouseHovering || mediaHUDIsHovered {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                        state.isMouseHovering = false
-                        mediaHUDIsHovered = false
+                if let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID {
+                    if state.isHovering(for: displayID) || mediaHUDIsHovered {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            state.setHovering(for: displayID, isHovering: false)
+                            mediaHUDIsHovered = false
+                        }
                     }
                 }
             }
         }
         // NOTE: isDropTargeted animation REMOVED to prevent sliding effect
         // Visual feedback handled by internal transitions in emptyShelfContent
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isMouseHovering)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHoveringOnThisScreen)
     }
     
     // MARK: - Indicators
@@ -1180,7 +1214,7 @@ struct NotchShelfView: View {
             Image(systemName: "hand.tap.fill")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white, .blue)
-                .symbolEffect(.bounce, value: state.isMouseHovering)
+                .symbolEffect(.bounce, value: isHoveringOnThisScreen)
             
             Text("Open Shelf")
                 .font(.system(size: 15, weight: .bold))
@@ -1193,10 +1227,11 @@ struct NotchShelfView: View {
     }
     
     // NOTE: In regular notch mode, indicators are solid black.
-    // In transparent DI mode, indicators use glass material to match the DI style.
+    // In transparent DI mode OR external notch transparent mode, indicators use glass material.
     private var indicatorBackground: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        let useTransparent = shouldUseDynamicIslandTransparent || shouldUseExternalNotchTransparent
+        return RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(useTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
@@ -1212,7 +1247,7 @@ struct NotchShelfView: View {
         ZStack {
             // TERMINAL VIEW: Highest priority - takes over the shelf when active
             if terminalManager.isInstalled && terminalManager.isVisible {
-                TerminalNotchView(manager: terminalManager)
+                TerminalNotchView(manager: terminalManager, notchHeight: isDynamicIslandMode ? 0 : notchHeight)
                     .frame(height: currentExpandedHeight, alignment: .top)
                     .id("terminal-view")
                     .transition(.asymmetric(
@@ -1582,8 +1617,10 @@ extension NotchShelfView {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(10) // Match basket padding for visual consistency
             .overlay(
+                // NOTE: Using strokeBorder instead of stroke to draw INSIDE the shape bounds,
+                // preventing the stroke from being clipped at content edges
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(
+                    .strokeBorder(
                         state.isDropTargeted ? Color.blue : Color.white.opacity(0.2),
                         style: StrokeStyle(
                             lineWidth: state.isDropTargeted ? 2 : 1.5,
@@ -1609,8 +1646,9 @@ extension NotchShelfView {
                 .frame(maxWidth: 90, maxHeight: .infinity)
                 .padding(10) // Match main zone padding
                 .overlay(
+                    // NOTE: Using strokeBorder to draw INSIDE shape bounds
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(
+                        .strokeBorder(
                             state.isShelfAirDropZoneTargeted ? Color.blue : Color.white.opacity(0.2),
                             style: StrokeStyle(
                                 lineWidth: state.isShelfAirDropZoneTargeted ? 2 : 1.5,
@@ -1627,10 +1665,10 @@ extension NotchShelfView {
         .scaleEffect((state.isDropTargeted || state.isShelfAirDropZoneTargeted) ? 1.03 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isDropTargeted)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: state.isShelfAirDropZoneTargeted)
-        // Top padding must clear the physical notch (notchHeight + margin for stroke visibility)
-        // Island mode: uniform padding on ALL sides (16pt base, 18pt bottom for visual balance with rounded corners)
-        // Notch mode: 20pt on all sides except top (which must clear the notch)
-        .padding(EdgeInsets(top: isDynamicIslandMode ? 16 : notchHeight + 14, leading: isDynamicIslandMode ? 16 : 20, bottom: isDynamicIslandMode ? 18 : 20, trailing: isDynamicIslandMode ? 16 : 20))
+        // Use SSOT for consistent padding across all expanded views
+        // Island mode: 20pt uniform on ALL sides
+        // Notch mode: top = notchHeight (just below physical notch), 20pt on left/right/bottom
+        .padding(NotchLayoutConstants.contentEdgeInsets(notchHeight: isDynamicIslandMode ? 0 : notchHeight))
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
                 dropZoneDashPhase -= 280 // Multiple of 14 (6+8) for smooth loop

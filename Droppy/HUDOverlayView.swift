@@ -57,40 +57,29 @@ struct NotchHUDView: View {
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
             if isDynamicIslandMode {
-                // DYNAMIC ISLAND: Wide horizontal layout - icon + label on left, slider on right
-                // Using Droppy pattern: padding = (notchHeight - iconHeight) / 2 for symmetry
+                // DYNAMIC ISLAND: Compact horizontal layout - icon + slider only (no text label)
+                // This creates a minimal, clean appearance matching the DI aesthetic
                 let iconSize: CGFloat = 18
                 let symmetricPadding = (notchHeight - iconSize) / 2
                 
-                HStack(spacing: 0) {
-                    // Left side: Icon + Label
-                    HStack(spacing: 10) {
-                        Image(systemName: hudType.icon(for: value))
-                            .font(.system(size: iconSize, weight: .semibold))
-                            .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
-                            .contentTransition(.symbolEffect(.replace.byLayer))
-                            .frame(width: 28, height: iconSize, alignment: .leading)  // Wider for speaker.wave icons
-                        
-                        Text(hudType == .brightness ? "Brightness" : "Volume")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
+                HStack(spacing: 12) {
+                    // Left side: Icon only (no label for compact look)
+                    Image(systemName: hudType.icon(for: value))
+                        .font(.system(size: iconSize, weight: .semibold))
+                        .foregroundStyle(isMuted ? .red : (hudType == .brightness ? .yellow : .white))
+                        .contentTransition(.symbolEffect(.replace.byLayer))
+                        .frame(width: 24, height: iconSize, alignment: .leading)
                     
-                    Spacer(minLength: 20)
-                    
-                    // Right side: Slider
+                    // Right side: Slider takes remaining width
                     HUDSlider(
                         value: $value,
                         accentColor: isMuted ? .red : (hudType == .brightness ? .yellow : .white),
                         isActive: isActive,
                         onChange: onValueChange
                     )
-                    .frame(width: 100)
                     .frame(height: 16)
                 }
-                .padding(.horizontal, symmetricPadding)  // Same as vertical for symmetry
+                .padding(.horizontal, symmetricPadding)
                 .frame(height: notchHeight)
             } else {
                 // NOTCH MODE: Wide layout - icon + label on left wing, slider on right wing

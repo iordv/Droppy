@@ -365,7 +365,7 @@ struct SmartExportSettingsRow: View {
     }
     
     private var smartExportPopover: some View {
-        VStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .center, spacing: 12) {
             Text("Smart Export")
                 .font(.system(size: 15, weight: .semibold))
             

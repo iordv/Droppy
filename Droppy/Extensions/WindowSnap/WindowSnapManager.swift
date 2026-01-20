@@ -423,15 +423,16 @@ final class WindowSnapManager: ObservableObject {
     }
     
     private func showPermissionAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Accessibility Permission Required"
-        alert.informativeText = "Window Snap requires Accessibility permission to move and resize windows.\n\nPlease grant this in System Settings > Privacy & Security > Accessibility."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "Cancel")
-        
-        if alert.runModal() == .alertFirstButtonReturn {
-            PermissionManager.shared.openAccessibilitySettings()
+        Task { @MainActor in
+            let shouldOpen = await DroppyAlertController.shared.showPermissions(
+                title: "Accessibility Permission Required",
+                message: "Window Snap requires Accessibility permission to move and resize windows.\n\nPlease grant this in System Settings > Privacy & Security > Accessibility.",
+                actionButtonTitle: "Open Settings"
+            )
+            
+            if shouldOpen {
+                PermissionManager.shared.openAccessibilitySettings()
+            }
         }
     }
     

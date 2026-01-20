@@ -210,13 +210,8 @@ struct MediaPlayerView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: albumArtSize, maxHeight: albumArtSize)
             }
-            // Fill available space, padding applied after
-            .padding(EdgeInsets(
-                top: notchHeight > 0 ? notchHeight + 6 : 20,
-                leading: 20,
-                bottom: 20,
-                trailing: 20
-            ))
+            // Use SSOT for consistent padding across all expanded views
+            .padding(NotchLayoutConstants.contentEdgeInsets(notchHeight: notchHeight))
         }
         // MARK: - Universal Inline HUD Observers
         // Uses local @ObservedObject references for snappy updates

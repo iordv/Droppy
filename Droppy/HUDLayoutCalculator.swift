@@ -45,8 +45,9 @@ struct HUDLayoutCalculator {
     }
     
     /// Whether transparent Dynamic Island mode is enabled
+    /// Uses the MAIN "Transparent Background" setting - one toggle controls all transparency
     var isTransparentDynamicIsland: Bool {
-        isDynamicIslandMode && UserDefaults.standard.bool(forKey: "useDynamicIslandTransparent")
+        isDynamicIslandMode && UserDefaults.standard.bool(forKey: "useTransparentBackground")
     }
     
     /// Width of each "wing" (area left/right of physical notch) - only used in notch mode

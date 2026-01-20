@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.enableFloatingBasket) private var enableFloatingBasket = PreferenceDefault.enableFloatingBasket
     @AppStorage(AppPreferenceKey.enableBasketAutoHide) private var enableBasketAutoHide = PreferenceDefault.enableBasketAutoHide
     @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
+    @AppStorage(AppPreferenceKey.alwaysCopyOnDrag) private var alwaysCopyOnDrag = PreferenceDefault.alwaysCopyOnDrag
     @AppStorage(AppPreferenceKey.enableAirDropZone) private var enableAirDropZone = PreferenceDefault.enableAirDropZone
     @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone = PreferenceDefault.enableShelfAirDropZone
     @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
@@ -50,6 +51,9 @@ struct SettingsView: View {
     @State private var isUpdateHovering = false
     @State private var showDNDAccessAlert = false  // Full Disk Access alert for Focus Mode HUD
     @State private var showMenuBarHiddenWarning = false  // Warning when hiding menu bar icon (Issue #57)
+    @State private var showProtectOriginalsWarning = false  // Warning when disabling Protect Originals
+    @State private var showStabilizeMediaWarning = false  // Warning when enabling Stabilize Media
+    @State private var showAutoFocusSearchWarning = false  // Warning when enabling Auto-Focus Search
     
     // Hover states for sidebar items
     @State private var hoverFeatures = false
@@ -63,10 +67,20 @@ struct SettingsView: View {
     /// Extension to open from deep link (e.g., droppy://extension/ai-bg)
     @State private var deepLinkedExtension: ExtensionType?
     
-    /// Detects if the current screen has a physical notch
+    /// Detects if the BUILT-IN display has a physical notch
+    /// Uses builtInWithNotch or isBuiltIn check - NOT main screen (which could be external)
     private var hasPhysicalNotch: Bool {
-        guard let screen = NSScreen.main else { return false }
-        return screen.safeAreaInsets.top > 0
+        // Check if there's a built-in display with a notch
+        if let builtIn = NSScreen.builtInWithNotch {
+            return builtIn.safeAreaInsets.top > 0
+        }
+        // Fallback: check all screens for a built-in one with a notch
+        for screen in NSScreen.screens {
+            if screen.isBuiltIn && screen.safeAreaInsets.top > 0 {
+                return true
+            }
+        }
+        return false
     }
     
     var body: some View {
@@ -292,14 +306,48 @@ struct SettingsView: View {
                     }
                 }
                 
-                // Auto-Clean (affects both shelf and basket)
-                Toggle(isOn: $enableAutoClean) {
-                    VStack(alignment: .leading) {
-                        Text("Auto-Clean")
-                        Text("Remove files automatically after dragging out")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // Auto-Clean (affects Droppy UI only)
+                HStack(spacing: 8) {
+                    AutoCleanInfoButton()
+                    Toggle(isOn: $enableAutoClean) {
+                        VStack(alignment: .leading) {
+                            Text("Auto-Remove")
+                            Text("Clear items when dragged out of Droppy")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                }
+                
+                // Always Copy (affects actual files on disk) - Advanced setting
+                HStack(spacing: 8) {
+                    AlwaysCopyInfoButton()
+                    Toggle(isOn: $alwaysCopyOnDrag) {
+                        VStack(alignment: .leading) {
+                            HStack(alignment: .center, spacing: 6) {
+                                Text("Protect Originals")
+                                Text("advanced")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.white.opacity(0.08)))
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                            }
+                            Text("Always copy, never move files")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onChange(of: alwaysCopyOnDrag) { _, newValue in
+                        if !newValue {
+                            // User is turning OFF protection - show warning
+                            showProtectOriginalsWarning = true
+                        }
+                    }
+                }
+                .sheet(isPresented: $showProtectOriginalsWarning) {
+                    ProtectOriginalsWarningSheet(alwaysCopyOnDrag: $alwaysCopyOnDrag)
                 }
                 
                 // Power Folders (affects both shelf and basket)
@@ -487,18 +535,36 @@ struct SettingsView: View {
                         
                         Toggle(isOn: $debounceMediaChanges) {
                             VStack(alignment: .leading) {
-                                Text("Stabilize Media")
-                                Text("Delay preview by 1 second to prevent flickering")
+                                HStack(alignment: .center, spacing: 6) {
+                                    Text("Stabilize Media")
+                                    Text("advanced")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.7))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color.white.opacity(0.08)))
+                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                }
+                                Text("Prevent flickering when apps rapidly change songs")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                        }
+                        .onChange(of: debounceMediaChanges) { _, newValue in
+                            if newValue {
+                                // User is enabling - show explanation sheet
+                                showStabilizeMediaWarning = true
+                            }
+                        }
+                        .sheet(isPresented: $showStabilizeMediaWarning) {
+                            StabilizeMediaInfoSheet(debounceMediaChanges: $debounceMediaChanges)
                         }
                         
                         // Real Audio Visualizer (opt-in for Screen Recording permission)
                         Toggle(isOn: $enableRealAudioVisualizer) {
                             VStack(alignment: .leading) {
                                 Text("Real Audio Visualizer")
-                                Text("Requires Screen Recording permission")
+                                Text("Visualizer reacts to actual audio output")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -656,20 +722,11 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    .alert("Full Disk Access Required", isPresented: $showDNDAccessAlert) {
-                        Button("Open Settings") {
-                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }
-                        Button("I've Granted Access") {
-                            DNDManager.shared.recheckAccess()
-                        }
-                        Button("Cancel", role: .cancel) {
-                            enableDNDHUD = false
-                        }
-                    } message: {
-                        Text("To detect Focus mode changes, Droppy needs Full Disk Access.\n\n1. Click \"Open Settings\"\n2. Enable Droppy in the list\n3. Click \"I've Granted Access\"")
+                    .sheet(isPresented: $showDNDAccessAlert) {
+                        FullDiskAccessSheet(
+                            enableDNDHUD: $enableDNDHUD,
+                            isPresented: $showDNDAccessAlert
+                        )
                     }
                 }
                 .padding(.vertical, 4)
@@ -782,20 +839,7 @@ struct SettingsView: View {
                             }
                         }
                         
-                        // Transparent Dynamic Island toggle (external displays)
-                        if externalDisplayUseDynamicIsland && useTransparentBackground {
-                            Divider()
-                                .padding(.vertical, 4)
-                            
-                            Toggle(isOn: $useDynamicIslandTransparent) {
-                                VStack(alignment: .leading) {
-                                    Text("Transparent Dynamic Island")
-                                    Text("Use glass effect instead of solid black")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                        // Note: Transparency for DI is controlled by the main "Transparent Background" toggle
                     }
                     .padding(.top, 4)
                 }
@@ -804,7 +848,8 @@ struct SettingsView: View {
             }
             
             // MARK: Display Mode (Non-notch displays only)
-            // Only show on non-notch displays (iMacs, Mac minis, older MacBooks, external displays)
+            // MacBooks WITH a physical notch MUST use notch mode - no choice
+            // Only non-notch Macs (iMacs, Mac minis, older MacBooks) can choose
             if !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
@@ -824,7 +869,7 @@ struct SettingsView: View {
                                 icon: {
                                     UShape()
                                         .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
-                                        .frame(width: 60, height: 18) // Wider notch shape
+                                        .frame(width: 60, height: 18)
                                 }
                             ) {
                                 useDynamicIslandStyle = false
@@ -844,21 +889,8 @@ struct SettingsView: View {
                             }
                         }
                         
-                        // Transparent Dynamic Island option (only when DI + transparent enabled)
-                        // Show for both built-in (useDynamicIslandStyle) AND external (externalDisplayUseDynamicIsland)
-                        if (useDynamicIslandStyle || externalDisplayUseDynamicIsland) && useTransparentBackground {
-                            Divider()
-                                .padding(.vertical, 4)
-                            
-                            Toggle(isOn: $useDynamicIslandTransparent) {
-                                VStack(alignment: .leading) {
-                                    Text("Transparent Dynamic Island")
-                                    Text("Use glass effect instead of solid black")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                        // Note: Transparency is controlled by the main "Transparent Background" toggle
+                        // No separate toggle needed here - it applies globally to all DI views
                     }
                     .padding(.vertical, 8)
                 } header: {
@@ -977,13 +1009,11 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .alert("Menu Bar Icon Hidden", isPresented: $showMenuBarHiddenWarning) {
-                    Button("Hide Icon") {
-                        showInMenuBar = false
-                    }
-                    Button("Cancel", role: .cancel) { }
-                } message: {
-                    Text("You can always access Settings by right-clicking on the Notch or Dynamic Island at the top of your screen.")
+                .sheet(isPresented: $showMenuBarHiddenWarning) {
+                    MenuBarHiddenSheet(
+                        showInMenuBar: $showInMenuBar,
+                        isPresented: $showMenuBarHiddenWarning
+                    )
                 }
                 
                 Toggle(isOn: Binding(
@@ -1268,11 +1298,29 @@ struct SettingsView: View {
                 // Auto-focus search toggle (Issue #43)
                 Toggle(isOn: $autoFocusSearch) {
                     VStack(alignment: .leading) {
-                        Text("Auto-Focus Search")
+                        HStack(alignment: .center, spacing: 6) {
+                            Text("Auto-Focus Search")
+                            Text("advanced")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.white.opacity(0.08)))
+                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                        }
                         Text("Open search bar automatically when clipboard opens")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+                .onChange(of: autoFocusSearch) { _, newValue in
+                    if newValue {
+                        // User is enabling - show explanation sheet
+                        showAutoFocusSearchWarning = true
+                    }
+                }
+                .sheet(isPresented: $showAutoFocusSearchWarning) {
+                    AutoFocusSearchInfoSheet(autoFocusSearch: $autoFocusSearch)
                 }
                 
                 // Copy+Favorite Shortcut (Issue #43)
@@ -2093,6 +2141,844 @@ struct AirDropZoneInfoButton: View {
     }
 }
 
+// MARK: - Auto-Clean Info Button
+
+/// Info button explaining the Clear After Drop feature
+struct AutoCleanInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Auto-Remove")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Visual: item leaving shelf
+                HStack(spacing: 8) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.purple.opacity(0.15))
+                        Image(systemName: "doc.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.purple.opacity(0.6))
+                    }
+                    .frame(width: 40, height: 40)
+                    
+                    Image(systemName: "arrow.right")
+                        .foregroundStyle(.secondary)
+                    
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.green.opacity(0.15))
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.green)
+                    }
+                    .frame(width: 40, height: 40)
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Clears item from shelf/basket")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Original file is NOT deleted")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 220)
+        }
+    }
+}
+
+// MARK: - Always Copy Info Button
+
+/// Info button explaining the Protect Originals feature
+struct AlwaysCopyInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Button { showPopover.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            VStack(alignment: .center, spacing: 16) {
+                Text("Protect Originals")
+                    .font(.system(size: 15, weight: .semibold))
+                
+                // Visual: file with shield
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.blue.opacity(0.15))
+                        Image(systemName: "doc.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.blue)
+                    }
+                    .frame(width: 40, height: 40)
+                    
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.green.opacity(0.15))
+                        Image(systemName: "shield.checkered")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.green)
+                    }
+                    .frame(width: 40, height: 40)
+                }
+                .padding(.vertical, 4)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Files are copied, never moved")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.green).frame(width: 5, height: 5)
+                        Text("Original stays at source location")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    
+                    Divider().padding(.vertical, 2)
+                    
+                    Text("When disabled:")
+                        .font(.caption).fontWeight(.medium)
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.orange).frame(width: 5, height: 5)
+                        Text("Same disk = may delete original")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(width: 240)
+        }
+    }
+}
+
+// MARK: - Protect Originals Warning Sheet
+
+/// Warning sheet shown when user disables Protect Originals
+struct ProtectOriginalsWarningSheet: View {
+    @Binding var alwaysCopyOnDrag: Bool
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @Environment(\.dismiss) private var dismiss
+    @State private var isHoveringConfirm = false
+    @State private var isHoveringCancel = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: false)
+                
+                Text("Disable File Protection?")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                Text("When you disable this setting:")
+                    .font(.callout.weight(.medium))
+                
+                // Card with explanation items
+                VStack(spacing: 0) {
+                    // Warning item
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Dragging files to the same disk may **delete** the original file")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                    }
+                    
+                    // Info item
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundStyle(.blue)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Dragging to a different disk will still copy normally")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Buttons (secondary left, Spacer, primary right)
+            HStack(spacing: 8) {
+                // Disable Anyway (secondary - left)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Disable Anyway")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringConfirm ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringConfirm = h }
+                }
+                
+                Spacer()
+                
+                // Keep Protection (primary - right)
+                Button {
+                    alwaysCopyOnDrag = true
+                    dismiss()
+                } label: {
+                    Text("Keep Protection")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isHoveringCancel ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringCancel = h }
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Stabilize Media Info Sheet
+
+/// Info sheet shown when user enables Stabilize Media (advanced feature)
+struct StabilizeMediaInfoSheet: View {
+    @Binding var debounceMediaChanges: Bool
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @Environment(\.dismiss) private var dismiss
+    @State private var isHoveringDisable = false
+    @State private var isHoveringKeep = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: true)
+                
+                Text("Stabilize Media Enabled")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                Text("What this does:")
+                    .font(.callout.weight(.medium))
+                
+                // Card with explanation items
+                VStack(spacing: 0) {
+                    // Info item 1
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "clock")
+                            .foregroundStyle(.blue)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Adds a short delay before showing media changes")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                    }
+                    
+                    // Info item 2
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Prevents UI flickering when apps rapidly update metadata")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                    }
+                    
+                    // Info item 3
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("May slightly delay initial song/album art display")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Buttons (secondary left, Spacer, primary right)
+            HStack(spacing: 8) {
+                // Disable (secondary - left)
+                Button {
+                    debounceMediaChanges = false
+                    dismiss()
+                } label: {
+                    Text("Disable")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringDisable = h }
+                }
+                
+                Spacer()
+                
+                // Keep Enabled (primary - right)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Got It")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isHoveringKeep ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringKeep = h }
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Auto-Focus Search Info Sheet
+
+/// Info sheet shown when user enables Auto-Focus Search (advanced feature)
+struct AutoFocusSearchInfoSheet: View {
+    @Binding var autoFocusSearch: Bool
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @Environment(\.dismiss) private var dismiss
+    @State private var isHoveringDisable = false
+    @State private var isHoveringKeep = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: true)
+                
+                Text("Auto-Focus Search Enabled")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                Text("What this does:")
+                    .font(.callout.weight(.medium))
+                
+                // Card with explanation items
+                VStack(spacing: 0) {
+                    // Info item 1
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.blue)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Automatically focuses the search bar when clipboard opens")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                    }
+                    
+                    // Info item 2
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "keyboard")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Start typing immediately to filter clipboard history")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                    .overlay(alignment: .bottom) {
+                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                    }
+                    
+                    // Info item 3
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Arrow keys won't navigate list until you press Escape")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Buttons (secondary left, Spacer, primary right)
+            HStack(spacing: 8) {
+                // Disable (secondary - left)
+                Button {
+                    autoFocusSearch = false
+                    dismiss()
+                } label: {
+                    Text("Disable")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringDisable = h }
+                }
+                
+                Spacer()
+                
+                // Keep Enabled (primary - right)
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Got It")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isHoveringKeep ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringKeep = h }
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Full Disk Access Sheet
+
+/// Styled sheet for Full Disk Access permission request
+struct FullDiskAccessSheet: View {
+    @Binding var enableDNDHUD: Bool
+    @Binding var isPresented: Bool
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @State private var isHoveringOpen = false
+    @State private var isHoveringGranted = false
+    @State private var isHoveringCancel = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: false)
+                
+                Text("Full Disk Access Required")
+                    .font(.title2.bold())
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                Text("To detect Focus mode changes:")
+                    .font(.callout.weight(.medium))
+                
+                // Steps card
+                VStack(spacing: 0) {
+                    stepRow(number: "1", text: "Click \"Open Settings\"", isFirst: true)
+                    stepRow(number: "2", text: "Enable Droppy in the list")
+                    stepRow(number: "3", text: "Click \"I've Granted Access\"", isLast: true)
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Buttons
+            HStack(spacing: 8) {
+                // Cancel (secondary - left)
+                Button {
+                    enableDNDHUD = false
+                    isPresented = false
+                } label: {
+                    Text("Cancel")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringCancel = h }
+                }
+                
+                Spacer()
+                
+                // I've Granted Access
+                Button {
+                    DNDManager.shared.recheckAccess()
+                    isPresented = false
+                } label: {
+                    Text("I've Granted Access")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringGranted ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringGranted = h }
+                }
+                
+                // Open Settings (primary - right)
+                Button {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Text("Open Settings")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isHoveringOpen ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringOpen = h }
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 400)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+    
+    private func stepRow(number: String, text: String, isFirst: Bool = false, isLast: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(number)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(.blue)
+                .frame(width: 22, height: 22)
+                .background(Color.blue.opacity(0.15))
+                .clipShape(Circle())
+            
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary.opacity(0.85))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.02))
+        .overlay(alignment: .bottom) {
+            if !isLast {
+                Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+            }
+        }
+    }
+}
+
+// MARK: - Menu Bar Hidden Sheet
+
+/// Styled sheet for Menu Bar Icon hidden warning
+struct MenuBarHiddenSheet: View {
+    @Binding var showInMenuBar: Bool
+    @Binding var isPresented: Bool
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @State private var isHoveringHide = false
+    @State private var isHoveringCancel = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with NotchFace
+            VStack(spacing: 16) {
+                NotchFace(size: 60, isExcited: false)
+                
+                Text("Hide Menu Bar Icon?")
+                    .font(.title2.bold())
+            }
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Content
+            VStack(alignment: .center, spacing: 16) {
+                // Info card
+                VStack(spacing: 0) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "hand.tap.fill")
+                            .foregroundStyle(.blue)
+                            .font(.system(size: 14))
+                            .frame(width: 22)
+                        Text("Right-click the Notch or Dynamic Island to access Settings anytime")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.primary.opacity(0.85))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.02))
+                }
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Buttons
+            HStack(spacing: 8) {
+                // Cancel (secondary - left)
+                Button {
+                    isPresented = false
+                } label: {
+                    Text("Cancel")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringCancel = h }
+                }
+                
+                Spacer()
+                
+                // Hide Icon (primary - right)
+                Button {
+                    showInMenuBar = false
+                    isPresented = false
+                } label: {
+                    Text("Hide Icon")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(isHoveringHide ? 1.0 : 0.85))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .onHover { h in
+                    withAnimation(.easeInOut(duration: 0.15)) { isHoveringHide = h }
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
 // MARK: - Power Folders Info Button
 struct PowerFoldersInfoButton: View {
     @State private var showPopover = false
@@ -2380,4 +3266,3 @@ struct ExternalDisplayInfoButton: View {
         }
     }
 }
-

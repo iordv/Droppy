@@ -235,7 +235,13 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     // MARK: - NSDraggingSource
     
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        return .every
+        // Default: Copy only (prevents same-volume moves which confuse users)
+        // User can opt into .every via the "Allow Move" setting for macOS default behavior
+        let alwaysCopy = UserDefaults.standard.preference(
+            AppPreferenceKey.alwaysCopyOnDrag,
+            default: PreferenceDefault.alwaysCopyOnDrag
+        )
+        return alwaysCopy ? .copy : .every
     }
     
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {

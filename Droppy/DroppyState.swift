@@ -32,8 +32,35 @@ final class DroppyState {
     /// Whether the drop zone is currently targeted (hovered with files)
     var isDropTargeted: Bool = false
     
-    /// Whether the mouse is hovering over the notch (no files)
-    var isMouseHovering: Bool = false
+    /// Tracks which screen (by displayID) has mouse hovering over the notch
+    /// Only one screen can show hover effect at a time
+    var hoveringDisplayID: CGDirectDisplayID? = nil
+    
+    /// Convenience property for backwards compatibility - true if ANY screen is being hovered
+    var isMouseHovering: Bool {
+        get { hoveringDisplayID != nil }
+        set {
+            if !newValue {
+                hoveringDisplayID = nil
+            }
+            // Note: Setting to true without screen context is deprecated
+            // Use setHovering(for:) instead
+        }
+    }
+    
+    /// Sets hover state for a specific screen
+    func setHovering(for displayID: CGDirectDisplayID, isHovering: Bool) {
+        if isHovering {
+            hoveringDisplayID = displayID
+        } else if hoveringDisplayID == displayID {
+            hoveringDisplayID = nil
+        }
+    }
+    
+    /// Checks if a specific screen has hover state
+    func isHovering(for displayID: CGDirectDisplayID) -> Bool {
+        return hoveringDisplayID == displayID
+    }
     
     /// Tracks which screen (by displayID) has the shelf expanded
     /// Only one screen can have the shelf expanded at a time to prevent mirroring
