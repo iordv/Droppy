@@ -1031,13 +1031,14 @@ private struct StyleButton: View {
                         .frame(width: 90, height: 55)
                     
                     if isNotch {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.black)
-                            .frame(width: 48, height: 14)
+                        // Use UShape like SettingsView DisplayModeButton
+                        UShape()
+                            .fill(isSelected ? Color.blue : Color.white.opacity(0.5))
+                            .frame(width: 60, height: 18)
                     } else {
                         Capsule()
-                            .fill(Color.black)
-                            .frame(width: 40, height: 12)
+                            .fill(isSelected ? Color.blue : Color.white.opacity(0.5))
+                            .frame(width: 50, height: 16)
                     }
                 }
                 .overlay(
