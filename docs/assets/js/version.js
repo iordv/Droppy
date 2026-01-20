@@ -3,8 +3,8 @@
 
 const DROPPY_CONFIG = {
     // Fallback values if GitHub API fails
-    version: '1.0.2',
-    dmgUrl: 'https://github.com/iordv/Droppy/releases/latest/download/Droppy-1.0.2.dmg',
+    version: '1.0.3',
+    dmgUrl: 'https://github.com/iordv/Droppy/releases/latest/download/Droppy-1.0.3.dmg',
     releasesUrl: 'https://github.com/iordv/Droppy/releases/latest',
 
     // GitHub API endpoint
