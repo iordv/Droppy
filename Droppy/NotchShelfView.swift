@@ -1074,18 +1074,24 @@ struct NotchShelfView: View {
         .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
         .contextMenu {
             if showClipboardButton {
-                Button("Open Clipboard") {
+                Button {
                     ClipboardWindowController.shared.toggle()
+                } label: {
+                    Label("Open Clipboard", systemImage: "clipboard")
                 }
                 Divider()
             }
             
-            Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
+            Button {
                 NotchWindowController.shared.setTemporarilyHidden(true)
+            } label: {
+                Label("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")", systemImage: "eye.slash")
             }
             Divider()
-            Button("Settings...") {
+            Button {
                 SettingsWindowController.shared.showSettings()
+            } label: {
+                Label("Open Settings", systemImage: "gear")
             }
         }
     }
@@ -1337,17 +1343,21 @@ struct NotchShelfView: View {
         .contextMenu {
             // Clipboard button (when enabled in settings)
             if showClipboardButton {
-                Button("Open Clipboard") {
+                Button {
                     ClipboardWindowController.shared.toggle()
+                } label: {
+                    Label("Open Clipboard", systemImage: "clipboard")
                 }
             }
             
             // Clear shelf (when items exist)
             if !state.items.isEmpty {
-                Button("Clear Shelf") {
+                Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         state.clearAll()
                     }
+                } label: {
+                    Label("Clear Shelf", systemImage: "trash")
                 }
             }
             
@@ -1355,12 +1365,16 @@ struct NotchShelfView: View {
                 Divider()
             }
             
-            Button("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")") {
+            Button {
                 NotchWindowController.shared.setTemporarilyHidden(true)
+            } label: {
+                Label("Hide \(isDynamicIslandMode ? "Dynamic Island" : "Notch")", systemImage: "eye.slash")
             }
             Divider()
-            Button("Settings...") {
+            Button {
                 SettingsWindowController.shared.showSettings()
+            } label: {
+                Label("Open Settings", systemImage: "gear")
             }
         }
     }
