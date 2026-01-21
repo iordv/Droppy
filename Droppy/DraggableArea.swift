@@ -143,25 +143,21 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     }
     
     override func rightMouseDown(with event: NSEvent) {
-        // Handle right click manually if needed, or pass through
-        // Call handler FIRST to ensure UI state (like tooltips) is cleared before menu opens
+        // Handle right click - defer state changes to avoid view recreation lag
+        // The onRightClick handler should use async if it modifies state that causes view recreation
         onRightClick()
         
-        // CRITICAL: Block interactions (hover/tooltips) globally while menu is open
+        // Block hover effects while menu is open to prevent visual glitches
         DroppyState.shared.isInteractionBlocked = true
         
-        // CRITICAL: Dispatch async to allow SwiftUI State updates (closing tooltips) 
-        // to process/render on the runloop BEFORE the context menu (modal) blocks everything.
-        // The event object is valid for this block.
-        DispatchQueue.main.async {
-            super.rightMouseDown(with: event)
-            
-            // CRITICAL: Add safe delay to ensure menu window is fully gone/deallocated
-            // If we update state too early while menu is fading out, updateNSView will
-            // skip the update (hasActiveMenu check), leaving the UI in a "stuck" state.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                DroppyState.shared.isInteractionBlocked = false
-            }
+        // CRITICAL: Call super SYNCHRONOUSLY for instant menu appearance
+        // The previous async dispatch was causing the 500ms lag
+        super.rightMouseDown(with: event)
+        
+        // Menu has closed at this point - unblock interactions immediately
+        // Use minimal delay just to ensure menu window is fully deallocated
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            DroppyState.shared.isInteractionBlocked = false
         }
     }
     
