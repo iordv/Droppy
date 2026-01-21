@@ -72,10 +72,6 @@ final class MenuBarManager: ObservableObject {
         isEnabled = true
         UserDefaults.standard.set(true, forKey: enabledKey)
         
-        // CRITICAL: Clear cached positions to ensure correct ordering
-        // The divider MUST be to the LEFT of the toggle for hiding to work correctly
-        clearCachedPositions()
-        
         // Create both status items
         createStatusItems()
         
@@ -88,13 +84,6 @@ final class MenuBarManager: ObservableObject {
         applyExpansionState()
         
         print("[MenuBarManager] Enabled, expanded: \(isExpanded)")
-    }
-    
-    /// Clear cached status item positions to reset ordering
-    private func clearCachedPositions() {
-        StatusItemDefaults.clearPreferredPosition(for: toggleAutosaveName)
-        StatusItemDefaults.clearPreferredPosition(for: dividerAutosaveName)
-        print("[MenuBarManager] Cleared cached positions for fresh ordering")
     }
     
     /// Disable the menu bar manager
@@ -140,21 +129,7 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Status Items Creation
     
     private func createStatusItems() {
-        // CRITICAL: Creation order matters! Items are ordered right-to-left by creation time.
-        // We create the divider FIRST so it appears to the LEFT of the toggle.
-        // This way when divider expands, it pushes icons between itself and the left screen edge.
-        
-        // Create the divider (expands to hide items) - created FIRST (leftmost)
-        dividerItem = NSStatusBar.system.statusItem(withLength: dividerStandardLength)
-        dividerItem?.autosaveName = dividerAutosaveName
-        
-        if let button = dividerItem?.button {
-            // Make divider nearly invisible - just a thin separator
-            button.title = ""
-            button.image = nil
-        }
-        
-        // Create the toggle button (always visible, shows chevron) - created SECOND (rightmost)
+        // Create the toggle button (always visible, shows chevron)
         toggleItem = NSStatusBar.system.statusItem(withLength: toggleLength)
         toggleItem?.autosaveName = toggleAutosaveName
         
@@ -164,9 +139,20 @@ final class MenuBarManager: ObservableObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
         
+        // Create the divider (expands to hide items)
+        // This should be positioned to the LEFT of the toggle
+        dividerItem = NSStatusBar.system.statusItem(withLength: dividerStandardLength)
+        dividerItem?.autosaveName = dividerAutosaveName
+        
+        if let button = dividerItem?.button {
+            // Make divider nearly invisible - just a thin separator
+            button.title = ""
+            button.image = nil
+        }
+        
         updateToggleIcon()
         
-        print("[MenuBarManager] Created status items (divider LEFT of toggle)")
+        print("[MenuBarManager] Created status items")
     }
     
     private func removeStatusItems() {
@@ -301,10 +287,6 @@ private enum StatusItemDefaults {
     
     static func setPreferredPosition(_ position: Double, for autosaveName: String) {
         UserDefaults.standard.set(position, forKey: "\(positionPrefix) \(autosaveName)")
-    }
-    
-    static func clearPreferredPosition(for autosaveName: String) {
-        UserDefaults.standard.removeObject(forKey: "\(positionPrefix) \(autosaveName)")
     }
 }
 

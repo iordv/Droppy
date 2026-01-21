@@ -147,7 +147,7 @@ struct MenuBarManagerInfoView: View {
             VStack(alignment: .leading, spacing: 8) {
                 featureRow(icon: "menubar.rectangle", text: "Hide/show menu bar icons")
                 featureRow(icon: "chevron.compact.right", text: "Click divider to expand/collapse")
-                featureRow(icon: "hand.draw", text: "Drag icons left of divider to hide")
+                featureRow(icon: "hand.draw", text: "Hold ⌘ + drag icons to far left to hide")
                 featureRow(icon: "arrow.left.arrow.right", text: "Rearrange by holding ⌘ and dragging")
             }
             
@@ -235,7 +235,7 @@ struct MenuBarManagerInfoView: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 instructionRow(step: "1", text: "Look for the chevron ( › ) in your menu bar")
-                instructionRow(step: "2", text: "Hold ⌘ and drag icons LEFT of the chevron to hide them")
+                instructionRow(step: "2", text: "Hold ⌘ and drag icons ALL THE WAY to the far left edge")
                 instructionRow(step: "3", text: "Click the chevron to show/hide those icons")
             }
             
