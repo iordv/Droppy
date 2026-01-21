@@ -74,20 +74,26 @@ struct DroppyMenuContent: View {
         // Show/Hide Notch or Dynamic Island toggle (only when shelf is enabled)
         if enableNotchShelf {
             if notchController.isTemporarilyHidden {
-                Button("Show \(notchController.displayModeLabel)") {
+                Button {
                     notchController.setTemporarilyHidden(false)
+                } label: {
+                    Label("Show \(notchController.displayModeLabel)", systemImage: "eye")
                 }
             } else {
-                Button("Hide \(notchController.displayModeLabel)") {
+                Button {
                     notchController.setTemporarilyHidden(true)
+                } label: {
+                    Label("Hide \(notchController.displayModeLabel)", systemImage: "eye.slash")
                 }
             }
             
             Divider()
         }
         
-        Button("Check for Updates...") {
+        Button {
             UpdateChecker.shared.checkAndNotify()
+        } label: {
+            Label("Check for Updates...", systemImage: "arrow.clockwise")
         }
         
         Divider()
@@ -100,50 +106,72 @@ struct DroppyMenuContent: View {
         
         // Window Snap submenu with quick actions (hidden when disabled)
         if !isWindowSnapDisabled {
-            Menu("Window Snap") {
-                Button("Left Half") {
+            Menu {
+                Button {
                     WindowSnapManager.shared.executeAction(.leftHalf)
+                } label: {
+                    Label("Left Half", systemImage: "rectangle.lefthalf.filled")
                 }
-                Button("Right Half") {
+                Button {
                     WindowSnapManager.shared.executeAction(.rightHalf)
+                } label: {
+                    Label("Right Half", systemImage: "rectangle.righthalf.filled")
                 }
-                Button("Maximize") {
+                Button {
                     WindowSnapManager.shared.executeAction(.maximize)
+                } label: {
+                    Label("Maximize", systemImage: "arrow.up.left.and.arrow.down.right")
                 }
-                Button("Center") {
+                Button {
                     WindowSnapManager.shared.executeAction(.center)
+                } label: {
+                    Label("Center", systemImage: "rectangle.center.inset.filled")
                 }
                 Divider()
-                Button("Configure Shortcuts...") {
+                Button {
                     SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
+                } label: {
+                    Label("Configure Shortcuts...", systemImage: "keyboard")
                 }
+            } label: {
+                Label("Window Snap", systemImage: "rectangle.split.2x1")
             }
         }
         
         // Menu Bar Manager submenu (hidden when disabled)
         if !isMenuBarManagerDisabled && isMenuBarManagerEnabled {
-            Menu("Menu Bar Manager") {
-                Button(isMenuBarManagerExpanded ? "Hide Icons" : "Show Icons") {
+            Menu {
+                Button {
                     MenuBarManager.shared.toggleExpanded()
+                } label: {
+                    Label(isMenuBarManagerExpanded ? "Hide Icons" : "Show Icons", systemImage: isMenuBarManagerExpanded ? "eye.slash" : "eye")
                 }
                 Divider()
-                Button("Configure...") {
+                Button {
                     SettingsWindowController.shared.showSettings(openingExtension: .menuBarManager)
+                } label: {
+                    Label("Configure...", systemImage: "gear")
                 }
+            } label: {
+                Label("Menu Bar Manager", systemImage: "menubar.rectangle")
             }
         }
         
         Divider()
         
-        Button("Settings...") {
+        Button {
             SettingsWindowController.shared.showSettings()
+        } label: {
+            Label("Settings...", systemImage: "gear")
         }
         .keyboardShortcut(",", modifiers: .command)
         
         Divider()
         
-        Button("Quit Droppy") {
+        Button {
             NSApplication.shared.terminate(nil)
+        } label: {
+            Label("Quit Droppy", systemImage: "power")
         }
         .keyboardShortcut("q", modifiers: .command)
         .onReceive(NotificationCenter.default.publisher(for: .elementCaptureShortcutChanged)) { _ in
@@ -165,13 +193,17 @@ struct DroppyMenuContent: View {
     @ViewBuilder
     private var elementCaptureButton: some View {
         if let shortcut = savedShortcut, let key = shortcut.keyEquivalent {
-            Button("Element Capture") {
+            Button {
                 ElementCaptureManager.shared.startCaptureMode()
+            } label: {
+                Label("Element Capture", systemImage: "viewfinder")
             }
             .keyboardShortcut(key, modifiers: shortcut.eventModifiers)
         } else {
-            Button("Element Capture") {
+            Button {
                 ElementCaptureManager.shared.startCaptureMode()
+            } label: {
+                Label("Element Capture", systemImage: "viewfinder")
             }
         }
     }
