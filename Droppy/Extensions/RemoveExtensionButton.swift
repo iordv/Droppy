@@ -12,7 +12,6 @@ struct DisableExtensionButton: View {
     let extensionType: ExtensionType
     let onStateChanged: (() -> Void)?
     
-    @State private var showConfirmation = false
     @State private var isHovering = false
     @State private var isProcessing = false
     @Environment(\.dismiss) private var dismiss
@@ -32,8 +31,8 @@ struct DisableExtensionButton: View {
                 // Enable immediately without confirmation
                 enableExtension()
             } else {
-                // Show confirmation before disabling
-                showConfirmation = true
+                // Show confirmation before disabling using native Droppy alert
+                showDisableConfirmation()
             }
         } label: {
             HStack(spacing: 4) {
@@ -63,17 +62,20 @@ struct DisableExtensionButton: View {
         .onHover { h in
             withAnimation(.easeInOut(duration: 0.15)) { isHovering = h }
         }
-        .confirmationDialog(
-            "Disable \(extensionType.title)?",
-            isPresented: $showConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Disable Extension", role: .destructive) {
+    }
+    
+    private func showDisableConfirmation() {
+        Task { @MainActor in
+            let confirmed = await DroppyAlertController.shared.show(
+                style: .warning,
+                title: "Disable \(extensionType.title)?",
+                message: disableMessage,
+                primaryButtonTitle: "Disable",
+                secondaryButtonTitle: "Cancel"
+            )
+            if confirmed {
                 disableExtension()
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text(disableMessage)
         }
     }
     
