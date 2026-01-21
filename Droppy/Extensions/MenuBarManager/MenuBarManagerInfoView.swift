@@ -234,9 +234,10 @@ struct MenuBarManagerInfoView: View {
             }
             
             VStack(alignment: .leading, spacing: 8) {
-                instructionRow(step: "1", text: "Look for the chevron ( › ) in your menu bar")
+                instructionRow(step: "1", text: "Click the chevron ( › ) to expand and show all icons")
                 instructionRow(step: "2", text: "Hold ⌘ and drag icons ALL THE WAY to the far left edge")
-                instructionRow(step: "3", text: "Click the chevron to show/hide those icons")
+                instructionRow(step: "3", text: "Release — icons left of the chevron are now hidden")
+                instructionRow(step: "4", text: "Click the chevron anytime to show/hide them")
             }
             
             HStack(spacing: 8) {
