@@ -8,10 +8,11 @@
 
 import SwiftUI
 
-// MARK: - Animation Presets
+// MARK: - Animation Presets (LEGACY - Use DroppyAnimation from DroppyAnimation.swift)
 
-/// Standardized animation presets for consistent motion design
-enum DroppyAnimation {
+/// Legacy animation presets - prefer DroppyAnimation SSOT instead
+@available(*, deprecated, message: "Use DroppyAnimation from DroppyAnimation.swift instead")
+enum DroppyAnimationLegacy {
     // MARK: - Standard Springs
     
     /// Default spring for most UI interactions (0.3s, 0.8 damping)
