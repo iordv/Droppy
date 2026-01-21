@@ -62,7 +62,7 @@ Your notch becomes a **media powerhouse**. See stunning album art, control playb
 
 ## 📋 Clipboard Manager
 
-Never lose a copy again. Your **full clipboard history** with instant search, favorites, and rich previews. Push items to your shelf or basket, rename entries, extract text with **OCR**, and bulk-copy multiple items at once. Open with `⌘ + Shift + Space` (customizable).
+Never lose a copy again. Your **full clipboard history** with instant search, favorites, **flag as important**, and rich previews. Push items to your shelf or basket, rename entries, extract text with **OCR**, and bulk-copy multiple items at once. Open with `⌘ + Shift + Space` (customizable).
 
 <p align="center">
   <img src="docs/assets/images/clipboard-demo.gif" alt="Clipboard Manager" width="100%">
@@ -85,7 +85,7 @@ Never lose a copy again. Your **full clipboard history** with instant search, fa
 | Feature | Description |
 |:---|:---|
 | **File Shelf & Basket** | Drag files to the notch. Jiggle your mouse to summon a floating basket with peek & hide animations. |
-| **Clipboard Manager** | Full history, instant search, favorites, OCR text extraction, rename entries, bulk copy, drag-out |
+| **Clipboard Manager** | Full history, instant search, favorites, flag as important, OCR text extraction, rename entries, bulk copy, drag-out |
 | **Power Folders** | Pin folders to the shelf and drop files directly into them—organize on the fly |
 | **Smart Export** | Auto-save processed files to a folder and reveal them in Finder with one click |
 | **Native HUDs** | Volume, brightness, battery, caps lock, screen unlock, AirPods connection—all beautifully animated |
