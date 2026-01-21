@@ -222,28 +222,40 @@ final class MenuBarManager: ObservableObject {
     private func showContextMenu() {
         let menu = NSMenu()
         
-        menu.addItem(withTitle: isExpanded ? "Hide Menu Bar Icons" : "Show Menu Bar Icons",
-                     action: #selector(toggleFromMenu),
-                     keyEquivalent: "")
-        menu.items.last?.target = self
+        let toggleItem = NSMenuItem(
+            title: isExpanded ? "Hide Menu Bar Icons" : "Show Menu Bar Icons",
+            action: #selector(toggleFromMenu),
+            keyEquivalent: ""
+        )
+        toggleItem.target = self
+        toggleItem.image = NSImage(systemSymbolName: isExpanded ? "eye.slash" : "eye", accessibilityDescription: nil)
+        menu.addItem(toggleItem)
         
         menu.addItem(.separator())
         
-        menu.addItem(withTitle: "How to Use",
-                     action: #selector(showHowTo),
-                     keyEquivalent: "")
-        menu.items.last?.target = self
+        let howToItem = NSMenuItem(
+            title: "How to Use",
+            action: #selector(showHowTo),
+            keyEquivalent: ""
+        )
+        howToItem.target = self
+        howToItem.image = NSImage(systemSymbolName: "questionmark.circle", accessibilityDescription: nil)
+        menu.addItem(howToItem)
         
         menu.addItem(.separator())
         
-        menu.addItem(withTitle: "Disable Menu Bar Manager",
-                     action: #selector(disableFromMenu),
-                     keyEquivalent: "")
-        menu.items.last?.target = self
+        let disableItem = NSMenuItem(
+            title: "Disable Menu Bar Manager",
+            action: #selector(disableFromMenu),
+            keyEquivalent: ""
+        )
+        disableItem.target = self
+        disableItem.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)
+        menu.addItem(disableItem)
         
-        toggleItem?.menu = menu
-        toggleItem?.button?.performClick(nil)
-        toggleItem?.menu = nil
+        self.toggleItem?.menu = menu
+        self.toggleItem?.button?.performClick(nil)
+        self.toggleItem?.menu = nil
     }
     
     @objc private func toggleFromMenu() {

@@ -232,12 +232,16 @@ struct MediaPlayerView: View {
         }
         // Right-click context menu to hide the notch/island (same as notch background)
         .contextMenu {
-            Button("Hide \(NotchWindowController.shared.displayModeLabel)") {
+            Button {
                 NotchWindowController.shared.setTemporarilyHidden(true)
+            } label: {
+                Label("Hide \(NotchWindowController.shared.displayModeLabel)", systemImage: "eye.slash")
             }
             Divider()
-            Button("Settings...") {
+            Button {
                 SettingsWindowController.shared.showSettings()
+            } label: {
+                Label("Open Settings", systemImage: "gear")
             }
         }
     }
