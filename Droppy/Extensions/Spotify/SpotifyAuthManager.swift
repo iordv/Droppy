@@ -18,7 +18,7 @@ final class SpotifyAuthManager {
     
     // TODO: Replace with your Spotify Developer App credentials
     // Create an app at: https://developer.spotify.com/dashboard
-    private let clientId = "YOUR_SPOTIFY_CLIENT_ID"  // Replace this
+    private var clientId: String = ""
     private let redirectUri = "droppy://spotify-callback"
     private let scopes = "user-library-read user-library-modify user-read-playback-state"
     
@@ -45,7 +45,27 @@ final class SpotifyAuthManager {
     
     // MARK: - Initialization
     
-    private init() {}
+    private init() {
+        loadConfiguration()
+    }
+
+    private func loadConfiguration() {
+        // Try to load from SpotifyConfig.plist
+        guard let url = Bundle.main.url(forResource: "SpotifyConfig", withExtension: "plist") else {
+            print("SpotifyAuthManager: SpotifyConfig.plist not found in bundle")
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            if let config = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+               let id = config["SpotifyClientID"] as? String {
+                self.clientId = id
+            }
+        } catch {
+            print("SpotifyAuthManager: Failed to load configuration: \(error)")
+        }
+    }
     
     // MARK: - OAuth Flow
     

@@ -31,3 +31,6 @@ Pods/
 xcuserdata/
 release_notes.txt
 .vscode/
+
+# Configuration
+Droppy/Extensions/Spotify/SpotifyConfig.plist
