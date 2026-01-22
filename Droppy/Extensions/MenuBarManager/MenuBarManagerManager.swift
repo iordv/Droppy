@@ -181,12 +181,14 @@ final class MenuBarManager: ObservableObject {
         let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
         
         if isExpanded {
-            // Items visible - show chevron pointing left (click to collapse/hide)
-            button.image = NSImage(systemSymbolName: "chevron.compact.left", accessibilityDescription: "Hide menu bar icons")?
+            // Items visible (expanded) - show chevron pointing right (icons expanded outward)
+            // Issue #83: User expects ">" when expanded
+            button.image = NSImage(systemSymbolName: "chevron.compact.right", accessibilityDescription: "Hide menu bar icons")?
                 .withSymbolConfiguration(config)
         } else {
-            // Items hidden - show chevron pointing right (click to expand/show)
-            button.image = NSImage(systemSymbolName: "chevron.compact.right", accessibilityDescription: "Show menu bar icons")?
+            // Items hidden (collapsed) - show chevron pointing left (click to expand)
+            // Issue #83: User expects "<" when collapsed, indicating "click to expand"
+            button.image = NSImage(systemSymbolName: "chevron.compact.left", accessibilityDescription: "Show menu bar icons")?
                 .withSymbolConfiguration(config)
         }
     }
