@@ -34,9 +34,12 @@ class OCRService {
     }
     
     private func extractTextFromPDF(url: URL) async throws -> String {
-        guard let pdfDoc = PDFDocument(url: url) else {
-            throw OCRError.couldNotLoadPDF
-        }
+        let pdfDoc = try await Task.detached(priority: .userInitiated) {
+            guard let pdfDoc = PDFDocument(url: url) else {
+                throw OCRError.couldNotLoadPDF
+            }
+            return pdfDoc
+        }.value
         
         // We will process all pages
         var fullText = ""
@@ -67,9 +70,12 @@ class OCRService {
     }
     
     private func extractTextFromImage(url: URL) async throws -> String {
-        guard let image = NSImage(contentsOf: url) else {
-            throw OCRError.couldNotLoadImage
-        }
+        let image = try await Task.detached(priority: .userInitiated) {
+            guard let image = NSImage(contentsOf: url) else {
+                throw OCRError.couldNotLoadImage
+            }
+            return image
+        }.value
         return try await performOCR(on: image)
     }
     
