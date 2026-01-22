@@ -337,7 +337,6 @@ class ClipboardManager: ObservableObject {
                 // Merge with any items captured during loading (race condition protection)
                 DispatchQueue.main.async {
                     // Check if any items were added while we were loading
-                    let existingIds = Set(self.history.map { $0.id })
                     let itemsAddedDuringLoad = self.history.filter { item in
                         !decoded.contains(where: { $0.id == item.id })
                     }
