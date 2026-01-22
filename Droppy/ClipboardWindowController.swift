@@ -127,10 +127,11 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         isAnimating = true
         window.alphaValue = 0
         
-        // Simple scale start (lighter than spring animation)
+        // PREMIUM SPRING: Start scaled down for bouncy appear animation
         if let contentView = window.contentView {
             contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1.0)
+            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0) // More noticeable scale
+            contentView.layer?.opacity = 0
         }
         
         // ✅ Restore Focus to allow Keyboard Navigation (Arrows + Enter)
@@ -148,14 +149,39 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         print("⌨️ Droppy: Showing Clipboard Window")
         
-        // PREMIUM: Simple smooth fade + scale (CPU-efficient)
-        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.2, 0.0, 0.0, 1.0)  // Smooth ease-out
+        // PREMIUM: Use CASpringAnimation for true spring physics with visible overshoot
+        if let layer = window.contentView?.layer {
+            // Fade in (faster)
+            let fadeAnim = CABasicAnimation(keyPath: "opacity")
+            fadeAnim.fromValue = 0
+            fadeAnim.toValue = 1
+            fadeAnim.duration = 0.12  // Faster fade
+            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            fadeAnim.fillMode = .forwards
+            fadeAnim.isRemovedOnCompletion = false
+            layer.add(fadeAnim, forKey: "fadeIn")
+            layer.opacity = 1
+            
+            // Scale with spring overshoot (snappier - stiffness 420 for fast response)
+            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
+            scaleAnim.fromValue = 0.85
+            scaleAnim.toValue = 1.0
+            scaleAnim.mass = 1.0
+            scaleAnim.stiffness = 420  // Higher = faster (was 280)
+            scaleAnim.damping = 22     // Slightly more damped for snappy feel
+            scaleAnim.initialVelocity = 10
+            scaleAnim.duration = scaleAnim.settlingDuration
+            scaleAnim.fillMode = .forwards
+            scaleAnim.isRemovedOnCompletion = false
+            layer.add(scaleAnim, forKey: "scaleSpring")
+            layer.transform = CATransform3DIdentity
+        }
+        
+        // Fade window alpha (faster)
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.18
-            context.timingFunction = smoothCurve
-            context.allowsImplicitAnimation = true
+            context.duration = 0.12
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             window.animator().alphaValue = 1.0
-            window.contentView?.layer?.transform = CATransform3DIdentity
         }, completionHandler: { [weak self] in
             self?.isAnimating = false
         })
@@ -174,24 +200,24 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         ClipboardManager.shared.isEditingContent = false
         
         isAnimating = true
-        print("⌨️ Droppy: Closing Clipboard Window")
+        print("⌨️ Droppy: Fading Out Clipboard Window (Duration: 0.25s)...")
         
-        // Ensure layer backing
+        // PREMIUM SPRING: Ensure layer backing for smooth animation
         if let contentView = window.contentView {
             contentView.wantsLayer = true
         }
         
-        // PREMIUM: Simple smooth fade + scale (CPU-efficient)
-        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 1.0, 1.0)  // Ease-in for close
+        // PREMIUM SPRING ANIMATION: Scale down + fade out (snappier close)
+        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.15
+            context.duration = 0.15  // Faster close (was 0.2)
             context.timingFunction = smoothCurve
             context.allowsImplicitAnimation = true
             window.animator().alphaValue = 0
-            window.contentView?.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1.0)
+            window.contentView?.layer?.transform = CATransform3DMakeScale(0.94, 0.94, 1.0)
         }, completionHandler: { [weak self] in
             self?.window?.orderOut(nil)
-            self?.window?.contentView?.layer?.transform = CATransform3DIdentity
+            self?.window?.contentView?.layer?.transform = CATransform3DIdentity // Reset for next show
             self?.window?.alphaValue = 1.0
             self?.isAnimating = false
         })

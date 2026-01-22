@@ -72,4 +72,10 @@ document.addEventListener('DOMContentLoaded', async function () {
             el.href = dmgUrl;
         }
     });
+
+    // Update xattr command to use correct filename
+    const xattrCmd = document.getElementById('xattr-cmd');
+    if (xattrCmd) {
+        xattrCmd.textContent = `xattr -d com.apple.quarantine ~/Downloads/Droppy-${version}.dmg`;
+    }
 });
