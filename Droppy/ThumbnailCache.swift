@@ -130,7 +130,7 @@ final class ThumbnailCache {
     
     /// Get or create a thumbnail for the given clipboard item
     /// Returns nil if item has no image data
-    func thumbnail(for item: ClipboardItem) -> NSImage? {
+    func thumbnail(for item: ClipboardItem) async -> NSImage? {
         guard item.type == .image else { return nil }
         
         let cacheKey = item.id.uuidString as NSString
@@ -141,11 +141,11 @@ final class ThumbnailCache {
         }
         
         // Load image data (lazy - from file or legacy inline data)
-        guard let imageData = item.loadImageData() else {
+        guard let imageData = await item.loadImageData() else {
             return nil
         }
         
-        // Generate thumbnail synchronously (called from main thread, should be fast)
+        // Generate thumbnail synchronously (resumed on caller's actor, usually main)
         guard let thumbnail = generateThumbnail(from: imageData) else {
             return nil
         }

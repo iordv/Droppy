@@ -71,14 +71,18 @@ struct ClipboardItem: Identifiable, Codable, Hashable {
     }
     
     /// Load image data from file (lazy - only when needed)
-    func loadImageData() -> Data? {
+    func loadImageData() async -> Data? {
         // First check if inline data exists (pre-migration)
         if let data = imageData {
             return data
         }
         // Otherwise load from file
         guard let fileURL = getImageFileURL() else { return nil }
-        return try? Data(contentsOf: fileURL)
+
+        // Use detached task to perform blocking I/O off the main thread
+        return await Task.detached(priority: .userInitiated) {
+            return try? Data(contentsOf: fileURL)
+        }.value
     }
     
     var title: String {
@@ -623,9 +627,16 @@ class ClipboardManager: ObservableObject {
                 pasteboard.writeObjects([URL(fileURLWithPath: path) as NSURL])
             }
         case .image:
-            if let data = item.loadImageData(), let img = NSImage(data: data) {
-                pasteboard.writeObjects([img])
+            Task {
+                if let data = await item.loadImageData(), let img = NSImage(data: data) {
+                    await MainActor.run {
+                        pasteboard.writeObjects([img])
+                        self.simulatePasteCommand(targetPID: targetPID)
+                        HapticFeedback.copy()
+                    }
+                }
             }
+            return
         default: break
         }
         

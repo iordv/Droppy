@@ -345,29 +345,33 @@ struct ClipboardManagerView: View {
         let imageItems = selectedItemsArray.filter { $0.type == .image }
         guard !imageItems.isEmpty else { return }
         
-        // Create temp files for Quick Look
-        var urls: [URL] = []
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyQuickLook", isDirectory: true)
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        
-        for item in imageItems {
-            if let data = item.loadImageData() {
-                let fileName = "\(item.id.uuidString).png"
-                let fileURL = tempDir.appendingPathComponent(fileName)
-                try? data.write(to: fileURL)
-                urls.append(fileURL)
+        Task {
+            // Create temp files for Quick Look
+            var urls: [URL] = []
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyQuickLook", isDirectory: true)
+            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+            for item in imageItems {
+                if let data = await item.loadImageData() {
+                    let fileName = "\(item.id.uuidString).png"
+                    let fileURL = tempDir.appendingPathComponent(fileName)
+                    try? data.write(to: fileURL)
+                    urls.append(fileURL)
+                }
             }
-        }
-        
-        guard !urls.isEmpty else { return }
-        
-        // Show Quick Look panel
-        if let panel = QLPreviewPanel.shared() {
-            QuickLookDataSource.shared.urls = urls
-            panel.dataSource = QuickLookDataSource.shared
-            panel.delegate = QuickLookDataSource.shared
-            panel.makeKeyAndOrderFront(nil)
-            panel.reloadData()
+
+            guard !urls.isEmpty else { return }
+
+            await MainActor.run {
+                // Show Quick Look panel
+                if let panel = QLPreviewPanel.shared() {
+                    QuickLookDataSource.shared.urls = urls
+                    panel.dataSource = QuickLookDataSource.shared
+                    panel.delegate = QuickLookDataSource.shared
+                    panel.makeKeyAndOrderFront(nil)
+                    panel.reloadData()
+                }
+            }
         }
     }
     
@@ -375,77 +379,79 @@ struct ClipboardManagerView: View {
     private func bulkSaveSelectedItems() {
         guard !selectedItems.isEmpty else { return }
         
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        var savedCount = 0
-        
-        for item in selectedItemsArray {
-            let fileName: String
-            let fileExtension: String
-            let data: Data?
+        Task {
+            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+            var savedCount = 0
             
-            switch item.type {
-            case .image:
-                fileName = item.customTitle ?? "Image_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
-                fileExtension = "png"
-                if let imgData = item.loadImageData(),
-                   let nsImage = NSImage(data: imgData),
-                   let tiffData = nsImage.tiffRepresentation,
-                   let bitmap = NSBitmapImageRep(data: tiffData),
-                   let pngData = bitmap.representation(using: .png, properties: [:]) {
-                    data = pngData
-                } else {
-                    data = nil
-                }
-            case .text:
-                fileName = item.customTitle ?? "Text_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
-                fileExtension = "txt"
-                data = item.content?.data(using: .utf8)
-            case .url:
-                fileName = item.customTitle ?? "Link_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
-                fileExtension = "txt"
-                data = item.content?.data(using: .utf8)
-            case .file:
-                // For files, copy the original
-                if let path = item.content {
-                    let sourceURL = URL(fileURLWithPath: path)
-                    var destURL = downloads.appendingPathComponent(sourceURL.lastPathComponent)
-                    // Handle collision
-                    var counter = 1
-                    while FileManager.default.fileExists(atPath: destURL.path) {
-                        let name = sourceURL.deletingPathExtension().lastPathComponent
-                        let ext = sourceURL.pathExtension
-                        destURL = downloads.appendingPathComponent("\(name)_\(counter).\(ext)")
-                        counter += 1
+            for item in selectedItemsArray {
+                let fileName: String
+                let fileExtension: String
+                let data: Data?
+
+                switch item.type {
+                case .image:
+                    fileName = item.customTitle ?? "Image_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
+                    fileExtension = "png"
+                    if let imgData = await item.loadImageData(),
+                       let nsImage = NSImage(data: imgData),
+                       let tiffData = nsImage.tiffRepresentation,
+                       let bitmap = NSBitmapImageRep(data: tiffData),
+                       let pngData = bitmap.representation(using: .png, properties: [:]) {
+                        data = pngData
+                    } else {
+                        data = nil
                     }
-                    try? FileManager.default.copyItem(at: sourceURL, to: destURL)
-                    savedCount += 1
+                case .text:
+                    fileName = item.customTitle ?? "Text_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
+                    fileExtension = "txt"
+                    data = item.content?.data(using: .utf8)
+                case .url:
+                    fileName = item.customTitle ?? "Link_\(Int(Date().timeIntervalSince1970))_\(savedCount)"
+                    fileExtension = "txt"
+                    data = item.content?.data(using: .utf8)
+                case .file:
+                    // For files, copy the original
+                    if let path = item.content {
+                        let sourceURL = URL(fileURLWithPath: path)
+                        var destURL = downloads.appendingPathComponent(sourceURL.lastPathComponent)
+                        // Handle collision
+                        var counter = 1
+                        while FileManager.default.fileExists(atPath: destURL.path) {
+                            let name = sourceURL.deletingPathExtension().lastPathComponent
+                            let ext = sourceURL.pathExtension
+                            destURL = downloads.appendingPathComponent("\(name)_\(counter).\(ext)")
+                            counter += 1
+                        }
+                        try? FileManager.default.copyItem(at: sourceURL, to: destURL)
+                        savedCount += 1
+                    }
+                    continue
+                case .color:
+                    continue
                 }
-                continue
-            case .color:
-                continue
+
+                guard let saveData = data else { continue }
+
+                var destURL = downloads.appendingPathComponent(fileName).appendingPathExtension(fileExtension)
+                // Handle collision
+                var counter = 1
+                while FileManager.default.fileExists(atPath: destURL.path) {
+                    destURL = downloads.appendingPathComponent("\(fileName)_\(counter)").appendingPathExtension(fileExtension)
+                    counter += 1
+                }
+
+                do {
+                    try saveData.write(to: destURL)
+                    savedCount += 1
+                } catch {
+                    print("Failed to save: \(error)")
+                }
             }
             
-            guard let saveData = data else { continue }
-            
-            var destURL = downloads.appendingPathComponent(fileName).appendingPathExtension(fileExtension)
-            // Handle collision
-            var counter = 1
-            while FileManager.default.fileExists(atPath: destURL.path) {
-                destURL = downloads.appendingPathComponent("\(fileName)_\(counter)").appendingPathExtension(fileExtension)
-                counter += 1
+            if savedCount > 0 {
+                // Show feedback
+                print("📁 Saved \(savedCount) item(s) to Downloads")
             }
-            
-            do {
-                try saveData.write(to: destURL)
-                savedCount += 1
-            } catch {
-                print("Failed to save: \(error)")
-            }
-        }
-        
-        if savedCount > 0 {
-            // Show feedback
-            print("📁 Saved \(savedCount) item(s) to Downloads")
         }
     }
     
@@ -860,30 +866,36 @@ struct ClipboardManagerView: View {
                 return [URL(fileURLWithPath: path) as NSURL]
             }
         case .image:
-            if let data = item.loadImageData() {
-                // Determine format and create appropriate file with unique suffix
-                let fileName = sanitizeFileName(item.title) + "_\(uniqueSuffix)"
-                let fileURL: URL
-                
-                // Check if it's PNG or use PNG as default
-                if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
-                    fileURL = tempDir.appendingPathComponent(fileName + ".png")
-                } else if data.starts(with: [0xFF, 0xD8, 0xFF]) {
-                    fileURL = tempDir.appendingPathComponent(fileName + ".jpg")
-                } else {
-                    // Convert to PNG for unknown formats
-                    fileURL = tempDir.appendingPathComponent(fileName + ".png")
-                }
-                
-                do {
-                    try data.write(to: fileURL)
-                    return [fileURL as NSURL]
-                } catch {
-                    if let image = NSImage(data: data) {
-                        return [image]
+            let provider = NSItemProvider()
+            // Register as file representation to allow async loading
+            provider.registerFileRepresentation(forTypeIdentifier: UTType.image.identifier, visibility: .all, openInPlace: false) { completion in
+                Task {
+                    guard let data = await item.loadImageData() else {
+                        completion(nil, false, nil)
+                        return
+                    }
+
+                    let fileName = sanitizeFileName(item.title) + "_\(uniqueSuffix)"
+                    let fileURL: URL
+
+                    if data.starts(with: [0x89, 0x50, 0x4E, 0x47]) {
+                        fileURL = tempDir.appendingPathComponent(fileName + ".png")
+                    } else if data.starts(with: [0xFF, 0xD8, 0xFF]) {
+                        fileURL = tempDir.appendingPathComponent(fileName + ".jpg")
+                    } else {
+                        fileURL = tempDir.appendingPathComponent(fileName + ".png")
+                    }
+
+                    do {
+                        try data.write(to: fileURL)
+                        completion(fileURL, false, nil)
+                    } catch {
+                        completion(nil, false, error)
                     }
                 }
+                return nil
             }
+            return [provider]
         case .color:
             break
         }
@@ -902,57 +914,73 @@ struct ClipboardManagerView: View {
     
     /// Copy all selected items to system clipboard
     private func copySelectedToClipboard() {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        
-        var strings: [String] = []
-        var urls: [URL] = []
-        
-        for item in selectedItemsArray {
-            switch item.type {
-            case .text, .url:
-                if let content = item.content {
-                    strings.append(content)
+        Task {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+
+            var strings: [String] = []
+            var urls: [URL] = []
+            var images: [NSImage] = []
+
+            for item in selectedItemsArray {
+                switch item.type {
+                case .text, .url:
+                    if let content = item.content {
+                        strings.append(content)
+                    }
+                case .file:
+                    if let path = item.content {
+                        urls.append(URL(fileURLWithPath: path))
+                    }
+                case .image:
+                    if let data = await item.loadImageData(), let image = NSImage(data: data) {
+                        images.append(image)
+                    }
+                case .color:
+                    break
                 }
-            case .file:
-                if let path = item.content {
-                    urls.append(URL(fileURLWithPath: path))
-                }
-            case .image:
-                if let data = item.loadImageData(), let image = NSImage(data: data) {
-                    pasteboard.writeObjects([image])
-                }
-            case .color:
-                break
             }
-        }
-        
-        if !strings.isEmpty {
-            pasteboard.setString(strings.joined(separator: "\n"), forType: .string)
-        }
-        if !urls.isEmpty {
-            pasteboard.writeObjects(urls as [NSURL])
+
+            await MainActor.run {
+                if !strings.isEmpty {
+                    pasteboard.setString(strings.joined(separator: "\n"), forType: .string)
+                }
+                if !urls.isEmpty {
+                    pasteboard.writeObjects(urls as [NSURL])
+                }
+                if !images.isEmpty {
+                    pasteboard.writeObjects(images)
+                }
+            }
         }
     }
     
     /// Moves clipboard item to the Floating Basket
     private func moveItemToBasket(_ item: ClipboardItem) {
-        guard let fileURL = clipboardItemToTempFile(item) else { return }
-        let droppedItem = DroppedItem(url: fileURL, isTemporary: true)
-        DroppyState.shared.addBasketItem(droppedItem)
-        // Show the basket so user sees the item
-        FloatingBasketWindowController.shared.showBasket()
+        Task {
+            guard let fileURL = await clipboardItemToTempFile(item) else { return }
+            await MainActor.run {
+                let droppedItem = DroppedItem(url: fileURL, isTemporary: true)
+                DroppyState.shared.addBasketItem(droppedItem)
+                // Show the basket so user sees the item
+                FloatingBasketWindowController.shared.showBasket()
+            }
+        }
     }
     
     /// Moves clipboard item to the Shelf
     private func moveItemToShelf(_ item: ClipboardItem) {
-        guard let fileURL = clipboardItemToTempFile(item) else { return }
-        let droppedItem = DroppedItem(url: fileURL, isTemporary: true)
-        DroppyState.shared.addItem(droppedItem)
+        Task {
+            guard let fileURL = await clipboardItemToTempFile(item) else { return }
+            await MainActor.run {
+                let droppedItem = DroppedItem(url: fileURL, isTemporary: true)
+                DroppyState.shared.addItem(droppedItem)
+            }
+        }
     }
     
     /// Converts a ClipboardItem to a temp file and returns its URL
-    private func clipboardItemToTempFile(_ item: ClipboardItem) -> URL? {
+    private func clipboardItemToTempFile(_ item: ClipboardItem) async -> URL? {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("DroppyClipboard", isDirectory: true)
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         
@@ -984,7 +1012,7 @@ struct ClipboardManagerView: View {
                 return URL(fileURLWithPath: path)
             }
         case .image:
-            if let data = item.loadImageData() {
+            if let data = await item.loadImageData() {
                 let fileName = sanitizeFileName(item.title) + "_\(uniqueSuffix)"
                 let fileURL: URL
                 
@@ -1175,11 +1203,7 @@ struct ClipboardItemRow: View {
             .task(id: item.id) {
                 // Load thumbnail asynchronously
                 if item.type == .image && cachedThumbnail == nil {
-                    // Run on background thread to avoid blocking UI
-                    let thumbnail = ThumbnailCache.shared.thumbnail(for: item)
-                    await MainActor.run {
-                        cachedThumbnail = thumbnail
-                    }
+                    cachedThumbnail = await ThumbnailCache.shared.thumbnail(for: item)
                 }
             }
             
@@ -1309,19 +1333,24 @@ struct ClipboardPreviewView: View {
     @State private var isDirectImageLink = false
     
     private func copyToClipboard() {
-        NSPasteboard.general.clearContents()
-        if let str = item.content {
-            NSPasteboard.general.setString(str, forType: .string)
-        } else if let imgData = item.loadImageData() {
-            NSPasteboard.general.setData(imgData, forType: .tiff)
-        }
-        
-        withAnimation(DroppyAnimation.stateEmphasis) {
-            showCopySuccess = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                showCopySuccess = false
+        Task {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            if let str = item.content {
+                pb.setString(str, forType: .string)
+            } else if let imgData = await item.loadImageData() {
+                pb.setData(imgData, forType: .tiff)
+            }
+
+            await MainActor.run {
+                withAnimation(DroppyAnimation.stateEmphasis) {
+                    showCopySuccess = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    withAnimation {
+                        showCopySuccess = false
+                    }
+                }
             }
         }
     }
@@ -1329,75 +1358,81 @@ struct ClipboardPreviewView: View {
     private func saveToFile() {
         isSavingFile = true
         
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
-        let fileName: String
-        let fileExtension: String
-        
-        switch item.type {
-        case .image:
-            fileName = item.customTitle ?? "Image_\(Int(Date().timeIntervalSince1970))"
-            fileExtension = "png"
-        case .text, .url:
-            fileName = item.customTitle ?? "Text_\(Int(Date().timeIntervalSince1970))"
-            fileExtension = "txt"
-        case .file:
-            if let path = item.content {
-                let url = URL(fileURLWithPath: path)
-                fileName = url.deletingPathExtension().lastPathComponent
-                fileExtension = url.pathExtension
-            } else {
-                fileName = "File_\(Int(Date().timeIntervalSince1970))"
-                fileExtension = ""
-            }
-        case .color:
-            fileName = "Color_\(Int(Date().timeIntervalSince1970))"
-            fileExtension = "txt"
-        }
-        
-        var destinationURL = downloads.appendingPathComponent(fileName).appendingPathExtension(fileExtension)
-        
-        // Handle collisions
-        var counter = 1
-        while FileManager.default.fileExists(atPath: destinationURL.path) {
-            destinationURL = downloads.appendingPathComponent("\(fileName)_\(counter)").appendingPathExtension(fileExtension)
-            counter += 1
-        }
-        
-        do {
+        Task {
+            let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+            let fileName: String
+            let fileExtension: String
+
             switch item.type {
             case .image:
-                if let data = item.loadImageData(),
-                   let nsImage = NSImage(data: data),
-                   let tiffData = nsImage.tiffRepresentation,
-                   let bitmap = NSBitmapImageRep(data: tiffData),
-                   let pngData = bitmap.representation(using: .png, properties: [:]) {
-                    try pngData.write(to: destinationURL)
-                }
-            case .text, .url, .color:
-                if let content = item.content {
-                    try content.write(to: destinationURL, atomically: true, encoding: .utf8)
-                }
+                fileName = item.customTitle ?? "Image_\(Int(Date().timeIntervalSince1970))"
+                fileExtension = "png"
+            case .text, .url:
+                fileName = item.customTitle ?? "Text_\(Int(Date().timeIntervalSince1970))"
+                fileExtension = "txt"
             case .file:
                 if let path = item.content {
-                    let sourceURL = URL(fileURLWithPath: path)
-                    try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                    let url = URL(fileURLWithPath: path)
+                    fileName = url.deletingPathExtension().lastPathComponent
+                    fileExtension = url.pathExtension
+                } else {
+                    fileName = "File_\(Int(Date().timeIntervalSince1970))"
+                    fileExtension = ""
                 }
+            case .color:
+                fileName = "Color_\(Int(Date().timeIntervalSince1970))"
+                fileExtension = "txt"
             }
             
-            // Success Feedback
-            withAnimation(DroppyAnimation.stateEmphasis) {
-                showSaveSuccess = true
+            var destinationURL = downloads.appendingPathComponent(fileName).appendingPathExtension(fileExtension)
+
+            // Handle collisions
+            var counter = 1
+            while FileManager.default.fileExists(atPath: destinationURL.path) {
+                destinationURL = downloads.appendingPathComponent("\(fileName)_\(counter)").appendingPathExtension(fileExtension)
+                counter += 1
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
-                    showSaveSuccess = false
+
+            do {
+                switch item.type {
+                case .image:
+                    if let data = await item.loadImageData(),
+                       let nsImage = NSImage(data: data),
+                       let tiffData = nsImage.tiffRepresentation,
+                       let bitmap = NSBitmapImageRep(data: tiffData),
+                       let pngData = bitmap.representation(using: .png, properties: [:]) {
+                        try pngData.write(to: destinationURL)
+                    }
+                case .text, .url, .color:
+                    if let content = item.content {
+                        try content.write(to: destinationURL, atomically: true, encoding: .utf8)
+                    }
+                case .file:
+                    if let path = item.content {
+                        let sourceURL = URL(fileURLWithPath: path)
+                        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+                    }
                 }
+
+                await MainActor.run {
+                    // Success Feedback
+                    withAnimation(DroppyAnimation.stateEmphasis) {
+                        showSaveSuccess = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            showSaveSuccess = false
+                        }
+                    }
+                }
+            } catch {
+                print("Direct save error: \(error.localizedDescription)")
             }
-        } catch {
-            print("Direct save error: \(error.localizedDescription)")
+
+            await MainActor.run {
+                isSavingFile = false
+            }
         }
-        
-        isSavingFile = false
     }
     
     var body: some View {
@@ -1906,7 +1941,7 @@ struct ClipboardPreviewView: View {
             
             switch item.type {
             case .image:
-                if let data = item.loadImageData() {
+                if let data = await item.loadImageData() {
                     cachedImage = await Task.detached(priority: .userInitiated) {
                         NSImage(data: data)
                     }.value
