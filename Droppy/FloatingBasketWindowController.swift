@@ -242,24 +242,24 @@ final class FloatingBasketWindowController: NSObject {
         // PREMIUM: Spring animation with real overshoot for alive, playful feel
         // Using CASpringAnimation for true spring physics
         if let layer = panel.contentView?.layer {
-            // Fade in
+            // Fade in (faster)
             let fadeAnim = CABasicAnimation(keyPath: "opacity")
             fadeAnim.fromValue = 0
             fadeAnim.toValue = 1
-            fadeAnim.duration = 0.2
+            fadeAnim.duration = 0.12  // Faster fade
             fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
             fadeAnim.fillMode = .forwards
             fadeAnim.isRemovedOnCompletion = false
             layer.add(fadeAnim, forKey: "fadeIn")
             layer.opacity = 1
             
-            // Scale with spring overshoot
+            // Scale with spring overshoot (snappier - stiffness 420 for fast response)
             let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
             scaleAnim.fromValue = 0.85
             scaleAnim.toValue = 1.0
             scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 300  // Higher stiffness = snappier
-            scaleAnim.damping = 18     // Lower damping = more overshoot
+            scaleAnim.stiffness = 420  // Higher = faster (was 300)
+            scaleAnim.damping = 22     // Slightly more damped for snappy feel
             scaleAnim.initialVelocity = 10
             scaleAnim.duration = scaleAnim.settlingDuration
             scaleAnim.fillMode = .forwards
@@ -268,9 +268,9 @@ final class FloatingBasketWindowController: NSObject {
             layer.transform = CATransform3DIdentity
         }
         
-        // Fade window itself
+        // Fade window itself (faster)
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
+            context.duration = 0.12
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 1.0
         }, completionHandler: nil)
@@ -380,13 +380,13 @@ final class FloatingBasketWindowController: NSObject {
         isInPeekMode = false
         
         // PREMIUM: Critically damped spring matching shelf expandClose (response: 0.45, damping: 1.0)
-        // Smooth, no-wobble collapse animation
+        // Faster, no-wobble collapse animation
         if let contentView = panel.contentView {
             contentView.wantsLayer = true
         }
         let criticallyDampedCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)  // Ease-out for damped feel
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.35  // Slightly shorter than open for snappy close
+            context.duration = 0.2  // Faster close (was 0.35)
             context.timingFunction = criticallyDampedCurve
             context.allowsImplicitAnimation = true
             panel.animator().alphaValue = 0
