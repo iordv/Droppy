@@ -191,17 +191,15 @@ struct StackedItemView: View {
         .animation(DroppyAnimation.bouncy, value: isSelected)
         .onHover { hovering in
             guard !state.isInteractionBlocked else { return }
+            
+            // Direct state updates - animations handled by view-level modifiers above
             isHovering = hovering
             
             if hovering {
                 HapticFeedback.pop()
-                withAnimation(ItemStack.peekAnimation) {
-                    peekProgress = 1.0
-                }
+                peekProgress = 1.0
             } else {
-                withAnimation(ItemStack.peekAnimation) {
-                    peekProgress = 0.0
-                }
+                peekProgress = 0.0
             }
         }
         .contextMenu {

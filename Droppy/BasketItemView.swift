@@ -214,9 +214,8 @@ struct BasketItemView: View {
                     HapticFeedback.pop()
                 }
                 
-                withAnimation(DroppyAnimation.easeOut) {
-                    isHovering = hovering
-                }
+                // Direct state update - animation handled by view-level modifier
+                isHovering = hovering
                 
                 // Delayed folder preview for ALL folders (not just pinned)
                 if item.isDirectory {
@@ -287,6 +286,7 @@ struct BasketItemView: View {
                 }
             }
         }
+        .animation(DroppyAnimation.hoverBouncy, value: isHovering)
         .background(GeometryReader { geo in
             Color.clear.preference(
                 key: ItemFramePreferenceKey.self,

@@ -92,12 +92,12 @@ struct DroppedItemView: View {
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .shadow(color: .black.opacity(isHovering ? 0.15 : 0), radius: 8, y: 4)
         .onHover { hovering in
-            
-            withAnimation(DroppyAnimation.hover) {
-                isHovering = hovering
-                showRemoveButton = hovering
-            }
+            // Direct state update - animation handled by view-level .animation() modifiers
+            isHovering = hovering
+            showRemoveButton = hovering
         }
+        .animation(DroppyAnimation.hoverBouncy, value: isHovering)
+        .animation(DroppyAnimation.hoverBouncy, value: showRemoveButton)
         .onTapGesture {
             withAnimation(DroppyAnimation.state) {
                 onSelect()
