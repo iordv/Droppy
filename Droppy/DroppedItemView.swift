@@ -114,7 +114,9 @@ struct DroppedItemView: View {
         }
         .contextMenu {
             Button {
-                item.copyToClipboard()
+                Task {
+                    await item.copyToClipboard()
+                }
             } label: {
                 Label("Copy", systemImage: "doc.on.doc")
             }
@@ -219,7 +221,9 @@ struct DroppedItemView: View {
 
 extension DroppedItemView {
     func onCopyShortcut() {
-        item.copyToClipboard()
+        Task {
+            await item.copyToClipboard()
+        }
     }
 }
 // MARK: - Press Action Support

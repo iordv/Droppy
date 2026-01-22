@@ -121,7 +121,8 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     }
     
     /// Copies the file to the clipboard (with actual content for images)
-    func copyToClipboard() {
+    @MainActor
+    func copyToClipboard() async {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         
@@ -137,8 +138,14 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         
         // For PDFs, copy both PDF data and file reference
         if let fileType = fileType, fileType.conforms(to: .pdf) {
-            if let pdfData = try? Data(contentsOf: url) {
+            // Asynchronous read to avoid blocking main thread
+            do {
+                let pdfData = try await Task {
+                    try Data(contentsOf: url)
+                }.value
                 pasteboard.setData(pdfData, forType: .pdf)
+            } catch {
+                print("Failed to read PDF data for clipboard: \(error)")
             }
             pasteboard.writeObjects([url as NSURL])
             return
@@ -146,8 +153,14 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         
         // For text files, copy the text content directly
         if let fileType = fileType, fileType.conforms(to: .plainText) {
-            if let text = try? String(contentsOf: url, encoding: .utf8) {
+            // Asynchronous read to avoid blocking main thread
+            do {
+                let text = try await Task {
+                    try String(contentsOf: url, encoding: .utf8)
+                }.value
                 pasteboard.setString(text, forType: .string)
+            } catch {
+                print("Failed to read text file for clipboard: \(error)")
             }
             pasteboard.writeObjects([url as NSURL])
             return
