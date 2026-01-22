@@ -98,25 +98,25 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         
         // PREMIUM: CASpringAnimation for true spring physics with overshoot
         if let layer = newWindow.contentView?.layer {
-            // Fade in
+            // Fade in (faster)
             let fadeAnim = CABasicAnimation(keyPath: "opacity")
             fadeAnim.fromValue = 0
             fadeAnim.toValue = 1
-            fadeAnim.duration = 0.2
+            fadeAnim.duration = 0.12  // Faster fade
             fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
             fadeAnim.fillMode = .forwards
             fadeAnim.isRemovedOnCompletion = false
             layer.add(fadeAnim, forKey: "fadeIn")
             layer.opacity = 1
             
-            // Scale with spring overshoot (same as clipboard)
+            // Scale with spring overshoot (snappier - stiffness 420 for fast response)
             let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
             scaleAnim.fromValue = 0.85
             scaleAnim.toValue = 1.0
             scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 280
-            scaleAnim.damping = 20
-            scaleAnim.initialVelocity = 8
+            scaleAnim.stiffness = 420  // Higher = faster (was 280)
+            scaleAnim.damping = 22     // Slightly more damped for snappy feel
+            scaleAnim.initialVelocity = 10
             scaleAnim.duration = scaleAnim.settlingDuration
             scaleAnim.fillMode = .forwards
             scaleAnim.isRemovedOnCompletion = false
@@ -124,9 +124,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             layer.transform = CATransform3DIdentity
         }
         
-        // Fade window alpha
+        // Fade window alpha (faster)
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
+            context.duration = 0.12
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             newWindow.animator().alphaValue = 1.0
         })
