@@ -77,4 +77,9 @@ enum HapticFeedback {
     static func toggle() {
         HapticFeedback.light.perform()
     }
+    
+    /// Light pop for hover peek effects
+    static func pop() {
+        HapticFeedback.light.perform()
+    }
 }

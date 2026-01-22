@@ -56,30 +56,34 @@ struct FloatingBasketView: View {
     // AirDrop zone width (30% of total when enabled)
     private let airDropZoneWidth: CGFloat = 90
     
+    /// Full width for 4-column grid: 4 * 76 + 3 * 8 + 24 * 2 = 304 + 24 + 48 = 376
+    private let fullGridWidth: CGFloat = 376
+    
+    /// Dynamic height that fits content
     private var currentHeight: CGFloat {
-        if state.basketItems.isEmpty {
-            return 130
+        let slotCount = state.basketDisplaySlotCount
+        
+        if slotCount == 0 {
+            return 130  // Empty basket
         } else {
-            let rowCount = ceil(Double(state.basketItems.count) / Double(columnsPerRow))
-            // 96pt per item height + 8pt spacing + header area
-            return max(1, rowCount) * (96 + itemSpacing) + 72
+            let rowCount = ceil(Double(slotCount) / Double(columnsPerRow))
+            // 96pt per item height + 8pt spacing + 60pt header
+            return max(1, rowCount) * (96 + itemSpacing) + 60
         }
     }
     
-    /// Base width without AirDrop zone
+    /// Base width - always use full grid width for proper layout
     private var baseWidth: CGFloat {
-        if state.basketItems.isEmpty {
-            return 200
+        if state.basketDisplaySlotCount == 0 {
+            return 200  // Compact empty state
         } else {
-            // Width for exactly 4 items: 4 * itemWidth + 3 * spacing + padding
-            return CGFloat(columnsPerRow) * itemWidth + CGFloat(columnsPerRow - 1) * itemSpacing + horizontalPadding * 2
+            return fullGridWidth  // Always full width when items present
         }
     }
     
     /// Total width including AirDrop zone when enabled AND basket is empty
     private var currentWidth: CGFloat {
-        // AirDrop zone only shows when basket is empty
-        let showAirDropZone = enableAirDropZone && state.basketItems.isEmpty
+        let showAirDropZone = enableAirDropZone && state.basketDisplaySlotCount == 0
         return baseWidth + (showAirDropZone ? airDropZoneWidth : 0)
     }
     
@@ -125,6 +129,8 @@ struct FloatingBasketView: View {
         .background {
             // Hidden button for Cmd+A select all
             Button("") {
+                state.selectAllBasket()
+                state.selectAllBasketStacks()
             }
             .keyboardShortcut("a", modifiers: .command)
             .opacity(0)
@@ -132,16 +138,18 @@ struct FloatingBasketView: View {
     }
     
     private var mainBasketContainer: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             // Background (extracted to reduce type-checker complexity)
             basketBackground
                 .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 6)
             
             // Content
-            if state.basketItems.isEmpty {
+            if state.basketDisplaySlotCount == 0 {
                 emptyContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 itemsContent
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
             
             // Selection rectangle overlay
@@ -154,7 +162,7 @@ struct FloatingBasketView: View {
         .scaleEffect((state.isBasketTargeted || state.isAirDropZoneTargeted) ? 1.03 : 1.0)
         .animation(DroppyAnimation.bouncy, value: state.isBasketTargeted)
         .animation(DroppyAnimation.bouncy, value: state.isAirDropZoneTargeted)
-        .animation(DroppyAnimation.bouncy, value: state.basketItems.count)
+        .animation(DroppyAnimation.bouncy, value: state.basketDisplaySlotCount)
         .coordinateSpace(name: "basketContainer")
         .onPreferenceChange(ItemFramePreferenceKey.self) { frames in
             self.itemFrames = frames
@@ -165,7 +173,7 @@ struct FloatingBasketView: View {
                 dashPhase -= 280
             }
         }
-        .onChange(of: state.basketItems.count) { oldCount, newCount in
+        .onChange(of: state.basketDisplaySlotCount) { oldCount, newCount in
             if newCount == 0 {
                 FloatingBasketWindowController.shared.hideBasket()
             }
@@ -244,7 +252,7 @@ struct FloatingBasketView: View {
     @ViewBuilder
     private var basketBackground: some View {
         // AirDrop zone only shows when basket is empty
-        let showAirDropZone = enableAirDropZone && state.basketItems.isEmpty
+        let showAirDropZone = enableAirDropZone && state.basketDisplaySlotCount == 0
         
         if showAirDropZone {
             // Wider basket with AirDrop zone on right (only when empty)
@@ -526,18 +534,66 @@ struct FloatingBasketView: View {
             let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: itemSpacing), count: columnsPerRow)
             
             LazyVGrid(columns: columns, spacing: itemSpacing) {
-                ForEach(state.basketItems) { item in
-                    BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
-                        state.removeBasketItem(item)
+                // Power Folders first (always distinct, never stacked)
+                ForEach(state.basketPowerFolders) { folder in
+                    BasketItemView(item: folder, state: state, renamingItemId: $renamingItemId) {
+                        withAnimation(DroppyAnimation.state) {
+                            state.basketPowerFolders.removeAll { $0.id == folder.id }
+                        }
                     }
-                    // Smooth in-place morph matching shelf behavior
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.8).combined(with: .opacity),
-                        removal: .scale(scale: 0.8).combined(with: .opacity)
-                    ))
+                    .transition(.stackDrop)
+                }
+                
+                // Stacks - render based on expansion state
+                ForEach(state.basketStacks) { stack in
+                    if stack.isExpanded {
+                        // Collapse button as first item in expanded stack
+                        StackCollapseButton(itemCount: stack.count) {
+                            withAnimation(ItemStack.collapseAnimation) {
+                                state.collapseBasketStack(stack.id)
+                            }
+                        }
+                        .transition(.stackExpand(index: 0))
+                        
+                        // Expanded: show all items individually
+                        ForEach(stack.items) { item in
+                            BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
+                                withAnimation(DroppyAnimation.state) {
+                                    state.removeBasketItem(item)
+                                }
+                            }
+                            .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
+                        }
+                    } else if stack.isSingleItem, let item = stack.coverItem {
+                        // Single item - render as normal
+                        BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
+                            withAnimation(DroppyAnimation.state) {
+                                state.removeBasketItem(item)
+                            }
+                        }
+                        .transition(.stackDrop)
+                    } else {
+                        // Multi-item collapsed stack
+                        StackedItemView(
+                            stack: stack,
+                            state: state,
+                            onExpand: {
+                                withAnimation(ItemStack.expandAnimation) {
+                                    state.toggleBasketStackExpansion(stack.id)
+                                }
+                            },
+                            onRemove: {
+                                withAnimation(DroppyAnimation.state) {
+                                    state.removeBasketStack(stack.id)
+                                }
+                            }
+                        )
+                        .transition(.stackDrop)
+                    }
                 }
             }
-            .animation(DroppyAnimation.bouncy, value: state.basketItems.count)
+            .animation(DroppyAnimation.bouncy, value: state.basketStacks.count)
+            .animation(DroppyAnimation.bouncy, value: state.basketPowerFolders.count)
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.bottom, 16)

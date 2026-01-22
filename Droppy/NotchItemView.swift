@@ -237,12 +237,15 @@ struct NotchItemView: View {
                     withAnimation(DroppyAnimation.state) {
                         // If this item was selected, remove all selected non-pinned items
                         if state.selectedItems.contains(item.id) {
-                            let idsToRemove = state.selectedItems
-                            state.items.removeAll { idsToRemove.contains($0.id) && !$0.isPinned }
+                            // Get items to remove (non-pinned selected items)
+                            let itemsToRemove = state.items.filter { state.selectedItems.contains($0.id) && !$0.isPinned }
+                            for itemToRemove in itemsToRemove {
+                                state.removeItem(itemToRemove)
+                            }
                             state.selectedItems.removeAll()
                         } else if !item.isPinned {
                             // Otherwise just remove this single item (if not pinned)
-                            state.items.removeAll { $0.id == item.id }
+                            state.removeItem(item)
                         }
                     }
                 }
@@ -321,6 +324,11 @@ struct NotchItemView: View {
             .onHover { hovering in
                 // CRITICAL: Ignore interaction if blocked (e.g. context menu open)
                 guard !state.isInteractionBlocked else { return }
+                
+                // Haptic feedback on hover start
+                if hovering {
+                    HapticFeedback.pop()
+                }
                 
                 withAnimation(DroppyAnimation.easeOut) {
                     isHovering = hovering
@@ -1126,7 +1134,7 @@ private struct NotchItemContent: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .stroke(containerStrokeColor, lineWidth: 2)
                     )
-                    .frame(width: 60, height: 60)
+                    .frame(width: 64, height: 64)
                     .overlay {
                         Group {
                             if item.isDirectory {
@@ -1145,7 +1153,7 @@ private struct NotchItemContent: View {
                                     .aspectRatio(contentMode: .fit)
                             }
                         }
-                        .frame(width: 44, height: 44)
+                        .frame(width: 48, height: 48)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .opacity((isConverting || isExtractingText || isCompressing || isCreatingZIP) ? 0.5 : 1.0)
                     }
@@ -1161,7 +1169,7 @@ private struct NotchItemContent: View {
                         // Check both local isRemovingBackground AND global processingItemIds for bulk operations
                         if isRemovingBackground || state.processingItemIds.contains(item.id) {
                             MagicProcessingOverlay()
-                                .frame(width: 60, height: 60)
+                                .frame(width: 64, height: 64)
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .transition(.opacity.animation(DroppyAnimation.viewChange))
                         }

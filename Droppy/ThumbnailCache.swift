@@ -8,6 +8,7 @@
 
 import AppKit
 import Foundation
+import ImageIO
 import QuickLookThumbnailing
 import UniformTypeIdentifiers
 
@@ -211,35 +212,29 @@ final class ThumbnailCache {
         return icon
     }
     
-    /// Generate a scaled-down thumbnail from image data
+    /// Generate a scaled-down thumbnail from image data using ImageIO
+    /// This is faster and more memory-efficient than NSImage drawing
+    /// (Cherry-picked from PR #87)
     private func generateThumbnail(from data: Data) -> NSImage? {
-        guard let originalImage = NSImage(data: data) else { return nil }
+        // Use ImageIO to create thumbnail source - avoids full image decode into memory
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         
-        let originalSize = originalImage.size
-        guard originalSize.width > 0 && originalSize.height > 0 else { return nil }
+        // Calculate max pixel size (Retina aware)
+        let maxPixelSize = max(thumbnailSize.width, thumbnailSize.height) * 2
         
-        // Calculate aspect-fit size
-        let widthRatio = thumbnailSize.width / originalSize.width
-        let heightRatio = thumbnailSize.height / originalSize.height
-        let scale = min(widthRatio, heightRatio, 1.0) // Don't upscale small images
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ]
         
-        let newSize = CGSize(
-            width: originalSize.width * scale,
-            height: originalSize.height * scale
-        )
+        // Generate thumbnail efficiently without full image decode
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return nil
+        }
         
-        // Create thumbnail
-        let thumbnail = NSImage(size: newSize)
-        thumbnail.lockFocus()
-        originalImage.draw(
-            in: NSRect(origin: .zero, size: newSize),
-            from: NSRect(origin: .zero, size: originalSize),
-            operation: .copy,
-            fraction: 1.0
-        )
-        thumbnail.unlockFocus()
-        
-        return thumbnail
+        // Convert to NSImage
+        return NSImage(cgImage: cgImage, size: thumbnailSize)
     }
     
     /// Clear a specific item from cache (e.g., when deleted)

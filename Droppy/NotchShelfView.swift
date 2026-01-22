@@ -367,7 +367,7 @@ struct NotchShelfView: View {
         
         // Determine if we're showing media player or shelf
         let shouldShowMediaPlayer = musicManager.isMediaHUDForced || 
-            ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)
+            ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.shelfDisplaySlotCount == 0)
         
         // MEDIA PLAYER: Content height + notch compensation (if applicable)
         if showMediaPlayer && shouldShowMediaPlayer && !musicManager.isPlayerIdle {
@@ -380,7 +380,8 @@ struct NotchShelfView: View {
         
         // SHELF: DYNAMIC height (grows with files)
         // No header row anymore - auto-collapse handles hiding
-        let rowCount = (Double(state.items.count) / 5.0).rounded(.up)
+        // Use shelfDisplaySlotCount for correct row count (collapsed stacks = 1 slot)
+        let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
         let baseHeight = max(1, rowCount) * 110 // 110 per row, no header
         
         // In notch mode, add extra height to compensate for top padding that clears physical notch
@@ -592,7 +593,7 @@ struct NotchShelfView: View {
     
     private var shelfContentWithItemObservers: some View {
         shelfContentBase
-            .onChange(of: state.items.count) { oldCount, newCount in
+            .onChange(of: state.shelfDisplaySlotCount) { oldCount, newCount in
                 // NOTE: Auto-expand removed - drop handlers now explicitly expand the correct display
                 // This prevents multiple screens from racing to expand when items are added
                 
@@ -723,6 +724,7 @@ struct NotchShelfView: View {
                 Button("") {
                     if state.isExpanded {
                         state.selectAll()
+                        state.selectAllStacks()
                     }
                 }
                 .keyboardShortcut("a", modifiers: .command)
@@ -1088,7 +1090,7 @@ struct NotchShelfView: View {
         .animation(DroppyAnimation.hoverBouncy, value: hudIsVisible)
         .animation(DroppyAnimation.notchState, value: musicManager.isPlaying)
         .animation(DroppyAnimation.notchState, value: isSongTransitioning)
-        .animation(DroppyAnimation.notchState, value: state.items.count)
+        .animation(DroppyAnimation.notchState, value: state.shelfDisplaySlotCount)
         .animation(DroppyAnimation.viewChange, value: useDynamicIslandStyle)
         .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
         .contextMenu {
@@ -1453,17 +1455,77 @@ struct NotchShelfView: View {
                 let columns = Array(repeating: GridItem(.fixed(80), spacing: 10), count: 5)
                 
                 LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(state.items) { item in
+                    // Power Folders first (always distinct, never stacked)
+                    ForEach(state.shelfPowerFolders) { folder in
                         NotchItemView(
-                            item: item,
+                            item: folder,
                             state: state,
                             renamingItemId: $renamingItemId,
                             onRemove: {
                                 withAnimation(DroppyAnimation.state) {
-                                    state.removeItem(item)
+                                    state.shelfPowerFolders.removeAll { $0.id == folder.id }
                                 }
                             }
                         )
+                        .transition(.stackDrop)
+                    }
+                    
+                    // Stacks - render based on expansion state
+                    ForEach(state.shelfStacks) { stack in
+                        if stack.isExpanded {
+                            // Collapse button as first item in expanded stack
+                            StackCollapseButton(itemCount: stack.count) {
+                                withAnimation(ItemStack.collapseAnimation) {
+                                    state.collapseStack(stack.id)
+                                }
+                            }
+                            .transition(.stackExpand(index: 0))
+                            
+                            // Expanded: show all items individually
+                            ForEach(stack.items) { item in
+                                NotchItemView(
+                                    item: item,
+                                    state: state,
+                                    renamingItemId: $renamingItemId,
+                                    onRemove: {
+                                        withAnimation(DroppyAnimation.state) {
+                                            state.removeItem(item)
+                                        }
+                                    }
+                                )
+                                .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
+                            }
+                        } else if stack.isSingleItem, let item = stack.coverItem {
+                            // Single item - render as normal
+                            NotchItemView(
+                                item: item,
+                                state: state,
+                                renamingItemId: $renamingItemId,
+                                onRemove: {
+                                    withAnimation(DroppyAnimation.state) {
+                                        state.removeItem(item)
+                                    }
+                                }
+                            )
+                            .transition(.stackDrop)
+                        } else {
+                            // Multi-item collapsed stack
+                            StackedItemView(
+                                stack: stack,
+                                state: state,
+                                onExpand: {
+                                    withAnimation(ItemStack.expandAnimation) {
+                                        state.expandStack(stack.id)
+                                    }
+                                },
+                                onRemove: {
+                                    withAnimation(DroppyAnimation.state) {
+                                        state.removeStack(stack.id)
+                                    }
+                                }
+                            )
+                            .transition(.stackDrop)
+                        }
                     }
                 }
                 .padding(.horizontal, 12)

@@ -2212,7 +2212,7 @@ struct NotchShelfInfoButton: View {
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showPopover, arrowEdge: .trailing) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .center, spacing: 12) {
                 Text("Notch Shelf Tips")
                     .font(.system(size: 15, weight: .semibold))
                 

@@ -296,43 +296,82 @@ class ClipboardManager: ObservableObject {
         // CRITICAL: Set isLoading BEFORE any operation to prevent race condition
         // where didSet triggers saveToDisk() with empty/partial data
         isLoading = true
-        defer { isLoading = false }
         
-        guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
-        do {
-            let data = try Data(contentsOf: persistenceURL)
-            var decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+        guard FileManager.default.fileExists(atPath: persistenceURL.path) else {
+            isLoading = false
+            return
+        }
+        
+        // Cherry-picked from PR #91: Move disk I/O to background queue
+        // This prevents main thread blocking during app launch (~160ms for large histories)
+        let url = persistenceURL
+        let imagesDir = imagesDirectory
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
             
-            // MIGRATION: Move inline imageData to files
-            var needsSave = false
-            for i in decoded.indices {
-                if decoded[i].type == .image,
-                   decoded[i].imageData != nil,
-                   decoded[i].imageFilePath == nil {
-                    // Migrate this item's image to file
-                    if let filePath = saveImageToFile(decoded[i].imageData!, id: decoded[i].id) {
-                        decoded[i].imageFilePath = filePath
-                        decoded[i].imageData = nil // Clear inline data to free memory
-                        needsSave = true
-                        print("📋 Migrated image \(decoded[i].id) to file")
+            do {
+                let data = try Data(contentsOf: url)
+                var decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+                
+                // MIGRATION: Move inline imageData to files
+                var needsSave = false
+                for i in decoded.indices {
+                    if decoded[i].type == .image,
+                       decoded[i].imageData != nil,
+                       decoded[i].imageFilePath == nil {
+                        // Migrate this item's image to file
+                        if let imageData = decoded[i].imageData {
+                            let filename = "\(decoded[i].id.uuidString).jpg"
+                            let fileURL = imagesDir.appendingPathComponent(filename)
+                            if let _ = try? imageData.write(to: fileURL, options: .atomic) {
+                                decoded[i].imageFilePath = filename
+                                decoded[i].imageData = nil // Clear inline data to free memory
+                                needsSave = true
+                                print("📋 Migrated image \(decoded[i].id) to file")
+                            }
+                        }
                     }
                 }
+                
+                // Merge with any items captured during loading (race condition protection)
+                DispatchQueue.main.async {
+                    // Check if any items were added while we were loading
+                    let existingIds = Set(self.history.map { $0.id })
+                    let itemsAddedDuringLoad = self.history.filter { item in
+                        !decoded.contains(where: { $0.id == item.id })
+                    }
+                    
+                    // Apply loaded history
+                    self.history = decoded
+                    
+                    // Re-add any items that were captured during loading
+                    if !itemsAddedDuringLoad.isEmpty {
+                        print("📋 Merging \(itemsAddedDuringLoad.count) items captured during load")
+                        for item in itemsAddedDuringLoad {
+                            self.history.insert(item, at: 0)
+                        }
+                        self.enforceHistoryLimit()
+                    }
+                    
+                    print("📋 Loaded \(decoded.count) clipboard items from disk")
+                    
+                    // Save if we migrated data
+                    if needsSave {
+                        print("📋 Saving migrated history to disk...")
+                        self.isLoading = false
+                        self.saveToDisk()
+                        self.isLoading = true
+                    }
+                    
+                    self.isLoading = false
+                }
+            } catch {
+                print("⚠️ Failed to load clipboard history: \(error)")
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
             }
-            
-            self.history = decoded
-            print("📋 Loaded \(decoded.count) clipboard items from disk")
-            
-            // Save migrated data (without inline images)
-            if needsSave {
-                print("📋 Saving migrated history to disk...")
-                // Temporarily disable isLoading to allow save
-                isLoading = false
-                saveToDisk()
-                isLoading = true
-            }
-        } catch {
-            print("⚠️ Failed to load clipboard history: \(error)")
-            // Don't clear history on load failure - keep whatever is in memory
         }
     }
     

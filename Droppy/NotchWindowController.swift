@@ -67,6 +67,32 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Watchdog timer for self-healing - validates window state periodically
     private var watchdogTimer: Timer?
     
+    // MARK: - Size Stability System (Rock-Solid Protection)
+    // Multi-layer defense against size reversion during rapid clicks
+    
+    /// Expected window sizes by display ID - the "source of truth" for correct size
+    /// Updated BEFORE frame changes, validated by watchdog, enforced absolutely
+    private var expectedWindowSizes: [CGDirectDisplayID: CGFloat] = [:]
+    
+    /// Last successful size update timestamp by display ID (for throttling)
+    private var lastSizeUpdateTime: [CGDirectDisplayID: Date] = [:]
+    
+    /// Pending size update work items (for coalesced deferred updates)
+    private var pendingSizeUpdates: [CGDirectDisplayID: DispatchWorkItem] = [:]
+    
+    /// Last click time for debounce (prevents rapid toggle storms)
+    private var lastNotchClickTime: Date = .distantPast
+    
+    /// Minimum interval between size updates (coalesce rapid changes)
+    private let sizeUpdateThrottle: TimeInterval = 0.05 // 50ms
+    
+    /// Maximum allowed deviation from expected size before forcing correction
+    /// Set to 50pt to allow for animation transitions and bulk operations
+    private let sizeDeviationTolerance: CGFloat = 50.0
+    
+    /// Minimum interval between click actions (prevent rapid toggle)
+    private let clickDebounceInterval: TimeInterval = 0.1 // 100ms
+    
     /// System observers for wake/display changes
     private var systemObservers: [NSObjectProtocol] = []
     
@@ -474,6 +500,11 @@ final class NotchWindowController: NSObject, ObservableObject {
             let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
             if isInNotchZone {
+                // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
+                let now = Date()
+                guard now.timeIntervalSince(self.lastNotchClickTime) > self.clickDebounceInterval else { return }
+                self.lastNotchClickTime = now
+                
                 // Click on notch zone
                 // CRITICAL FIX: When shelf is expanded WITH ITEMS, don't intercept clicks!
                 // Let them pass through to SwiftUI item buttons (like the X to delete a file).
@@ -635,6 +666,11 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
                 if isInNotchZone {
+                    // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
+                    let now = Date()
+                    guard now.timeIntervalSince(self.lastNotchClickTime) > self.clickDebounceInterval else { return event }
+                    self.lastNotchClickTime = now
+                    
                     // Click on notch zone
                     // CRITICAL FIX: When shelf is expanded WITH ITEMS, don't intercept clicks!
                     // Let them pass through to SwiftUI item buttons (like the X to delete a file).
@@ -850,31 +886,119 @@ final class NotchWindowController: NSObject, ObservableObject {
     }
     
     /// Dynamically resizes all notch windows to fit current shelf content
+    /// ROCK-SOLID: Multi-layer protection against size reversion
+    /// Layer 1: Throttle rapid updates → Layer 2: Expected size cache
+    /// Layer 3: Coalesced deferred updates → Layer 4: Frame application
+    /// Layer 5: Immediate validation → Watchdog backup
     private func updateAllWindowsSize() {
-        for (displayID, window) in notchWindows {
-            guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { continue }
+        for (displayID, _) in notchWindows {
+            scheduleSizeUpdate(for: displayID)
+        }
+    }
+    
+    /// Schedules a size update for a specific window with throttling and coalescing
+    private func scheduleSizeUpdate(for displayID: CGDirectDisplayID) {
+        // Cancel any pending update for this display
+        pendingSizeUpdates[displayID]?.cancel()
+        
+        // Calculate the correct size NOW and cache it immediately
+        // This ensures we capture the state at this exact moment
+        guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { return }
+        let correctHeight = calculateCorrectWindowHeight(for: screen)
+        
+        // LAYER 1: Cache the expected size IMMEDIATELY (before any async operations)
+        // This is the absolute source of truth that the watchdog will enforce
+        expectedWindowSizes[displayID] = correctHeight
+        
+        // LAYER 2: Throttle check - only apply immediately if enough time has passed
+        let now = Date()
+        let timeSinceLastUpdate = lastSizeUpdateTime[displayID].map { now.timeIntervalSince($0) } ?? .infinity
+        
+        if timeSinceLastUpdate >= sizeUpdateThrottle {
+            // Enough time has passed - apply immediately
+            applySizeUpdate(for: displayID, height: correctHeight)
+        } else {
+            // LAYER 3: Coalesce with deferred update
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                // Re-read the expected size (may have been updated again)
+                guard let finalHeight = self.expectedWindowSizes[displayID] else { return }
+                self.applySizeUpdate(for: displayID, height: finalHeight)
+            }
+            pendingSizeUpdates[displayID] = workItem
             
-            // Calculate required height based on current content
-            let requiredHeight = DroppyState.expandedShelfHeight(for: screen)
+            let delay = sizeUpdateThrottle - timeSinceLastUpdate
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+    }
+    
+    /// Calculates the correct window height for a screen (pure calculation, no side effects)
+    private func calculateCorrectWindowHeight(for screen: NSScreen) -> CGFloat {
+        let requiredHeight = DroppyState.expandedShelfHeight(for: screen)
+        let minWindowHeight: CGFloat = 280
+        return max(minWindowHeight, requiredHeight)
+    }
+    
+    /// Applies a size update to a window (the actual frame change)
+    /// LAYER 4: Frame application + LAYER 5: Immediate validation
+    private func applySizeUpdate(for displayID: CGDirectDisplayID, height newHeight: CGFloat) {
+        guard let window = notchWindows[displayID],
+              let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { return }
+        
+        // Update timestamp
+        lastSizeUpdateTime[displayID] = Date()
+        
+        // Only resize if significantly different (avoid micro-updates)
+        let currentHeight = window.frame.height
+        if abs(newHeight - currentHeight) > 10 {
+            // Resize from top - keep window anchored at screen top
+            let newFrame = NSRect(
+                x: window.frame.origin.x,
+                y: screen.frame.origin.y + screen.frame.height - newHeight,
+                width: window.frame.width,
+                height: newHeight
+            )
+            window.setFrame(newFrame, display: false, animate: false)
             
-            // Add buffer for floating buttons (already included in expandedShelfHeight, but ensure minimum)
-            let minWindowHeight: CGFloat = 280
-            let newHeight = max(minWindowHeight, requiredHeight)
-            
-            // Only resize if significantly different (avoid constant small updates)
-            let currentHeight = window.frame.height
-            if abs(newHeight - currentHeight) > 10 {
-                // Resize from top - keep window anchored at screen top
-                let newFrame = NSRect(
-                    x: window.frame.origin.x,
-                    y: screen.frame.origin.y + screen.frame.height - newHeight,
-                    width: window.frame.width,
-                    height: newHeight
-                )
-                window.setFrame(newFrame, display: false, animate: false)
+            // LAYER 5: Immediate validation - verify the frame was applied correctly
+            DispatchQueue.main.async { [weak self] in
+                self?.validateSizeForWindow(displayID: displayID)
             }
         }
     }
+    
+    /// Validates that a window matches its expected size, self-heals if not
+    private func validateSizeForWindow(displayID: CGDirectDisplayID) {
+        guard let window = notchWindows[displayID],
+              let expectedHeight = expectedWindowSizes[displayID],
+              let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { return }
+        
+        let currentHeight = window.frame.height
+        let deviation = abs(currentHeight - expectedHeight)
+        
+        if deviation > sizeDeviationTolerance {
+            // Size doesn't match - force correct it NOW
+            let newFrame = NSRect(
+                x: window.frame.origin.x,
+                y: screen.frame.origin.y + screen.frame.height - expectedHeight,
+                width: window.frame.width,
+                height: expectedHeight
+            )
+            window.setFrame(newFrame, display: false, animate: false)
+        }
+    }
+    
+    /// Forces an immediate size recalculation and application for all windows
+    /// Call this any time you need guaranteed correct sizing
+    func forceRecalculateAllWindowSizes() {
+        for displayID in notchWindows.keys {
+            guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { continue }
+            let correctHeight = calculateCorrectWindowHeight(for: screen)
+            expectedWindowSizes[displayID] = correctHeight
+            applySizeUpdate(for: displayID, height: correctHeight)
+        }
+    }
+
     
     /// Updates mouse event handling for all notch windows
     /// CRITICAL: Skips update if windows are temporarily hidden to prevent
@@ -1036,7 +1160,9 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     /// Validates and self-heals window state if stuck
     /// Called periodically by watchdog timer
+    /// ROCK-SOLID: Also validates window sizes as final safety net
     private static var lastWatchdogLogTime: Date?
+    private static var lastSizeHealLogTime: Date?
     private func validateWindowState() {
         // Skip if intentionally hidden
         guard !isTemporarilyHidden else { return }
@@ -1044,7 +1170,8 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Check if any window is incorrectly ignoring mouse events
         let enableNotchShelf = (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true
         
-        for window in notchWindows.values {
+        for (displayID, window) in notchWindows {
+            // MOUSE EVENT VALIDATION
             // If shelf is enabled but window is ignoring events AND not in a valid ignore state
             if enableNotchShelf && window.ignoresMouseEvents {
                 // Check if this is actually correct
@@ -1062,6 +1189,41 @@ final class NotchWindowController: NSObject, ObservableObject {
                     window.ignoresMouseEvents = false
                     window.updateMouseEventHandling()
                 }
+            }
+            
+            // SIZE STABILITY VALIDATION (Rock-Solid Final Safety Net)
+            // Verify window matches expected size, self-heal if drifted
+            guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { continue }
+            
+            // Calculate what the size SHOULD be right now
+            let correctHeight = calculateCorrectWindowHeight(for: screen)
+            
+            // Update expected size if not set or if it's stale
+            if expectedWindowSizes[displayID] == nil {
+                expectedWindowSizes[displayID] = correctHeight
+            }
+            
+            let currentHeight = window.frame.height
+            let deviation = abs(currentHeight - correctHeight)
+            
+            // If size has drifted more than tolerance, force-correct it
+            if deviation > sizeDeviationTolerance {
+                // Throttle log to once per minute per display
+                let now = Date()
+                if Self.lastSizeHealLogTime == nil || now.timeIntervalSince(Self.lastSizeHealLogTime!) > 60 {
+                    print("⚠️ Watchdog: Self-healing - window size drifted by \(Int(deviation))pt (expected: \(Int(correctHeight)), actual: \(Int(currentHeight)))")
+                    Self.lastSizeHealLogTime = now
+                }
+                
+                // Update cache and force-apply correct size
+                expectedWindowSizes[displayID] = correctHeight
+                let newFrame = NSRect(
+                    x: window.frame.origin.x,
+                    y: screen.frame.origin.y + screen.frame.height - correctHeight,
+                    width: window.frame.width,
+                    height: correctHeight
+                )
+                window.setFrame(newFrame, display: false, animate: false)
             }
         }
     }
