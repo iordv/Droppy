@@ -311,65 +311,6 @@
             color: #fff;
         }
 
-        /* Support Banner */
-        .support-banner {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            padding: 16px 28px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 999px;
-            margin-bottom: 32px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            transition: all 0.3s ease;
-        }
-
-        .support-banner:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 214, 10, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .support-banner span {
-            font-size: 14px;
-            color: #aaa;
-            letter-spacing: 0.01em;
-        }
-
-        .support-banner .emoji {
-            font-size: 18px;
-        }
-
-        .coffee-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #ffdd00 0%, #ffb700 100%);
-            border: none;
-            border-radius: 999px;
-            color: #1a1a1a;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 16px rgba(255, 214, 10, 0.2);
-        }
-
-        .coffee-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 24px rgba(255, 214, 10, 0.35);
-        }
-
-        .coffee-btn svg {
-            width: 16px;
-            height: 16px;
-        }
-
         /* Requirements Section */
         .requirements {
             padding: 80px 0;
@@ -645,18 +586,6 @@
             </div>
         </div>
 
-        <!-- Support Banner -->
-        <div class="support-banner">
-            <span>Help keep Droppy free and open-source!</span>
-            <a href="https://buymeacoffee.com/droppy" target="_blank" class="coffee-btn">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M2 21V19H20V21H2ZM20 8V5H22V8H20ZM18 15C16.9 15 15.958 14.608 15.175 13.825C14.392 13.042 14 12.1 14 11V3H20C20.55 3 21.021 3.196 21.413 3.588C21.805 3.98 22 4.45 22 5V8C22 8.55 21.805 9.021 21.413 9.413C21.021 9.805 20.55 10 20 10H18V11C18 11.55 17.805 12.021 17.413 12.413C17.021 12.805 16.55 13 16 13H6C5.45 13 4.979 12.805 4.587 12.413C4.195 12.021 4 11.55 4 11V3H16V10H18V8H20V5H16V3H18V8H20V5H18V8C18 8.283 17.904 8.521 17.712 8.713C17.52 8.905 17.283 9 17 9C16.717 9 16.48 8.905 16.288 8.713C16.096 8.521 16 8.283 16 8V5H6V11H16V10C16 9.717 16.096 9.48 16.288 9.288C16.48 9.096 16.717 9 17 9H18C18.55 9 19.021 9.196 19.413 9.588C19.805 9.98 20 10.45 20 11V10H18Z" />
-                </svg>
-                Buy me a coffee
-            </a>
-        </div>
-
         <p class="download-meta">
             <a href="https://github.com/iordv/Droppy/releases" target="_blank">View all releases</a> ·
             <a href="https://github.com/iordv/Droppy" target="_blank">Source code on GitHub</a>
@@ -709,6 +638,12 @@
             <script>document.write(new Date().getFullYear())</script> Droppy. Free and open-source.
         </div>
     </footer>
+
+    <!-- Buy Me a Coffee Widget -->
+    <script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
+        data-id="Droppy" data-description="Support me on Buy me a coffee!"
+        data-message="Help keep Droppy free and open-source! 💧" data-color="#5F7FFF" data-position="Right"
+        data-x_margin="18" data-y_margin="18"></script>
 
     <!-- Version Script -->
     <script src="assets/js/version.js"></script>
