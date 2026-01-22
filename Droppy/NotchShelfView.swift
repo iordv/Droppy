@@ -1165,21 +1165,21 @@ struct NotchShelfView: View {
             }
         }
         .onHover { isHovering in
+            // STABLE HOVER: No withAnimation inside onHover - use view-level .animation() instead
+            // This prevents animation stacking when cursor moves in/out rapidly
             
             // Only update hover state if not dragging (drag state handles its own)
             // AND not when volume/brightness HUD is visible (prevents layout shift)
             if !dragMonitor.isDragging && !hudIsVisible {
                 // Get the displayID for this specific screen
                 if let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID {
-                    withAnimation(DroppyAnimation.state) {
-                        // Only set mouse hovering if shelf is enabled
-                        if enableNotchShelf {
-                            state.setHovering(for: displayID, isHovering: isHovering)
-                        }
-                        // Propagate hover to media HUD when music is playing (works independently)
-                        if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
-                            mediaHUDIsHovered = isHovering
-                        }
+                    // Direct state update - animation handled by view-level .animation() modifier
+                    if enableNotchShelf {
+                        state.setHovering(for: displayID, isHovering: isHovering)
+                    }
+                    // Propagate hover to media HUD when music is playing (works independently)
+                    if showMediaPlayer && musicManager.isPlaying && !isExpandedOnThisScreen {
+                        mediaHUDIsHovered = isHovering
                     }
                 }
             } else if hudIsVisible {
@@ -1187,17 +1187,15 @@ struct NotchShelfView: View {
                 // This handles edge case where cursor was already over area when HUD appeared
                 if let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID {
                     if state.isHovering(for: displayID) || mediaHUDIsHovered {
-                        withAnimation(DroppyAnimation.state) {
-                            state.setHovering(for: displayID, isHovering: false)
-                            mediaHUDIsHovered = false
-                        }
+                        state.setHovering(for: displayID, isHovering: false)
+                        mediaHUDIsHovered = false
                     }
                 }
             }
         }
-        // NOTE: isDropTargeted animation REMOVED to prevent sliding effect
-        // Visual feedback handled by internal transitions in emptyShelfContent
-        .animation(DroppyAnimation.hoverBouncy, value: isHoveringOnThisScreen)
+        // STABLE ANIMATIONS: Applied at view level, not inside onHover
+        .animation(.bouncy.speed(1.2), value: isHoveringOnThisScreen)
+        .animation(.bouncy.speed(1.2), value: mediaHUDIsHovered)
     }
     
     // MARK: - Indicators
