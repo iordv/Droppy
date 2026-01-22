@@ -99,41 +99,77 @@ final class MediaKeyInterceptor {
         let systemDefinedType = CGEventType(rawValue: 14)!
         let eventMask: CGEventMask = (1 << systemDefinedType.rawValue)
         
+        // BUG #84 FIX (macOS 26 Tahoe):
+        // Use .cgAnnotatedSessionEventTap instead of .cgSessionEventTap for higher priority.
+        // On Tahoe, OSDUIHelper registers earlier in the event chain, so we need to use
+        // the annotated session tap which has higher priority and receives events first.
+        // This ensures we can suppress the event before OSDUIHelper sees it.
         guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+            tap: .cgAnnotatedSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: eventMask,
             callback: mediaKeyCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            print("MediaKeyInterceptor: Failed to create event tap")
-            return false
+            // Fallback to regular session tap if annotated fails (older macOS)
+            print("MediaKeyInterceptor: Annotated tap failed, trying standard session tap...")
+            guard let fallbackTap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap,
+                place: .headInsertEventTap,
+                options: .defaultTap,
+                eventsOfInterest: eventMask,
+                callback: mediaKeyCallback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque()
+            ) else {
+                print("MediaKeyInterceptor: Failed to create event tap")
+                return false
+            }
+            eventTap = fallbackTap
+            print("MediaKeyInterceptor: Using fallback session tap")
+            return setupEventTapRunLoop(tap: fallbackTap)
         }
         
         eventTap = tap
+        print("MediaKeyInterceptor: Using annotated session tap (macOS Tahoe fix)")
+        return setupEventTapRunLoop(tap: tap)
+    }
+    
+    /// Sets up the run loop for the event tap on a dedicated background queue
+    private func setupEventTapRunLoop(tap: CFMachPort) -> Bool {
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         
-        if let source = runLoopSource {
-            // Run on dedicated background queue to avoid main thread contention
-            // This fixes double HUD issue on M4 Macs where macOS Sequoia has stricter timing
-            let queue = DispatchQueue(label: "com.droppy.MediaKeyTap", qos: .userInteractive)
-            self.eventTapQueue = queue
-            
-            queue.async { [weak self] in
-                guard let self = self else { return }
-                self.eventTapRunLoop = CFRunLoopGetCurrent()
-                CFRunLoopAddSource(self.eventTapRunLoop, source, .commonModes)
-                CGEvent.tapEnable(tap: tap, enable: true)
-                CFRunLoopRun()
-            }
-            
-            isRunning = true
-            print("MediaKeyInterceptor: Started successfully on dedicated queue")
-            return true
+        guard let source = runLoopSource else {
+            print("MediaKeyInterceptor: Failed to create run loop source")
+            return false
         }
         
-        return false
+        // Run on dedicated background queue to avoid main thread contention
+        // This fixes double HUD issue on M4 Macs where macOS Tahoe has stricter timing
+        let queue = DispatchQueue(label: "com.droppy.MediaKeyTap", qos: .userInteractive)
+        self.eventTapQueue = queue
+        
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            self.eventTapRunLoop = CFRunLoopGetCurrent()
+            CFRunLoopAddSource(self.eventTapRunLoop, source, .commonModes)
+            
+            // Enable tap and verify it's running
+            CGEvent.tapEnable(tap: tap, enable: true)
+            
+            // Verify tap is enabled (BUG #84 additional check)
+            if CFMachPortIsValid(tap) {
+                print("MediaKeyInterceptor: Event tap verified as valid and enabled")
+            } else {
+                print("⚠️ MediaKeyInterceptor: Event tap created but not valid!")
+            }
+            
+            CFRunLoopRun()
+        }
+        
+        isRunning = true
+        print("MediaKeyInterceptor: Started successfully on dedicated queue")
+        return true
     }
     
     /// Stop intercepting media keys
