@@ -293,46 +293,114 @@ class ClipboardManager: ObservableObject {
     }
     
     private func loadFromDisk() {
+        // Pre-initialize lazy properties on main thread to ensure thread safety
+        // during concurrent background loading and foreground monitoring
+        _ = self.persistenceURL
+        _ = self.imagesDirectory
+
         // CRITICAL: Set isLoading BEFORE any operation to prevent race condition
         // where didSet triggers saveToDisk() with empty/partial data
         isLoading = true
-        defer { isLoading = false }
         
-        guard FileManager.default.fileExists(atPath: persistenceURL.path) else { return }
-        do {
-            let data = try Data(contentsOf: persistenceURL)
-            var decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
-            
-            // MIGRATION: Move inline imageData to files
-            var needsSave = false
-            for i in decoded.indices {
-                if decoded[i].type == .image,
-                   decoded[i].imageData != nil,
-                   decoded[i].imageFilePath == nil {
-                    // Migrate this item's image to file
-                    if let filePath = saveImageToFile(decoded[i].imageData!, id: decoded[i].id) {
-                        decoded[i].imageFilePath = filePath
-                        decoded[i].imageData = nil // Clear inline data to free memory
-                        needsSave = true
-                        print("📋 Migrated image \(decoded[i].id) to file")
+        guard FileManager.default.fileExists(atPath: persistenceURL.path) else {
+            isLoading = false
+            return
+        }
+
+        // PERFORMANCE: Offload file I/O and JSON decoding to background
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let data = try Data(contentsOf: self.persistenceURL)
+                var decoded = try JSONDecoder().decode([ClipboardItem].self, from: data)
+
+                // MIGRATION: Move inline imageData to files
+                var needsSave = false
+                for i in decoded.indices {
+                    if decoded[i].type == .image,
+                       decoded[i].imageData != nil,
+                       decoded[i].imageFilePath == nil {
+                        // Migrate this item's image to file
+                        if let filePath = self.saveImageToFile(decoded[i].imageData!, id: decoded[i].id) {
+                            decoded[i].imageFilePath = filePath
+                            decoded[i].imageData = nil // Clear inline data to free memory
+                            needsSave = true
+                            print("📋 Migrated image \(decoded[i].id) to file")
+                        }
                     }
                 }
+
+                // Update state on Main Thread
+                DispatchQueue.main.async {
+                    print("📋 Loaded \(decoded.count) clipboard items from disk")
+
+                    // Merge Strategy: Combine loaded items with current history
+                    // 1. Preserve new items captured during load (they are in self.history)
+                    // 2. If a loaded item matches a new item, preserve the loaded item's metadata (favorites/flags)
+                    // 3. Append remaining loaded items
+
+                    var mergedHistory = self.history
+                    var itemsToAdd: [ClipboardItem] = []
+
+                    for loadedItem in decoded {
+                        // Check for duplicates in the current (fresh) history
+                        if let index = mergedHistory.firstIndex(where: { currentItem in
+                            // Match by ID
+                            if loadedItem.id == currentItem.id { return true }
+                            // Match by content (for text/url/etc)
+                            if loadedItem.type != .image,
+                               loadedItem.type == currentItem.type,
+                               loadedItem.content == currentItem.content {
+                                return true
+                            }
+                            return false
+                        }) {
+                            // Match found! Restore metadata from disk if the fresh item lacks it
+                            // (e.g. user copied a Favorite item before history loaded - we want to keep it Favorited)
+                            if loadedItem.isFavorite && !mergedHistory[index].isFavorite {
+                                mergedHistory[index].isFavorite = true
+                            }
+                            if loadedItem.isFlagged && !mergedHistory[index].isFlagged {
+                                mergedHistory[index].isFlagged = true
+                            }
+                            if let title = loadedItem.customTitle, mergedHistory[index].customTitle == nil {
+                                mergedHistory[index].customTitle = title
+                            }
+                        } else {
+                            // No match, this is an old item to add
+                            itemsToAdd.append(loadedItem)
+                        }
+                    }
+
+                    // Apply changes
+                    if !itemsToAdd.isEmpty || mergedHistory.count != self.history.count {
+                        // We have additions.
+                        // Note: We don't detect if we *only* updated metadata on existing items,
+                        // but that's fine, we'll just append and re-sort.
+                        mergedHistory.append(contentsOf: itemsToAdd)
+                        self.history = mergedHistory
+                        self.enforceHistoryLimit() // Sorts and trims
+                    } else {
+                        // Even if no items added, we might have updated metadata (favorites restored)
+                        // Assigning to self.history triggers observers
+                        self.history = mergedHistory
+                    }
+
+                    // Save if we migrated data or merged new items/metadata
+                    // (Simplification: just save if we touched anything)
+                    if needsSave || !itemsToAdd.isEmpty {
+                        if needsSave { print("📋 Saving migrated history to disk...") }
+                        self.scheduleSave()
+                    }
+
+                    self.isLoading = false
+                }
+            } catch {
+                print("⚠️ Failed to load clipboard history: \(error)")
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                }
             }
-            
-            self.history = decoded
-            print("📋 Loaded \(decoded.count) clipboard items from disk")
-            
-            // Save migrated data (without inline images)
-            if needsSave {
-                print("📋 Saving migrated history to disk...")
-                // Temporarily disable isLoading to allow save
-                isLoading = false
-                saveToDisk()
-                isLoading = true
-            }
-        } catch {
-            print("⚠️ Failed to load clipboard history: \(error)")
-            // Don't clear history on load failure - keep whatever is in memory
         }
     }
     
