@@ -230,49 +230,23 @@ final class FloatingBasketWindowController: NSObject {
         // Set visible FIRST to kick off view rendering
         DroppyState.shared.isBasketVisible = true
         
-        // Start invisible and scaled down for spring animation (matches shelf expandOpen)
+        // Simple scale start (lighter than spring animation)
         panel.alphaValue = 0
         if let contentView = panel.contentView {
             contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0) // Start smaller for more pop
+            contentView.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1.0)
         }
         panel.orderFrontRegardless()
         panel.makeKey() // Make key window so keyboard shortcuts work
         
-        // PREMIUM: Spring animation with real overshoot for alive, playful feel
-        // Using CASpringAnimation for true spring physics
-        if let layer = panel.contentView?.layer {
-            // Fade in (faster)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.12  // Faster fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (snappier - stiffness 420 for fast response)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 420  // Higher = faster (was 300)
-            scaleAnim.damping = 22     // Slightly more damped for snappy feel
-            scaleAnim.initialVelocity = 10
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window itself (faster)
+        // PREMIUM: Simple smooth fade + scale (CPU-efficient)
+        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.2, 0.0, 0.0, 1.0)  // Smooth ease-out
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.12
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.duration = 0.18
+            context.timingFunction = smoothCurve
+            context.allowsImplicitAnimation = true
             panel.animator().alphaValue = 1.0
+            panel.contentView?.layer?.transform = CATransform3DIdentity
         }, completionHandler: nil)
         
         basketWindow = panel
@@ -379,21 +353,20 @@ final class FloatingBasketWindowController: NSObject {
         // Reset peek mode
         isInPeekMode = false
         
-        // PREMIUM: Critically damped spring matching shelf expandClose (response: 0.45, damping: 1.0)
-        // Faster, no-wobble collapse animation
+        // Simple smooth fade + scale (CPU-efficient)
         if let contentView = panel.contentView {
             contentView.wantsLayer = true
         }
-        let criticallyDampedCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)  // Ease-out for damped feel
+        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 1.0, 1.0)  // Ease-in for close
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2  // Faster close (was 0.35)
-            context.timingFunction = criticallyDampedCurve
+            context.duration = 0.15
+            context.timingFunction = smoothCurve
             context.allowsImplicitAnimation = true
             panel.animator().alphaValue = 0
-            panel.contentView?.layer?.transform = CATransform3DMakeScale(0.92, 0.92, 1.0)
+            panel.contentView?.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1.0)
         }, completionHandler: { [weak self] in
             panel.orderOut(nil)
-            panel.contentView?.layer?.transform = CATransform3DIdentity // Reset for next show
+            panel.contentView?.layer?.transform = CATransform3DIdentity
             self?.basketWindow = nil
             self?.isShowingOrHiding = false
         })

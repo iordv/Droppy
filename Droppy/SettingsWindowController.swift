@@ -74,12 +74,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         
         self.window = newWindow
         
-        // PREMIUM: Start scaled down and invisible for spring animation
+        // Simple scale start (lighter than spring animation)
         newWindow.alphaValue = 0
         if let contentView = newWindow.contentView {
             contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0)
-            contentView.layer?.opacity = 0
+            contentView.layer?.transform = CATransform3DMakeScale(0.96, 0.96, 1.0)
         }
         
         // Bring to front and activate
@@ -96,39 +95,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             }
         }
         
-        // PREMIUM: CASpringAnimation for true spring physics with overshoot
-        if let layer = newWindow.contentView?.layer {
-            // Fade in (faster)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.12  // Faster fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (snappier - stiffness 420 for fast response)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 420  // Higher = faster (was 280)
-            scaleAnim.damping = 22     // Slightly more damped for snappy feel
-            scaleAnim.initialVelocity = 10
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window alpha (faster)
+        // PREMIUM: Simple smooth fade + scale (CPU-efficient)
+        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.2, 0.0, 0.0, 1.0)  // Smooth ease-out
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.12
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.duration = 0.18
+            context.timingFunction = smoothCurve
+            context.allowsImplicitAnimation = true
             newWindow.animator().alphaValue = 1.0
+            newWindow.contentView?.layer?.transform = CATransform3DIdentity
         })
         
         // PREMIUM: Haptic confirms settings opened
