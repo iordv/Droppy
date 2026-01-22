@@ -1120,11 +1120,10 @@ struct NotchShelfView: View {
     
     // MARK: - Morphing Outline
     
-    /// Premium hover indicator - subtle inner glow (no marching ants)
-    /// Inspired by Atoll's clean, minimal hover feedback
+    /// Premium hover indicator - subtle inner glow
     private var morphingOutline: some View {
         ZStack {
-            // Dynamic Island: Soft inner glow
+            // Dynamic Island: Full rounded glow (all edges)
             DynamicIslandShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
                 .stroke(
                     LinearGradient(
@@ -1139,8 +1138,8 @@ struct NotchShelfView: View {
                 )
                 .opacity(isDynamicIslandMode ? 1 : 0)
             
-            // Notch mode: U-shaped subtle glow
-            NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : 16)
+            // Notch mode: U-shaped glow (left/right/bottom only - no top edge)
+            NotchOutlineShape(bottomRadius: isExpandedOnThisScreen ? 40 : 16)
                 .stroke(
                     LinearGradient(
                         colors: [
