@@ -333,9 +333,10 @@ struct MarqueeText: View {
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
     @State private var startTime: Date = Date()
+    @State private var measurementId = UUID()
     
     private var needsScroll: Bool {
-        textWidth > containerWidth && containerWidth > 0
+        textWidth > containerWidth && containerWidth > 0 && textWidth > 0
     }
     
     var body: some View {
@@ -352,13 +353,26 @@ struct MarqueeText: View {
                         .fixedSize()
                         .background(
                             GeometryReader { textGeo in
-                                Color.clear.onAppear {
-                                    textWidth = textGeo.size.width
-                                }
-                                .onChange(of: text) { _, _ in
-                                    textWidth = textGeo.size.width
-                                    startTime = Date() // Reset scroll on text change
-                                }
+                                Color.clear
+                                    .onAppear {
+                                        // Measure after a tiny delay to ensure layout is complete
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                            if textGeo.size.width > 0 {
+                                                textWidth = textGeo.size.width
+                                            }
+                                        }
+                                    }
+                                    .onChange(of: text) { _, _ in
+                                        // Force remeasure on text change
+                                        measurementId = UUID()
+                                        startTime = Date()
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                            textWidth = textGeo.size.width
+                                        }
+                                    }
+                                    .onChange(of: measurementId) { _, _ in
+                                        textWidth = textGeo.size.width
+                                    }
                             }
                         )
                     
@@ -369,7 +383,6 @@ struct MarqueeText: View {
                 }
                 .offset(x: offset)
                 // SMOOTH INTERPOLATION: Apply linear animation to interpolate between timeline ticks
-                // This creates buttery 120Hz scrolling by letting the GPU interpolate positions
                 .animation(.linear(duration: 1.0 / 60.0), value: offset)
                 // Center text when it fits, left-align when scrolling
                 .frame(maxWidth: .infinity, alignment: needsScroll ? .leading : .center)
@@ -377,6 +390,8 @@ struct MarqueeText: View {
             .onAppear {
                 containerWidth = geo.size.width
                 startTime = Date()
+                // Force remeasure when view appears
+                measurementId = UUID()
             }
             .onChange(of: geo.size.width) { _, newWidth in
                 containerWidth = newWidth
