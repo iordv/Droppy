@@ -336,6 +336,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("🎧 Droppy: Starting AirPods Connection Monitor")
                 AirPodsManager.shared.startMonitoring()
             }
+            
+            // 5. Tracked Folders (monitors folders for new files)
+            let folderObservationEnabled = UserDefaults.standard.bool(forKey: AppPreferenceKey.enableTrackedFolders)
+            if folderObservationEnabled {
+                print("📁 Droppy: Starting Tracked Folders Monitor")
+                TrackedFoldersManager.shared.startMonitoring()
+            }
         }
         
         // Start background update scheduler (checks once per day)

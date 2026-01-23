@@ -18,6 +18,9 @@ struct ItemStack: Identifiable, Hashable {
     var items: [DroppedItem]
     var isExpanded: Bool = false
     
+    /// If true, always renders as a stack even with only 1 item (for tracked folders)
+    var forceStackAppearance: Bool = false
+    
     /// The "cover" item shown when collapsed (first item in the stack)
     var coverItem: DroppedItem? { items.first }
     
@@ -25,7 +28,8 @@ struct ItemStack: Identifiable, Hashable {
     var count: Int { items.count }
     
     /// Whether this is a single-item stack (renders as individual item, not pile)
-    var isSingleItem: Bool { items.count == 1 }
+    /// Tracked folder stacks always appear as stacks (forceStackAppearance)
+    var isSingleItem: Bool { items.count == 1 && !forceStackAppearance }
     
     /// Whether the stack is empty
     var isEmpty: Bool { items.isEmpty }

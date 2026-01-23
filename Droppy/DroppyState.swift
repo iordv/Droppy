@@ -374,7 +374,10 @@ final class DroppyState {
     
     /// Adds multiple items from file URLs (creates a SINGLE stack for all items)
     /// This is the key method for stacking - items dropped together = one stack
-    func addItems(from urls: [URL]) {
+    /// - Parameters:
+    ///   - urls: File URLs to add
+    ///   - forceStackAppearance: If true, stack always renders as stack even with 1 item (for tracked folders)
+    func addItems(from urls: [URL], forceStackAppearance: Bool = false) {
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
         
         var regularItems: [DroppedItem] = []
@@ -404,7 +407,8 @@ final class DroppyState {
         
         // Create a SINGLE stack for all regular items dropped together
         if !regularItems.isEmpty {
-            let stack = ItemStack(items: regularItems)
+            var stack = ItemStack(items: regularItems)
+            stack.forceStackAppearance = forceStackAppearance
             shelfStacks.append(stack)
             HapticFeedback.drop()
         }
@@ -729,7 +733,10 @@ final class DroppyState {
     
     /// Adds multiple items to the basket from file URLs (creates a SINGLE stack)
     /// PERFORMANCE: Batched to trigger single state update instead of N updates
-    func addBasketItems(from urls: [URL]) {
+    /// - Parameters:
+    ///   - urls: File URLs to add
+    ///   - forceStackAppearance: If true, stack always renders as stack even with 1 item (for tracked folders)
+    func addBasketItems(from urls: [URL], forceStackAppearance: Bool = false) {
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
         
         var regularItems: [DroppedItem] = []
@@ -754,7 +761,8 @@ final class DroppyState {
         basketPowerFolders.append(contentsOf: powerFolders)
         
         if !regularItems.isEmpty {
-            let stack = ItemStack(items: regularItems)
+            var stack = ItemStack(items: regularItems)
+            stack.forceStackAppearance = forceStackAppearance
             basketStacks.append(stack)
             HapticFeedback.drop()
         }

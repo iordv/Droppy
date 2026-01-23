@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @State private var selectedTab: String? = "Features"
@@ -531,6 +532,9 @@ struct SettingsView: View {
                 
                 // Smart Export (auto-save processed files)
                 SmartExportSettingsRow()
+                
+                // Tracked Folders (watch folders for new files) - Advanced setting
+                TrackedFoldersSettingsRow()
                 
                 // Always Copy (affects actual files on disk) - Advanced setting (at bottom)
                 HStack(spacing: 8) {
@@ -3881,5 +3885,195 @@ struct QuickActionsInfoSheet: View {
         .fixedSize(horizontal: true, vertical: true)
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+// MARK: - Tracked Folders Settings
+
+/// Info button for Tracked Folders feature
+struct TrackedFoldersInfoButton: View {
+    @State private var showPopover = false
+    
+    var body: some View {
+        Image(systemName: "folder.badge.questionmark")
+            .font(.system(size: 16))
+            .foregroundStyle(.secondary)
+            .frame(width: 20, height: 20)
+            .onTapGesture { showPopover.toggle() }
+            .onHover { hovering in
+                if hovering { showPopover = true }
+            }
+            .popover(isPresented: $showPopover, arrowEdge: .leading) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "folder.badge.plus")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.blue)
+                        Text("Tracked Folders")
+                            .font(.headline)
+                    }
+                    
+                    Text("Monitor folders for new files and automatically add them to Droppy.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Watch Downloads, Desktop, or any folder", systemImage: "folder")
+                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.right.circle")
+                        Label("Choose destination per folder", systemImage: "tray.2")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(width: 280)
+            }
+    }
+}
+
+/// Settings row for Tracked Folders feature
+struct TrackedFoldersSettingsRow: View {
+    @AppStorage(AppPreferenceKey.enableTrackedFolders) private var enableTrackedFolders = PreferenceDefault.enableTrackedFolders
+    @StateObject private var manager = TrackedFoldersManager.shared
+    @State private var showFolderPicker = false
+    @State private var newFolderDestination: TrackedFolderDestination = .basket
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Main toggle
+            HStack(spacing: 8) {
+                TrackedFoldersInfoButton()
+                Toggle(isOn: $enableTrackedFolders) {
+                    VStack(alignment: .leading) {
+                        HStack(alignment: .center, spacing: 6) {
+                            Text("Tracked Folders")
+                            Text("advanced")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.white.opacity(0.08)))
+                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                        }
+                        Text("Watch folders and auto-add new files")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .onChange(of: enableTrackedFolders) { _, newValue in
+                if newValue {
+                    manager.startMonitoring()
+                } else {
+                    manager.stopMonitoring()
+                }
+            }
+            
+            // Folder list (when enabled)
+            if enableTrackedFolders {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Watched folders list
+                    ForEach(manager.watchedFolders) { folder in
+                        WatchedFolderRow(folder: folder, manager: manager)
+                    }
+                    
+                    // Add folder button
+                    HStack(spacing: 8) {
+                        Button {
+                            showFolderPicker = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundStyle(.blue)
+                                Text("Add Folder")
+                                    .font(.subheadline)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Spacer()
+                        
+                        // Destination picker for new folder
+                        Picker("Add to", selection: $newFolderDestination) {
+                            ForEach(TrackedFolderDestination.allCases, id: \.self) { dest in
+                                Label(dest.displayName, systemImage: dest.icon)
+                                    .tag(dest)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 150)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(.leading, 28)
+            }
+        }
+        .fileImporter(
+            isPresented: $showFolderPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                manager.addFolder(url, destination: newFolderDestination)
+            }
+        }
+    }
+}
+
+/// Row for a single watched folder
+struct WatchedFolderRow: View {
+    let folder: WatchedFolder
+    let manager: TrackedFoldersManager
+    @State private var isHovering = false
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            // Folder icon
+            Image(systemName: "folder.fill")
+                .font(.system(size: 16))
+                .foregroundStyle(.blue.opacity(0.8))
+            
+            // Folder name and path
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folder.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(folder.displayPath)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            
+            Spacer()
+            
+            // Destination picker
+            Picker("", selection: Binding(
+                get: { folder.destination },
+                set: { manager.updateDestination(for: folder.id, to: $0) }
+            )) {
+                ForEach(TrackedFolderDestination.allCases, id: \.self) { dest in
+                    Label(dest.displayName, systemImage: dest.icon)
+                        .tag(dest)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 140)
+            
+            // Remove button
+            Button {
+                manager.removeFolder(folder.id)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(isHovering ? .red : .secondary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .onHover { isHovering = $0 }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
