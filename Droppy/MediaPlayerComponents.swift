@@ -1,6 +1,30 @@
 import SwiftUI
 import Combine
 
+// MARK: - Custom Loading Spinner
+// Pure SwiftUI spinner to avoid AppKit bridging warnings from ProgressView
+
+/// Custom animated loading spinner that matches Droppy's aesthetic
+/// Replaces ProgressView() to avoid AppKitProgressView layout constraint warnings
+struct LoadingSpinner: View {
+    @State private var rotation: Double = 0
+    var color: Color = .white
+    var size: CGFloat = 16
+    
+    var body: some View {
+        Circle()
+            .trim(from: 0, to: 0.7)
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .frame(width: size, height: size)
+            .rotationEffect(.degrees(rotation))
+            .onAppear {
+                withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                    rotation = 360
+                }
+            }
+    }
+}
+
 // MARK: - Media Player Components
 // Extracted from MediaPlayerView.swift for faster incremental builds
 
@@ -318,9 +342,7 @@ struct SpotifyControlButton: View {
         Button(action: action) {
             ZStack {
                 if isLoading {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .progressViewStyle(.circular)
+                    LoadingSpinner(color: foregroundColor, size: size)
                 } else {
                     Image(systemName: icon)
                         .font(.system(size: size, weight: .semibold))
