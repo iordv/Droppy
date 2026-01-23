@@ -1,0 +1,4 @@
+🚑 Hotfix
+
+- Fixed critical regression where hardware media keys (Play/Pause, Next/Previous, Mute, Volume) stopped working
+- Reverted event tap implementation to restore full hardware key functionality

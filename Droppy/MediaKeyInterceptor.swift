@@ -19,6 +19,12 @@ private let NX_KEYTYPE_BRIGHTNESS_DOWN: UInt32 = 3
 private let NX_KEYTYPE_ILLUMINATION_UP: UInt32 = 21
 private let NX_KEYTYPE_ILLUMINATION_DOWN: UInt32 = 22
 
+// Transport control keys - MUST be passed through to system, never intercepted
+private let NX_KEYTYPE_PLAY: UInt32 = 16
+private let NX_KEYTYPE_FAST: UInt32 = 17       // Next track
+private let NX_KEYTYPE_REWIND: UInt32 = 18     // Previous track (some keyboards)
+private let NX_KEYTYPE_PREVIOUS: UInt32 = 19   // Previous track (other keyboards)
+
 /// Intercepts volume and brightness keys to prevent system HUD from appearing
 /// Requires Accessibility permissions to function
 final class MediaKeyInterceptor {
@@ -99,39 +105,24 @@ final class MediaKeyInterceptor {
         let systemDefinedType = CGEventType(rawValue: 14)!
         let eventMask: CGEventMask = (1 << systemDefinedType.rawValue)
         
-        // BUG #84 FIX (macOS 26 Tahoe):
-        // Use .cgAnnotatedSessionEventTap instead of .cgSessionEventTap for higher priority.
-        // On Tahoe, OSDUIHelper registers earlier in the event chain, so we need to use
-        // the annotated session tap which has higher priority and receives events first.
-        // This ensures we can suppress the event before OSDUIHelper sees it.
+        // NOTE: Using cgSessionEventTap (not cgAnnotatedSessionEventTap)
+        // The annotated tap breaks transport controls (play/pause/next/previous) on macOS Tahoe
+        // by intercepting events before they reach the media subsystem, even when we passthrough.
+        // cgSessionEventTap works correctly for all keys in v9.2 and earlier.
         guard let tap = CGEvent.tapCreate(
-            tap: .cgAnnotatedSessionEventTap,
+            tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: eventMask,
             callback: mediaKeyCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            // Fallback to regular session tap if annotated fails (older macOS)
-            print("MediaKeyInterceptor: Annotated tap failed, trying standard session tap...")
-            guard let fallbackTap = CGEvent.tapCreate(
-                tap: .cgSessionEventTap,
-                place: .headInsertEventTap,
-                options: .defaultTap,
-                eventsOfInterest: eventMask,
-                callback: mediaKeyCallback,
-                userInfo: Unmanaged.passUnretained(self).toOpaque()
-            ) else {
-                print("MediaKeyInterceptor: Failed to create event tap")
-                return false
-            }
-            eventTap = fallbackTap
-            print("MediaKeyInterceptor: Using fallback session tap")
-            return setupEventTapRunLoop(tap: fallbackTap)
+            print("MediaKeyInterceptor: Failed to create event tap")
+            return false
         }
         
         eventTap = tap
-        print("MediaKeyInterceptor: Using annotated session tap (macOS Tahoe fix)")
+        print("MediaKeyInterceptor: Using session event tap")
         return setupEventTapRunLoop(tap: tap)
     }
     
@@ -273,14 +264,6 @@ final class MediaKeyInterceptor {
     }
 }
 
-/// Media playback key types (not handled by Droppy, passed through to system)
-/// These MUST be checked early to avoid interfering with rcd (Remote Control Daemon)
-private let NX_KEYTYPE_PLAY: UInt32 = 16
-private let NX_KEYTYPE_NEXT: UInt32 = 17
-private let NX_KEYTYPE_PREVIOUS: UInt32 = 18
-private let NX_KEYTYPE_FAST: UInt32 = 19
-private let NX_KEYTYPE_REWIND: UInt32 = 20
-
 /// C callback function for CGEventTap
 /// Uses a safe pattern to extract NSEvent data without memory issues
 private func mediaKeyCallback(
@@ -320,36 +303,6 @@ private func mediaKeyCallback(
         return Unmanaged.passUnretained(event)
     }
     
-    // BUG #93 FIX: Early extraction of key code from CGEvent data BEFORE creating NSEvent
-    // Creating NSEvent from CGEvent can affect the event delivery chain on macOS Tahoe.
-    // We extract the key code directly from the CGEvent's integer field to check if this
-    // is a media playback key (F7-F9) that should pass through WITHOUT any modification.
-    //
-    // For system-defined events (type 14), the NSEvent.data1 field corresponds to
-    // CGEventField with raw value 133 (kCGEventUnacceleratedPointerMovementX is closest).
-    // However, the safest approach is to create NSEvent briefly just for data extraction
-    // but only check the key code - this minimal NSEvent creation shouldn't affect delivery.
-    //
-    // Alternative: Use raw field access. CGEventField(rawValue: 133) corresponds to data1.
-    let rawData1 = event.getIntegerValueField(CGEventField(rawValue: 133)!)
-    let earlyKeyCode = UInt32((rawData1 & 0xFFFF0000) >> 16)
-    
-    // Media playback keys (F7=previous, F8=play/pause, F9=next) must pass through
-    // without any NSEvent creation to avoid interfering with rcd (Remote Control Daemon).
-    let mediaPlaybackKeys: [UInt32] = [
-        NX_KEYTYPE_PLAY,     // 16 - Play/Pause (F8)
-        NX_KEYTYPE_NEXT,     // 17 - Next Track (F9)
-        NX_KEYTYPE_PREVIOUS, // 18 - Previous Track (F7)
-        NX_KEYTYPE_FAST,     // 19 - Fast Forward
-        NX_KEYTYPE_REWIND    // 20 - Rewind
-    ]
-    
-    if mediaPlaybackKeys.contains(earlyKeyCode) {
-        // Pass through immediately without any event modification
-        return Unmanaged.passUnretained(event)
-    }
-    
-    // Now safe to create NSEvent for volume/brightness keys
     // PERFORMANCE FIX: Extract NSEvent data inline WITHOUT main thread dispatch
     // The TSM assertion only affects caps lock handling, which we don't use
     // Media keys (volume/brightness) work fine off main thread
@@ -369,7 +322,23 @@ private func mediaKeyCallback(
     let keyRepeat = (keyFlags & 0x1) != 0
     let shouldProcess = (keyDown || keyRepeat) && !keyUp
     
-    // Check if this is a media key we handle
+    // CRITICAL: Transport control keys MUST pass through to system immediately
+    // These are: PLAY (16), NEXT/FAST (17), PREVIOUS/REWIND (18, 19)
+    // On macOS Tahoe, cgAnnotatedSessionEventTap intercepts these before the media system
+    // We MUST NOT touch them at all - return immediately without any processing
+    let transportKeys: [UInt32] = [
+        NX_KEYTYPE_PLAY,
+        NX_KEYTYPE_FAST,
+        NX_KEYTYPE_REWIND,
+        NX_KEYTYPE_PREVIOUS
+    ]
+    
+    if transportKeys.contains(keyCode) {
+        // Pass through transport controls to system media handlers
+        return Unmanaged.passUnretained(event)
+    }
+    
+    // Check if this is a media key we handle (volume/brightness)
     let handledKeys: [UInt32] = [
         NX_KEYTYPE_SOUND_UP,
         NX_KEYTYPE_SOUND_DOWN,
