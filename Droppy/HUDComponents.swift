@@ -254,10 +254,10 @@ struct MediaHUDView: View {
                     .clipped()
             }
         }
-        // UNIFIED ANIMATION: Use the SAME animation preset as the parent (dropZone)
-        // Parent uses .notchState for mediaHUDIsHovered - we MUST match for structural consistency
+        // UNIFIED ANIMATION: Asymmetric expand/close to match parent (morphingBackground)
+        // This ensures content and background animate together with same feel
         .compositingGroup() // Unity Standard: animate as single layer
-        .animation(DroppyAnimation.notchState, value: isHovered)
+        .animation(isHovered ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose, value: isHovered)
         .allowsHitTesting(true)
         .onTapGesture {
             withAnimation(DroppyAnimation.state) {

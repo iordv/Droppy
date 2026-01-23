@@ -1123,8 +1123,8 @@ struct NotchShelfView: View {
         .animation(DroppyAnimation.notchState, value: isSongTransitioning)
         .animation(DroppyAnimation.notchState, value: state.shelfDisplaySlotCount)
         .animation(DroppyAnimation.viewChange, value: useDynamicIslandStyle)
-        // CRITICAL: Animate background height when media HUD hover state changes
-        .animation(DroppyAnimation.notchState, value: mediaHUDIsHovered)
+        // CRITICAL: Asymmetric animation for media HUD hover - buttery smooth close
+        .animation(mediaHUDIsHovered ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose, value: mediaHUDIsHovered)
         .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
         .contextMenu {
             if showClipboardButton {
