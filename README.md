@@ -91,6 +91,7 @@ Never lose a copy again. Your **full clipboard history** with instant search, fa
 | **File Shelf & Basket** | Drag files to the notch. Jiggle your mouse to summon a floating basket with peek & hide animations. |
 | **Clipboard Manager** | Full history, instant search, favorites, flag as important, OCR text extraction, rename entries, bulk copy, drag-out |
 | **Power Folders** | Pin folders to the shelf and drop files directly into them—organize on the fly |
+| **Tracked Folders** | Watch any folder for changes—new files automatically appear on your shelf |
 | **Smart Export** | Auto-save processed files to a folder and reveal them in Finder with one click |
 | **Native HUDs** | Volume, brightness, battery, caps lock, screen unlock, AirPods connection—all beautifully animated |
 | **Media Controls** | Album art, tap-to-seek slider, playback controls, shuffle, repeat, live audio visualizer |
@@ -166,6 +167,11 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
   <a href="https://iordv.github.io/Droppy/extensions.html">
     <img src="https://img.shields.io/badge/Browse_Live_Extension_Store-blueviolet?style=for-the-badge" alt="Extension Store">
   </a>
+</p>
+
+<p align="center">
+  <strong>🤝 Want to build your own extension?</strong><br>
+  We're open to community contributions! Submit a pull request to add your extension—the first community extensions are already in the making.
 </p>
 
 ---
