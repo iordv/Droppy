@@ -262,29 +262,26 @@ struct MediaPlayerView: View {
                 
                 // MARK: - Right: Stacked Controls
                 VStack(alignment: .leading, spacing: 4) {
-                    // Row 1: Song Title + Visualizer
+                    // Row 1: Song Title + Visualizer (with smooth grow animation)
                     let songTitle = musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle
                     HStack(spacing: 8) {
-                        Text(songTitle)
+                        MarqueeText(text: songTitle, speed: 30)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        
-                        Spacer(minLength: 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         
                         // Audio Visualizer (colored by album art)
                         AudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
                             .frame(width: 28, height: 18)
                     }
+                    .frame(height: 20)
                     
-                    // Row 2: Artist Name
+                    // Row 2: Artist Name (also scrolling if long)
                     let artistName = musicManager.artistName.isEmpty ? "—" : musicManager.artistName
-                    Text(artistName)
+                    MarqueeText(text: artistName, speed: 25)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        .frame(height: 18)
                     
                     Spacer(minLength: 0)
                     
