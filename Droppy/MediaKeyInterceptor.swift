@@ -273,6 +273,14 @@ final class MediaKeyInterceptor {
     }
 }
 
+/// Media playback key types (not handled by Droppy, passed through to system)
+/// These MUST be checked early to avoid interfering with rcd (Remote Control Daemon)
+private let NX_KEYTYPE_PLAY: UInt32 = 16
+private let NX_KEYTYPE_NEXT: UInt32 = 17
+private let NX_KEYTYPE_PREVIOUS: UInt32 = 18
+private let NX_KEYTYPE_FAST: UInt32 = 19
+private let NX_KEYTYPE_REWIND: UInt32 = 20
+
 /// C callback function for CGEventTap
 /// Uses a safe pattern to extract NSEvent data without memory issues
 private func mediaKeyCallback(
@@ -312,6 +320,32 @@ private func mediaKeyCallback(
         return Unmanaged.passUnretained(event)
     }
     
+    // BUG #93 FIX: Early extraction of key code from CGEvent data BEFORE creating NSEvent
+    // Creating NSEvent from CGEvent can affect the event delivery chain on macOS Tahoe.
+    // We extract the key code directly from the CGEvent's integer field to check if this
+    // is a media playback key (F7-F9) that should pass through WITHOUT any modification.
+    //
+    // For system-defined events (type 14), the data is stored in integer field 1.
+    // The key code is in the upper 16 bits of data1.
+    let rawData1 = event.getIntegerValueField(.data1)
+    let earlyKeyCode = UInt32((rawData1 & 0xFFFF0000) >> 16)
+    
+    // Media playback keys (F7=previous, F8=play/pause, F9=next) must pass through
+    // without any NSEvent creation to avoid interfering with rcd (Remote Control Daemon).
+    let mediaPlaybackKeys: [UInt32] = [
+        NX_KEYTYPE_PLAY,     // 16 - Play/Pause (F8)
+        NX_KEYTYPE_NEXT,     // 17 - Next Track (F9)
+        NX_KEYTYPE_PREVIOUS, // 18 - Previous Track (F7)
+        NX_KEYTYPE_FAST,     // 19 - Fast Forward
+        NX_KEYTYPE_REWIND    // 20 - Rewind
+    ]
+    
+    if mediaPlaybackKeys.contains(earlyKeyCode) {
+        // Pass through immediately without any event modification
+        return Unmanaged.passUnretained(event)
+    }
+    
+    // Now safe to create NSEvent for volume/brightness keys
     // PERFORMANCE FIX: Extract NSEvent data inline WITHOUT main thread dispatch
     // The TSM assertion only affects caps lock handling, which we don't use
     // Media keys (volume/brightness) work fine off main thread
