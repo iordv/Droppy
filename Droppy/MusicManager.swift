@@ -74,6 +74,21 @@ final class MusicManager: ObservableObject {
                         self?.wasRecentlyPlaying = false
                     }
                 }
+                
+                // FIX #95: When a non-Spotify source pauses, check if Spotify is playing in background
+                // macOS doesn't automatically switch Now Playing back, so we check manually
+                let isSpotifyBundle = bundleIdentifier == SpotifyController.spotifyBundleId
+                
+                if !isSpotifyBundle {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        SpotifyController.shared.isSpotifyPlaying { isSpotifyPlaying in
+                            if isSpotifyPlaying {
+                                // Spotify is playing in background - switch to it
+                                self?.forceUpdateFromSpotify()
+                            }
+                        }
+                    }
+                }
             } else if isPlaying {
                 // Started playing again - cancel timer and keep visible
                 recentlyPlayingTimer?.invalidate()
@@ -101,6 +116,11 @@ final class MusicManager: ObservableObject {
     /// Whether media HUD is manually hidden via swipe gesture (even when playing)
     /// This allows users to swipe away from the media player to see the shelf
     @Published var isMediaHUDHidden: Bool = false
+    
+    /// FIX #95: Flag to bypass HUD visibility safeguards (transition/debounce) 
+    /// when forcing a source switch from Spotify fallback
+    @Published var isMediaSourceForced: Bool = false
+    private var sourceForceResetTimer: Timer?
 
     // MARK: - Spotify Integration
     
@@ -134,6 +154,52 @@ final class MusicManager: ObservableObject {
         elapsedTime = time
         timestampDate = Date()
         suppressTimingUpdatesUntil = .distantPast // Clear suppression
+    }
+    
+    /// FIX #95: Force switch to Spotify by fetching data directly via AppleScript
+    /// This bypasses MediaRemote which may be stuck on a stale source (e.g., paused browser)
+    func forceUpdateFromSpotify() {
+        print("🎵 MusicManager: Forcing update from Spotify via AppleScript...")
+        
+        SpotifyController.shared.fetchCurrentTrackInfo { [weak self] title, artist, album, duration, position in
+            guard let self = self,
+                  let title = title,
+                  let artist = artist,
+                  let duration = duration,
+                  let position = position else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                // FIX #95: Set flag to bypass HUD visibility safeguards (transition/debounce)
+                self.isMediaSourceForced = true
+                
+                // Cancel any pending reset timer
+                self.sourceForceResetTimer?.invalidate()
+                
+                // Schedule auto-reset after 2 seconds (HUD should be stable by then)
+                self.sourceForceResetTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.isMediaSourceForced = false
+                    }
+                }
+                
+                // Update all state to Spotify
+                self.songTitle = title
+                self.artistName = artist
+                self.albumName = album ?? ""
+                self.songDuration = duration
+                self.elapsedTime = position
+                self.timestampDate = Date()
+                self.bundleIdentifier = SpotifyController.spotifyBundleId
+                self.isPlaying = true
+                self.playbackRate = 1.0
+                self.isMediaHUDHidden = false
+                
+                // Refresh Spotify state (shuffle, repeat, etc.)
+                SpotifyController.shared.refreshState()
+            }
+        }
     }
 
     
@@ -410,7 +476,15 @@ final class MusicManager: ObservableObject {
         }
         if let bundle = payload.launchableBundleIdentifier {
             let wasSpotify = isSpotifySource
+            let previousBundle = bundleIdentifier
             bundleIdentifier = bundle
+            
+            // FIX #95: Reset isMediaHUDHidden when media source changes
+            // This ensures the HUD shows when switching back to a previous source
+            if previousBundle != nil && previousBundle != bundle {
+                isMediaHUDHidden = false
+            }
+            
             // Refresh Spotify state when source changes to Spotify
             if isSpotifySource && !wasSpotify {
                 SpotifyController.shared.refreshState()
@@ -462,29 +536,20 @@ final class MusicManager: ObservableObject {
     
     /// Toggle play/pause
     func togglePlay() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else {
-            print("MusicManager: togglePlay failed - MediaRemote not loaded")
-            return
-        }
+        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
         sendCommand(MRCommand.togglePlayPause.rawValue, nil)
     }
     
     /// Skip to next track
     func nextTrack() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else {
-            print("MusicManager: nextTrack failed - MediaRemote not loaded")
-            return
-        }
+        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
         lastSkipDirection = .forward
         sendCommand(MRCommand.nextTrack.rawValue, nil)
     }
     
     /// Skip to previous track
     func previousTrack() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else {
-            print("MusicManager: previousTrack failed - MediaRemote not loaded")
-            return
-        }
+        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
         lastSkipDirection = .backward
         sendCommand(MRCommand.previousTrack.rawValue, nil)
     }

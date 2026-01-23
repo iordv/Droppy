@@ -86,6 +86,77 @@ final class SpotifyController {
         return NSRunningApplication.runningApplications(withBundleIdentifier: Self.spotifyBundleId).first != nil
     }
     
+    /// Check if Spotify is currently playing (async)
+    /// Used to detect if Spotify should be switched to when another source stops
+    func isSpotifyPlaying(completion: @escaping (Bool) -> Void) {
+        guard isSpotifyRunning else {
+            completion(false)
+            return
+        }
+        
+        let script = """
+        tell application "Spotify"
+            if player state is playing then
+                return true
+            else
+                return false
+            end if
+        end tell
+        """
+        
+        runAppleScript(script) { result in
+            let isPlaying = (result as? Bool) ?? false
+            completion(isPlaying)
+        }
+    }
+    
+    /// FIX #95: Fetch current track info directly from Spotify via AppleScript
+    /// This bypasses MediaRemote which may be stuck on a stale source
+    func fetchCurrentTrackInfo(completion: @escaping (String?, String?, String?, Double?, Double?) -> Void) {
+        guard isSpotifyRunning else {
+            completion(nil, nil, nil, nil, nil)
+            return
+        }
+        
+        let script = """
+        tell application "Spotify"
+            if player state is not stopped then
+                set trackTitle to name of current track
+                set trackArtist to artist of current track
+                set trackAlbum to album of current track
+                set trackDuration to duration of current track
+                set playerPos to player position
+                return trackTitle & "|||" & trackArtist & "|||" & trackAlbum & "|||" & (trackDuration as string) & "|||" & (playerPos as string)
+            else
+                return ""
+            end if
+        end tell
+        """
+        
+        runAppleScript(script) { result in
+            guard let resultString = result as? String, !resultString.isEmpty else {
+                completion(nil, nil, nil, nil, nil)
+                return
+            }
+            
+            let parts = resultString.components(separatedBy: "|||")
+            guard parts.count >= 5 else {
+                completion(nil, nil, nil, nil, nil)
+                return
+            }
+            
+            let title = parts[0]
+            let artist = parts[1]
+            let album = parts[2]
+            // Spotify returns duration in milliseconds
+            let durationMs = Double(parts[3]) ?? 0
+            let durationSeconds = durationMs / 1000.0
+            let position = Double(parts[4]) ?? 0
+            
+            completion(title, artist, album, durationSeconds, position)
+        }
+    }
+    
     /// Refresh state when Spotify becomes the active source
     func refreshState() {
         // Don't refresh if extension is disabled

@@ -1037,7 +1037,13 @@ struct NotchShelfView: View {
         let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
         let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
         let debounceOk = !debounceMediaChanges || isMediaStable
-        let shouldShowNormal = showMediaPlayer && mediaIsPlaying && noHUDsVisible && notExpanded && notFadedOrTransitioning && debounceOk
+        
+        // FIX #95: Bypass ALL safeguards when forcing source switch (Spotify fallback)
+        // When isMediaSourceForced is true, we know the source is playing (verified via AppleScript)
+        let bypassSafeguards = musicManager.isMediaSourceForced
+        let hasContent = !musicManager.songTitle.isEmpty
+        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && 
+                              (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
         
         if shouldShowForced || shouldShowNormal {
             MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth, targetScreen: targetScreen)
