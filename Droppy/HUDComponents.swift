@@ -241,16 +241,17 @@ struct MediaHUDView: View {
             
             // Hover: Scrolling song info (appears below album art / visualizer row)
             // Only in Notch mode - Dynamic Island already shows title inline
-            if isHovered && !isDynamicIslandMode {
+            // SMOOTH GROW: Always present but with animated height/opacity instead of if/else
+            if !isDynamicIslandMode {
                 MarqueeText(text: songInfo, speed: 40)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.white.opacity(0.9))
-                    .frame(height: 20)
-                    .padding(.vertical, 4)
+                    .frame(height: isHovered ? 20 : 0)
+                    .padding(.vertical, isHovered ? 4 : 0)
                     .padding(.horizontal, 8)
-                    // PREMIUM: Scale + opacity transition with animation timing for smooth appear/disappear
-                    // Matches the shelf's cohesive expand animation pattern
-                    .transition(.scale(scale: 0.9).combined(with: .opacity).animation(DroppyAnimation.notchState))
+                    .opacity(isHovered ? 1 : 0)
+                    .scaleEffect(y: isHovered ? 1 : 0.5, anchor: .top)
+                    .clipped()
             }
         }
         // UNIFIED ANIMATION: Use the SAME animation preset as the parent (dropZone)
