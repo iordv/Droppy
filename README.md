@@ -21,7 +21,7 @@
 ---
 
 <p align="center">
-  <img src="docs/assets/images/droppy-demo.gif" alt="Droppy Demo" width="100%">
+  <img src="https://i.postimg.cc/VshZZc1B/Screen-Recording2026-01-23at17-20-27-ezgif-com-video-to-gif-converter.gif" alt="Droppy Demo" width="100%">
 </p>
 
 <p align="center">
