@@ -1872,9 +1872,13 @@ class NotchWindow: NSPanel {
         guard let screen = notchScreen else { return }
 
         // Multiple fullscreen detection methods:
-        
+
         // 1. Native macOS fullscreen (Spaces) - visibleFrame equals full frame
-        let isNativeFullscreen = screen.visibleFrame.equalTo(screen.frame)
+        // Note: On external monitors (safeAreaInsets.top == 0), visibleFrame also equals frame
+        // when menu bar is set to auto-hide, so we exclude that case to avoid false positives
+        let framesEqual = screen.visibleFrame.equalTo(screen.frame)
+        let isMenuBarAutoHide = framesEqual && screen.safeAreaInsets.top == 0
+        let isNativeFullscreen = framesEqual && !isMenuBarAutoHide
         
         // 2. Legacy fullscreen detection - window covering the entire screen at/above our level
         // This catches games and video players that use older fullscreen APIs
