@@ -29,9 +29,9 @@
 </p>
 
 <p align="center">
-  <a href="https://iordv.github.io/Droppy/"><strong>🌐 Website</strong></a> · 
+  <a href="https://getdroppy.app/"><strong>🌐 Website</strong></a> · 
   <a href="https://github.com/iordv/Droppy/releases/latest"><strong>⬇️ Download</strong></a> · 
-  <a href="https://iordv.github.io/Droppy/extensions.html"><strong>🧩 Extensions</strong></a> · 
+  <a href="https://getdroppy.app/extensions.html"><strong>🧩 Extensions</strong></a> · 
   <a href="https://discord.gg/ghMSjHRa"><strong>💬 Discord</strong></a>
 </p>
 
@@ -108,24 +108,24 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
 
 <table align="center">
 <tr>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg" height="28"> <strong>Voice Transcribe</strong><br>On-device speech-to-text using WhisperKit AI</td>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg" height="28"> <strong>AI Background Removal</strong><br>Remove backgrounds locally using ML</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/voice-transcribe.jpg" height="28"> <strong>Voice Transcribe</strong><br>On-device speech-to-text using WhisperKit AI</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/ai-bg.jpg" height="28"> <strong>AI Background Removal</strong><br>Remove backgrounds locally using ML</td>
 </tr>
 <tr>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/video-target-size.png" height="28"> <strong>Video Target Size</strong><br>Compress videos to exact file sizes with FFmpeg</td>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/window-snap.jpg" height="28"> <strong>Window Snap</strong><br>Snap windows with keyboard shortcuts</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/video-target-size.png" height="28"> <strong>Video Target Size</strong><br>Compress videos to exact file sizes with FFmpeg</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/window-snap.jpg" height="28"> <strong>Window Snap</strong><br>Snap windows with keyboard shortcuts</td>
 </tr>
 <tr>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/spotify.png" height="28"> <strong>Spotify Integration</strong><br>Control Spotify playback from your notch</td>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/element-capture.jpg" height="28"> <strong>Element Capture</strong><br>Screenshot any UI element</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/spotify.png" height="28"> <strong>Spotify Integration</strong><br>Control Spotify playback from your notch</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/element-capture.jpg" height="28"> <strong>Element Capture</strong><br>Screenshot any UI element</td>
 </tr>
 <tr>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/alfred.png" height="28"> <strong>Alfred Workflow</strong><br>Add files to Droppy from Alfred</td>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/finder.png" height="28"> <strong>Finder Services</strong><br>Right-click in Finder to send files</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/alfred.png" height="28"> <strong>Alfred Workflow</strong><br>Add files to Droppy from Alfred</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/finder.png" height="28"> <strong>Finder Services</strong><br>Right-click in Finder to send files</td>
 </tr>
 <tr>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/termi-notch.jpg" height="28"> <strong>Termi-Notch</strong><br>Quick terminal access from your notch</td>
-<td align="center"><img src="https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg" height="28"> <strong>Menu Bar Manager</strong><br>Hide and show menu bar icons</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/termi-notch.jpg" height="28"> <strong>Termi-Notch</strong><br>Quick terminal access from your notch</td>
+<td align="center"><img src="https://getdroppy.app/assets/icons/menu-bar-manager.jpg" height="28"> <strong>Menu Bar Manager</strong><br>Hide and show menu bar icons</td>
 </tr>
 </table>
 
@@ -164,7 +164,7 @@ Droppy's built-in **Extension Store** adds powerful features on demand. Everythi
 </p>
 
 <p align="center">
-  <a href="https://iordv.github.io/Droppy/extensions.html">
+  <a href="https://getdroppy.app/extensions.html">
     <img src="https://img.shields.io/badge/Browse_Live_Extension_Store-blueviolet?style=for-the-badge" alt="Extension Store">
   </a>
 </p>
