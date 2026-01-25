@@ -292,6 +292,20 @@ struct QuickshareInfoView: View {
                 featureRow(icon: "archivebox", text: "Auto-zips multiple files or folders")
                 featureRow(icon: "list.bullet", text: "Built-in history and file management")
             }
+            
+            // Screenshot
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/quickshare-screenshot.png")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                    )
+            } placeholder: {
+                EmptyView()
+            }
         }
     }
     

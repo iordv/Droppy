@@ -65,6 +65,9 @@ protocol ExtensionDefinition {
     
     /// Clean up extension resources when uninstalled
     static func cleanup()
+    
+    /// Optional SwiftUI view to show instead of screenshot URL
+    static var previewView: AnyView? { get }
 }
 
 // MARK: - Default Implementations
@@ -78,6 +81,9 @@ extension ExtensionDefinition {
     
     /// Default placeholder color
     static var iconPlaceholderColor: Color { .blue }
+    
+    /// Default no preview view (uses screenshotURL instead)
+    static var previewView: AnyView? { nil }
 }
 
 // MARK: - Extension Registry
