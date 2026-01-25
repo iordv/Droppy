@@ -129,20 +129,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
                     
-                    // Quickshare Manager button - opens separate window
-                    Button {
-                        QuickshareManagerWindowController.show()
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "drop.fill")
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 20)
-                            Text("Quickshare")
-                                .fontWeight(.medium)
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
+
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
