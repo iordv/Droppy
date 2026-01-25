@@ -58,7 +58,7 @@ struct QuickshareMenuContent: View {
         }
         
         Button {
-            QuickshareManagerWindowController.shared.show()
+            QuickshareManagerWindowController.show()
         } label: {
             Label("Manage Uploads...", systemImage: "list.bullet")
         }

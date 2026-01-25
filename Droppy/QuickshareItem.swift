@@ -34,6 +34,44 @@ struct QuickshareItem: Identifiable, Codable, Equatable {
         self.itemCount = itemCount
     }
     
+    // MARK: - Codable (Backward Compatibility)
+    
+    enum CodingKeys: String, CodingKey {
+        case id, filename, shareURL, token, uploadDate, fileSize, expirationDate
+        case thumbnailData, isZip, itemCount
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(UUID.self, forKey: .id)
+        filename = try container.decode(String.self, forKey: .filename)
+        shareURL = try container.decode(String.self, forKey: .shareURL)
+        token = try container.decode(String.self, forKey: .token)
+        uploadDate = try container.decode(Date.self, forKey: .uploadDate)
+        fileSize = try container.decode(Int64.self, forKey: .fileSize)
+        expirationDate = try container.decode(Date.self, forKey: .expirationDate)
+        
+        // New fields (provide defaults if missing)
+        thumbnailData = try container.decodeIfPresent(Data.self, forKey: .thumbnailData)
+        isZip = try container.decodeIfPresent(Bool.self, forKey: .isZip) ?? filename.lowercased().hasSuffix(".zip")
+        itemCount = try container.decodeIfPresent(Int.self, forKey: .itemCount) ?? 1
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(filename, forKey: .filename)
+        try container.encode(shareURL, forKey: .shareURL)
+        try container.encode(token, forKey: .token)
+        try container.encode(uploadDate, forKey: .uploadDate)
+        try container.encode(fileSize, forKey: .fileSize)
+        try container.encode(expirationDate, forKey: .expirationDate)
+        try container.encodeIfPresent(thumbnailData, forKey: .thumbnailData)
+        try container.encode(isZip, forKey: .isZip)
+        try container.encode(itemCount, forKey: .itemCount)
+    }
+    
     /// Calculate expiration date based on 0x0.st retention formula
     /// retention = min_age + (min_age - max_age) * pow((file_size / max_size - 1), 3)
     /// min_age = 30 days, max_age = 365 days, max_size = 512 MiB
