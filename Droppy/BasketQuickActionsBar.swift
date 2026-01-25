@@ -188,6 +188,14 @@ struct BasketQuickActionsBar: View {
             DroppyState.shared.quickShareStatus = .uploading
         }
         
+        // Determine display filename for history
+        let displayFilename: String
+        if urls.count == 1 {
+            displayFilename = urls[0].lastPathComponent
+        } else {
+            displayFilename = "Droppy-Share.zip"
+        }
+        
         DispatchQueue.global(qos: .userInitiated).async {
             var uploadURL: URL
             var isTemporaryZip = false
@@ -212,7 +220,7 @@ struct BasketQuickActionsBar: View {
             }
             
             // Upload the file (single file or zip)
-            let shareURL = self.uploadTo0x0(fileURL: uploadURL)
+            let result = self.uploadTo0x0(fileURL: uploadURL)
             
             // Clean up temporary zip if we created one
             if isTemporaryZip {
@@ -222,19 +230,28 @@ struct BasketQuickActionsBar: View {
             DispatchQueue.main.async {
                 DroppyState.shared.isSharingInProgress = false
                 
-                if let shareURL = shareURL {
+                if let result = result {
                     // Success! Copy URL to clipboard
                     let clipboard = NSPasteboard.general
                     clipboard.clearContents()
-                    clipboard.setString(shareURL, forType: .string)
+                    clipboard.setString(result.shareURL, forType: .string)
+                    
+                    // Store in Quickshare Manager for history
+                    let quickshareItem = QuickshareItem(
+                        filename: displayFilename,
+                        shareURL: result.shareURL,
+                        token: result.token,
+                        fileSize: result.fileSize
+                    )
+                    QuickshareManager.shared.addItem(quickshareItem)
                     
                     // Show success feedback
-                    DroppyState.shared.quickShareStatus = .success(urls: [shareURL])
+                    DroppyState.shared.quickShareStatus = .success(urls: [result.shareURL])
                     HapticFeedback.copy()
                     
                     // Hide basket and show success popup
                     FloatingBasketWindowController.shared.hideBasket()
-                    QuickShareSuccessWindowController.show(shareURL: shareURL)
+                    QuickShareSuccessWindowController.show(shareURL: result.shareURL)
                     
                     // Reset status after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -303,7 +320,14 @@ struct BasketQuickActionsBar: View {
     }
     
     /// Upload a single file to 0x0.st and return the share URL
-    private func uploadTo0x0(fileURL: URL) -> String? {
+    /// Result of 0x0.st upload containing URL, token, and file size
+    private struct UploadResult {
+        let shareURL: String
+        let token: String
+        let fileSize: Int64
+    }
+    
+    private func uploadTo0x0(fileURL: URL) -> UploadResult? {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: URL(string: "https://0x0.st")!)
         request.httpMethod = "POST"
@@ -325,13 +349,15 @@ struct BasketQuickActionsBar: View {
             return nil
         }
         
+        let fileSize = Int64(fileData.count)
+        
         body.append(fileData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         
         request.httpBody = body
         
         // Synchronous request (we're already on background thread)
-        var resultURL: String?
+        var result: UploadResult?
         let semaphore = DispatchSemaphore(value: 0)
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
@@ -348,8 +374,10 @@ struct BasketQuickActionsBar: View {
             }
             
             if httpResponse.statusCode == 200, let data = data, let urlString = String(data: data, encoding: .utf8) {
-                resultURL = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-                print("✅ [0x0.st] Uploaded: \(resultURL ?? "")")
+                let shareURL = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+                let token = httpResponse.value(forHTTPHeaderField: "X-Token") ?? ""
+                result = UploadResult(shareURL: shareURL, token: token, fileSize: fileSize)
+                print("✅ [0x0.st] Uploaded: \(shareURL)")
             } else {
                 print("❌ [0x0.st] HTTP \(httpResponse.statusCode)")
                 if let data = data, let body = String(data: data, encoding: .utf8) {
@@ -361,7 +389,7 @@ struct BasketQuickActionsBar: View {
         task.resume()
         _ = semaphore.wait(timeout: .now() + 60) // 60 second timeout for large files
         
-        return resultURL
+        return result
     }
     
     /// Get MIME type for a file URL
