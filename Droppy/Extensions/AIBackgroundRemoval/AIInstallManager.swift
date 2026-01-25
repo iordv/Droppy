@@ -48,8 +48,16 @@ final class AIInstallManager: ObservableObject {
     }
     
     private func checkTransparentBackgroundInstalled() async -> Bool {
+        // CRITICAL: Use findPython3() to check with the SAME Python that installed the package
+        // On macOS 26 Tahoe, /usr/bin/python3 is a stub that doesn't see user-installed packages
+        // Homebrew Python (/opt/homebrew/bin/python3) has its own site-packages
+        guard let pythonPath = findPython3() else {
+            print("[AIInstallManager] No Python found during verification check")
+            return false
+        }
+        
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.executableURL = URL(fileURLWithPath: pythonPath)
         process.arguments = ["-c", "import transparent_background; print('OK')"]
         
         let outputPipe = Pipe()
