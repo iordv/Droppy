@@ -385,30 +385,10 @@ struct FloatingBasketView: View {
     @ViewBuilder
     private func quickActionExplanation(for action: QuickActionType) -> some View {
         ZStack {
-            // Centered explanation content
-            VStack(spacing: 12) {
-                // Action icon in a circle
-                Circle()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 56, height: 56)
-                    .overlay(
-                        Image(systemName: action.icon)
-                            .font(.system(size: 24, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.9))
-                    )
-                
-                // Action title
-                Text(action.title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                
-                // Action description
-                Text(action.description)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
+            // Centered text (matches "Drop files here" style)
+            Text(action.description)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.white.opacity(0.5))
             
             // X button overlay in top-left
             VStack {
@@ -425,7 +405,6 @@ struct FloatingBasketView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.15), value: action)
     }
     
     private var itemsContent: some View {
