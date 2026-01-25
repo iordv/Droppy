@@ -9,79 +9,86 @@ import SwiftUI
 
 struct QuickshareInfoView: View {
     @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showInMenuBar = PreferenceDefault.showQuickshareInMenuBar
-    @Bindable private var manager = QuickshareManager.shared // For list observation
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @Environment(\.dismiss) private var dismiss
+    
+    // For list observation
+    @Bindable private var manager = QuickshareManager.shared
+    
     @State private var showDeleteConfirmation: QuickshareItem? = nil
     @State private var copiedItemId: UUID? = nil
+    @State private var showReviewsSheet = false
+    
+    var installCount: Int?
+    var rating: AnalyticsService.ExtensionRating?
     
     // Optional closure for when used in a standalone window
     var onClose: (() -> Void)? = nil
     
-    // Header ...
-    
     var body: some View {
-        // ...
+        VStack(spacing: 0) {
+            // Header
+            headerSection
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Scrollable content
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 20) {
+                    // Settings Toggle
+                    settingsSection
+                    
+                    if !manager.items.isEmpty {
+                        Divider()
+                    }
+                    
+                    // Manager UI (Status + List)
+                    managerSection
+                    
+                    Divider()
+                    
+                    // Features
+                    featuresSection
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+            }
+            .frame(maxHeight: 500)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
             // Buttons
             buttonSection
         }
-        // ...
-    }
-    
-    // ...
-    
-    private var buttonSection: some View {
-        HStack(spacing: 10) {
-            Button {
-                if let onClose = onClose {
-                    onClose()
-                } else {
-                    dismiss()
+        .frame(width: 540)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .sheet(isPresented: $showReviewsSheet) {
+            ExtensionReviewsSheet(extensionType: .quickshare)
+        }
+        .alert("Delete from Server?", isPresented: deleteAlertBinding) {
+            Button("Cancel", role: .cancel) {
+                showDeleteConfirmation = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let item = showDeleteConfirmation {
+                    Task {
+                        _ = await manager.deleteFromServer(item)
+                    }
                 }
-            } label: {
-                Text("Close")
+                showDeleteConfirmation = nil
             }
-            .buttonStyle(DroppyPillButtonStyle(size: .small))
-            
-            Spacer()
-            
-            // Core extension
-            DisableExtensionButton(extensionType: .quickshare)
-        }
-        .padding(16)
-    }
-    
-    private var deleteAlertBinding: Binding<Bool> {
-        Binding(
-            get: { showDeleteConfirmation != nil },
-            set: { if !$0 { showDeleteConfirmation = nil } }
-        )
-    }
-    
-    // Actions logic from ManagerView
-    private func copyItem(_ item: QuickshareItem) {
-        manager.copyToClipboard(item)
-        copiedItemId = item.id
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            if copiedItemId == item.id {
-                copiedItemId = nil
+        } message: {
+            if let item = showDeleteConfirmation {
+                Text("This will permanently delete \"\(item.filename)\" from the 0x0.st server. The link will stop working.")
             }
         }
     }
     
-    private func shareItem(_ item: QuickshareItem) {
-        guard let url = URL(string: item.shareURL) else { return }
-        let picker = NSSharingServicePicker(items: [url])
-        if let window = NSApp.keyWindow, let contentView = window.contentView {
-            picker.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .minY)
-        }
-    }
-    
-    private func openInBrowser(_ item: QuickshareItem) {
-        if let url = URL(string: item.shareURL) {
-            NSWorkspace.shared.open(url)
-        }
-    }
-    
-    // MARK: - Components
+    // MARK: - Sections
     
     private var headerSection: some View {
         VStack(spacing: 12) {
@@ -104,7 +111,7 @@ struct QuickshareInfoView: View {
             
             // Stats row
             HStack(spacing: 12) {
-                // Installs (Always installed, so maybe hide or show mock/analytics)
+                // Installs
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
@@ -156,6 +163,95 @@ struct QuickshareInfoView: View {
         .padding(.bottom, 20)
     }
     
+    private var settingsSection: some View {
+        HStack {
+            HStack(spacing: 12) {
+                Image(systemName: "menubar.rectangle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show in Menu Bar")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text("Show Quickshare submenu in Droppy menu")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+             
+            Spacer()
+            
+            Toggle("", isOn: $showInMenuBar)
+                .toggleStyle(SwitchToggleStyle(tint: .cyan))
+                .labelsHidden()
+        }
+        .padding(12)
+        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+    
+    private var managerSection: some View {
+        VStack(spacing: 16) {
+            // Status Card
+            statusCard
+            
+            // File List
+            if !manager.items.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(manager.items) { item in
+                        itemRow(for: item)
+                    }
+                }
+            }
+        }
+    }
+    
+    private var statusCard: some View {
+        let statusIcon = manager.items.isEmpty ? "tray" : "tray.full.fill"
+        let statusColor: Color = manager.items.isEmpty ? .secondary : .cyan
+        let statusText = manager.items.isEmpty
+            ? "No shared files yet"
+            : "You have \(manager.items.count) shared file\(manager.items.count == 1 ? "" : "s")"
+        
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: statusIcon)
+                .foregroundStyle(statusColor)
+                .font(.system(size: 14))
+                .frame(width: 22)
+            
+            Text(statusText)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary.opacity(0.85))
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
+    }
+
+    private func itemRow(for item: QuickshareItem) -> some View {
+        QuickshareItemRow(
+            item: item,
+            isCopied: copiedItemId == item.id,
+            isDeleting: manager.isDeletingItem == item.id,
+            onCopy: { copyItem(item) },
+            onShare: { shareItem(item) },
+            onOpenInBrowser: { openInBrowser(item) },
+            onDelete: { showDeleteConfirmation = item }
+        )
+    }
+    
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Share screenshots, recordings, and files instantly with short, expiring links. No account required.")
@@ -185,52 +281,14 @@ struct QuickshareInfoView: View {
         }
     }
     
-    private var usageSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Quickshare is active")
-                    .font(.headline)
-            }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                instructionRow(step: "1", text: "Use menu bar > Quickshare > Select File")
-                instructionRow(step: "2", text: "Or select 'Upload from Clipboard' if you have files copied")
-                instructionRow(step: "3", text: "Links are auto-copied! Manage them below.")
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-    }
-    
-    private func instructionRow(step: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(Color.cyan)
-                    .frame(width: 20, height: 20)
-                Text(step)
-                    .font(.system(size: 11, weight: .bold).monospacedDigit())
-                    .foregroundStyle(.black)
-            }
-            
-            Text(text)
-                .font(.callout)
-                .foregroundStyle(.primary)
-        }
-    }
-    
     private var buttonSection: some View {
         HStack(spacing: 10) {
             Button {
-                dismiss()
+                if let onClose = onClose {
+                    onClose()
+                } else {
+                    dismiss()
+                }
             } label: {
                 Text("Close")
             }
@@ -238,21 +296,42 @@ struct QuickshareInfoView: View {
             
             Spacer()
             
-            Button {
-                QuickshareManagerWindowController.show()
-                dismiss() // Optional: dismiss sheet when opening manager? Or keep it?
-                // Manager is a separate window, safe to dismiss this sheet.
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "tray.full")
-                    Text("Manage Uploads")
-                }
-            }
-            .buttonStyle(DroppyAccentButtonStyle(color: .cyan, size: .small))
-            
-            // Core extension, disable button shows alert 
+            // Core extension
             DisableExtensionButton(extensionType: .quickshare)
         }
         .padding(16)
+    }
+    
+    // MARK: - Actions
+    
+    private var deleteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { showDeleteConfirmation != nil },
+            set: { if !$0 { showDeleteConfirmation = nil } }
+        )
+    }
+    
+    private func copyItem(_ item: QuickshareItem) {
+        manager.copyToClipboard(item)
+        copiedItemId = item.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if copiedItemId == item.id {
+                copiedItemId = nil
+            }
+        }
+    }
+    
+    private func shareItem(_ item: QuickshareItem) {
+        guard let url = URL(string: item.shareURL) else { return }
+        let picker = NSSharingServicePicker(items: [url])
+        if let window = NSApp.keyWindow, let contentView = window.contentView {
+            picker.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .minY)
+        }
+    }
+    
+    private func openInBrowser(_ item: QuickshareItem) {
+        if let url = URL(string: item.shareURL) {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

@@ -14,7 +14,7 @@ enum DroppyQuickshare {
     
     /// Share files via Droppy Quickshare
     /// Multiple files are automatically zipped into a single archive
-    static func share(urls: [URL]) {
+    static func share(urls: [URL], completion: (() -> Void)? = nil) {
         guard !urls.isEmpty else { return }
         guard !DroppyState.shared.isSharingInProgress else { return }
         
@@ -77,6 +77,9 @@ enum DroppyQuickshare {
                     
                     // Show success popup
                     QuickShareSuccessWindowController.show(shareURL: result.shareURL)
+                    
+                    // Call completion handler (e.g. to hide basket)
+                    completion?()
                     
                     // Reset status after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
