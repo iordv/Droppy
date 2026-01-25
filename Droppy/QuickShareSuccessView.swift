@@ -90,6 +90,7 @@ struct QuickShareSuccessView: View {
                         Image(systemName: "doc.on.doc")
                         Text("Copy Again")
                     }
+                    .fixedSize()
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
@@ -99,6 +100,7 @@ struct QuickShareSuccessView: View {
                         Image(systemName: "safari")
                         Text("Open Link")
                     }
+                    .fixedSize()
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
@@ -108,6 +110,7 @@ struct QuickShareSuccessView: View {
                         Image(systemName: "tray.full")
                         Text("Manage")
                     }
+                    .fixedSize()
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
@@ -116,12 +119,14 @@ struct QuickShareSuccessView: View {
                 // Done button
                 Button(action: onDismiss) {
                     Text("Done")
+                        .fixedSize()
                 }
                 .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .small))
             }
+            .fixedSize(horizontal: false, vertical: true)
             .padding(16)
         }
-        .frame(width: 420, height: 330)
+        .frame(width: 500, height: 330)
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
@@ -185,7 +190,7 @@ final class QuickShareSuccessWindowController: NSObject, NSWindowDelegate {
         
         // Use NSPanel with borderless style (matches onboarding exactly)
         let newWindow = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 330),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 330),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
