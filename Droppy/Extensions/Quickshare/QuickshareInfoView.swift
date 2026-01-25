@@ -8,48 +8,76 @@
 import SwiftUI
 
 struct QuickshareInfoView: View {
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
-    @Environment(\.dismiss) private var dismiss
+    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showInMenuBar = PreferenceDefault.showQuickshareInMenuBar
+    @Bindable private var manager = QuickshareManager.shared // For list observation
+    @State private var showDeleteConfirmation: QuickshareItem? = nil
+    @State private var copiedItemId: UUID? = nil
     
-    var installCount: Int?
-    var rating: AnalyticsService.ExtensionRating?
+    // Optional closure for when used in a standalone window
+    var onClose: (() -> Void)? = nil
     
-    @State private var showReviewsSheet = false
+    // Header ...
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            headerSection
-            
-            Divider()
-                .padding(.horizontal, 24)
-            
-            // Scrollable content
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 20) {
-                    // Features
-                    featuresSection
-                    
-                    // Usage
-                    usageSection
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-            }
-            .frame(maxHeight: 500)
-            
-            Divider()
-                .padding(.horizontal, 24)
-            
+        // ...
             // Buttons
             buttonSection
         }
-        .frame(width: 540)
-        .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .sheet(isPresented: $showReviewsSheet) {
-            ExtensionReviewsSheet(extensionType: .quickshare)
+        // ...
+    }
+    
+    // ...
+    
+    private var buttonSection: some View {
+        HStack(spacing: 10) {
+            Button {
+                if let onClose = onClose {
+                    onClose()
+                } else {
+                    dismiss()
+                }
+            } label: {
+                Text("Close")
+            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
+            
+            Spacer()
+            
+            // Core extension
+            DisableExtensionButton(extensionType: .quickshare)
+        }
+        .padding(16)
+    }
+    
+    private var deleteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { showDeleteConfirmation != nil },
+            set: { if !$0 { showDeleteConfirmation = nil } }
+        )
+    }
+    
+    // Actions logic from ManagerView
+    private func copyItem(_ item: QuickshareItem) {
+        manager.copyToClipboard(item)
+        copiedItemId = item.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if copiedItemId == item.id {
+                copiedItemId = nil
+            }
+        }
+    }
+    
+    private func shareItem(_ item: QuickshareItem) {
+        guard let url = URL(string: item.shareURL) else { return }
+        let picker = NSSharingServicePicker(items: [url])
+        if let window = NSApp.keyWindow, let contentView = window.contentView {
+            picker.show(relativeTo: contentView.bounds, of: contentView, preferredEdge: .minY)
+        }
+    }
+    
+    private func openInBrowser(_ item: QuickshareItem) {
+        if let url = URL(string: item.shareURL) {
+            NSWorkspace.shared.open(url)
         }
     }
     

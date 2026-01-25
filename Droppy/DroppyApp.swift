@@ -34,6 +34,9 @@ struct DroppyMenuContent: View {
     // Check if shelf is enabled (to conditionally show hide/show option)
     @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault.enableNotchShelf
     
+    // Check if Quickshare menu bar is enabled
+    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar = PreferenceDefault.showQuickshareInMenuBar
+    
     // Check if extensions are disabled
     private var isElementCaptureDisabled: Bool {
         _ = shortcutRefreshId // Force refresh
@@ -99,10 +102,12 @@ struct DroppyMenuContent: View {
         
         Divider()
         
-        Menu {
-            QuickshareMenuContent()
-        } label: {
-            Label("Quickshare", systemImage: "drop.fill")
+        if showQuickshareInMenuBar {
+            Menu {
+                QuickshareMenuContent()
+            } label: {
+                Label("Quickshare", systemImage: "drop.fill")
+            }
         }
         
         // Element Capture with native keyboard shortcut styling (hidden when disabled)

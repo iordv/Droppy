@@ -34,9 +34,14 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
     }
     
     private func showWindow() {
-        let contentView = QuickshareManagerView {
-            QuickshareManagerWindowController.hide()
-        }
+        // Use QuickshareInfoView (the new consolidated UI)
+        let contentView = QuickshareInfoView(
+            installCount: nil,
+            rating: nil, // Stats optional in standalone manager
+            onClose: {
+                QuickshareManagerWindowController.hide()
+            }
+        )
         .preferredColorScheme(.dark)
         
         let hostingView = NSHostingView(rootView: contentView)
