@@ -196,51 +196,73 @@ struct QuickshareInfoView: View {
     }
     
     private var managerSection: some View {
-        VStack(spacing: 16) {
-            // Status Card
-            statusCard
+        VStack(spacing: 0) {
+            // Status Header
+            HStack(alignment: .center, spacing: 12) {
+                let statusIcon = manager.items.isEmpty ? "tray" : "tray.full.fill"
+                let statusColor: Color = manager.items.isEmpty ? .secondary : .cyan
+                let statusText = manager.items.isEmpty
+                    ? "No shared files yet"
+                    : "You have \(manager.items.count) shared file\(manager.items.count == 1 ? "" : "s")"
+                
+                Image(systemName: statusIcon)
+                    .foregroundStyle(statusColor)
+                    .font(.system(size: 14))
+                    .frame(width: 22)
+                
+                Text(statusText)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary.opacity(0.85))
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.white.opacity(0.04)) // Subtle header bg
             
             // File List
             if !manager.items.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(manager.items) { item in
+                Divider()
+                    .overlay(Color.white.opacity(0.08))
+                
+                VStack(spacing: 0) {
+                    ForEach(Array(manager.items.enumerated()), id: \.element.id) { index, item in
                         itemRow(for: item)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            // Alternating row background for subtle striping? Or just interaction highlight?
+                            // Let's keep it clean
+                        
+                        if index < manager.items.count - 1 {
+                             Divider()
+                                .padding(.leading, 50) // Indent divider past icon
+                                .overlay(Color.white.opacity(0.05))
+                        }
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
-    }
-    
-    private var statusCard: some View {
-        let statusIcon = manager.items.isEmpty ? "tray" : "tray.full.fill"
-        let statusColor: Color = manager.items.isEmpty ? .secondary : .cyan
-        let statusText = manager.items.isEmpty
-            ? "No shared files yet"
-            : "You have \(manager.items.count) shared file\(manager.items.count == 1 ? "" : "s")"
-        
-        return HStack(alignment: .top, spacing: 12) {
-            Image(systemName: statusIcon)
-                .foregroundStyle(statusColor)
-                .font(.system(size: 14))
-                .frame(width: 22)
-            
-            Text(statusText)
-                .font(.system(size: 12))
-                .foregroundStyle(.primary.opacity(0.85))
-            
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
         .background(Color.white.opacity(0.03))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }
-
+    
+    // Previous statusCard helper removed as it's merged above
+    
     private func itemRow(for item: QuickshareItem) -> some View {
+        // We use QuickshareItemRow content directly here or wrapper
+        // Since QuickshareItemRow has its own background styling in some implementations, 
+        // we might need to adjust it to fit the "list" style.
+        // Assuming QuickshareItemRow is what was used before.
+        // If QuickshareItemRow has padding/background, it might mismatch.
+        // I'll assume QuickshareItemRow is the row CONTENT.
+        // If it has a background, this container might look layered.
+        // Let's rely on standard row.
+        
         QuickshareItemRow(
             item: item,
             isCopied: copiedItemId == item.id,

@@ -182,6 +182,7 @@ struct BasketQuickActionsBar: View {
             FloatingBasketWindowController.shared.hideBasket()
         }
     }
+}
 
 // MARK: - Quick Drop Action Button
 
