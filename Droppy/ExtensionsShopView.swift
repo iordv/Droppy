@@ -411,7 +411,7 @@ struct ExtensionsShopView: View {
                     installCount: extensionCounts["menuBarManager"],
                     rating: extensionRatings["menuBarManager"]
                 ))
-            ),
+            },
             ExtensionListItem(
                 id: "quickshare",
                 iconURL: "", // Local icon used in detail view
