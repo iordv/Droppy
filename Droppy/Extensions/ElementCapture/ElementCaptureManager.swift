@@ -226,21 +226,17 @@ final class ElementCaptureManager: ObservableObject {
     }
     
     private func showPermissionAlert() {
-        Task { @MainActor in
-            let shouldOpen = await DroppyAlertController.shared.showPermissions(
-                title: "Permissions Required",
-                message: "Element Capture requires Accessibility and Screen Recording permissions.\n\nPlease grant these in System Settings > Privacy & Security.",
-                actionButtonTitle: "Open Settings"
-            )
-            
-            if shouldOpen {
-                // Check which permission is missing and open the right pane
-                if !PermissionManager.shared.isScreenRecordingGranted {
-                    PermissionManager.shared.openScreenRecordingSettings()
-                } else if !PermissionManager.shared.isAccessibilityGranted {
-                    PermissionManager.shared.openAccessibilitySettings()
-                }
-            }
+        // Use ONLY macOS native dialogs - no Droppy custom dialogs
+        print("🔐 ElementCaptureManager: Checking which permissions are missing...")
+        
+        if !PermissionManager.shared.isAccessibilityGranted {
+            print("🔐 ElementCaptureManager: Requesting Accessibility via native dialog")
+            PermissionManager.shared.requestAccessibility()
+        }
+        
+        if !PermissionManager.shared.isScreenRecordingGranted {
+            print("🔐 ElementCaptureManager: Requesting Screen Recording via native dialog")
+            PermissionManager.shared.requestScreenRecording()
         }
     }
     
@@ -571,6 +567,8 @@ final class ElementCaptureManager: ObservableObject {
             
         } catch {
             print("[ElementCapture] Capture failed: \(error)")
+            // Note: We don't report failure here because capture can fail for many reasons
+            // (invalid rect, window closed, etc.) not just permissions
         }
         
         // 6. Stop capture mode

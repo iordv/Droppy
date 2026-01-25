@@ -413,29 +413,16 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         if !accessibilityOk { missingPermissions.append("• Accessibility (for Paste)") }
         if !inputMonitoringOk { missingPermissions.append("• Input Monitoring (for Global Hotkey)") }
         
-        let message = "To work in password fields and all apps, Droppy needs:\n\n" +
-            missingPermissions.joined(separator: "\n") +
-            "\n\nPlease enable them in System Settings."
+        print("🔐 ClipboardWindowController: Missing permissions: \(missingPermissions.joined(separator: ", "))")
         
-        // Save whether input monitoring was the issue for when user clicks Open Settings
-        let needsInputMonitoring = !inputMonitoringOk
-        
-        // Show styled alert - this is the ONLY place we show permission dialogs
-        // NEVER call PermissionManager.shared.requestAccessibility() here - that triggers the system prompt
-        // Instead, we show our own alert with "Open Settings" button
-        Task { @MainActor in
-            let shouldOpen = await DroppyAlertController.shared.showPermissions(
-                title: "Permissions Required",
-                message: message
-            )
-            
-            if shouldOpen {
-                if needsInputMonitoring {
-                    PermissionManager.shared.openInputMonitoringSettings()
-                } else {
-                    PermissionManager.shared.openAccessibilitySettings()
-                }
-            }
+        // Use ONLY macOS native dialogs - no Droppy custom dialogs
+        if !accessibilityOk {
+            print("🔐 ClipboardWindowController: Requesting Accessibility via native dialog")
+            PermissionManager.shared.requestAccessibility()
+        }
+        if !inputMonitoringOk {
+            print("🔐 ClipboardWindowController: Opening Input Monitoring settings (no native dialog available)")
+            PermissionManager.shared.openInputMonitoringSettings()
         }
     }
     

@@ -646,15 +646,10 @@ struct NotchItemView: View {
             }
         }
             .task {
-                // INSTANT DISPLAY: Show fast icon immediately (zero lag)
-                thumbnail = item.icon
-                
-                // ASYNC UPGRADE: Load high-quality QuickLook thumbnail in background
-                // This may trigger Metal shader compilation on first use, but user sees icon instantly
+                // ASYNC: Load QuickLook thumbnail (if available)
                 if let cached = ThumbnailCache.shared.cachedThumbnail(for: item) {
                     thumbnail = cached
                 } else if let asyncThumbnail = await ThumbnailCache.shared.loadThumbnailAsync(for: item, size: CGSize(width: 120, height: 120)) {
-                    // Smooth swap to better thumbnail
                     withAnimation(DroppyAnimation.hover) {
                         thumbnail = asyncThumbnail
                     }
@@ -1105,77 +1100,74 @@ private struct NotchItemContent: View {
     
     // Extracted to fix compiler timeout on complex ternary
     private var containerFillColor: Color {
-        if isSelected { return Color.blue.opacity(0.3) }
-        if item.isPinned { return Color.yellow.opacity(0.15) }
-        if item.isDirectory { return Color.blue.opacity(0.15) }
-        return Color.white.opacity(0.1)
+        // NATIVE: No container fill - just the icon
+        return Color.clear
     }
     
     private var containerStrokeColor: Color {
-        if isSelected { return Color.blue }
-        if item.isPinned { return Color.yellow.opacity(0.5) }
-        if item.isDirectory { return Color.blue.opacity(0.3) }
+        // NATIVE: Blue outline only when selected
+        if isSelected { return Color.accentColor }
         return Color.clear
     }
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
-                // Thumbnail container with folder-aware styling
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(containerFillColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(containerStrokeColor, lineWidth: 2)
-                    )
-                    .frame(width: 64, height: 64)
-                    .overlay {
-                        Group {
-                            if item.isDirectory {
-                                // Custom folder icon matching NotchFace style
-                                FolderIcon(size: 36, isPinned: item.isPinned, isHovering: isHovering)
-                            } else if item.url.pathExtension.lowercased() == "zip" {
-                                // Custom ZIP file icon with zipper detail
-                                ZIPFileIcon(size: 36, isHovering: isHovering)
-                            } else if let thumbnail = thumbnail {
-                                Image(nsImage: thumbnail)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } else {
-                                Image(nsImage: item.icon)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                            }
-                        }
-                        .frame(width: 48, height: 48)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .opacity((isConverting || isExtractingText || isCompressing || isCreatingZIP) ? 0.5 : 1.0)
+                // FINDER-STYLE: QuickLook previews preserve aspect ratio, native icons keep shape
+                Group {
+                    if let thumbnail = thumbnail {
+                        // QuickLook preview: preserve aspect ratio like Finder
+                        Image(nsImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    } else {
+                        // Native icon (folders, dmg, zip, etc): keep original shape
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
                     }
-                    .overlay {
-                        if isConverting || isExtractingText || isCompressing || isCreatingZIP {
-                            ProgressView()
-                                .scaleEffect(0.6)
-                                .tint(.white)
-                        }
+                }
+                .frame(width: 48, height: 48)
+                // NO clipShape - keep exact Finder icon shapes
+                // Subtle gray highlight when selected (like Finder)
+                .background {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.white.opacity(0.15))
+                            .padding(-4)
                     }
-                    .overlay {
-                        // Magic processing animation for background removal - centered on thumbnail
-                        // Check both local isRemovingBackground AND global processingItemIds for bulk operations
-                        if isRemovingBackground || state.processingItemIds.contains(item.id) {
-                            MagicProcessingOverlay()
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .transition(.opacity.animation(DroppyAnimation.viewChange))
-                        }
+                }
+                .opacity((isConverting || isExtractingText || isCompressing || isCreatingZIP) ? 0.5 : 1.0)
+                // Selection and processing overlays on icon only
+                .overlay {
+                    if isConverting || isExtractingText || isCompressing || isCreatingZIP {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .tint(.white)
                     }
+                }
+                .overlay {
+                    // Magic processing animation for background removal
+                    if isRemovingBackground || state.processingItemIds.contains(item.id) {
+                        MagicProcessingOverlay()
+                            .frame(width: 48, height: 48)
+                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .transition(.opacity.animation(DroppyAnimation.viewChange))
+                    }
+                }
+                .frame(width: 56, height: 56)
+                .padding(.top, 6) // Make room for X button above
                 
-                // Remove button on hover - hidden for pinned folders (must unpin first)
+                // Remove button on hover - hidden for pinned folders
                 if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
                     Button(action: onRemove) {
-                        Image(systemName: "xmark")
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white, .gray.opacity(0.8))
                     }
-                    .buttonStyle(DroppyDestructiveCircleButtonStyle(size: 20))
-                    .offset(x: 6, y: -6)
+                    .buttonStyle(.borderless)
+                    .offset(x: 4, y: 2) // Keep within bounds
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1184,7 +1176,6 @@ private struct NotchItemContent: View {
             if renamingItemId == item.id {
                 RenameTextField(
                     text: $renamingText,
-                    // Pass a binding derived from the ID check
                     isRenaming: Binding(
                         get: { renamingItemId == item.id },
                         set: { if !$0 { 
@@ -1199,27 +1190,26 @@ private struct NotchItemContent: View {
                     renamingText = item.url.deletingPathExtension().lastPathComponent
                 }
             } else {
+                // FINDER-STYLE: Label with pill selection background
                 Text(item.name)
-                    .font(.system(size: 10, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.85))
-                    .lineLimit(1)
-                    .frame(width: 68)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 4)
-                    .background(
-                        isSelected ?
-                        RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.blue) :
-                        RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.clear)
-                    )
+                    .padding(.vertical, 2)
+                    .background {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(Color.accentColor)
+                        }
+                    }
+                    .frame(width: 64)
             }
         }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(isHovering && !isSelected ? Color.white.opacity(0.1) : Color.clear)
-        )
-        .id(item.id)  // Force view identity update when item changes
+        .padding(.vertical, 2)
+        .id(item.id)
         .poofEffect(isPoofing: $isPoofing) {
-            // Replace item when poof completes
             if let newItem = pendingConvertedItem {
                 withAnimation(DroppyAnimation.state) {
                     state.replaceItem(item, with: newItem)

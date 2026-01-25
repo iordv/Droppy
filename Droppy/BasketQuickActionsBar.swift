@@ -56,22 +56,22 @@ struct BasketQuickActionsBar: View {
             HStack(spacing: spacing) {
                 if isExpanded {
                     // Expanded: Floating buttons only
-                    QuickDropActionButton(icon: "dot.radiowaves.left.and.right", useTransparent: useTransparentBackground, shareAction: shareViaAirDrop)
+                    QuickDropActionButton(actionType: .airdrop, useTransparent: useTransparentBackground, shareAction: shareViaAirDrop)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.5).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.0)),
                             removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
                         ))
-                    QuickDropActionButton(icon: "message.fill", useTransparent: useTransparentBackground, shareAction: shareViaMessages)
+                    QuickDropActionButton(actionType: .messages, useTransparent: useTransparentBackground, shareAction: shareViaMessages)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.5).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.03)),
                             removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
                         ))
-                    QuickDropActionButton(icon: "envelope.fill", useTransparent: useTransparentBackground, shareAction: shareViaMail)
+                    QuickDropActionButton(actionType: .mail, useTransparent: useTransparentBackground, shareAction: shareViaMail)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.5).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.06)),
                             removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
                         ))
-                    QuickDropActionButton(icon: "drop.fill", useTransparent: useTransparentBackground, shareAction: quickShareTo0x0)
+                    QuickDropActionButton(actionType: .quickshare, useTransparent: useTransparentBackground, shareAction: quickShareTo0x0)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.5).combined(with: .opacity).animation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.09)),
                             removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
@@ -116,6 +116,10 @@ struct BasketQuickActionsBar: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                 isExpanded = hovering
             }
+            // Clear hovered action when collapsing
+            if !hovering {
+                DroppyState.shared.hoveredQuickAction = nil
+            }
             if hovering && !isExpanded {
                 HapticFeedback.expand()
             }
@@ -132,6 +136,7 @@ struct BasketQuickActionsBar: View {
         // COLLAPSE when quick action targeting ends (drag left the buttons)
         .onChange(of: DroppyState.shared.isQuickActionsTargeted) { _, targeted in
             if !targeted && !isHovering && isExpanded {
+                DroppyState.shared.hoveredQuickAction = nil
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                     isExpanded = false
                 }
@@ -142,6 +147,7 @@ struct BasketQuickActionsBar: View {
             if targeted && isExpanded {
                 // Drag moved to basket - collapse back to bolt and clear quick actions state
                 DroppyState.shared.isQuickActionsTargeted = false
+                DroppyState.shared.hoveredQuickAction = nil
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                     isExpanded = false
                 }
@@ -439,7 +445,7 @@ struct BasketQuickActionsBar: View {
 // MARK: - Quick Drop Action Button
 
 struct QuickDropActionButton: View {
-    let icon: String
+    let actionType: QuickActionType
     var useTransparent: Bool = false
     let shareAction: ([URL]) -> Void
     
@@ -462,7 +468,7 @@ struct QuickDropActionButton: View {
                     .stroke(Color.white.opacity(isTargeted ? 0.3 : (isHovering ? 0.15 : 0.08)), lineWidth: 1)
             )
             .overlay(
-                Image(systemName: icon)
+                Image(systemName: actionType.icon)
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.white.opacity(0.85))
             )
@@ -472,6 +478,12 @@ struct QuickDropActionButton: View {
             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isHovering)
             .onHover { hovering in
                 isHovering = hovering
+                // Update shared state for basket explanation overlay
+                if hovering {
+                    DroppyState.shared.hoveredQuickAction = actionType
+                } else if DroppyState.shared.hoveredQuickAction == actionType {
+                    DroppyState.shared.hoveredQuickAction = nil
+                }
             }
             .contentShape(Circle().scale(1.3))
             .onDrop(of: [UTType.fileURL], isTargeted: $isTargeted) { providers in
@@ -483,6 +495,7 @@ struct QuickDropActionButton: View {
             .onChange(of: isTargeted) { _, targeted in
                 if targeted {
                     DroppyState.shared.isQuickActionsTargeted = true
+                    DroppyState.shared.hoveredQuickAction = actionType
                 }
                 // Don't clear here - let capsule/basket handle it
             }

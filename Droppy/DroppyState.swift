@@ -17,6 +17,44 @@ enum QuickShareStatus: Equatable {
     case failed
 }
 
+/// Types of quick actions available in the basket
+enum QuickActionType: String, CaseIterable {
+    case airdrop
+    case messages
+    case mail
+    case quickshare
+    
+    /// SF Symbol icon for the action
+    var icon: String {
+        switch self {
+        case .airdrop: return "dot.radiowaves.left.and.right"
+        case .messages: return "message.fill"
+        case .mail: return "envelope.fill"
+        case .quickshare: return "drop.fill"
+        }
+    }
+    
+    /// Title for the action
+    var title: String {
+        switch self {
+        case .airdrop: return "AirDrop"
+        case .messages: return "Messages"
+        case .mail: return "Mail"
+        case .quickshare: return "Quickshare"
+        }
+    }
+    
+    /// Description explaining what the action does
+    var description: String {
+        switch self {
+        case .airdrop: return "Send files wirelessly to nearby Apple devices"
+        case .messages: return "Share files via iMessage or SMS"
+        case .mail: return "Attach files to a new email"
+        case .quickshare: return "Upload to cloud and copy shareable link"
+        }
+    }
+}
+
 /// Main application state for the Droppy shelf
 @Observable
 final class DroppyState {
@@ -260,6 +298,10 @@ final class DroppyState {
     /// Whether files are being hovered over any quick action button in the basket
     /// Used to suppress basket highlight and keep quick actions bar expanded
     var isQuickActionsTargeted: Bool = false
+    
+    /// Which quick action is currently being hovered (nil if none)
+    /// Used to show action-specific explanations in the basket content area
+    var hoveredQuickAction: QuickActionType? = nil
     
     /// Whether any rename text field is currently active (blocks spacebar Quick Look)
     var isRenaming: Bool = false

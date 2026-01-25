@@ -29,13 +29,13 @@ struct StackedItemView: View {
         state.selectedStacks.contains(stack.id)
     }
     
-    // MARK: - Layout Constants (matching grid slot: 76x96)
+    // MARK: - Layout Constants (matching grid slot: 64x80)
     
-    // Individual card size - matching DroppedItemView exactly (64x64 with 16pt radius)
-    private let cardWidth: CGFloat = 64
-    private let cardHeight: CGFloat = 64
-    private let cardCornerRadius: CGFloat = 16
-    private let thumbnailSize: CGFloat = 48
+    // Individual card size - compact to fit 64pt grid columns
+    private let cardWidth: CGFloat = 48
+    private let cardHeight: CGFloat = 48
+    private let cardCornerRadius: CGFloat = 10
+    private let thumbnailSize: CGFloat = 40
     
     // Clipboard-style stacking formula
     private func cardOffset(for index: Int) -> CGFloat {
@@ -133,17 +133,17 @@ struct StackedItemView: View {
                         countBadge
                     }
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: 56, height: 56)
                 
                 // "Expand" text label like regular items
                 Text("Expand")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(1)
-                    .frame(width: 68)
+                    .frame(width: 60)
             }
-            .padding(4)
-            .frame(width: 76, height: 96)  // Match grid slot exactly
+            .padding(2)
+            .frame(width: 64, height: 80)  // Match grid slot exactly
             // Drop target visual feedback - scale up and blue glow when files dragged over
             .scaleEffect(isDropTargeted ? 1.08 : 1.0)
             .animation(DroppyAnimation.bouncy, value: isDropTargeted)
@@ -186,7 +186,7 @@ struct StackedItemView: View {
         .animation(ItemStack.peekAnimation, value: peekProgress)
         .animation(DroppyAnimation.bouncy, value: isSelected)
         // Fixed size wrapper - prevents scale from affecting grid layout
-        .frame(width: 76, height: 96)
+        .frame(width: 64, height: 80)
         .onHover { hovering in
             guard !state.isInteractionBlocked else { return }
             
@@ -227,10 +227,7 @@ struct StackedItemView: View {
             }
         }
         .frame(width: cardWidth, height: cardHeight)
-        .background(
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
+        // NATIVE: No container background - just pure icons
         .overlay(
             // Default gradient border (when not selected and not drop targeted)
             RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
@@ -395,9 +392,9 @@ struct StackCollapseButton: View {
     @State private var peekProgress: CGFloat = 1.0  // Start peeked (spread), collapse on hover
     
     // Card dimensions - matching StackedItemView exactly
-    private let cardWidth: CGFloat = 64
-    private let cardHeight: CGFloat = 64
-    private let cardCornerRadius: CGFloat = 16
+    private let cardWidth: CGFloat = 48
+    private let cardHeight: CGFloat = 48
+    private let cardCornerRadius: CGFloat = 10
     
     // Stacking formulas (matching StackedItemView)
     private func cardOffset(for index: Int) -> CGFloat {
@@ -428,24 +425,24 @@ struct StackCollapseButton: View {
             onCollapse()
         }) {
             VStack(spacing: 6) {
-                // 64x64 container for stacked cards
+                // 56x56 container for stacked cards
                 ZStack {
                     // Render 3 stacked cards (back to front)
                     ForEach((0..<3).reversed(), id: \.self) { index in
                         collapseCard(at: index, total: 3)
                     }
                 }
-                .frame(width: 64, height: 64)
+                .frame(width: 56, height: 56)
                 
                 // "Collapse" text label like regular items
                 Text("Collapse")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(1)
-                    .frame(width: 68)
+                    .frame(width: 60)
             }
-            .padding(4)
-            .frame(width: 76, height: 96)
+            .padding(2)
+            .frame(width: 64, height: 80)
             .contentShape(Rectangle())
         }
         .buttonStyle(DroppyCardButtonStyle())
@@ -476,10 +473,7 @@ struct StackCollapseButton: View {
             }
         }
         .frame(width: cardWidth, height: cardHeight)
-        .background(
-            RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
+        // NATIVE: No container background - just icon
         .overlay(
             // Gradient border (matching StackedItemView)
             RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)

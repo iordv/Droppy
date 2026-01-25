@@ -2,160 +2,240 @@
 //  PermissionManager.swift
 //  Droppy
 //
-//  Centralized permission checking with caching to prevent repeated prompts
-//  when macOS TCC is slow to sync permission state
+//  Centralized permission checking with persistent caching & polling
 //
-//  v7.0.5: Added logging for cache/TCC mismatches, improved reliability
+//  Strategy:
+//  1. Trust TCC API if it says YES - always update cache
+//  2. If TCC says NO, trust persistent cache (user granted before, TCC is slow)
+//  3. Poll aggressively on activation to detect new grants immediately
+//
+//  Note: The cache persists across app updates because TCC permissions are
+//  tied to bundle identifier. This prevents "Permission Needed" errors
+//  when TCC is slow to sync on app launch or after updates.
 //
 
 import Foundation
 import AppKit
+import Combine
 
-/// Centralized permission manager with caching
-/// Uses UserDefaults to remember when permissions were granted,
-/// preventing false negatives when TCC hasn't synced yet
-///
-/// IMPORTANT: Cache is persisted across app updates because TCC permissions
-/// are tied to bundle identifier, not code signature. The cache bridges
-/// the timing gap while TCC syncs on launch.
-final class PermissionManager {
+/// Centralized permission manager with persistent caching
+final class PermissionManager: ObservableObject {
     static let shared = PermissionManager()
     
     // MARK: - Cache Keys
     private let accessibilityGrantedKey = "accessibilityGranted"
     private let screenRecordingGrantedKey = "screenRecordingGranted"
     private let inputMonitoringGrantedKey = "inputMonitoringGranted"
-    private let lastKnownVersionKey = "permissionCacheVersion"
+    
+    // Polling timer for detecting permission changes
+    private var pollingTimer: Timer?
+    
+    // Track if we've already prompted this session (prevent duplicate prompts)
+    private var hasPromptedAccessibility = false
+    private var hasPromptedScreenRecording = false
     
     private init() {
-        // Clear stale permission caches when app version changes
-        // This ensures we re-check TCC after updates that might have
-        // changed code signing or entitlements
-        clearCacheIfVersionChanged()
+        print("🔐 PermissionManager: Initialized")
+        printFullStatus()
     }
     
-    /// Clear permission caches if the app version has changed
-    /// This forces a fresh TCC check after app updates
-    private func clearCacheIfVersionChanged() {
-        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
-        let cachedVersion = UserDefaults.standard.string(forKey: lastKnownVersionKey)
+    // MARK: - Debug Logging
+    
+    /// Print comprehensive permission status
+    func printFullStatus() {
+        print("🔐 ========== PERMISSION STATUS ==========")
         
-        if cachedVersion != currentVersion {
-            print("🔐 PermissionManager: Version changed (\(cachedVersion ?? "nil") → \(currentVersion)), clearing permission cache")
-            UserDefaults.standard.removeObject(forKey: accessibilityGrantedKey)
-            UserDefaults.standard.removeObject(forKey: screenRecordingGrantedKey)
-            UserDefaults.standard.removeObject(forKey: inputMonitoringGrantedKey)
-            UserDefaults.standard.set(currentVersion, forKey: lastKnownVersionKey)
-        }
+        // Accessibility
+        let axTrusted = AXIsProcessTrusted()
+        let axCache = UserDefaults.standard.bool(forKey: accessibilityGrantedKey)
+        print("🔐 ACCESSIBILITY:")
+        print("🔐   AXIsProcessTrusted() = \(axTrusted)")
+        print("🔐   Cache = \(axCache)")
+        print("🔐   isAccessibilityGranted = \(isAccessibilityGranted)")
+        
+        // Screen Recording
+        let srGranted = CGPreflightScreenCaptureAccess()
+        let srCache = UserDefaults.standard.bool(forKey: screenRecordingGrantedKey)
+        print("🔐 SCREEN RECORDING:")
+        print("🔐   CGPreflightScreenCaptureAccess() = \(srGranted)")
+        print("🔐   Cache = \(srCache)")
+        print("🔐   isScreenRecordingGranted = \(isScreenRecordingGranted)")
+        
+        // Input Monitoring
+        let imCache = UserDefaults.standard.bool(forKey: inputMonitoringGrantedKey)
+        print("🔐 INPUT MONITORING:")
+        print("🔐   Cache = \(imCache)")
+        print("🔐   (Runtime check done via GlobalHotKey)")
+        
+        print("🔐 =========================================")
     }
-    
-    // MARK: - App State
-    private let appLaunchTimestamp = Date()
-    private let cacheTrustDuration: TimeInterval = 15.0 // Seconds to trust cache after launch
     
     // MARK: - Accessibility
     
-    /// Check if accessibility permission is granted (with time-limited cache)
-    /// Logic: Always check source of truth (AXIsProcessTrusted).
-    /// Only rely on cache during immediate app launch when TCC might be slow.
-    /// After warm-up period, cache is ignored to detect runtime revocation.
+    /// Check if accessibility permission is granted
+    /// Uses TCC as source of truth, with persistent cache fallback
     var isAccessibilityGranted: Bool {
         let trusted = AXIsProcessTrusted()
         
         if trusted {
-            // TCC confirms permission - update cache
+            // TCC confirms permission - update cache and notify observers
             if !UserDefaults.standard.bool(forKey: accessibilityGrantedKey) {
                 UserDefaults.standard.set(true, forKey: accessibilityGrantedKey)
-                print("🔐 PermissionManager: Accessibility granted, caching")
+                DispatchQueue.main.async { self.objectWillChange.send() }
+                print("🔐 PermissionManager: Accessibility granted! (TCC confirmed, cache updated)")
             }
             return true
         }
         
-        // TCC says NOT trusted.
-        // Only fall back to cache during the warm-up period.
-        // This prevents the "freeze" scenario where user revokes permission
-        // but we keep trying to use it because we trust the cache forever.
-        if Date().timeIntervalSince(appLaunchTimestamp) < cacheTrustDuration {
-            if UserDefaults.standard.bool(forKey: accessibilityGrantedKey) {
-                print("🔐 PermissionManager: Trusting cache during warm-up (TCC slow sync)")
-                return true
-            }
+        // TCC says NOT trusted - trust persistent cache
+        // User may have granted permission but TCC hasn't synced yet
+        let cacheValue = UserDefaults.standard.bool(forKey: accessibilityGrantedKey)
+        if cacheValue {
+            print("🔐 PermissionManager: Accessibility - TCC=false but cache=true (trusting cache)")
         }
-        
-        return false
+        return cacheValue
     }
     
-    /// Request accessibility permission (shows system dialog)
-    /// IMPORTANT: Only call this from user-initiated actions, never from background checks
+    /// Request accessibility permission and start polling
     func requestAccessibility() {
+        // Prevent duplicate prompts in same session
+        if hasPromptedAccessibility {
+            print("🔐 PermissionManager: Skipping accessibility prompt (already prompted this session)")
+            return
+        }
+        hasPromptedAccessibility = true
+        
+        print("🔐 PermissionManager: Requesting accessibility permission (showing macOS dialog)...")
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
+        
+        // Start polling immediately in case user grants it quickly
+        startPollingForAccessibility()
+    }
+    
+    /// Poll for accessibility permission (e.g. when app becomes active)
+    /// Checks every 0.5s for 20 seconds to detect new grants ASAP
+    func startPollingForAccessibility() {
+        pollingTimer?.invalidate()
+        var attempts = 0
+        
+        print("🔐 PermissionManager: Starting accessibility polling (0.5s interval, max 20s)...")
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+            guard let self = self else { return }
+            attempts += 1
+            
+            if AXIsProcessTrusted() {
+                // Grant detected!
+                if !UserDefaults.standard.bool(forKey: self.accessibilityGrantedKey) {
+                    UserDefaults.standard.set(true, forKey: self.accessibilityGrantedKey)
+                    DispatchQueue.main.async { self.objectWillChange.send() }
+                    print("🔐 PermissionManager: ✅ Polling detected accessibility grant! (attempt \(attempts))")
+                } else {
+                    print("🔐 PermissionManager: ✅ Accessibility confirmed (attempt \(attempts))")
+                }
+                timer.invalidate()
+            }
+            
+            if attempts >= 40 { // Stop after 20 seconds
+                print("🔐 PermissionManager: Polling timeout - accessibility still not granted after 20s")
+                timer.invalidate()
+            }
+        }
     }
     
     // MARK: - Screen Recording
     
-    /// Check if screen recording permission is granted (with time-limited cache)
+    /// Check if screen recording permission is granted
     var isScreenRecordingGranted: Bool {
         let granted = CGPreflightScreenCaptureAccess()
         
         if granted {
             if !UserDefaults.standard.bool(forKey: screenRecordingGrantedKey) {
                 UserDefaults.standard.set(true, forKey: screenRecordingGrantedKey)
-                print("🔐 PermissionManager: Screen Recording granted, caching")
+                DispatchQueue.main.async { self.objectWillChange.send() }
+                print("🔐 PermissionManager: Screen Recording granted! (TCC confirmed, cache updated)")
             }
             return true
         }
         
-        // TCC says NOT granted.
-        // Only fall back to cache during the warm-up period.
-        if Date().timeIntervalSince(appLaunchTimestamp) < cacheTrustDuration {
-            if UserDefaults.standard.bool(forKey: screenRecordingGrantedKey) {
-                print("🔐 PermissionManager: Trusting Screen Recording cache during warm-up")
-                return true
-            }
+        // TCC says NOT granted - trust persistent cache
+        let cacheValue = UserDefaults.standard.bool(forKey: screenRecordingGrantedKey)
+        if cacheValue {
+            print("🔐 PermissionManager: Screen Recording - TCC=false but cache=true (trusting cache)")
         }
-        
-        return false
+        return cacheValue
     }
     
     /// Request screen recording permission (shows system dialog)
-    /// Returns true if granted (may require app restart)
     @discardableResult
     func requestScreenRecording() -> Bool {
+        // Prevent duplicate prompts in same session
+        if hasPromptedScreenRecording {
+            print("🔐 PermissionManager: Skipping screen recording prompt (already prompted this session)")
+            return isScreenRecordingGranted
+        }
+        hasPromptedScreenRecording = true
+        
+        print("🔐 PermissionManager: Requesting screen recording permission (showing macOS dialog)...")
         return CGRequestScreenCaptureAccess()
     }
     
     // MARK: - Input Monitoring
     
-    /// Check if input monitoring permission is granted (with cache fallback)
-    /// Note: This relies on IOHIDManager success which is tracked by GlobalHotKey
+    /// Check if input monitoring permission is granted
+    /// runtimeCheck is the live result from IOHIDManager (from GlobalHotKey)
     func isInputMonitoringGranted(runtimeCheck: Bool) -> Bool {
-        let hasCachedGrant = UserDefaults.standard.bool(forKey: inputMonitoringGrantedKey)
-        return runtimeCheck || hasCachedGrant
+        if runtimeCheck {
+            // IOHIDManager confirms permission - update cache
+            if !UserDefaults.standard.bool(forKey: inputMonitoringGrantedKey) {
+                UserDefaults.standard.set(true, forKey: inputMonitoringGrantedKey)
+                DispatchQueue.main.async { self.objectWillChange.send() }
+                print("🔐 PermissionManager: Input Monitoring granted! (runtime confirmed, cache updated)")
+            }
+            return true
+        }
+        // Fall back to persistent cache
+        return UserDefaults.standard.bool(forKey: inputMonitoringGrantedKey)
     }
     
     /// Mark input monitoring as granted (called by GlobalHotKey on success)
     func markInputMonitoringGranted() {
-        UserDefaults.standard.set(true, forKey: inputMonitoringGrantedKey)
+        if !UserDefaults.standard.bool(forKey: inputMonitoringGrantedKey) {
+            UserDefaults.standard.set(true, forKey: inputMonitoringGrantedKey)
+            DispatchQueue.main.async { self.objectWillChange.send() }
+            print("🔐 PermissionManager: Input Monitoring marked as granted")
+        }
     }
     
     // MARK: - Settings URLs
     
     func openAccessibilitySettings() {
+        print("🔐 PermissionManager: Opening Accessibility settings...")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
     
     func openScreenRecordingSettings() {
+        print("🔐 PermissionManager: Opening Screen Recording settings...")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
     }
     
     func openInputMonitoringSettings() {
+        print("🔐 PermissionManager: Opening Input Monitoring settings...")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }
+    }
+    
+    // MARK: - Session Reset
+    
+    /// Reset prompt tracking (called when user explicitly wants to re-prompt)
+    func resetPromptTracking() {
+        hasPromptedAccessibility = false
+        hasPromptedScreenRecording = false
+        print("🔐 PermissionManager: Prompt tracking reset")
     }
 }

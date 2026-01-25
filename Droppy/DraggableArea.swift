@@ -245,7 +245,24 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         dragSessionImages.removeAll()
         
         // Call completion callback if drag was successful (for auto-clean feature)
+        // BUT skip if files were dropped back into a Droppy container (basket or shelf)
+        // This prevents items from disappearing when just reorganizing within Droppy
         if operation != [] {
+            // Check if drop location is inside the basket window
+            if let basketWindow = FloatingBasketWindowController.shared.basketWindow {
+                let basketFrame = basketWindow.frame
+                if basketFrame.contains(screenPoint) {
+                    return // Internal basket drop - don't auto-clean
+                }
+            }
+            
+            // Check if drop location is inside any NotchWindow (shelf)
+            for window in NSApp.windows {
+                if window is NotchWindow, window.frame.contains(screenPoint) {
+                    return // Internal shelf drop - don't auto-clean
+                }
+            }
+            
             onDragComplete?(operation)
         }
     }

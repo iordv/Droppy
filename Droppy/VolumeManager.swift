@@ -96,6 +96,11 @@ final class VolumeManager: NSObject, ObservableObject {
     @MainActor func setAbsolute(_ value: Float32) {
         let clamped = max(0, min(1, value))
         let currentlyMuted = isMutedInternal()
+        let previousVolume = rawVolume
+        
+        // Detect "unmute" transition: going from 0 (or muted) to first audible step
+        let wasEffectivelyMuted = currentlyMuted || previousVolume < 0.01
+        let isNowAudible = clamped >= step * 0.5  // At least ~half a step (first audible)
         
         if currentlyMuted && clamped > 0 {
             toggleMuteInternal()
@@ -108,6 +113,11 @@ final class VolumeManager: NSObject, ObservableObject {
         }
         
         publish(volume: clamped, muted: isMutedInternal(), touchDate: true)
+        
+        // Haptic feedback: bumpy feel when coming out of silence (0 → first step)
+        if wasEffectivelyMuted && isNowAudible {
+            HapticFeedback.toggle()
+        }
     }
     
     // MARK: - CoreAudio Helpers
@@ -178,9 +188,18 @@ final class VolumeManager: NSObject, ObservableObject {
         if let avg = fetchedVolume {
             let clampedAvg = max(0, min(1, avg))
             DispatchQueue.main.async {
+                let previousVolume = self.rawVolume
+                let wasEffectivelyMuted = previousVolume < 0.01
+                let isNowAudible = clampedAvg >= self.step * 0.5
+                
                 if self.rawVolume != clampedAvg {
                     if self.didInitialFetch {
                         self.lastChangeAt = Date()
+                        
+                        // Haptic feedback: bumpy feel when coming out of silence (0 → first step)
+                        if wasEffectivelyMuted && isNowAudible {
+                            HapticFeedback.toggle()
+                        }
                     }
                 }
                 self.rawVolume = clampedAvg

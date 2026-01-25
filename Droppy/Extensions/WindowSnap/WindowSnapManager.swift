@@ -423,17 +423,9 @@ final class WindowSnapManager: ObservableObject {
     }
     
     private func showPermissionAlert() {
-        Task { @MainActor in
-            let shouldOpen = await DroppyAlertController.shared.showPermissions(
-                title: "Accessibility Permission Required",
-                message: "Window Snap requires Accessibility permission to move and resize windows.\n\nPlease grant this in System Settings > Privacy & Security > Accessibility.",
-                actionButtonTitle: "Open Settings"
-            )
-            
-            if shouldOpen {
-                PermissionManager.shared.openAccessibilitySettings()
-            }
-        }
+        // Use ONLY macOS native dialogs - no Droppy custom dialogs
+        print("🔐 WindowSnapManager: Requesting Accessibility via native dialog")
+        PermissionManager.shared.requestAccessibility()
     }
     
     // MARK: - Window Manipulation (Accessibility API)
@@ -455,14 +447,31 @@ final class WindowSnapManager: ObservableObject {
     }
     
     private func getCurrentScreen(for window: AXUIElement) -> NSScreen? {
-        guard let frame = getWindowFrame(window) else {
+        guard let windowFrame = getWindowFrame(window) else {
             return NSScreen.main
         }
         
-        // Find the screen that contains most of the window
+        // CRITICAL: AXUIElement returns frame in SCREEN coordinates (Y=0 at top of primary screen)
+        // NSScreen.frame uses APPKIT coordinates (Y=0 at bottom of primary screen)
+        // We must convert the window frame before comparing with screen frames
+        guard let primaryScreen = NSScreen.screens.first else {
+            return NSScreen.main
+        }
+        let primaryHeight = primaryScreen.frame.height
+        
+        // Convert window frame from screen coords to AppKit coords
+        // AppKit Y = primaryHeight - screenY - height
+        let appKitWindowFrame = CGRect(
+            x: windowFrame.origin.x,
+            y: primaryHeight - windowFrame.origin.y - windowFrame.height,
+            width: windowFrame.width,
+            height: windowFrame.height
+        )
+        
+        // Find the screen that contains most of the window (now in same coordinate system)
         return NSScreen.screens.max(by: { screen1, screen2 in
-            let intersection1 = screen1.frame.intersection(frame)
-            let intersection2 = screen2.frame.intersection(frame)
+            let intersection1 = screen1.frame.intersection(appKitWindowFrame)
+            let intersection2 = screen2.frame.intersection(appKitWindowFrame)
             return (intersection1.width * intersection1.height) < (intersection2.width * intersection2.height)
         }) ?? NSScreen.main
     }

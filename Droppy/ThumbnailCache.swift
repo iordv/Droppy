@@ -168,6 +168,7 @@ final class ThumbnailCache {
     }
     
     /// Async load thumbnail for DroppedItem and cache it
+    /// Returns nil if no QuickLook thumbnail available - let view use NSWorkspace fallback
     func loadThumbnailAsync(for item: DroppedItem, size: CGSize = CGSize(width: 120, height: 120)) async -> NSImage? {
         let cacheKey = item.id.uuidString as NSString
         
@@ -183,7 +184,8 @@ final class ThumbnailCache {
             return thumbnail
         }
         
-        return item.icon
+        // Return nil - let view use direct NSWorkspace.icon fallback
+        return nil
     }
     
     // MARK: - Batch Preloading (Performance Optimization)

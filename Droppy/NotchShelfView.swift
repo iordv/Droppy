@@ -102,7 +102,6 @@ struct NotchShelfView: View {
     @State private var albumArtParallaxOffset: CGSize = .zero  // Cursor-following parallax effect
     @State private var albumArtTapScale: CGFloat = 1.0  // Subtle grow effect when clicking to open source
     @State private var mediaOverlayAppeared: Bool = false  // Scale+opacity appear animation for morphing overlays
-    @State private var mediaOverlayAnimWorkItem: DispatchWorkItem?  // Cancellable animation trigger for fast swipes
     
     // MORPH: Namespace for album art morphing between HUD and expanded player
     @Namespace private var albumArtNamespace
@@ -412,11 +411,12 @@ struct NotchShelfView: View {
             return mediaPlayerContentHeight + topPaddingDelta
         }
         
-        // SHELF: DYNAMIC height (grows with files)
-        // No header row anymore - auto-collapse handles hiding
+        // SHELF: DYNAMIC height (grows with files up to max 3 rows)
+        // Beyond 3 rows, ScrollView handles the overflow
         // Use shelfDisplaySlotCount for correct row count (collapsed stacks = 1 slot)
         let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
-        let baseHeight = max(1, rowCount) * 110 // 110 per row, no header
+        let cappedRowCount = min(rowCount, 3)  // Max 3 rows visible, scroll for rest
+        let baseHeight = max(1, cappedRowCount) * 110 // 110 per row, no header
         
         // In built-in notch mode, add extra height to compensate for top padding that clears physical notch
         // Island mode and external displays don't need this as they use symmetrical layout
@@ -921,8 +921,8 @@ struct NotchShelfView: View {
             // MARK: - Expanded Shelf Content
             if isExpandedOnThisScreen && enableNotchShelf {
                 expandedShelfContent
-                    // PREMIUM: Opacity transition with .smooth(0.35) to allow child morphing
-                    .transition(.opacity.animation(.smooth(duration: 0.35)))
+                    // PREMIUM: Scale(0.8, anchor: .top) + opacity transition - matches swipe feel
+                    .notchTransition()
                     .frame(width: expandedWidth, height: currentExpandedHeight)
                     // PREMIUM: Unified .smooth(0.35) for ALL state changes
                     .animation(.smooth(duration: 0.35), value: currentExpandedHeight)
@@ -1225,48 +1225,28 @@ struct NotchShelfView: View {
             .opacity(mediaOverlayAppeared ? 1.0 : 0)
             .animation(.smooth(duration: 0.35), value: mediaOverlayAppeared)
             .onAppear {
-                // PREMIUM: Cancel pending and trigger fresh animation on appear
-                mediaOverlayAnimWorkItem?.cancel()
-                mediaOverlayAppeared = false
-                let workItem = DispatchWorkItem { [self] in
-                    mediaOverlayAppeared = true
-                }
-                mediaOverlayAnimWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+                // UNIFIED: Immediate animation start - syncs with container notchTransition
+                mediaOverlayAppeared = true
             }
             .onDisappear {
-                mediaOverlayAnimWorkItem?.cancel()
                 mediaOverlayAppeared = false
             }
-            // PREMIUM: Re-trigger animation when swiping between shelf and media
+            // UNIFIED: Re-trigger animation when swiping between shelf and media
             .onChange(of: musicManager.isMediaHUDForced) { _, _ in
-                mediaOverlayAnimWorkItem?.cancel()
+                // Animate out then in
                 mediaOverlayAppeared = false
-                let workItem = DispatchWorkItem { [self] in
+                withAnimation(.smooth(duration: 0.35)) {
                     mediaOverlayAppeared = true
                 }
-                mediaOverlayAnimWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
             }
             .onChange(of: musicManager.isMediaHUDHidden) { _, _ in
-                mediaOverlayAnimWorkItem?.cancel()
                 mediaOverlayAppeared = false
-                let workItem = DispatchWorkItem { [self] in
+                withAnimation(.smooth(duration: 0.35)) {
                     mediaOverlayAppeared = true
                 }
-                mediaOverlayAnimWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
             }
-            // PREMIUM: Re-trigger animation when expanding/collapsing (hover or click)
-            .onChange(of: isExpandedOnThisScreen) { _, _ in
-                mediaOverlayAnimWorkItem?.cancel()
-                mediaOverlayAppeared = false
-                let workItem = DispatchWorkItem { [self] in
-                    mediaOverlayAppeared = true
-                }
-                mediaOverlayAnimWorkItem = workItem
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
-            }
+            // NOTE: No onChange for isExpandedOnThisScreen - overlays morph position, they don't hide/show
+            // The morphing overlays stay visible and smoothly animate between HUD ↔ expanded positions
             .geometryGroup()  // Bundle as single element for smooth morphing
             // Click to open source app (expanded only) with subtle grow effect
             .onTapGesture {
@@ -1743,14 +1723,14 @@ struct NotchShelfView: View {
                          ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
                     // SSOT: contentLayoutNotchHeight ensures MediaPlayerView and morphing overlays use identical positioning
                     // showTitle: false when morphing overlay handles it (DI mode OR external displays)
+                    // UNIFIED ANIMATION: MediaPlayerView has its own contentAppeared state that triggers on appear
+                    // Uses same scale(0.8)+opacity with .smooth(0.35) timing as morphing overlays
                     MediaPlayerView(musicManager: musicManager, notchHeight: contentLayoutNotchHeight, albumArtNamespace: albumArtNamespace, showAlbumArt: false, showVisualizer: false, showTitle: !shouldShowTitleInHUD)
                         .frame(height: currentExpandedHeight)
                         // Capture all clicks within the media player area
                         .contentShape(Rectangle())
                         // Stable identity for animation - prevents jitter on state changes
                         .id("media-player-view")
-                        // PREMIUM: Exact scale(0.8, anchor: .top) + opacity transition
-                        .notchTransition()
                 }
                 // Show empty shelf when no items and no music (or user swiped to hide music)
                 else if state.items.isEmpty {
@@ -1883,9 +1863,9 @@ struct NotchShelfView: View {
                     )
                 
                 // Items grid using LazyVGrid for efficient rendering
-                let columns = Array(repeating: GridItem(.fixed(80), spacing: 10), count: 5)
+                let columns = Array(repeating: GridItem(.fixed(64), spacing: 8), count: 5)
                 
-                LazyVGrid(columns: columns, spacing: 12) {
+                LazyVGrid(columns: columns, spacing: 8) {
                     // Power Folders first (always distinct, never stacked)
                     ForEach(state.shelfPowerFolders) { folder in
                         NotchItemView(
@@ -1959,14 +1939,15 @@ struct NotchShelfView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 8)
                 // SSOT: Top padding clears physical notch in built-in notch mode
                 // External displays and DI mode use smaller symmetrical padding
                 .padding(.top, contentLayoutNotchHeight == 0 ? 8 : contentLayoutNotchHeight + 4)
                 .padding(.bottom, 6)
             }
         }
-        .scrollDisabled(true)  // Disable scrolling - shelf doesn't scroll like basket
+        // Enable scrolling when more than 3 rows, disable otherwise
+        .scrollDisabled(state.shelfDisplaySlotCount <= 15)  // 5 items per row * 3 rows = 15
         .clipped() // Prevent hover effects from bleeding past shelf edges
         .contentShape(Rectangle())
         // Removed .onTapGesture from here to prevent swallowing touches on children

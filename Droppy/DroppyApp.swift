@@ -215,6 +215,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let serviceProvider = ServiceProvider()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // DEBUG: Force clear permission cache to diagnose stuck cache issue
+        #if DEBUG
+        print("🔐 DEBUG: Force clearing permission cache at launch")
+        UserDefaults.standard.removeObject(forKey: "accessibilityGranted")
+        UserDefaults.standard.removeObject(forKey: "screenRecordingGranted")
+        UserDefaults.standard.removeObject(forKey: "inputMonitoringGranted")
+        UserDefaults.standard.synchronize()
+        #endif
+        
         // Crash detection: Check if last session crashed and offer to report
         CrashReporter.shared.checkForCrashAndPrompt()
         
@@ -333,6 +342,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("📁 Droppy: Starting Tracked Folders Monitor")
                 TrackedFoldersManager.shared.startMonitoring()
             }
+            
+            // 6. AUTO-PROMPT FOR PERMISSIONS
+            // If any accessibility-dependent feature is enabled but permission not granted, prompt
+            let needsAccessibility = hudEnabled || clipboardEnabled
+            let axTrusted = AXIsProcessTrusted()
+            let cacheValue = UserDefaults.standard.bool(forKey: "accessibilityGranted")
+            let isGranted = PermissionManager.shared.isAccessibilityGranted
+            
+            print("🔐 DEBUG: needsAccessibility=\(needsAccessibility) hudEnabled=\(hudEnabled) clipboardEnabled=\(clipboardEnabled)")
+            print("🔐 DEBUG: AXIsProcessTrusted()=\(axTrusted) cache=\(cacheValue) isGranted=\(isGranted)")
+            
+            if needsAccessibility && !isGranted {
+                print("🔐 Droppy: Accessibility needed for enabled features - prompting...")
+                PermissionManager.shared.requestAccessibility()
+            } else {
+                print("🔐 DEBUG: NOT prompting - needsAccessibility=\(needsAccessibility) isGranted=\(isGranted)")
+            }
         }
         
         // Start background update scheduler (checks once per day)
@@ -344,6 +370,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OnboardingWindowController.shared.show()
             }
         }
+    }
+    
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Poll for accessibility permission in case user just returned from System Settings
+        // This handles the "TCC delay" where permission is granted but system API returns false for a few seconds
+        PermissionManager.shared.startPollingForAccessibility()
     }
     
     func applicationWillTerminate(_ notification: Notification) {

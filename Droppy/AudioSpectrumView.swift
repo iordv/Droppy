@@ -65,15 +65,13 @@ class AudioSpectrum: NSView {
             barLayer.frame = CGRect(x: xPosition, y: 0, width: barWidth, height: totalHeight)
             barLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             barLayer.position = CGPoint(x: xPosition + barWidth / 2, y: totalHeight / 2)
-            barLayer.fillColor = currentColor.cgColor
             barLayer.backgroundColor = currentColor.cgColor
             barLayer.allowsGroupOpacity = false
             barLayer.masksToBounds = true
             
-            let path = NSBezierPath(roundedRect: CGRect(x: 0, y: 0, width: barWidth, height: totalHeight),
-                                    xRadius: barWidth / 2,
-                                    yRadius: barWidth / 2)
-            barLayer.path = path.cgPath
+            // PREMIUM: Fully rounded pill-shaped bars
+            // cornerRadius = full barWidth for maximum rounded ends
+            barLayer.cornerRadius = barWidth
             
             barLayers.append(barLayer)
             barScales.append(0.35)

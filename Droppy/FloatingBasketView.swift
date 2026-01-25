@@ -55,18 +55,18 @@ struct FloatingBasketView: View {
     
     private let cornerRadius: CGFloat = 28
     
-    // Each item is 76pt wide + 8pt spacing between = 84pt per item
-    // For 4 items: 4 * 76 + 3 * 8 = 304 + 24 = 328, plus 24pt padding each side = 376
-    private let itemWidth: CGFloat = 76
-    private let itemSpacing: CGFloat = 8
-    private let horizontalPadding: CGFloat = 24
+    // Each item is 64pt wide + 12pt spacing
+    // For 4 items: 4 * 64 + 3 * 12 = 256 + 36 = 292, plus 12pt padding each side = 316
+    private let itemWidth: CGFloat = 64
+    private let itemSpacing: CGFloat = 12
+    private let horizontalPadding: CGFloat = 12
     private let columnsPerRow: Int = 4
     
     // AirDrop zone width (30% of total when enabled)
     private let airDropZoneWidth: CGFloat = 90
     
-    /// Full width for 4-column grid: 4 * 76 + 3 * 8 + 24 * 2 = 304 + 24 + 48 = 376
-    private let fullGridWidth: CGFloat = 376
+    /// Full width for 4-column grid: 4 * 64 + 3 * 12 + 12 * 2 = 256 + 36 + 24 = 316
+    private let fullGridWidth: CGFloat = 316
     
     /// Dynamic height that fits content
     private var currentHeight: CGFloat {
@@ -76,10 +76,10 @@ struct FloatingBasketView: View {
             return 260  // Empty basket - SAME size as collapsed
         } else if isExpanded {
             let rowCount = ceil(Double(slotCount) / Double(columnsPerRow))
-            let headerHeight: CGFloat = 50  // Header + top padding
-            let bottomPadding: CGFloat = 52 // Match visual edge spacing
-            let itemHeight: CGFloat = 96    // Actual visible item height
-            let rowSpacing: CGFloat = 8     // Spacing between rows
+            let headerHeight: CGFloat = 44  // Header + top padding
+            let bottomPadding: CGFloat = 32 // Symmetrical with left/right 18pt + extra for label clearance
+            let itemHeight: CGFloat = 90    // Item with label and padding
+            let rowSpacing: CGFloat = 12    // Match actual grid row spacing!
             
             if isListView {
                 // List view: 25% taller for 1 row, 50% taller for 2+ rows (with scroll)
@@ -92,7 +92,7 @@ struct FloatingBasketView: View {
                     return gridHeightFor2Rows * 1.50  // Fixed height, scroll for more
                 }
             } else {
-                // Grid view: Max 3 rows, then scroll
+                // Grid view: Max 3 rows, then scroll - CONSISTENT BOTTOM PADDING
                 let cappedRowCount = min(rowCount, 3)
                 return headerHeight + (cappedRowCount * itemHeight) + (max(0, cappedRowCount - 1) * rowSpacing) + bottomPadding
             }
@@ -180,7 +180,11 @@ struct FloatingBasketView: View {
                 .shadow(color: .black.opacity(0.3), radius: 12, x: 0, y: 6)
             
             // Content - different views based on state
-            if state.basketDisplaySlotCount == 0 {
+            // Quick action hover explanation takes priority over regular content
+            if let hoveredAction = state.hoveredQuickAction {
+                quickActionExplanation(for: hoveredAction)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else if state.basketDisplaySlotCount == 0 {
                 emptyContent
             } else if isExpanded {
                 // Expanded grid view with full file list
@@ -191,7 +195,7 @@ struct FloatingBasketView: View {
             }
             
             // Selection rectangle overlay (only in expanded view)
-            if isDragSelecting && isExpanded {
+            if isDragSelecting && isExpanded && state.hoveredQuickAction == nil {
                 selectionRectangleOverlay
             }
         }
@@ -375,6 +379,53 @@ struct FloatingBasketView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    /// Explanation overlay shown when hovering over quick action buttons
+    @ViewBuilder
+    private func quickActionExplanation(for action: QuickActionType) -> some View {
+        ZStack {
+            // Centered explanation content
+            VStack(spacing: 12) {
+                // Action icon in a circle
+                Circle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Image(systemName: action.icon)
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                    )
+                
+                // Action title
+                Text(action.title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                
+                // Action description
+                Text(action.description)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            
+            // X button overlay in top-left
+            VStack {
+                HStack {
+                    BasketCloseButton {
+                        closeBasket()
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                
+                Spacer()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeOut(duration: 0.15), value: action)
     }
     
     private var itemsContent: some View {
@@ -726,87 +777,89 @@ struct FloatingBasketView: View {
     }
     
     private var basketItemsGrid: some View {
-        ZStack {
-            // Background tap handler - catches clicks on empty areas
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    state.deselectAllBasket()
-                    // If rename was active, end the file operation lock
-                    if renamingItemId != nil {
-                        state.isRenaming = false
-                        state.endFileOperation()
-                    }
-                    renamingItemId = nil
-                }
-            
-            // Items grid using LazyVGrid for efficient rendering
-            let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: itemSpacing), count: columnsPerRow)
-            
-            LazyVGrid(columns: columns, spacing: itemSpacing) {
-                // Power Folders first (always distinct, never stacked)
-                ForEach(state.basketPowerFolders) { folder in
-                    BasketItemView(item: folder, state: state, renamingItemId: $renamingItemId) {
-                        withAnimation(DroppyAnimation.state) {
-                            state.basketPowerFolders.removeAll { $0.id == folder.id }
+        ScrollView {
+            ZStack {
+                // Background tap handler - catches clicks on empty areas
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        state.deselectAllBasket()
+                        // If rename was active, end the file operation lock
+                        if renamingItemId != nil {
+                            state.isRenaming = false
+                            state.endFileOperation()
                         }
+                        renamingItemId = nil
                     }
-                    .transition(.stackDrop)
-                }
                 
-                // Stacks - render based on expansion state
-                ForEach(state.basketStacks) { stack in
-                    if stack.isExpanded {
-                        // Collapse button as first item in expanded stack
-                        StackCollapseButton(itemCount: stack.count) {
-                            withAnimation(ItemStack.collapseAnimation) {
-                                state.collapseBasketStack(stack.id)
+                // Items grid using LazyVGrid for efficient rendering
+                let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: itemSpacing), count: columnsPerRow)
+                
+                LazyVGrid(columns: columns, spacing: 12) {  // Match column spacing
+                    // Power Folders first (always distinct, never stacked)
+                    ForEach(state.basketPowerFolders) { folder in
+                        BasketItemView(item: folder, state: state, renamingItemId: $renamingItemId) {
+                            withAnimation(DroppyAnimation.state) {
+                                state.basketPowerFolders.removeAll { $0.id == folder.id }
                             }
                         }
-                        .transition(.stackExpand(index: 0))
-                        
-                        // Expanded: show all items individually
-                        ForEach(stack.items) { item in
+                        .transition(.stackDrop)
+                    }
+                    
+                    // Stacks - render based on expansion state
+                    ForEach(state.basketStacks) { stack in
+                        if stack.isExpanded {
+                            // Collapse button as first item in expanded stack
+                            StackCollapseButton(itemCount: stack.count) {
+                                withAnimation(ItemStack.collapseAnimation) {
+                                    state.collapseBasketStack(stack.id)
+                                }
+                            }
+                            .transition(.stackExpand(index: 0))
+                            
+                            // Expanded: show all items individually
+                            ForEach(stack.items) { item in
+                                BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
+                                    withAnimation(DroppyAnimation.state) {
+                                        state.removeBasketItem(item)
+                                    }
+                                }
+                                .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
+                            }
+                        } else if stack.isSingleItem, let item = stack.coverItem {
+                            // Single item - render as normal
                             BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
                                 withAnimation(DroppyAnimation.state) {
                                     state.removeBasketItem(item)
                                 }
                             }
-                            .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
-                        }
-                    } else if stack.isSingleItem, let item = stack.coverItem {
-                        // Single item - render as normal
-                        BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
-                            withAnimation(DroppyAnimation.state) {
-                                state.removeBasketItem(item)
-                            }
-                        }
-                        .transition(.stackDrop)
-                    } else {
-                        // Multi-item collapsed stack
-                        StackedItemView(
-                            stack: stack,
-                            state: state,
-                            onExpand: {
-                                withAnimation(ItemStack.expandAnimation) {
-                                    state.toggleBasketStackExpansion(stack.id)
+                            .transition(.stackDrop)
+                        } else {
+                            // Multi-item collapsed stack
+                            StackedItemView(
+                                stack: stack,
+                                state: state,
+                                onExpand: {
+                                    withAnimation(ItemStack.expandAnimation) {
+                                        state.toggleBasketStackExpansion(stack.id)
+                                    }
+                                },
+                                onRemove: {
+                                    withAnimation(DroppyAnimation.state) {
+                                        state.removeBasketStack(stack.id)
+                                    }
                                 }
-                            },
-                            onRemove: {
-                                withAnimation(DroppyAnimation.state) {
-                                    state.removeBasketStack(stack.id)
-                                }
-                            }
-                        )
-                        .transition(.stackDrop)
+                            )
+                            .transition(.stackDrop)
+                        }
                     }
                 }
+                .animation(DroppyAnimation.bouncy, value: state.basketStacks.count)
+                .animation(DroppyAnimation.bouncy, value: state.basketPowerFolders.count)
             }
-            .animation(DroppyAnimation.bouncy, value: state.basketStacks.count)
-            .animation(DroppyAnimation.bouncy, value: state.basketPowerFolders.count)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.bottom, 18)
         }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.bottom, 4)
     }
     
     /// List view for basket items - uses same BasketItemView with list layout for full feature parity
@@ -886,7 +939,7 @@ struct FloatingBasketView: View {
             }
             .padding(.horizontal, horizontalPadding)
             .padding(.top, 24)
-            .padding(.bottom, 4)
+            .padding(.bottom, 18)
         }
         // Note: Drop destination handled at container level (mainBasketContainer)
     }

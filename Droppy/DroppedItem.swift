@@ -104,6 +104,7 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     }
     
     /// Generates a thumbnail for the file asynchronously
+    /// Returns nil if no QuickLook thumbnail available - view should use NSWorkspace.icon fallback
     func generateThumbnail(size: CGSize = CGSize(width: 64, height: 64)) async -> NSImage? {
         let request = QLThumbnailGenerator.Request(
             fileAt: url,
@@ -116,7 +117,21 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
             let thumbnail = try await QLThumbnailGenerator.shared.generateBestRepresentation(for: request)
             return thumbnail.nsImage
         } catch {
-            return icon
+            // FALLBACK FOR IMAGES: Try loading directly with NSImage
+            // This fixes pasted images that QuickLook may fail to render
+            if isImage, let image = NSImage(contentsOf: url) {
+                // Resize to requested size for memory efficiency
+                let resized = NSImage(size: size)
+                resized.lockFocus()
+                image.draw(in: NSRect(origin: .zero, size: size),
+                          from: NSRect(origin: .zero, size: image.size),
+                          operation: .copy,
+                          fraction: 1.0)
+                resized.unlockFocus()
+                return resized
+            }
+            // Return nil - let view use NSWorkspace.icon fallback
+            return nil
         }
     }
     

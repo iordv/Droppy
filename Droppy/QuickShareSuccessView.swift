@@ -195,7 +195,8 @@ final class QuickShareSuccessWindowController: NSObject, NSWindowDelegate {
         } else {
             newWindow.center()
         }
-        newWindow.level = .floating
+        // Use level higher than basket (popUpMenu+1) so QuickShare appears on top
+        newWindow.level = NSWindow.Level(Int(NSWindow.Level.popUpMenu.rawValue) + 2)
         
         window = newWindow
         

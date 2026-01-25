@@ -186,6 +186,7 @@ struct MediaPlayerView: View {
     var showAlbumArt: Bool = true  // PREMIUM: Set to false when morphing is handled externally
     var showVisualizer: Bool = true  // PREMIUM: Set to false when morphing is handled externally
     var showTitle: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+    @State private var contentAppeared: Bool = false  // Local animation state - syncs with container
     @State private var isDragging: Bool = false
     @State private var dragValue: Double = 0
     @State private var lastDragTime: Date = .distantPast
@@ -193,8 +194,6 @@ struct MediaPlayerView: View {
     @State private var isAlbumArtHovering: Bool = false
     @State private var albumArtFlipAngle: Double = 0  // For track change flip animation
     @State private var albumArtPauseScale: CGFloat = 1.0  // For pause/play scale animation
-    @State private var contentAppeared: Bool = false  // PREMIUM: For scale+opacity appear animation
-    @State private var contentAppearedWorkItem: DispatchWorkItem?  // Cancellable for fast open/close
     
     // MARK: - Observed Managers for Fast HUD Updates
     @ObservedObject private var volumeManager = VolumeManager.shared
@@ -308,22 +307,16 @@ struct MediaPlayerView: View {
                 }
                 // Controls bottom-aligned with album art bottom edge
                 .frame(maxWidth: .infinity, minHeight: albumArtSize, maxHeight: albumArtSize)
-                // PREMIUM: Scale+opacity appear animation (starts at 0.8/0, animates to 1.0/1)
+                // UNIFIED ANIMATION: Scale+opacity with immediate trigger (no delay)
+                // Uses same animation timing as container notchTransition for sync
                 .scaleEffect(contentAppeared ? 1.0 : 0.8, anchor: .top)
                 .opacity(contentAppeared ? 1.0 : 0)
                 .animation(.smooth(duration: 0.35), value: contentAppeared)
                 .onAppear {
-                    // PREMIUM: Cancel pending and trigger fresh animation on appear
-                    contentAppearedWorkItem?.cancel()
-                    contentAppeared = false
-                    let workItem = DispatchWorkItem { [self] in
-                        contentAppeared = true
-                    }
-                    contentAppearedWorkItem = workItem
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+                    // Immediate animation start - syncs with container notchTransition
+                    contentAppeared = true
                 }
                 .onDisappear {
-                    contentAppearedWorkItem?.cancel()
                     contentAppeared = false
                 }
             }
