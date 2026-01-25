@@ -135,6 +135,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         HapticFeedback.expand()
     }
     
+    /// Close the settings window
+    func close() {
+        window?.close()
+    }
+    
     /// Clears the pending extension (called after SettingsView consumes it)
     func clearPendingExtension() {
         pendingExtensionToOpen = nil
