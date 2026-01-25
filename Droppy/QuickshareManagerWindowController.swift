@@ -40,13 +40,11 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
         .preferredColorScheme(.dark)
         
         let hostingView = NSHostingView(rootView: contentView)
+        hostingView.setFrameSize(hostingView.fittingSize) // Use intrinsic size
         
-        let windowWidth: CGFloat = 450
-        let windowHeight: CGFloat = 500
-        
-        // Use NSPanel with borderless style (matches Onboarding exactly)
+        // Use NSPanel with borderless style (matches Onboarding/UpdateView exactly)
         let newWindow = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+            contentRect: NSRect(origin: .zero, size: hostingView.fittingSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

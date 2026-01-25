@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  SwiftUI view for managing Quickshare upload history
-//  Matches ClipboardItemRow styling exactly
+//  Matches UpdateView styling exactly (adapts to dark/transparent mode)
 //
 
 import SwiftUI
@@ -11,6 +11,8 @@ import Observation
 
 struct QuickshareManagerView: View {
     let onDismiss: () -> Void
+    
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     @State private var showDeleteConfirmation: QuickshareItem? = nil
     @State private var copiedItemId: UUID? = nil
@@ -20,64 +22,57 @@ struct QuickshareManagerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header - native Droppy style with close button
-            HStack {
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 18, weight: .medium))
+            // Header - matches UpdateView header (without NotchFace)
+            VStack(spacing: 16) {
+                Image(systemName: "link.circle.fill")
+                    .font(.system(size: 60))
                     .foregroundStyle(.cyan)
                 
                 Text("Quickshare")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                
-                Spacer()
-                
-                Text("\(manager.items.count) file\(manager.items.count == 1 ? "" : "s")")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
-                
-                // Close button
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .frame(width: 24, height: 24)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
+            .padding(.top, 28)
+            .padding(.bottom, 20)
             
-            // Subtle separator
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
-                .frame(height: 1)
+            Divider()
+                .padding(.horizontal, 24)
             
-            if manager.items.isEmpty {
-                // Empty state - native Droppy style
-                VStack(spacing: 12) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 40, weight: .light))
-                        .foregroundStyle(.white.opacity(0.2))
+            // Status card - matches UpdateView version info card
+            VStack(spacing: 0) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: manager.items.isEmpty ? "tray" : "tray.full.fill")
+                        .foregroundStyle(manager.items.isEmpty ? .secondary : .cyan)
+                        .font(.system(size: 14))
+                        .frame(width: 22)
                     
-                    Text("No shared files")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.5))
-                    
-                    Text("Files you share via Quickshare will appear here")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.3))
-                        .multilineTextAlignment(.center)
+                    Text(manager.items.isEmpty
+                         ? "No shared files yet"
+                         : "You have \(manager.items.count) shared file\(manager.items.count == 1 ? "" : "s")")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary.opacity(0.85))
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // List of shared files - matches clipboard list styling
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.02))
+            }
+            .background(Color.white.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+            )
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            
+            if !manager.items.isEmpty {
+                Divider()
+                    .padding(.horizontal, 20)
+                
+                // List of shared files
                 ScrollView {
-                    LazyVStack(spacing: 6) {
+                    VStack(spacing: 6) {
                         ForEach(manager.items) { item in
                             QuickshareItemRow(
                                 item: item,
@@ -106,18 +101,32 @@ struct QuickshareManagerView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
                 }
+                .frame(maxHeight: 250)
             }
+            
+            Divider()
+                .padding(.horizontal, 20)
+            
+            // Action buttons - matches UpdateView button layout
+            HStack(spacing: 10) {
+                Spacer()
+                
+                Button {
+                    onDismiss()
+                } label: {
+                    Text("Done")
+                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
+            }
+            .padding(16)
         }
-        .frame(width: 450, height: 500)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        )
+        .frame(width: 380)
+        .fixedSize(horizontal: true, vertical: true)
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .alert("Delete from Server?", isPresented: Binding(
             get: { showDeleteConfirmation != nil },
             set: { if !$0 { showDeleteConfirmation = nil } }
@@ -166,7 +175,7 @@ struct QuickshareItemRow: View {
     
     var body: some View {
         HStack(spacing: 10) {
-            // Icon/Thumbnail - circular like ClipboardItemRow
+            // Icon - circular like ClipboardItemRow
             ZStack {
                 Circle()
                     .fill(Color.white.opacity(0.1))
@@ -198,7 +207,7 @@ struct QuickshareItemRow: View {
             
             Spacer()
             
-            // URL preview on the right (like clipboard source app)
+            // URL preview on the right
             Text(item.shortURL)
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
