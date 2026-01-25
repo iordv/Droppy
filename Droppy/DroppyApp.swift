@@ -14,10 +14,15 @@ struct DroppyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault.showInMenuBar
+    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar = PreferenceDefault.showQuickshareInMenuBar
     
     var body: some Scene {
         MenuBarExtra("Droppy", image: "MenuBarIcon", isInserted: $showInMenuBar) {
             DroppyMenuContent()
+        }
+        
+        MenuBarExtra("Droppy Quickshare", systemImage: "drop.fill", isInserted: $showQuickshareInMenuBar) {
+            QuickshareMenuContent()
         }
     }
 }

@@ -81,6 +81,7 @@ enum AppPreferenceKey {
     
     // MARK: - System
     static let showInMenuBar = "showInMenuBar"
+    static let showQuickshareInMenuBar = "showQuickshareInMenuBar"
     static let startAtLogin = "startAtLogin"
     static let hasCompletedOnboarding = "hasCompletedOnboarding"
     static let didMigrateShelfAirDropDefault = "didMigrateShelfAirDropDefault"
@@ -180,6 +181,7 @@ enum PreferenceDefault {
     
     // MARK: - System
     static let showInMenuBar = true
+    static let showQuickshareInMenuBar = true
     static let startAtLogin = false
     static let hasCompletedOnboarding = false
     static let enableFinderServices = true

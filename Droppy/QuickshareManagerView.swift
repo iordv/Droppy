@@ -72,11 +72,11 @@ struct QuickshareManagerView: View {
     
     private var headerView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "link.circle.fill")
+            Image(systemName: "drop.fill")
                 .font(.system(size: 60))
                 .foregroundStyle(.cyan)
             
-            Text("Quickshare")
+            Text("Droppy Quickshare")
                 .font(.title2.bold())
                 .foregroundStyle(.primary)
         }
