@@ -105,9 +105,24 @@ struct QuickshareInfoView: View {
             }
             .shadow(color: Color.cyan.opacity(0.2), radius: 8, y: 4)
             
-            Text("Droppy Quickshare")
-                .font(.title2.bold())
-                .foregroundStyle(.primary)
+            HStack(alignment: .center, spacing: 10) {
+                Text("Droppy Quickshare")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+                
+                if !manager.items.isEmpty {
+                    HStack(spacing: 4) {
+                        Text("\(manager.items.count)")
+                            .font(.system(size: 12, weight: .bold))
+                        Text("shared file\(manager.items.count == 1 ? "" : "s")")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.white.opacity(0.15)))
+                }
+            }
             
             // Stats row
             HStack(spacing: 12) {
@@ -196,59 +211,49 @@ struct QuickshareInfoView: View {
     }
     
     private var managerSection: some View {
-        VStack(spacing: 0) {
-            // Status Header
-            HStack(alignment: .center, spacing: 12) {
-                let statusIcon = manager.items.isEmpty ? "tray" : "tray.full.fill"
-                let statusColor: Color = manager.items.isEmpty ? .secondary : .cyan
-                let statusText = manager.items.isEmpty
-                    ? "No shared files yet"
-                    : "You have \(manager.items.count) shared file\(manager.items.count == 1 ? "" : "s")"
-                
-                Image(systemName: statusIcon)
-                    .foregroundStyle(statusColor)
-                    .font(.system(size: 14))
-                    .frame(width: 22)
-                
-                Text(statusText)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary.opacity(0.85))
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color.white.opacity(0.04)) // Subtle header bg
-            
-            // File List
-            if !manager.items.isEmpty {
-                Divider()
-                    .overlay(Color.white.opacity(0.08))
-                
+        Group {
+            if manager.items.isEmpty {
+                // Empty State Placeholder
+                VStack(spacing: 10) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.secondary.opacity(0.5))
+                    Text("No shared files yet")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+            } else {
+                // Unified List Card
                 VStack(spacing: 0) {
                     ForEach(Array(manager.items.enumerated()), id: \.element.id) { index, item in
                         itemRow(for: item)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            // Alternating row background for subtle striping? Or just interaction highlight?
-                            // Let's keep it clean
                         
                         if index < manager.items.count - 1 {
                              Divider()
-                                .padding(.leading, 50) // Indent divider past icon
+                                .padding(.leading, 50)
                                 .overlay(Color.white.opacity(0.05))
                         }
                     }
                 }
                 .padding(.vertical, 4)
+                .background(Color.white.opacity(0.03))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
             }
         }
-        .background(Color.white.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
     }
     
     // Previous statusCard helper removed as it's merged above
