@@ -232,15 +232,15 @@ struct QuickshareInfoView: View {
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
             } else {
-                // Unified List Card
-                VStack(spacing: 0) {
+                // Unified List Card - spacing 8 to match clipboard
+                VStack(spacing: 8) {
                     ForEach(manager.items) { item in
                         itemRow(for: item)
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 6)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
                 .background(Color.white.opacity(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
