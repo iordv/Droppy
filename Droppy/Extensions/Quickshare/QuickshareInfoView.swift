@@ -292,7 +292,7 @@ struct QuickshareInfoView: View {
                     ForEach(manager.items) { item in
                         itemRow(for: item)
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, 2)
                     }
                 }
                 .padding(.vertical, 8)
