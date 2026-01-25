@@ -207,9 +207,32 @@ else
     warning "DroppyInstaller source not found"
 fi
 
+# Code Signing
+info "Signing Application"
+APP_PATH="$APP_BUILD_PATH/Build/Products/Release/Droppy.app"
+SIGNING_IDENTITY="Developer ID Application: Jordy Spruit"
+
+# Sign all nested components first (helpers, frameworks)
+find "$APP_PATH/Contents" -name "*.dylib" -o -name "*.framework" | while read -r item; do
+    codesign --force --options runtime --sign "$SIGNING_IDENTITY" "$item" 2>/dev/null || true
+done
+
+# Sign helper if exists
+if [ -f "$APP_PATH/Contents/Helpers/DroppyUpdater" ]; then
+    codesign --force --options runtime --sign "$SIGNING_IDENTITY" "$APP_PATH/Contents/Helpers/DroppyUpdater"
+    step "Signed DroppyUpdater helper"
+fi
+
+# Sign the main app
+codesign --force --options runtime --sign "$SIGNING_IDENTITY" --entitlements "$MAIN_REPO/Droppy/Droppy.entitlements" "$APP_PATH" || error "Code signing failed"
+step "Signed Droppy.app with Developer ID"
+
+# Verify signature
+codesign --verify --deep --strict "$APP_PATH" || error "Signature verification failed"
+step "Signature verified"
+
 # Packaging DMG (classic drag-to-Applications)
 info "Packaging DMG"
-APP_PATH="$APP_BUILD_PATH/Build/Products/Release/Droppy.app"
 DMG_NAME="Droppy-$VERSION.dmg"
 rm -f Droppy*.zip Droppy*.dmg rw.*.dmg
 
@@ -218,7 +241,25 @@ npx create-dmg "$APP_PATH" . --overwrite 2>/dev/null || error "DMG creation fail
 
 # Rename to our versioned name
 mv "Droppy $VERSION.dmg" "$DMG_NAME" 2>/dev/null || mv Droppy*.dmg "$DMG_NAME" 2>/dev/null
-success "$DMG_NAME created"
+
+# Sign the DMG too
+codesign --force --sign "$SIGNING_IDENTITY" "$DMG_NAME" || error "DMG signing failed"
+step "Signed DMG"
+
+# Notarization
+info "Notarizing with Apple"
+step "Submitting to Apple notary service..."
+
+# Submit for notarization (uses stored credentials "Droppy-Notarize")
+xcrun notarytool submit "$DMG_NAME" --keychain-profile "Droppy-Notarize" --wait || {
+    warning "Notarization failed - DMG will show Gatekeeper warning"
+    warning "To fix: run 'xcrun notarytool store-credentials Droppy-Notarize' first"
+}
+
+# Staple the notarization ticket to the DMG
+xcrun stapler staple "$DMG_NAME" 2>/dev/null && step "Notarization ticket stapled" || warning "Stapling failed"
+
+success "$DMG_NAME created and notarized"
 
 # Checksum
 info "Generating Integrity Checksum"
