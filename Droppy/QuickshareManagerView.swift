@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct QuickshareManagerView: View {
-    @State private var manager = QuickshareManager.shared
+    private var manager: QuickshareManager { QuickshareManager.shared }
     @State private var showDeleteConfirmation: QuickshareItem? = nil
     @State private var copiedItemId: UUID? = nil
     
