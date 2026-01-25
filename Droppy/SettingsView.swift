@@ -856,7 +856,7 @@ struct SettingsView: View {
                     
                     // Manage History
                     Button {
-                        QuickshareManagerWindowController.shared.show()
+                        QuickshareManagerWindowController.show()
                         SettingsWindowController.shared.close()
                     } label: {
                         HStack {
