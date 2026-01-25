@@ -97,7 +97,7 @@ step "Set MARKETING_VERSION = $VERSION"
 info "Compiling Binary"
 APP_BUILD_PATH="$MAIN_REPO/build"
 rm -rf "$APP_BUILD_PATH"
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme Droppy -configuration Release -derivedDataPath "$APP_BUILD_PATH" -destination 'generic/platform=macOS' ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO -quiet || error "Build failed"
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -scheme Droppy -configuration Release -derivedDataPath "$APP_BUILD_PATH" -destination 'generic/platform=macOS' ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGN_IDENTITY="Developer ID Application: Jordy Spruit (NARHG44L48)" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=NARHG44L48 -quiet || error "Build failed"
 step "Build Successful"
 
 # Build and Bundle Helper
