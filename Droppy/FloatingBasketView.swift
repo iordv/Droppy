@@ -395,6 +395,7 @@ struct FloatingBasketView: View {
                 Text(action.description)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.white.opacity(0.5))
+                    .multilineTextAlignment(.center)
                 Spacer()
             }
             
