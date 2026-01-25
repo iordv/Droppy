@@ -25,8 +25,29 @@ final class PermissionManager {
     private let accessibilityGrantedKey = "accessibilityGranted"
     private let screenRecordingGrantedKey = "screenRecordingGranted"
     private let inputMonitoringGrantedKey = "inputMonitoringGranted"
+    private let lastKnownVersionKey = "permissionCacheVersion"
     
-    private init() {}
+    private init() {
+        // Clear stale permission caches when app version changes
+        // This ensures we re-check TCC after updates that might have
+        // changed code signing or entitlements
+        clearCacheIfVersionChanged()
+    }
+    
+    /// Clear permission caches if the app version has changed
+    /// This forces a fresh TCC check after app updates
+    private func clearCacheIfVersionChanged() {
+        let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let cachedVersion = UserDefaults.standard.string(forKey: lastKnownVersionKey)
+        
+        if cachedVersion != currentVersion {
+            print("🔐 PermissionManager: Version changed (\(cachedVersion ?? "nil") → \(currentVersion)), clearing permission cache")
+            UserDefaults.standard.removeObject(forKey: accessibilityGrantedKey)
+            UserDefaults.standard.removeObject(forKey: screenRecordingGrantedKey)
+            UserDefaults.standard.removeObject(forKey: inputMonitoringGrantedKey)
+            UserDefaults.standard.set(currentVersion, forKey: lastKnownVersionKey)
+        }
+    }
     
     // MARK: - App State
     private let appLaunchTimestamp = Date()
@@ -73,22 +94,25 @@ final class PermissionManager {
     
     // MARK: - Screen Recording
     
-    /// Check if screen recording permission is granted (with cache fallback)
+    /// Check if screen recording permission is granted (with time-limited cache)
     var isScreenRecordingGranted: Bool {
         let granted = CGPreflightScreenCaptureAccess()
-        let hasCachedGrant = UserDefaults.standard.bool(forKey: screenRecordingGrantedKey)
         
         if granted {
-            if !hasCachedGrant {
+            if !UserDefaults.standard.bool(forKey: screenRecordingGrantedKey) {
                 UserDefaults.standard.set(true, forKey: screenRecordingGrantedKey)
                 print("🔐 PermissionManager: Screen Recording granted, caching")
             }
             return true
         }
         
-        // Trust cache if we previously verified permission
-        if hasCachedGrant {
-            return true
+        // TCC says NOT granted.
+        // Only fall back to cache during the warm-up period.
+        if Date().timeIntervalSince(appLaunchTimestamp) < cacheTrustDuration {
+            if UserDefaults.standard.bool(forKey: screenRecordingGrantedKey) {
+                print("🔐 PermissionManager: Trusting Screen Recording cache during warm-up")
+                return true
+            }
         }
         
         return false
