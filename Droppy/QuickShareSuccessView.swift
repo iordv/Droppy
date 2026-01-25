@@ -16,6 +16,7 @@ struct QuickShareSuccessView: View {
     let onDismiss: () -> Void
     
     @State private var showCopiedFeedback = false
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     var body: some View {
         VStack(spacing: 0) {
@@ -127,7 +128,13 @@ struct QuickShareSuccessView: View {
             .padding(16)
         }
         .frame(width: 500, height: 330)
-        .background(Color.black)
+        .background {
+            if useTransparentBackground {
+                Rectangle().fill(.ultraThinMaterial)
+            } else {
+                Color.black
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)

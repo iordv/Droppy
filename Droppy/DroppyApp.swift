@@ -20,10 +20,6 @@ struct DroppyApp: App {
         MenuBarExtra("Droppy", image: "MenuBarIcon", isInserted: $showInMenuBar) {
             DroppyMenuContent()
         }
-        
-        MenuBarExtra("Droppy Quickshare", systemImage: "drop.fill", isInserted: $showQuickshareInMenuBar) {
-            QuickshareMenuContent()
-        }
     }
 }
 
@@ -102,6 +98,12 @@ struct DroppyMenuContent: View {
         }
         
         Divider()
+        
+        Menu {
+            QuickshareMenuContent()
+        } label: {
+            Label("Quickshare", systemImage: "drop.fill")
+        }
         
         // Element Capture with native keyboard shortcut styling (hidden when disabled)
         if !isElementCaptureDisabled {

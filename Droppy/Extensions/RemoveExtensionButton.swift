@@ -92,6 +92,8 @@ struct DisableExtensionButton: View {
             return "This will disable the terminal extension. You can enable it again later."
         case .menuBarManager:
             return "This will remove the menu bar separator and restore all hidden icons. You can enable it again later."
+        case .quickshare:
+            return "Droppy Quickshare is a core extension and cannot be disabled."
         }
     }
     
