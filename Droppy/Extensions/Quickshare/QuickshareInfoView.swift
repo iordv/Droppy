@@ -212,96 +212,52 @@ struct QuickshareInfoView: View {
     }
     
     private var managerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Section Header
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(Color.cyan.opacity(0.15))
-                        .frame(width: 32, height: 32)
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.cyan)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Shared Files")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text("Hosted on 0x0.st • Auto-expires based on size")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            // Clean section header
+            HStack {
+                Text("Shared Files")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
                 
                 Spacer()
                 
                 if !manager.items.isEmpty {
                     Text("\(manager.items.count)")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Color.white.opacity(0.15)))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.white.opacity(0.1)))
                 }
             }
-            
-            // Tips/Info row
-            HStack(spacing: 16) {
-                HStack(spacing: 5) {
-                    Image(systemName: "hand.tap.fill")
-                        .font(.system(size: 10))
-                    Text("Click to copy link")
-                        .font(.caption2)
-                }
-                .foregroundStyle(.secondary.opacity(0.8))
-                
-                HStack(spacing: 5) {
-                    Image(systemName: "cursorarrow.click.2")
-                        .font(.system(size: 10))
-                    Text("Right-click to delete")
-                        .font(.caption2)
-                }
-                .foregroundStyle(.secondary.opacity(0.8))
-            }
+            .padding(.horizontal, 4)
             
             // File list or empty state
             if manager.items.isEmpty {
                 // Empty State
-                VStack(spacing: 10) {
+                VStack(spacing: 8) {
                     Image(systemName: "tray")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.secondary.opacity(0.5))
-                    Text("No shared files yet")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    Text("Drop files on the basket and tap Quickshare")
-                        .font(.caption)
-                        .foregroundStyle(.secondary.opacity(0.7))
+                        .font(.system(size: 20))
+                        .foregroundStyle(.secondary.opacity(0.4))
+                    Text("No shared files")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
+                .padding(.vertical, 20)
                 .background(Color.white.opacity(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             } else {
-                // File List Card
-                VStack(spacing: 8) {
+                // File List - clean card
+                VStack(spacing: 0) {
                     ForEach(manager.items) { item in
                         itemRow(for: item)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 2)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                     }
                 }
-                .padding(.vertical, 8)
                 .background(Color.white.opacity(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
         }
     }
