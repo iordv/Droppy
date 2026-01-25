@@ -3,19 +3,24 @@
 //  Droppy
 //
 //  SwiftUI view for managing Quickshare upload history
-//  Native Droppy styling: black background, cyan accents
+//  Native Droppy styling: borderless window with rounded corners
 //
 
 import SwiftUI
+import Observation
 
 struct QuickshareManagerView: View {
-    private var manager: QuickshareManager { QuickshareManager.shared }
+    let onDismiss: () -> Void
+    
     @State private var showDeleteConfirmation: QuickshareItem? = nil
     @State private var copiedItemId: UUID? = nil
     
+    // Store reference to trigger observation tracking
+    @Bindable private var manager = QuickshareManager.shared
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Header - native Droppy style
+            // Header - native Droppy style with close button
             HStack {
                 Image(systemName: "drop.fill")
                     .font(.system(size: 18, weight: .medium))
@@ -30,9 +35,22 @@ struct QuickshareManagerView: View {
                 Text("\(manager.items.count) file\(manager.items.count == 1 ? "" : "s")")
                     .font(.system(size: 12))
                     .foregroundStyle(.white.opacity(0.5))
+                
+                // Close button
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(width: 24, height: 24)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
             
             // Subtle separator
             Rectangle()
@@ -87,8 +105,13 @@ struct QuickshareManagerView: View {
                 }
             }
         }
-        .frame(minWidth: 350, idealWidth: 420, minHeight: 300, idealHeight: 480)
+        .frame(width: 450, height: 500)
         .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
         .alert("Delete from Server?", isPresented: Binding(
             get: { showDeleteConfirmation != nil },
             set: { if !$0 { showDeleteConfirmation = nil } }
@@ -244,6 +267,6 @@ struct QuickshareItemRow: View {
 }
 
 #Preview {
-    QuickshareManagerView()
+    QuickshareManagerView(onDismiss: {})
         .preferredColorScheme(.dark)
 }
