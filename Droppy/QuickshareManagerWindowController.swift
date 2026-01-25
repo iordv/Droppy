@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  Window controller for presenting the Quickshare Manager
-//  Matches native Droppy window style (borderless, black, spring animation)
+//  Matches native Droppy window style (borderless NSPanel, like Onboarding)
 //
 
 import AppKit
@@ -13,14 +13,19 @@ import SwiftUI
 final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
     static var shared: QuickshareManagerWindowController?
     
-    private var window: NSWindow?
+    private var window: NSPanel?
     
     /// Show the Quickshare Manager window
     static func show() {
-        if let existing = shared, let window = existing.window {
+        if let existing = shared, let window = existing.window, window.isVisible {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             return
+        }
+        
+        // Clear old reference if window was closed
+        if shared?.window == nil {
+            shared = nil
         }
         
         let controller = QuickshareManagerWindowController()
@@ -29,35 +34,45 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
     }
     
     private func showWindow() {
-        let contentView = QuickshareManagerView()
-            .preferredColorScheme(.dark)
+        let contentView = QuickshareManagerView {
+            QuickshareManagerWindowController.hide()
+        }
+        .preferredColorScheme(.dark)
+        
         let hostingView = NSHostingView(rootView: contentView)
         
-        let windowWidth: CGFloat = 420
-        let windowHeight: CGFloat = 480
+        let windowWidth: CGFloat = 450
+        let windowHeight: CGFloat = 500
         
-        let newWindow = NSWindow(
+        // Use NSPanel with borderless style (matches Onboarding exactly)
+        let newWindow = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         
-        newWindow.center()
-        newWindow.title = "Quickshare"
         newWindow.titlebarAppearsTransparent = true
-        newWindow.titleVisibility = .visible
-        
-        // Configure background and appearance (matches SettingsWindowController)
-        newWindow.isMovableByWindowBackground = false
+        newWindow.titleVisibility = .hidden
         newWindow.backgroundColor = .clear
         newWindow.isOpaque = false
         newWindow.hasShadow = true
+        newWindow.isMovableByWindowBackground = true
         newWindow.isReleasedWhenClosed = false
-        newWindow.minSize = NSSize(width: 350, height: 300)
-        
         newWindow.delegate = self
         newWindow.contentView = hostingView
+        
+        // Center on main screen
+        if let screen = NSScreen.main {
+            let screenFrame = screen.visibleFrame
+            let windowFrame = newWindow.frame
+            let x = screenFrame.midX - windowFrame.width / 2
+            let y = screenFrame.midY - windowFrame.height / 2
+            newWindow.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            newWindow.center()
+        }
+        newWindow.level = .floating
         
         self.window = newWindow
         
@@ -76,13 +91,13 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
             newWindow.makeKeyAndOrderFront(nil)
         }
         
-        // PREMIUM: CASpringAnimation for true spring physics with overshoot
+        // PREMIUM: CASpringAnimation for bouncy appear
         if let layer = newWindow.contentView?.layer {
             // Fade in
             let fadeAnim = CABasicAnimation(keyPath: "opacity")
             fadeAnim.fromValue = 0
             fadeAnim.toValue = 1
-            fadeAnim.duration = 0.12
+            fadeAnim.duration = 0.25
             fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
             fadeAnim.fillMode = .forwards
             fadeAnim.isRemovedOnCompletion = false
@@ -94,9 +109,9 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
             scaleAnim.fromValue = 0.85
             scaleAnim.toValue = 1.0
             scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 420
+            scaleAnim.stiffness = 250
             scaleAnim.damping = 22
-            scaleAnim.initialVelocity = 10
+            scaleAnim.initialVelocity = 6
             scaleAnim.duration = scaleAnim.settlingDuration
             scaleAnim.fillMode = .forwards
             scaleAnim.isRemovedOnCompletion = false
@@ -106,7 +121,7 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
         
         // Fade window alpha
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.12
+            context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             newWindow.animator().alphaValue = 1.0
         })
@@ -116,8 +131,16 @@ final class QuickshareManagerWindowController: NSObject, NSWindowDelegate {
     
     /// Hide the Quickshare Manager window
     static func hide() {
-        shared?.window?.close()
-        shared = nil
+        guard let panel = shared?.window else { return }
+        
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.2
+            panel.animator().alphaValue = 0
+        }, completionHandler: {
+            shared?.window = nil
+            panel.orderOut(nil)
+            shared = nil
+        })
     }
     
     // MARK: - NSWindowDelegate
