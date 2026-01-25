@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  SwiftUI view for managing Quickshare upload history
-//  Native Droppy styling: borderless window with rounded corners
+//  Matches ClipboardItemRow styling exactly
 //
 
 import SwiftUI
@@ -75,9 +75,9 @@ struct QuickshareManagerView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // List of shared files
+                // List of shared files - matches clipboard list styling
                 ScrollView {
-                    LazyVStack(spacing: 1) {
+                    LazyVStack(spacing: 6) {
                         ForEach(manager.items) { item in
                             QuickshareItemRow(
                                 item: item,
@@ -95,12 +95,18 @@ struct QuickshareManagerView: View {
                                 onShare: {
                                     shareItem(item)
                                 },
+                                onOpenInBrowser: {
+                                    if let url = URL(string: item.shareURL) {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                },
                                 onDelete: {
                                     showDeleteConfirmation = item
                                 }
                             )
                         }
                     }
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                 }
             }
@@ -145,7 +151,7 @@ struct QuickshareManagerView: View {
     }
 }
 
-// MARK: - Item Row
+// MARK: - Item Row (matches ClipboardItemRow exactly)
 
 struct QuickshareItemRow: View {
     let item: QuickshareItem
@@ -153,103 +159,87 @@ struct QuickshareItemRow: View {
     let isDeleting: Bool
     let onCopy: () -> Void
     let onShare: () -> Void
+    let onOpenInBrowser: () -> Void
     let onDelete: () -> Void
     
     @State private var isHovering = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            // File icon - cyan accent
+        HStack(spacing: 10) {
+            // Icon/Thumbnail - circular like ClipboardItemRow
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.cyan.opacity(0.15))
-                    .frame(width: 40, height: 40)
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 32, height: 32)
                 
                 Image(systemName: fileIcon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(.white)
+                    .font(.system(size: 12))
             }
             
-            // File info
-            VStack(alignment: .leading, spacing: 2) {
+            // Title and metadata
+            VStack(alignment: .leading, spacing: 1) {
                 Text(item.filename)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     Text(item.formattedSize)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
-                    
+                        .font(.system(size: 10))
                     Text("•")
-                        .foregroundStyle(.white.opacity(0.3))
-                    
                     Text(item.expirationText)
-                        .font(.system(size: 11))
-                        .foregroundStyle(item.isExpired ? .red : .white.opacity(0.5))
+                        .foregroundStyle(item.isExpired ? .red : .secondary)
                 }
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             Spacer()
             
-            // Action buttons (visible on hover)
-            if isHovering || isDeleting {
-                HStack(spacing: 8) {
-                    // Copy button
-                    Button(action: onCopy) {
-                        Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(isCopied ? .green : .white.opacity(0.6))
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Copy link")
-                    
-                    // Share button
-                    Button(action: onShare) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Share")
-                    
-                    // Delete button
-                    Button(action: onDelete) {
-                        if isDeleting {
-                            ProgressView()
-                                .scaleEffect(0.6)
-                                .frame(width: 14, height: 14)
-                        } else {
-                            Image(systemName: "trash")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.red.opacity(0.8))
-                        }
-                    }
-                    .buttonStyle(.borderless)
-                    .disabled(isDeleting)
-                    .help("Delete from server")
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
-            } else {
-                // URL preview when not hovering
-                Text(item.shortURL)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.3))
-                    .lineLimit(1)
-            }
+            // URL preview on the right (like clipboard source app)
+            Text(item.shortURL)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(isHovering ? Color.white.opacity(0.05) : Color.clear)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(isCopied
+                      ? Color.green.opacity(isHovering ? 0.4 : 0.3)
+                      : Color.white.opacity(isHovering ? 0.18 : 0.12))
+        )
+        .scaleEffect(isHovering ? 1.02 : 1.0)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
-                isHovering = hovering
-            }
+            isHovering = hovering
         }
+        .animation(DroppyAnimation.hoverBouncy, value: isHovering)
         .onTapGesture {
             onCopy()
+        }
+        .contextMenu {
+            Button(action: onCopy) {
+                Label(isCopied ? "Copied!" : "Copy Link", systemImage: isCopied ? "checkmark" : "doc.on.doc")
+            }
+            
+            Button(action: onOpenInBrowser) {
+                Label("Open in Browser", systemImage: "safari")
+            }
+            
+            Button(action: onShare) {
+                Label("Share...", systemImage: "square.and.arrow.up")
+            }
+            
+            Divider()
+            
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete from Server", systemImage: "trash")
+            }
+            .disabled(isDeleting)
         }
     }
     
