@@ -102,6 +102,15 @@ struct QuickShareSuccessView: View {
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
+                // Manage button - opens Quickshare Manager
+                Button(action: openManager) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "tray.full")
+                        Text("Manage")
+                    }
+                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
+                
                 Spacer()
                 
                 // Done button
@@ -137,6 +146,13 @@ struct QuickShareSuccessView: View {
     private func openInBrowser() {
         if let url = URL(string: shareURL) {
             NSWorkspace.shared.open(url)
+        }
+    }
+    
+    private func openManager() {
+        onDismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            QuickshareManagerWindowController.show()
         }
     }
 }

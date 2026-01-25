@@ -24,6 +24,7 @@ enum DroppyQuickshare {
         DispatchQueue.global(qos: .userInitiated).async {
             var uploadURL = urls.first!
             var isTemporaryZip = false
+            var displayFilename = uploadURL.lastPathComponent
             
             // If multiple files, create a ZIP first
             if urls.count > 1 {
@@ -39,10 +40,11 @@ enum DroppyQuickshare {
                 }
                 uploadURL = zipURL
                 isTemporaryZip = true
+                displayFilename = "Droppy Share (\(urls.count) items).zip"
             }
             
             // Upload the file
-            let shareURL = uploadTo0x0(fileURL: uploadURL)
+            let result = uploadTo0x0(fileURL: uploadURL)
             
             // Clean up temporary zip if we created one
             if isTemporaryZip {
@@ -52,18 +54,27 @@ enum DroppyQuickshare {
             DispatchQueue.main.async {
                 DroppyState.shared.isSharingInProgress = false
                 
-                if let shareURL = shareURL {
+                if let result = result {
                     // Success! Copy URL to clipboard
                     let clipboard = NSPasteboard.general
                     clipboard.clearContents()
-                    clipboard.setString(shareURL, forType: .string)
+                    clipboard.setString(result.shareURL, forType: .string)
+                    
+                    // Store in Quickshare Manager for history
+                    let quickshareItem = QuickshareItem(
+                        filename: displayFilename,
+                        shareURL: result.shareURL,
+                        token: result.token,
+                        fileSize: result.fileSize
+                    )
+                    QuickshareManager.shared.addItem(quickshareItem)
                     
                     // Show success feedback
-                    DroppyState.shared.quickShareStatus = .success(urls: [shareURL])
+                    DroppyState.shared.quickShareStatus = .success(urls: [result.shareURL])
                     HapticFeedback.copy()
                     
                     // Show success popup
-                    QuickShareSuccessWindowController.show(shareURL: shareURL)
+                    QuickShareSuccessWindowController.show(shareURL: result.shareURL)
                     
                     // Reset status after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -137,15 +148,26 @@ enum DroppyQuickshare {
         return nil
     }
     
-    /// Uploads a file to 0x0.st and returns the shareable URL
-    private static func uploadTo0x0(fileURL: URL) -> String? {
+    /// Upload result containing URL and management token
+    struct UploadResult {
+        let shareURL: String
+        let token: String
+        let fileSize: Int64
+    }
+    
+    /// Uploads a file to 0x0.st and returns the shareable URL and management token
+    private static func uploadTo0x0(fileURL: URL) -> UploadResult? {
         let semaphore = DispatchSemaphore(value: 0)
-        var resultURL: String? = nil
+        var result: UploadResult? = nil
+        
+        // Get file size for expiration calculation
+        let fileSize: Int64 = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
         
         // Create multipart form data request
         let url = URL(string: "https://0x0.st")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue("Droppy/1.0", forHTTPHeaderField: "User-Agent")
         
         let boundary = UUID().uuidString
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -176,10 +198,16 @@ enum DroppyQuickshare {
                 return
             }
             
+            // Extract X-Token from response headers
+            var token = ""
+            if let httpResponse = response as? HTTPURLResponse {
+                token = httpResponse.value(forHTTPHeaderField: "X-Token") ?? ""
+            }
+            
             if let data = data, let responseString = String(data: data, encoding: .utf8) {
                 let trimmed = responseString.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.hasPrefix("http") {
-                    resultURL = trimmed
+                    result = UploadResult(shareURL: trimmed, token: token, fileSize: fileSize)
                 }
             }
         }
@@ -187,6 +215,7 @@ enum DroppyQuickshare {
         task.resume()
         semaphore.wait()
         
-        return resultURL
+        return result
     }
 }
+
