@@ -1,13 +1,14 @@
 📢 Important
 - getdroppy.app is now live! Visit our new home
-- Droppy is now officially signed and notarized by Apple
+- Droppy is now getting signed and notarized by Apple
 
 ✨ New Features
 - Droppy Quickshare: Instantly share files up to 512MB with blazing fast uploads. Get shareable links in seconds - works via quick actions or right-click menu
 - Completely renewed Basket with new design, Grid + List view toggle, and Quick Action buttons for drag-to-action workflows
-- Tracked Folders: Monitor folders and auto-add new files to the basket
+- Tracked Folders: Monitor folders and auto-add new files to basket or shelf
 - Folder Tracking remembers basket position from last session
 - New morphing animations: Small media HUD smoothly transforms into the full player
+- New album art animations when hovering, pausing, skipping next/previous
 - Auto-expand/collapse timing now configurable from 0.1s for near-instant response
 - Haptics can now be turned off in settings
 
@@ -15,6 +16,7 @@
 - All buttons completely redesigned for a cleaner, more polished look
 - Settings window major upgrade: new previews, better organization, faster performance
 - Renewed animations throughout all HUDs for smoother interactions
+- Volume/brightness HUD on external monitors is now smaller (was too wide)
 
 🐛 Bug Fixes
 - Fixed major CPU leak causing spikes up to 80%
