@@ -422,9 +422,7 @@ struct ExtensionsShopView: View {
                 analyticsKey: "quickshare",
                 extensionType: .quickshare
             ) {
-                AnyView(ExtensionInfoView(
-                    extensionType: .quickshare,
-                    onAction: nil, // Managed via "Manage Uploads" in InfoView
+                AnyView(QuickshareInfoView(
                     installCount: extensionCounts["quickshare"],
                     rating: extensionRatings["quickshare"]
                 ))
