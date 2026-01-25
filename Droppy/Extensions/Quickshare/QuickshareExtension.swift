@@ -23,14 +23,14 @@ struct QuickshareExtension: ExtensionDefinition {
         ("menubar.rectangle", "Menu Bar access")
     ]
     
-    // We can use a screenshot from the website if available, or nil for now
+    // Screenshot from website
     static var screenshotURL: URL? {
-        nil
+        URL(string: "https://getdroppy.app/assets/images/quickshare-screenshot.png")
     }
     
-    // Use app icon or nil for now
+    // Icon from website
     static var iconURL: URL? {
-        nil
+        URL(string: "https://getdroppy.app/assets/icons/quickshare.jpg")
     }
     
     static let iconPlaceholder = "drop.fill"
