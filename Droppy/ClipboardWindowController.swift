@@ -309,9 +309,9 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             if let targetApp = self?.previousApp {
                 let pid = targetApp.processIdentifier
                 
-                // 1. Hide Droppy first
-                NSApp.hide(nil)
-                NSApp.deactivate()
+                // 1. Hide Droppy window (already ordered out), just ensure focus returns
+                // NSApp.hide(nil) - REMOVED: This was hiding the Notch window too!
+                // NSApp.deactivate() - REMOVED: Unnecessary if we activate target app
                 
                 // 2. Tiny wait to ensure Droppy is gone from focus
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -324,8 +324,10 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
                     }
                 }
             } else {
-                NSApp.hide(nil)
-                NSApp.deactivate()
+                // No previous app, just hide window and paste (fallback)
+                // NSApp.hide(nil) - REMOVED
+                // NSApp.deactivate() - REMOVED
+                
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     ClipboardManager.shared.paste(item: item)
                 }

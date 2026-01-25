@@ -63,7 +63,7 @@ struct TerminalNotchCard: View {
             .background(cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 16))
     }
     
     private var cardBackground: some View {

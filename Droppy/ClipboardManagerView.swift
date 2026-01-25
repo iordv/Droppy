@@ -468,11 +468,9 @@ struct ClipboardManagerView: View {
                         Button {
                             searchText = ""
                         } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.system(size: 14))
+                            Image(systemName: "xmark")
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppyCircleButtonStyle(size: 20))
                     }
                 }
                 .padding(.horizontal, 10)
@@ -791,17 +789,8 @@ struct ClipboardManagerView: View {
             
             Button(action: openAccessibilitySettings) {
                 Text("Open Settings")
-                    .font(.caption.bold())
-                    .padding(.vertical, 4)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyAccentButtonStyle(color: .orange, size: .small))
         }
         .padding(12)
         .background(Color.orange.opacity(0.1))
@@ -1057,22 +1046,25 @@ struct FlaggedGridItemView: View {
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 8) {
-                // Left side: Icon + Text stack
-                VStack(alignment: .leading, spacing: 4) {
-                    // Icon + Title
-                    HStack(spacing: 6) {
-                        itemIcon
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        
-                        Text(item.title)
-                            .font(.system(size: 12, weight: .medium))
-                            .lineLimit(1)
-                            .foregroundStyle(.primary)
-                    }
+            HStack(spacing: 10) {
+                // Icon/Thumbnail - circular like ClipboardItemRow
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 32, height: 32)
                     
-                    // Time
+                    itemIcon
+                        .foregroundStyle(.white)
+                        .font(.system(size: 12))
+                }
+                
+                // Title and time
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.title)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    
                     Text(item.date, style: .time)
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
@@ -1089,17 +1081,14 @@ struct FlaggedGridItemView: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                Capsule()
                     .fill(isSelected 
                           ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
-                          : Color.red.opacity(isHovering ? 0.25 : 0.15))
+                          : Color.red.opacity(isHovering ? 0.22 : 0.15))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(isSelected ? Color.blue : Color.red.opacity(0.3), lineWidth: 1)
-            )
+            .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
         .onHover { hovering in
             isHovering = hovering
         }
@@ -1156,7 +1145,7 @@ struct ClipboardItemRow: View {
         HStack(spacing: 10) {
             // Icon/Thumbnail - smaller and shows real image for images
             ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Circle()
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 32, height: 32)
                 
@@ -1166,7 +1155,7 @@ struct ClipboardItemRow: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 32, height: 32)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .clipShape(Circle())
                 } else {
                     Image(systemName: iconName(for: item.type))
                         .foregroundStyle(.white)
@@ -1230,18 +1219,15 @@ struct ClipboardItemRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            Capsule()
                 .fill(isSelected 
                       ? Color.blue.opacity(isHovering ? 1.0 : 0.8) 
-                      : item.isFlagged 
-                          ? Color.red.opacity(isHovering ? 0.25 : 0.15)
-                          : Color.white.opacity(isHovering ? 0.15 : 0.08))
+                      : item.isFlagged
+                          ? Color.red.opacity(isHovering ? 0.22 : 0.15)
+                          : Color.white.opacity(isHovering ? 0.18 : 0.12))
         )
         .foregroundStyle(isSelected ? .white : .primary)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(item.isFlagged && !isSelected ? Color.red.opacity(0.3) : Color.white.opacity(0.2), lineWidth: 1)
-        )
+        .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
 
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -1496,28 +1482,15 @@ struct ClipboardPreviewView: View {
                                 HStack(spacing: 4) {
                                     if isExtractingText {
                                         ProgressView()
-                                            .controlSize(.small)
-                                            .tint(.white)
+                                            .controlSize(.mini)
                                             .frame(width: 12, height: 12)
                                     } else {
                                         Image(systemName: "text.viewfinder")
                                     }
                                     Text(isExtractingText ? "Extracting..." : "Extract Text")
                                 }
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial)
-                                .background(Color.black.opacity(0.4))
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                                )
-                                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(DroppyPillButtonStyle(size: .small))
                             .padding(12)
                         }
                     } else if isLoadingPreview {
@@ -1590,25 +1563,11 @@ struct ClipboardPreviewView: View {
                 if !isEditing {
                     Button(action: onPaste) {
                         Text("Paste")
-                            .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.blue.opacity(isPasteHovering ? 1.0 : 0.8))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))
                     .matchedGeometryEffect(id: "PrimaryAction", in: animationNamespace)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isPasteHovering = hovering
-                        }
-                    }
                     
                     // Copy Button
                     Button(action: copyToClipboard) {
@@ -1616,41 +1575,21 @@ struct ClipboardPreviewView: View {
                             if showCopySuccess {
                                 Image(systemName: "checkmark")
                                     .fontWeight(.bold)
-                                    .foregroundStyle(.green)
-                                    .transition(.scale.combined(with: .opacity))
                             } else {
                                 Text("Copy")
-                                    .fontWeight(.medium)
-                                    .transition(.scale.combined(with: .opacity))
                             }
                         }
                         .frame(width: 70)
-                        .padding(.vertical, 12)
-                        .background(showCopySuccess ? Color.green.opacity(0.15) : Color.blue.opacity(isCopyHovering ? 1.0 : 0.8))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(showCopySuccess ? Color.green.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
-                        )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyAccentButtonStyle(color: showCopySuccess ? .green : .blue, size: .medium))
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                    .onHover { hovering in
-                        if !showCopySuccess {
-                            withAnimation(DroppyAnimation.hover) {
-                                isCopyHovering = hovering
-                            }
-                        }
-                    }
                     
                     // Save to File Button
                     Button(action: saveToFile) {
                         ZStack {
                             if showSaveSuccess {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 18, weight: .bold))
                                     .foregroundStyle(.green)
                                     .transition(.scale.combined(with: .opacity))
                             } else if isSavingFile {
@@ -1659,32 +1598,14 @@ struct ClipboardPreviewView: View {
                                     .tint(.white)
                             } else {
                                 Image(systemName: "square.and.arrow.down")
-                                    .font(.system(size: 18, weight: .medium))
                                     .transition(.scale.combined(with: .opacity))
                             }
                         }
-                        .foregroundStyle(showSaveSuccess ? .green : (isDownloadHovering ? .white : .secondary))
-                        .frame(width: 44, height: 44)
-                        .background(showSaveSuccess ? Color.green.opacity(0.15) : (isDownloadHovering ? Color.white.opacity(0.15) : Color.clear))
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(showSaveSuccess ? Color.green.opacity(0.5) : (isDownloadHovering ? Color.white.opacity(0.3) : Color.white.opacity(0.1)), lineWidth: 1)
-                        )
-                        .scaleEffect(isDownloadHovering || showSaveSuccess ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 40))
                     .help("Save to Downloads")
                     .disabled(isSavingFile || showSaveSuccess)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                    .onHover { hovering in
-                        if !showSaveSuccess {
-                            withAnimation(DroppyAnimation.hover) {
-                                isDownloadHovering = hovering
-                            }
-                        }
-                    }
                 }
                 
                 // Favorite Button - Always visible, slides naturally
@@ -1703,35 +1624,12 @@ struct ClipboardPreviewView: View {
                         }
                     }
                 } label: {
-                    ZStack {
-                        // Background glow when favorited
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.yellow.opacity(item.isFavorite ? 0.2 : 0))
-                            .blur(radius: 8)
-                            .scaleEffect(item.isFavorite ? 1.2 : 0.8)
-                        
-                        Image(systemName: item.isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(item.isFavorite ? .yellow : (isStarHovering ? .yellow.opacity(0.7) : .secondary))
-                            .symbolEffect(.bounce, value: starAnimationTrigger)
-                    }
-                    .frame(width: 44, height: 44)
-                    .background(isStarHovering ? Color.yellow.opacity(0.1) : Color.clear)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(isStarHovering ? Color.yellow.opacity(0.3) : Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .scaleEffect(isStarHovering ? 1.08 : 1.0)
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(item.isFavorite ? .yellow : .white.opacity(0.8))
+                        .symbolEffect(.bounce, value: starAnimationTrigger)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 40))
                 .help("Toggle Favorite")
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isStarHovering = hovering
-                    }
-                }
                 
                 // Flag Button - For important items
                 Button {
@@ -1749,35 +1647,12 @@ struct ClipboardPreviewView: View {
                         }
                     }
                 } label: {
-                    ZStack {
-                        // Background glow when flagged
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.red.opacity(item.isFlagged ? 0.2 : 0))
-                            .blur(radius: 8)
-                            .scaleEffect(item.isFlagged ? 1.2 : 0.8)
-                        
-                        Image(systemName: item.isFlagged ? "flag.fill" : "flag")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(item.isFlagged ? .red : (isFlagHovering ? .red.opacity(0.7) : .secondary))
-                            .symbolEffect(.bounce, value: flagAnimationTrigger)
-                    }
-                    .frame(width: 44, height: 44)
-                    .background(isFlagHovering ? Color.red.opacity(0.1) : Color.clear)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(isFlagHovering ? Color.red.opacity(0.3) : Color.white.opacity(0.1), lineWidth: 1)
-                    )
-                    .scaleEffect(isFlagHovering ? 1.08 : 1.0)
+                    Image(systemName: item.isFlagged ? "flag.fill" : "flag")
+                        .foregroundStyle(item.isFlagged ? .red : .white.opacity(0.8))
+                        .symbolEffect(.bounce, value: flagAnimationTrigger)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 40))
                 .help("Flag as Important")
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isFlagHovering = hovering
-                    }
-                }
                 
                 // Edit Button (Text/URL only)
                 if !isEditing && (item.type == .text || item.type == .url) {
@@ -1788,25 +1663,9 @@ struct ClipboardPreviewView: View {
                         }
                     } label: {
                         Image(systemName: "pencil")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(isEditHovering ? .white : .secondary)
-                            .frame(width: 44, height: 44)
-                            .background(isEditHovering ? Color.white.opacity(0.15) : Color.clear)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(isEditHovering ? Color.white.opacity(0.3) : Color.white.opacity(0.1), lineWidth: 1)
-                            )
-                            .scaleEffect(isEditHovering ? 1.08 : 1.0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 40))
                     .help("Edit Content")
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isEditHovering = hovering
-                        }
-                    }
                 }
                 
                 // Edit Mode Actions
@@ -1818,22 +1677,14 @@ struct ClipboardPreviewView: View {
                             isEditing = false
                         }
                     } label: {
-                        Text("Save")
-                            .fontWeight(.semibold)
-                            .frame(width: 70)
-                            .padding(.vertical, 12)
-                            .background(Color.green.opacity(isSaveHovering ? 1.0 : 0.8))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark")
+                            Text("Save")
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .medium))
                     .matchedGeometryEffect(id: "PrimaryAction", in: animationNamespace)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                    .onHover { h in withAnimation { isSaveHovering = h } }
                     
                     // Cancel
                     Button {
@@ -1842,21 +1693,10 @@ struct ClipboardPreviewView: View {
                         }
                     } label: {
                         Text("Cancel")
-                            .fontWeight(.medium)
-                            .frame(width: 70)
-                            .padding(.vertical, 12)
-                            .background(Color.red.opacity(isCancelHovering ? 1.0 : 0.8))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyPillButtonStyle(size: .medium))
                     .matchedGeometryEffect(id: "SecondaryAction", in: animationNamespace)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                    .onHover { h in withAnimation { isCancelHovering = h } }
                 }
                 
                 // Delete Button
@@ -1864,28 +1704,12 @@ struct ClipboardPreviewView: View {
                     onDelete()
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(isTrashHovering ? .red : .red.opacity(0.6))
-                        .frame(width: 44, height: 44)
-                        .background(isTrashHovering ? Color.red.opacity(0.15) : Color.clear)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(isTrashHovering ? Color.red.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                        .scaleEffect(isTrashHovering ? 1.08 : 1.0)
-                        .shadow(color: isTrashHovering ? .red.opacity(0.3) : .clear, radius: 8, x: 0, y: 2)
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 40))
                 .help("Delete (Backspace)")
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isTrashHovering = hovering
-                    }
-                }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyCardButtonStyle())
         }
         .padding(20)
         .onDisappear {
@@ -2056,24 +1880,18 @@ struct MultiSelectPreviewView: View {
             .frame(height: 180)
             .animation(DroppyAnimation.transition, value: items.count)
             
-            // Selection count badge
-            HStack(spacing: 8) {
+            // Selection count badge - styled like DroppyPillButtonStyle
+            HStack(spacing: 6) {
                 Image(systemName: "rectangle.stack.fill")
-                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.blue)
-                
                 Text("\(items.count) items selected")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(Color.white.opacity(0.12)))
+
             
             Spacer()
             
@@ -2085,23 +1903,8 @@ struct MultiSelectPreviewView: View {
                         Image(systemName: "doc.on.clipboard")
                         Text("Paste All")
                     }
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.blue.opacity(isPasteHovering ? 1.0 : 0.8))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isPasteHovering = hovering
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))
                 
                 // Copy All Button
                 Button(action: onCopyAll) {
@@ -2109,24 +1912,8 @@ struct MultiSelectPreviewView: View {
                         Image(systemName: "doc.on.doc")
                         Text("Copy All")
                     }
-                    .fontWeight(.medium)
-                    .frame(width: 110)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(isCopyHovering ? 0.2 : 0.1))
-                    .foregroundStyle(.white)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isCopyHovering = hovering
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .medium))
                 
                 // Save All Button
                 Button(action: onSaveAll) {
@@ -2134,46 +1921,15 @@ struct MultiSelectPreviewView: View {
                         Image(systemName: "square.and.arrow.down")
                         Text("Save All")
                     }
-                    .fontWeight(.medium)
-                    .frame(width: 110)
-                    .padding(.vertical, 12)
-                    .background(Color.white.opacity(isSaveHovering ? 0.2 : 0.1))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isSaveHovering = hovering
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .medium))
                 
                 // Delete All Button
                 Button(action: onDeleteAll) {
                     Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(isDeleteHovering ? .red : .red.opacity(0.6))
-                        .frame(width: 44, height: 44)
-                        .background(isDeleteHovering ? Color.red.opacity(0.15) : Color.clear)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(isDeleteHovering ? Color.red.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1)
-                        )
-                        .scaleEffect(isDeleteHovering ? 1.08 : 1.0)
-                        .shadow(color: isDeleteHovering ? .red.opacity(0.3) : .clear, radius: 8, x: 0, y: 2)
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.hover) {
-                        isDeleteHovering = hovering
-                    }
-                }
+                .buttonStyle(DroppyCircleButtonStyle(size: 40))
             }
         }
         .padding(20)

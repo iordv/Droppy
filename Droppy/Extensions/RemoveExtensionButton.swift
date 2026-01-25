@@ -42,26 +42,12 @@ struct DisableExtensionButton: View {
                         .frame(width: 10, height: 10)
                 } else {
                     Image(systemName: isDisabled ? "plus.circle" : "minus.circle")
-                        .font(.system(size: 11, weight: .medium))
                 }
                 Text(buttonText)
-                    .font(.system(size: 13, weight: .medium))
             }
-            .foregroundStyle(isDisabled ? .green : .red)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background((isDisabled ? Color.green : Color.red).opacity(isHovering ? 0.25 : 0.15))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyAccentButtonStyle(color: isDisabled ? .green : .red, size: .small))
         .disabled(isProcessing)
-        .onHover { h in
-            withAnimation(DroppyAnimation.hoverQuick) { isHovering = h }
-        }
     }
     
     private func showDisableConfirmation() {

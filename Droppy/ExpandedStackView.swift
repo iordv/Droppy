@@ -62,11 +62,8 @@ struct ExpandedStackView: View {
                 }
             } label: {
                 Text("Select All")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.blue)
             }
-            .buttonStyle(.plain)
-            .opacity(isHeaderHovering ? 1 : 0.7)
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             // Collapse button
             Button {
@@ -74,13 +71,9 @@ struct ExpandedStackView: View {
                     onCollapse()
                 }
             } label: {
-                Image(systemName: "chevron.up.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
+                Image(systemName: "chevron.up")
             }
-            .buttonStyle(.plain)
-            .scaleEffect(isHeaderHovering ? 1.1 : 1.0)
-            .animation(DroppyAnimation.hover, value: isHeaderHovering)
+            .buttonStyle(DroppyCircleButtonStyle(size: 24))
         }
         .padding(.horizontal, 4)
         .onHover { isHeaderHovering = $0 }
@@ -170,7 +163,7 @@ struct ExpandedStackItemView: View {
                                 .font(.system(size: 14))
                                 .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppyDestructiveCircleButtonStyle(size: 14))
                         .offset(x: 20, y: -20)
                         .transition(.scale.combined(with: .opacity))
                     }
@@ -186,7 +179,7 @@ struct ExpandedStackItemView: View {
                     .frame(width: itemSize - 4)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
         .scaleEffect(isHovering ? 1.05 : 1.0)
         .animation(DroppyAnimation.hover, value: isHovering)
         .onHover { isHovering = $0 }

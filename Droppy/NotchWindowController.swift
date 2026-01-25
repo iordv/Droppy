@@ -103,6 +103,20 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Published for menu bar UI to observe
     @Published private(set) var isTemporarilyHidden = false
     
+    /// Whether a fullscreen app is active on ANY monitored screen (legacy compatibility)
+    /// Published for SwiftUI views to hide media HUD when user has enabled "Hide in Fullscreen"
+    @Published private(set) var isFullscreen = false
+    
+    /// Per-display fullscreen tracking (multi-monitor support)
+    /// Each display can independently be in fullscreen mode
+    /// Key = CGDirectDisplayID, Value = number of consecutive fullscreen detections (for hysteresis)
+    @Published private(set) var fullscreenDisplayIDs: Set<CGDirectDisplayID> = []
+    
+    /// Debounce counters for fullscreen exit detection per display (hysteresis)
+    /// Prevents media HUD flickering when fullscreen detection briefly fails
+    private var fullscreenExitDebounceCounts: [CGDirectDisplayID: Int] = [:]
+    private let fullscreenExitDebounceThreshold = 2  // Require 2 consecutive non-fullscreen (2 seconds at 1s interval)
+    
     private override init() {
         super.init()
         setupSystemObservers()
@@ -1118,6 +1132,18 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
         }
         systemObservers.append(displayObserver)
+        
+        // Space change detection (KEY for fullscreen detection!)
+        // This fires whenever user enters or exits a fullscreen Space
+        let spaceObserver = workspace.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Immediately check fullscreen state when space changes
+            self?.checkFullscreenState()
+        }
+        systemObservers.append(spaceObserver)
     }
     
     /// Removes all system observers
@@ -1238,8 +1264,58 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     
     private func checkFullscreenState() {
-        for window in notchWindows.values {
-            window.checkForFullscreen()
+        // Check if auto-hide is enabled
+        let autoHideEnabled = (UserDefaults.standard.object(forKey: AppPreferenceKey.autoHideOnFullscreen) as? Bool) ?? PreferenceDefault.autoHideOnFullscreen
+        
+        // Track which displays are in fullscreen this check
+        var currentFullscreenDisplays: Set<CGDirectDisplayID> = []
+        
+        // Check each notch window's screen for fullscreen
+        for (displayID, window) in notchWindows {
+            let isFullscreenOnThisDisplay = window.checkForFullscreenAndReturn()
+            
+            if autoHideEnabled && isFullscreenOnThisDisplay {
+                currentFullscreenDisplays.insert(displayID)
+            }
+        }
+        
+        // Process per-display fullscreen state with hysteresis
+        var updatedFullscreenDisplays = fullscreenDisplayIDs
+        
+        for (displayID, _) in notchWindows {
+            let isDetectedFullscreen = currentFullscreenDisplays.contains(displayID)
+            let wasTrackedFullscreen = fullscreenDisplayIDs.contains(displayID)
+            
+            if isDetectedFullscreen {
+                // Immediately enter fullscreen for this display, reset debounce
+                fullscreenExitDebounceCounts[displayID] = 0
+                if !wasTrackedFullscreen {
+                    updatedFullscreenDisplays.insert(displayID)
+                }
+            } else {
+                // Not detecting fullscreen on this display
+                if wasTrackedFullscreen {
+                    // Apply hysteresis - require multiple consecutive non-fullscreen detections
+                    let currentCount = (fullscreenExitDebounceCounts[displayID] ?? 0) + 1
+                    fullscreenExitDebounceCounts[displayID] = currentCount
+                    
+                    if currentCount >= fullscreenExitDebounceThreshold {
+                        // Stable non-fullscreen - safe to exit for this display
+                        updatedFullscreenDisplays.remove(displayID)
+                        fullscreenExitDebounceCounts[displayID] = 0
+                    }
+                    // Otherwise, keep display in fullscreen set until debounce threshold reached
+                }
+            }
+        }
+        
+        // Update published properties on main thread if changed
+        if updatedFullscreenDisplays != fullscreenDisplayIDs {
+            DispatchQueue.main.async { [weak self] in
+                self?.fullscreenDisplayIDs = updatedFullscreenDisplays
+                // Also update legacy global flag for any code still using it
+                self?.isFullscreen = !updatedFullscreenDisplays.isEmpty
+            }
         }
     }
     
@@ -1382,7 +1458,8 @@ final class NotchWindowController: NSObject, ObservableObject {
             accumulatedScrollX = 0  // Reset after action
             // Force immediate SwiftUI update (fixes delay when cursor is stationary)
             musicManager.objectWillChange.send()
-            withAnimation(DroppyAnimation.transition) {
+            // PREMIUM PARITY: Use .smooth(duration: 0.35) for content transitions
+            withAnimation(DroppyAnimation.smoothContent) {
                 musicManager.isMediaHUDForced = true
                 musicManager.isMediaHUDHidden = false
             }
@@ -1391,7 +1468,8 @@ final class NotchWindowController: NSObject, ObservableObject {
             accumulatedScrollX = 0  // Reset after action
             // Force immediate SwiftUI update (fixes delay when cursor is stationary)
             musicManager.objectWillChange.send()
-            withAnimation(DroppyAnimation.transition) {
+            // PREMIUM PARITY: Use .smooth(duration: 0.35) for content transitions
+            withAnimation(DroppyAnimation.smoothContent) {
                 musicManager.isMediaHUDForced = false
                 musicManager.isMediaHUDHidden = true
             }
@@ -1531,6 +1609,13 @@ class NotchWindow: NSPanel {
         let topInset = screen.safeAreaInsets.top
         if topInset > 0 {
             notchHeight = topInset
+        } else if !screen.isBuiltIn {
+            // For external displays in notch mode: constrain to menu bar height
+            // Menu bar height = difference between full frame and visible frame at the top
+            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+            // Use 24pt as default if menu bar is auto-hidden, but never exceed actual menu bar
+            let maxHeight = menuBarHeight > 0 ? menuBarHeight : 24
+            notchHeight = min(32, maxHeight)
         }
 
         // Y position in global coordinates
@@ -1848,13 +1933,18 @@ class NotchWindow: NSPanel {
     }
     
     func checkForFullscreen() {
+        _ = checkForFullscreenAndReturn()
+    }
+    
+    /// Returns true if fullscreen is detected (for NotchWindowController to track)
+    func checkForFullscreenAndReturn() -> Bool {
         // CRITICAL: Never hide during drag operations - user needs to drop files!
         if DragMonitor.shared.isDragging {
             if targetAlpha != 1.0 {
                 targetAlpha = 1.0
                 alphaValue = 1.0
             }
-            return
+            return false
         }
         
         // Check if auto-hide is enabled
@@ -1865,58 +1955,51 @@ class NotchWindow: NSPanel {
                 targetAlpha = 1.0
                 alphaValue = 1.0
             }
-            return
+            return false
         }
+        
+        // FULLSCREEN DETECTION using private SkyLight API
+        // This is the approach used by Droppy and Droppy via system APIs
+        // It directly queries macOS for Space metadata - a Space is fullscreen if it has a TileLayoutManager
         
         // Use notchScreen for multi-monitor support
-        guard let screen = notchScreen else { return }
-
-        // Multiple fullscreen detection methods:
+        guard let screen = notchScreen else { return false }
         
-        // 1. Native macOS fullscreen (Spaces) - visibleFrame equals full frame
-        let isNativeFullscreen = screen.visibleFrame.equalTo(screen.frame)
+        // Get display UUID for multi-monitor matching
+        guard let displayNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+        let displayID = CGDirectDisplayID(displayNumber.uint32Value)
+        guard let displayUUID = CGDisplayCreateUUIDFromDisplayID(displayID) else { return false }
+        let displayUUIDString = CFUUIDCreateString(nil, displayUUID.takeRetainedValue()) as String
         
-        // 2. Legacy fullscreen detection - window covering the entire screen at/above our level
-        // This catches games and video players that use older fullscreen APIs
-        var isLegacyFullscreen = false
-        if let frontApp = NSWorkspace.shared.frontmostApplication {
-            // Get windows of frontmost app that cover this screen
-            let pid = frontApp.processIdentifier
-            if let windowInfoList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
-                for windowInfo in windowInfoList {
-                    guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-                          ownerPID == pid,
-                          let windowBounds = windowInfo[kCGWindowBounds as String] as? [String: Any],
-                          let x = windowBounds["X"] as? CGFloat,
-                          let y = windowBounds["Y"] as? CGFloat,
-                          let width = windowBounds["Width"] as? CGFloat,
-                          let height = windowBounds["Height"] as? CGFloat else { continue }
-                    
-                    // CGWindowBounds uses top-left origin, convert to NS coordinates
-                    let windowRect = CGRect(x: x, y: y, width: width, height: height)
-                    
-                    // Check if this window covers the entire screen (with small tolerance)
-                    let screenRect = screen.frame
-                    // Convert NS frame to CG frame for comparison (flip Y)
-                    guard let mainScreen = NSScreen.screens.first else { continue }
-                    let cgScreenRect = CGRect(
-                        x: screenRect.origin.x,
-                        y: mainScreen.frame.height - screenRect.origin.y - screenRect.height,
-                        width: screenRect.width,
-                        height: screenRect.height
-                    )
-                    
-                    // Fullscreen if window covers most of the screen
-                    if windowRect.width >= cgScreenRect.width - 10 &&
-                       windowRect.height >= cgScreenRect.height - 10 {
-                        isLegacyFullscreen = true
-                        break
-                    }
-                }
-            }
+        // Use private API to get managed display spaces
+        guard let displaySpaces = CGSCopyManagedDisplaySpaces(CGSMainConnectionID()) as? [NSDictionary] else { 
+            return false 
         }
         
-        let shouldHide = isNativeFullscreen || isLegacyFullscreen
+        var isFullscreen = false
+        
+        for displayDict in displaySpaces {
+            // Match this display by UUID
+            guard let displayIdentifier = displayDict["Display Identifier"] as? String,
+                  displayIdentifier == displayUUIDString else { continue }
+            
+            // Get current space info
+            guard let currentSpace = displayDict["Current Space"] as? [String: Any],
+                  let spacesList = displayDict["Spaces"] as? [[String: Any]] else { continue }
+            
+            let activeSpaceID = currentSpace["ManagedSpaceID"] as? Int ?? -1
+            
+            // Find the active space in the list
+            guard let activeSpace = spacesList.first(where: { ($0["ManagedSpaceID"] as? Int) == activeSpaceID }) else { continue }
+            
+            // THE KEY CHECK: If TileLayoutManager exists, it's a fullscreen Space!
+            // This is how macOS internally tracks fullscreen Spaces
+            let tileLayoutManager = activeSpace["TileLayoutManager"] as? [String: Any]
+            isFullscreen = tileLayoutManager != nil
+            break
+        }
+        
+        let shouldHide = isFullscreen
         let newTargetAlpha: CGFloat = shouldHide ? 0.0 : 1.0
         
         // Only trigger animation if the TARGET has changed
@@ -1926,6 +2009,8 @@ class NotchWindow: NSPanel {
             // Directly set alpha without animation to prevent Core Animation crashes
             self.alphaValue = newTargetAlpha
         }
+        
+        return shouldHide
     }
     
     // Ensure the window can become key to receive input - but only when appropriate
@@ -1947,4 +2032,8 @@ class NotchWindow: NSPanel {
     }
 }
 
-
+// MARK: - Private SkyLight API for Fullscreen Space Detection
+// These private APIs are used by Droppy and Droppy (via system APIs) for reliable fullscreen detection
+private typealias CGSConnectionID = Int32
+@_silgen_name("CGSMainConnectionID") private func CGSMainConnectionID() -> CGSConnectionID
+@_silgen_name("CGSCopyManagedDisplaySpaces") private func CGSCopyManagedDisplaySpaces(_ cid: CGSConnectionID) -> CFArray?

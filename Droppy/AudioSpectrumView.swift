@@ -162,9 +162,9 @@ class AudioSpectrum: NSView {
                 spring.fillMode = .forwards
                 spring.isRemovedOnCompletion = false
                 
-                // Support 120fps on ProMotion displays
+                // PERFORMANCE: Cap at 60fps - 120fps isn't needed for small bar animations
                 if #available(macOS 13.0, *) {
-                    spring.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+                    spring.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
                 }
                 
                 barLayer.add(spring, forKey: "scaleY")
@@ -174,13 +174,14 @@ class AudioSpectrum: NSView {
                 animation.fromValue = currentScale
                 animation.toValue = targetScale
                 animation.duration = 0.3
-                animation.autoreverses = true
+                // PERFORMANCE: Removed autoreverses - was causing double animation work
                 animation.fillMode = .forwards
                 animation.isRemovedOnCompletion = false
                 animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 
+                // PERFORMANCE: Cap at 60fps - 120fps isn't needed for small bar animations
                 if #available(macOS 13.0, *) {
-                    animation.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+                    animation.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
                 }
                 
                 barLayer.add(animation, forKey: "scaleY")

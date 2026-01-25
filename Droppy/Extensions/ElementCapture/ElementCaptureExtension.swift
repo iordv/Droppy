@@ -24,11 +24,11 @@ struct ElementCaptureExtension: ExtensionDefinition {
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/images/element-capture-screenshot.png")
+        URL(string: "https://getdroppy.app/assets/images/element-capture-screenshot.png")
     }
     
     static var iconURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")
+        URL(string: "https://getdroppy.app/assets/icons/element-capture.jpg")
     }
     
     static let iconPlaceholder = "viewfinder"

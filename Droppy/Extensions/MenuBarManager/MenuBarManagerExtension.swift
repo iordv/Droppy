@@ -24,11 +24,11 @@ struct MenuBarManagerExtension: ExtensionDefinition {
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/screenshots/menu-bar-manager.png")
+        URL(string: "https://getdroppy.app/assets/screenshots/menu-bar-manager.png")
     }
     
     static var iconURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg")
+        URL(string: "https://getdroppy.app/assets/icons/menu-bar-manager.jpg")
     }
     
     static let iconPlaceholder = "menubar.rectangle"

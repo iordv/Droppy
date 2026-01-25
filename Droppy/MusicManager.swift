@@ -10,6 +10,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 // MARK: - NowPlaying Update JSON Model
 
@@ -62,7 +63,16 @@ final class MusicManager: ObservableObject {
     @Published private(set) var songTitle: String = ""
     @Published private(set) var artistName: String = ""
     @Published private(set) var albumName: String = ""
-    @Published private(set) var albumArt: NSImage = NSImage()
+    @Published private(set) var albumArt: NSImage = NSImage() {
+        didSet {
+            // Cache dominant color when album art changes to avoid expensive recalculation on every view body
+            updateCachedVisualizerColor()
+        }
+    }
+    
+    /// Cached dominant color from album art for visualizer
+    /// PERFORMANCE: Computed once per track change, not on every view body evaluation
+    @Published private(set) var visualizerColor: Color = .white.opacity(0.7)
     @Published private(set) var isPlaying: Bool = false {
         didSet {
             if oldValue && !isPlaying {
@@ -489,6 +499,12 @@ final class MusicManager: ObservableObject {
             if isSpotifySource && !wasSpotify {
                 SpotifyController.shared.refreshState()
             }
+            
+            // PERFORMANCE FIX: Stop Spotify's position sync timer when switching away
+            // This prevents a "zombie timer" from running when another source is active
+            if wasSpotify && !isSpotifySource {
+                SpotifyController.shared.stopPositionSyncTimer()
+            }
         }
         
         // Always update isPlaying from playbackRate (computed property)
@@ -504,6 +520,18 @@ final class MusicManager: ObservableObject {
         
         // Debug: Log the update
         print("MusicManager: Updated - title='\(songTitle)', artist='\(artistName)', isPlaying=\(isPlaying), elapsed=\(elapsedTime), duration=\(songDuration), rate=\(playbackRate)")
+    }
+    
+    // MARK: - Cached Visualizer Color
+    
+    /// Updates the cached visualizer color from current album art
+    /// PERFORMANCE: Called once per track change instead of on every view body evaluation
+    private func updateCachedVisualizerColor() {
+        if albumArt.size.width > 0 {
+            visualizerColor = albumArt.dominantColor()
+        } else {
+            visualizerColor = .white.opacity(0.7)
+        }
     }
     
     // MARK: - Load MediaRemote for Commands
@@ -543,14 +571,24 @@ final class MusicManager: ObservableObject {
     /// Skip to next track
     func nextTrack() {
         guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
-        lastSkipDirection = .forward
+        // Reset first to ensure consecutive same-direction skips trigger onChange
+        lastSkipDirection = .none
+        // Then set direction after brief delay to ensure SwiftUI observes the change
+        DispatchQueue.main.async { [weak self] in
+            self?.lastSkipDirection = .forward
+        }
         sendCommand(MRCommand.nextTrack.rawValue, nil)
     }
     
     /// Skip to previous track
     func previousTrack() {
         guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
-        lastSkipDirection = .backward
+        // Reset first to ensure consecutive same-direction skips trigger onChange
+        lastSkipDirection = .none
+        // Then set direction after brief delay to ensure SwiftUI observes the change
+        DispatchQueue.main.async { [weak self] in
+            self?.lastSkipDirection = .backward
+        }
         sendCommand(MRCommand.previousTrack.rawValue, nil)
     }
     

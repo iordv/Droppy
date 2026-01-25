@@ -367,106 +367,124 @@ struct MediaPlayerPreview: View {
     }
 }
 
-/// Clipboard Preview - realistic split view matching ClipboardWindow
+/// Clipboard Preview - realistic mock matching ClipboardManagerView list items
 struct ClipboardPreview: View {
     var body: some View {
-        HStack(spacing: 0) {
-            // Left: Item list
-            VStack(alignment: .leading, spacing: 0) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.on.clipboard.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.blue)
-                    Text("History")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                
-                Divider().background(Color.white.opacity(0.1))
-                
-                // Items
-                VStack(spacing: 2) {
-                    ClipboardMockItem(icon: "doc.text.fill", text: "Hello World", color: .blue, isSelected: true)
-                    ClipboardMockItem(icon: "link", text: "droppy.app", color: .green, isSelected: false)
-                    ClipboardMockItem(icon: "photo.fill", text: "Image.png", color: .purple, isSelected: false)
-                }
-                .padding(4)
-                
-                Spacer(minLength: 0)
+        VStack(spacing: 6) {
+            // Flagged items section - 2-column grid with subtle red
+            HStack(spacing: 6) {
+                ClipboardMockGridItem(icon: "doc.text", title: "Meeting Notes", isFlagged: true)
+                ClipboardMockGridItem(icon: "key.fill", title: "API Key", isFlagged: true)
             }
-            .frame(width: 110)
             
-            Divider().background(Color.white.opacity(0.1))
+            // Divider between flagged and regular
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+                .padding(.horizontal, 4)
             
-            // Right: Preview pane
-            VStack {
-                Spacer()
-                VStack(spacing: 4) {
-                    Text("Hello World")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
-                    Text("Copied text")
-                        .font(.system(size: 9))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                Spacer()
-                
-                // Paste button
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.on.doc.fill")
-                        .font(.system(size: 8))
-                    Text("Paste")
-                        .font(.system(size: 9, weight: .medium))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(Color.blue)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .padding(.bottom, 8)
-            }
-            .frame(width: 90)
+            // Regular items
+            ClipboardMockRow(icon: "text.alignleft", title: "Hello World", subtitle: "Safari • 10:42", isSelected: true)
+            ClipboardMockRow(icon: "link", title: "https://getdroppy.app", subtitle: "Chrome • 10:38", isSelected: false)
+            ClipboardMockRow(icon: "photo", title: "Screenshot.png", subtitle: "Finder • 10:35", isSelected: false, showStar: true)
         }
+        .padding(8)
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
         )
-        .frame(width: 200, height: 120)
+        .frame(width: 240)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
     }
 }
 
-/// Single mock item for ClipboardPreview
-private struct ClipboardMockItem: View {
+/// Flagged item for 2-column grid
+private struct ClipboardMockGridItem: View {
     let icon: String
-    let text: String
-    let color: Color
-    var isSelected: Bool = false
+    let title: String
+    var isFlagged: Bool = false
     
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 8))
-                .foregroundStyle(color)
-                .frame(width: 12)
+                .foregroundStyle(.white)
+                .font(.system(size: 10))
             
-            Text(text)
-                .font(.system(size: 9))
-                .foregroundStyle(.white.opacity(isSelected ? 1 : 0.7))
+            Text(title)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.white)
                 .lineLimit(1)
             
-            Spacer()
+            Spacer(minLength: 0)
+            
+            if isFlagged {
+                Image(systemName: "flag.fill")
+                    .foregroundStyle(.red)
+                    .font(.system(size: 7))
+            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(isSelected ? Color.blue.opacity(0.3) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.red.opacity(0.15))
+        )
+    }
+}
+
+/// Single mock row for ClipboardPreview matching ClipboardItemRow exactly
+private struct ClipboardMockRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    var isSelected: Bool = false
+    var showStar: Bool = false
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // Icon in circle - matches real 32x32 circle
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 24, height: 24)
+                
+                Image(systemName: icon)
+                    .foregroundStyle(.white)
+                    .font(.system(size: 10))
+            }
+            
+            // Title and subtitle
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                
+                Text(subtitle)
+                    .font(.system(size: 8))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer(minLength: 0)
+            
+            // Star icon if favorited
+            if showStar {
+                Image(systemName: "star.fill")
+                    .foregroundStyle(.yellow)
+                    .font(.system(size: 8))
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(isSelected
+                      ? Color.blue.opacity(0.8)
+                      : Color.white.opacity(0.12))
+        )
     }
 }
 
@@ -851,93 +869,120 @@ struct FocusModeHUDPreview: View {
     }
 }
 
-/// Floating Basket Preview - realistic mock matching FloatingBasketView
+/// Floating Basket Preview - realistic mock matching FloatingBasketView COLLAPSED state
 struct FloatingBasketPreview: View {
-    @State private var dashPhase: CGFloat = 0
-    
     private let cornerRadius: CGFloat = 20
-    private let previewWidth: CGFloat = 220
-    private let previewHeight: CGFloat = 150
-    private let insetPadding: CGFloat = 20 // Symmetrical padding from dotted border
+    private let previewWidth: CGFloat = 180
+    private let previewHeight: CGFloat = 200
+    
+    // Match DroppyCircleButtonStyle(size: 32) scaled down for preview
+    private let buttonSize: CGFloat = 24
     
     var body: some View {
         ZStack {
-                // Background with animated dashed border
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.black)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius - 10, style: .continuous)
-                            .stroke(
-                                Color.white.opacity(0.2),
-                                style: StrokeStyle(
-                                    lineWidth: 1.5,
-                                    lineCap: .round,
-                                    dash: [6, 8],
-                                    dashPhase: dashPhase
-                                )
-                            )
-                            .padding(10)
-                    )
+            // Background - solid black matching real basket
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.black)
+            
+            VStack(spacing: 0) {
+                // Drag handle - matches BasketDragHandle (44x5 capsule)
+                Capsule()
+                    .fill(Color.white.opacity(0.22))
+                    .frame(width: 36, height: 4)
+                    .padding(.top, 8)
                 
-                // Content - symmetrical padding from dotted border
-                VStack(spacing: 10) {
-                    // Header - moved up for symmetry
-                    HStack(spacing: 8) {
-                        Text("3 items")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        // To Shelf button - single line
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.to.line")
-                                .font(.system(size: 8, weight: .bold))
-                            Text("To Shelf")
-                                .font(.system(size: 8, weight: .semibold))
-                                .fixedSize() // Prevent wrapping
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        
-                        // Clear button
-                        Image(systemName: "eraser.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
+                // Header with X and chevron buttons - matching DroppyCircleButtonStyle
+                HStack(alignment: .center) {
+                    // X close button - matches DroppyCircleButtonStyle
+                    Image(systemName: "xmark")
+                        .font(.system(size: buttonSize * 0.4, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .frame(width: buttonSize, height: buttonSize)
+                        .background(Color.white.opacity(0.12))
+                        .clipShape(Circle())
                     
-                    Spacer(minLength: 0)
+                    Spacer()
                     
-                    // Mock items grid - centered
-                    HStack(spacing: 12) {
-                        MockFileItem(icon: "doc.fill", color: .blue, name: "Document")
-                        MockFileItem(icon: "photo.fill", color: .purple, name: "Image.png")
-                        MockFileItem(icon: "folder.fill", color: .cyan, name: "Folder")
-                    }
+                    // Chevron menu button - no background, just icon
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: buttonSize * 0.45, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(width: buttonSize, height: buttonSize)
                 }
-                .padding(insetPadding) // Symmetrical padding on all sides
-            }
-            .frame(width: previewWidth, height: previewHeight)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .onAppear {
-            // Dashed border animation
-            withAnimation(.linear(duration: 15).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+                
+                Spacer()
+                
+                // Stacked file thumbnails in center
+                ZStack {
+                    // Back file (slightly rotated and offset)
+                    MockStackedFile(rotation: -8, offsetX: -10, offsetY: -8)
+                    
+                    // Front file
+                    MockStackedFile(rotation: 5, offsetX: 8, offsetY: 5)
+                }
+                .frame(height: 80)
+                
+                Spacer()
+                
+                // "2 Files >" pill button - matches DroppyPillButtonStyle
+                HStack(spacing: 4) {
+                    Text("2 Files")
+                        .font(.system(size: 13, weight: .medium))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .foregroundStyle(.white.opacity(0.8))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(0.12))
+                )
+                .padding(.bottom, 12)
             }
         }
+        .frame(width: previewWidth, height: previewHeight)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+    }
+}
+
+/// Mock stacked file thumbnail for basket preview
+private struct MockStackedFile: View {
+    let rotation: Double
+    let offsetX: CGFloat
+    let offsetY: CGFloat
+    
+    var body: some View {
+        // Document icon with folded corner effect
+        ZStack {
+            // Page background
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.white)
+                .frame(width: 50, height: 60)
+            
+            // Mock text lines
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(0..<5, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: .random(in: 25...38), height: 3)
+                }
+            }
+            .padding(8)
+        }
+        .shadow(color: .black.opacity(0.3), radius: 4, x: 2, y: 2)
+        .rotationEffect(.degrees(rotation))
+        .offset(x: offsetX, y: offsetY)
     }
 }
 
@@ -1182,7 +1227,6 @@ private struct MockFileItem: View {
 
 /// Notch Shelf Preview - realistic mock matching NotchShelfView expanded state
 struct NotchShelfPreview: View {
-    @State private var dashPhase: CGFloat = 0
     @State private var bounce = false
     
     // Notch dimensions
@@ -1193,61 +1237,57 @@ struct NotchShelfPreview: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
+            ZStack {
                 // Expanded shelf background with NotchShape
                 NotchShape(bottomRadius: 16)
                     .fill(Color.black)
                     .frame(width: shelfWidth, height: shelfHeight)
+                    // PREMIUM PRESSED EFFECT: Layered inner glow for 3D depth
                     .overlay(
-                        // BLUE marching ants - matches real drag indicator
-                        NotchShape(bottomRadius: 12)
-                            .stroke(
-                                Color.blue,
-                                style: StrokeStyle(
-                                    lineWidth: 2,
-                                    lineCap: .round,
-                                    dash: [6, 8],
-                                    dashPhase: dashPhase
+                        ZStack {
+                            // Layer 1: Soft inner border glow - premium edge highlight
+                            NotchShape(bottomRadius: 14)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.25),
+                                            Color.white.opacity(0.1)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 1.5
                                 )
+                                .padding(4)
+                            
+                            // Layer 2: Vignette - clear in center, white glow on edges
+                            RadialGradient(
+                                colors: [
+                                    Color.clear,
+                                    Color.white.opacity(0.08)
+                                ],
+                                center: .center,
+                                startRadius: 30,
+                                endRadius: 100
                             )
-                            .padding(8)
+                            .clipShape(NotchShape(bottomRadius: 12))
+                            .padding(6)
+                        }
                     )
                     .overlay(
                         NotchShape(bottomRadius: 16)
                             .stroke(Color.white.opacity(0.15), lineWidth: 1)
                     )
                 
-                // NotchFace indicator - matches real drop indicator
-                VStack(spacing: 0) {
-                    Spacer()
-                        .frame(height: notchHeight)
-                    
-                    // NotchFace drop indicator
-                    NotchFace(size: 30, isExcited: bounce)
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .fill(Color.black)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                )
-                                .shadow(color: .black.opacity(0.25), radius: 8, y: 4)
-                        )
-                    
-                    Spacer()
-                }
+                // DropZoneIcon - centered within the shelf
+                DropZoneIcon(type: .shelf, size: 44, isActive: bounce)
             }
             .frame(width: shelfWidth, height: shelfHeight)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .onAppear {
-            // Blue marching ants animation
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
-            }
-            // Bounce animation for icon
+            // Activate icon animation
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 bounce = true
             }

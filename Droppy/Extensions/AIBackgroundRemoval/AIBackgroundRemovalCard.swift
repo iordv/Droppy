@@ -18,7 +18,7 @@ struct AIBackgroundRemovalCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // AI extension icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

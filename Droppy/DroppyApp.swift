@@ -232,16 +232,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        // MIGRATION: Enable shelf AirDrop zone by default for existing users who never explicitly set it
-        // New users get true by default, existing users who already have it set keep their preference
-        if !UserDefaults.standard.bool(forKey: "didMigrateShelfAirDropDefault") {
-            UserDefaults.standard.set(true, forKey: "didMigrateShelfAirDropDefault")
-            // Only set if user has never explicitly set this preference (key doesn't exist yet)
-            if UserDefaults.standard.object(forKey: "enableShelfAirDropZone") == nil {
-                UserDefaults.standard.set(true, forKey: "enableShelfAirDropZone")
-                print("✈️ Droppy: Enabled shelf AirDrop zone (new default migration)")
-            }
-        }
         
         // Set as accessory app (no dock icon)
         NSApp.setActivationPolicy(.accessory)

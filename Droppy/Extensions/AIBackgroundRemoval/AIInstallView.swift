@@ -151,7 +151,7 @@ struct AIInstallView: View {
                 }
                 
                 // Main icon - AI icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Image(systemName: "brain.head.profile").font(.system(size: 32)).foregroundStyle(.blue)
@@ -200,7 +200,7 @@ struct AIInstallView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 // Category badge
                 Text("AI")
@@ -270,7 +270,7 @@ struct AIInstallView: View {
             featureRow(icon: "arrow.down.circle", text: "One-time download (~400MB)")
             
             // Screenshot loaded from web (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/ai-bg-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/ai-bg-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -327,23 +327,8 @@ struct AIInstallView: View {
                     dismiss()
                 } label: {
                     Text(manager.isInstalled ? "Close" : "Cancel")
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                        .foregroundStyle(.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringCancel = h
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
             }
             
             // Reviews button
@@ -352,26 +337,10 @@ struct AIInstallView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "star.bubble")
-                        .font(.system(size: 12, weight: .semibold))
                     Text("Reviews")
                 }
-                .fontWeight(.medium)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background((isHoveringReviews ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                .foregroundStyle(.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringReviews = h
-                }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -386,26 +355,10 @@ struct AIInstallView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
                         Text("Install Now")
                     }
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(Color.blue.opacity(isHoveringAction ? 1.0 : 0.85))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringAction = h
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))
             }
             
             // Disable/Enable Extension button (always visible on right)

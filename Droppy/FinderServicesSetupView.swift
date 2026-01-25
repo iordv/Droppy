@@ -45,7 +45,7 @@ struct FinderServicesSetupView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon - Finder icon from remote URL (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/finder.png")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "folder").font(.system(size: 32)).foregroundStyle(.blue)
@@ -103,23 +103,8 @@ struct FinderServicesSetupView: View {
                 onComplete()
             } label: {
                 Text("Done")
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                    .foregroundStyle(.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringCancel = h
-                }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -132,26 +117,10 @@ struct FinderServicesSetupView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: hasOpenedSettings ? "checkmark" : "gear")
-                        .font(.system(size: 12, weight: .semibold))
                     Text(hasOpenedSettings ? "Opened" : "Open Settings")
                 }
-                .fontWeight(.semibold)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background((hasOpenedSettings ? Color.green : Color.blue).opacity(isHoveringAction ? 1.0 : 0.85))
-                .foregroundStyle(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringAction = h
-                }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: hasOpenedSettings ? .green : .blue, size: .small))
         }
         .padding(16)
         .animation(DroppyAnimation.transition, value: hasOpenedSettings)
@@ -200,7 +169,7 @@ struct FinderServicesSetupSheetView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon - Finder icon from remote URL (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/finder.png")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "folder").font(.system(size: 32)).foregroundStyle(.blue)
@@ -258,23 +227,8 @@ struct FinderServicesSetupSheetView: View {
                 dismiss()
             } label: {
                 Text("Done")
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                    .foregroundStyle(.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringCancel = h
-                }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -287,26 +241,10 @@ struct FinderServicesSetupSheetView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: hasOpenedSettings ? "checkmark" : "gear")
-                        .font(.system(size: 12, weight: .semibold))
                     Text(hasOpenedSettings ? "Opened" : "Open Settings")
                 }
-                .fontWeight(.semibold)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background((hasOpenedSettings ? Color.green : Color.blue).opacity(isHoveringAction ? 1.0 : 0.85))
-                .foregroundStyle(.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringAction = h
-                }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: hasOpenedSettings ? .green : .blue, size: .small))
         }
         .padding(16)
         .animation(DroppyAnimation.transition, value: hasOpenedSettings)

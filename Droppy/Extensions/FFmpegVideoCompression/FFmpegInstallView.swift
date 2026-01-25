@@ -140,7 +140,7 @@ struct FFmpegInstallView: View {
                 }
                 
                 // Main icon
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/video-target-size.png")) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Image(systemName: "film").font(.system(size: 32)).foregroundStyle(.green)
@@ -189,7 +189,7 @@ struct FFmpegInstallView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 // Category badge
                 Text("Media")
@@ -307,7 +307,7 @@ struct FFmpegInstallView: View {
                 }
                 .padding(16)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyCardButtonStyle(cornerRadius: 14))
             .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
@@ -336,7 +336,7 @@ struct FFmpegInstallView: View {
             }
             
             // Screenshot loaded from web
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/video-target-size-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/video-target-size-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -396,22 +396,10 @@ struct FFmpegInstallView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: copiedCommand ? "checkmark" : "doc.on.clipboard")
-                            .font(.system(size: 11))
                         Text(copiedCommand ? "Copied!" : "Copy")
-                            .font(.caption.weight(.medium))
-                    }
-                    .foregroundStyle(copiedCommand ? .green : .green)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(isHoveringCopy ? Color.green.opacity(0.2) : Color.green.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringCopy = h
                     }
                 }
+                .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .small))
             }
             .padding(12)
             .background(Color.black.opacity(0.3))
@@ -498,23 +486,8 @@ struct FFmpegInstallView: View {
                     dismiss()
                 } label: {
                     Text(manager.isInstalled ? "Close" : "Cancel")
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background((isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                        .foregroundStyle(.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringCancel = h
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
             }
             
             // Reviews button
@@ -523,26 +496,10 @@ struct FFmpegInstallView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "star.bubble")
-                        .font(.system(size: 12, weight: .semibold))
                     Text("Reviews")
                 }
-                .fontWeight(.medium)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background((isHoveringReviews ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                .foregroundStyle(.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringReviews = h
-                }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -555,26 +512,10 @@ struct FFmpegInstallView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
                         Text("Install FFmpeg")
                     }
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(Color.green.opacity(isHoveringAction ? 1.0 : 0.85))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringAction = h
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .medium))
             }
             
             // Disable/Enable Extension button

@@ -453,6 +453,16 @@ struct NotchItemView: View {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
             
+            // Droppy Quickshare - upload and get shareable link
+            Button {
+                let itemsToShare = state.selectedItems.isEmpty
+                    ? [item.url]
+                    : state.items.filter { state.selectedItems.contains($0.id) }.map { $0.url }
+                DroppyQuickshare.share(urls: itemsToShare)
+            } label: {
+                Label("Droppy Quickshare", systemImage: "drop.fill")
+            }
+            
             Button {
                 // Bulk save: save all selected items
                 if state.selectedItems.count > 1 && state.selectedItems.contains(item.id) {
@@ -1052,27 +1062,11 @@ struct NotchControlButton: View {
     let icon: String
     let action: () -> Void
     
-    @State private var isHovering = false
-    
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(isHovering ? .primary : .secondary)
-                .frame(width: 32, height: 32)
-                .background(Color.white.opacity(isHovering ? 0.2 : 0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
         }
-        .buttonStyle(.plain)
-        .onHover { mirroring in
-            withAnimation(DroppyAnimation.hover) {
-                isHovering = mirroring
-            }
-        }
+        .buttonStyle(DroppyCircleButtonStyle(size: 32))
     }
 }
 
@@ -1178,16 +1172,9 @@ private struct NotchItemContent: View {
                 // Remove button on hover - hidden for pinned folders (must unpin first)
                 if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
                     Button(action: onRemove) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.red.opacity(0.9))
-                                .frame(width: 20, height: 20)
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        Image(systemName: "xmark")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyDestructiveCircleButtonStyle(size: 20))
                     .offset(x: 6, y: -6)
                     .transition(.scale.combined(with: .opacity))
                 }

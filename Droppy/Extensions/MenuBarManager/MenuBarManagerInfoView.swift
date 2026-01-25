@@ -66,7 +66,7 @@ struct MenuBarManagerInfoView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon from remote URL
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/menu-bar-manager.jpg")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -115,7 +115,7 @@ struct MenuBarManagerInfoView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 // Category badge
                 Text("Productivity")
@@ -152,7 +152,7 @@ struct MenuBarManagerInfoView: View {
             }
             
             // Screenshot
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/screenshots/menu-bar-manager.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/screenshots/menu-bar-manager.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -201,19 +201,8 @@ struct MenuBarManagerInfoView: View {
                     Image(systemName: "power")
                     Text("Enable")
                 }
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isHoveringEnable ? Color.blue.opacity(0.9) : Color.blue)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringEnable = h }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))
         }
         .padding(20)
         .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
@@ -282,21 +271,8 @@ struct MenuBarManagerInfoView: View {
                 dismiss()
             } label: {
                 Text("Close")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringClose = h }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             

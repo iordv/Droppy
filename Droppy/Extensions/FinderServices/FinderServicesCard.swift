@@ -20,7 +20,7 @@ struct FinderExtensionCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Finder icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/finder.png")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/finder.png")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

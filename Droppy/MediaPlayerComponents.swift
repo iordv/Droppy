@@ -22,6 +22,12 @@ struct LoadingSpinner: View {
                     rotation = 360
                 }
             }
+            .onDisappear {
+                // PERFORMANCE FIX: Stop repeatForever animation when removed
+                withAnimation(.linear(duration: 0)) {
+                    rotation = 0
+                }
+            }
     }
 }
 
@@ -207,19 +213,19 @@ private class AudioVisualizerState: ObservableObject {
 // MARK: - Spotify Badge
 
 /// Small Spotify logo badge for album art overlay
+/// Uses bundled high-quality Spotify icon for reliable visibility
 struct SpotifyBadge: View {
+    var size: CGFloat = 24
+    
     var body: some View {
-        CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/spotify.png")) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        } placeholder: {
-            Image(systemName: "music.note.list")
-                .font(.system(size: 12))
-                .foregroundStyle(.blue)
-        }
-        .frame(width: 20, height: 20)
-        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        Image("SpotifyIcon")
+            .resizable()
+            .renderingMode(.original)  // Preserve original colors
+            .antialiased(true)         // Smooth edges
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
     }
 }
 
@@ -437,6 +443,12 @@ struct MusicVisualizerBars: View {
         }
         .onAppear {
             startAnimation()
+        }
+        .onDisappear {
+            // PERFORMANCE FIX: Stop repeatForever animations by resetting to initial values
+            withAnimation(.linear(duration: 0)) {
+                heights = [0.3, 0.6, 0.4]
+            }
         }
     }
     

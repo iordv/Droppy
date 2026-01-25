@@ -23,16 +23,14 @@ class BasketDragContainer: NSView {
     private let horizontalPadding: CGFloat = 24
     private let columnsPerRow: Int = 4
     
-    /// Whether AirDrop zone is enabled
-    /// CRITICAL: Must use object(forKey:) with nil-coalescing to true, matching @AppStorage default
-    /// Using bool(forKey:) alone returns false when key doesn't exist, causing Issue #62
+    /// AirDrop zone is always enabled (v9.x+ simplification)
     private var isAirDropZoneEnabled: Bool {
-        (UserDefaults.standard.object(forKey: "enableAirDropZone") as? Bool) ?? true
+        true
     }
     
-    /// Whether AirDrop zone should be shown (enabled AND basket is empty)
+    /// Whether AirDrop zone should be shown (always enabled, shown when basket is empty)
     private var showAirDropZone: Bool {
-        isAirDropZoneEnabled && DroppyState.shared.basketItems.isEmpty
+        DroppyState.shared.basketItems.isEmpty
     }
     
     /// Calculate base width (without AirDrop zone)

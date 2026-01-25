@@ -50,11 +50,9 @@ struct ExtensionReviewsSheet: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "xmark")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 32))
             }
             .padding(20)
             
@@ -163,26 +161,11 @@ struct ExtensionReviewsSheet: View {
                                                 .scaleEffect(0.7)
                                         } else {
                                             Text("Submit")
-                                                .font(.callout.weight(.semibold))
                                         }
                                     }
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(extensionType.categoryColor.opacity(isHoveringSubmit ? 1.0 : 0.85))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
-                                    )
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(DroppyAccentButtonStyle(color: extensionType.categoryColor, size: .small))
                                 .disabled(isSubmittingRating)
-                                .onHover { h in
-                                    withAnimation(DroppyAnimation.hover) {
-                                        isHoveringSubmit = h
-                                    }
-                                }
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)

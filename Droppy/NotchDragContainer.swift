@@ -29,14 +29,14 @@ class NotchDragContainer: NSView {
     private var currentDragIsValid: Bool = true
 
     
-    /// Whether AirDrop zone is enabled for shelf
+    /// AirDrop zone is always enabled (v9.x+ simplification)
     private var isShelfAirDropZoneEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "enableShelfAirDropZone")
+        true
     }
     
-    /// Whether shelf AirDrop zone should be shown (enabled AND expanded AND shelf is empty)
+    /// Whether shelf AirDrop zone should be shown (always enabled when expanded AND shelf is empty)
     private var showShelfAirDropZone: Bool {
-        isShelfAirDropZoneEnabled && DroppyState.shared.isExpanded && DroppyState.shared.items.isEmpty
+        DroppyState.shared.isExpanded && DroppyState.shared.items.isEmpty
     }
     
     override init(frame frameRect: NSRect) {

@@ -46,6 +46,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.autoCollapseShelf) private var autoCollapseShelf = PreferenceDefault.autoCollapseShelf
     @AppStorage(AppPreferenceKey.autoExpandShelf) private var autoExpandShelf = PreferenceDefault.autoExpandShelf
     @AppStorage(AppPreferenceKey.autoExpandDelay) private var autoExpandDelay = PreferenceDefault.autoExpandDelay
+    @AppStorage(AppPreferenceKey.autoHideOnFullscreen) private var autoHideOnFullscreen = PreferenceDefault.autoHideOnFullscreen
     @AppStorage(AppPreferenceKey.enableFinderServices) private var enableFinderServices = PreferenceDefault.enableFinderServices
 
 
@@ -60,13 +61,7 @@ struct SettingsView: View {
     @State private var showAutoFocusSearchWarning = false  // Warning when enabling Auto-Focus Search
     @State private var showQuickActionsWarning = false  // Warning when enabling Quick Actions
     
-    // Hover states for sidebar items (6 tabs)
-    @State private var hoverShelf = false
-    @State private var hoverBasket = false
-    @State private var hoverClipboard = false
-    @State private var hoverHUDs = false
-    @State private var hoverExtensions = false
-    @State private var hoverAbout = false
+    // Hover states for special buttons
     @State private var isCoffeeHovering = false
     @State private var isIntroHovering = false
     @State private var isHardResetHovering = false
@@ -97,64 +92,41 @@ struct SettingsView: View {
         ZStack {
             NavigationSplitView {
                 VStack(spacing: 6) {
-                    sidebarButton(title: "Shelf & Basket", icon: "star.fill", tag: "Features", isHovering: $hoverShelf)
-                    sidebarButton(title: "Clipboard", icon: "clipboard.fill", tag: "Clipboard", isHovering: $hoverClipboard)
-                    sidebarButton(title: "HUDs", icon: "dial.medium.fill", tag: "HUDs", isHovering: $hoverHUDs)
-                    sidebarButton(title: "Extensions", icon: "puzzlepiece.extension.fill", tag: "Extensions", isHovering: $hoverExtensions)
-                    sidebarButton(title: "About", icon: "info.circle.fill", tag: "About", isHovering: $hoverAbout)
+                    sidebarButton(title: "Shelf & Basket", icon: "star.fill", tag: "Features")
+                    sidebarButton(title: "Clipboard", icon: "clipboard.fill", tag: "Clipboard")
+                    sidebarButton(title: "HUDs", icon: "dial.medium.fill", tag: "HUDs")
+                    sidebarButton(title: "Extensions", icon: "puzzlepiece.extension.fill", tag: "Extensions")
+                    sidebarButton(title: "About", icon: "info.circle.fill", tag: "About")
                     
                     Spacer()
                     
-                    // Buy Me a Coffee button
+                    // Support button - same style as navigation buttons
                     Link(destination: URL(string: "https://buymeacoffee.com/droppy")!) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
                             Image(systemName: "cup.and.saucer.fill")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 20)
                             Text("Support")
-                        }
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        // BMC Yellow: #FFDD00
-                        .background(Color(red: 1.0, green: 0.867, blue: 0.0).opacity(isCoffeeHovering ? 1.0 : 0.9))
-                        .foregroundStyle(.black)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isCoffeeHovering = hovering
+                                .fontWeight(.medium)
+                            Spacer()
                         }
                     }
+                    .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
                     
-                    // Update button at bottom
+                    // Update button - same style as navigation buttons
                     Button {
                         UpdateChecker.shared.checkAndNotify()
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
                             Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 20)
                             Text("Update")
-                        }
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.blue.opacity(isUpdateHovering ? 1.0 : 0.8))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isUpdateHovering = hovering
+                                .fontWeight(.medium)
+                            Spacer()
                         }
                     }
+                    .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
@@ -259,7 +231,7 @@ struct SettingsView: View {
     
     // MARK: - Sidebar Button Helper
     
-    private func sidebarButton(title: String, icon: String, tag: String, isHovering: Binding<Bool>) -> some View {
+    private func sidebarButton(title: String, icon: String, tag: String) -> some View {
         Button {
             selectedTab = tag
         } label: {
@@ -271,26 +243,8 @@ struct SettingsView: View {
                     .fontWeight(.medium)
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(selectedTab == tag 
-                          ? Color.blue.opacity(isHovering.wrappedValue ? 1.0 : 0.8) 
-                          : Color.white.opacity(isHovering.wrappedValue ? 0.15 : 0.08))
-            )
-            .foregroundStyle(selectedTab == tag ? .white : .primary)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            withAnimation(DroppyAnimation.hover) {
-                isHovering.wrappedValue = hovering
-            }
-        }
+        .buttonStyle(DroppySidebarButtonStyle(isSelected: selectedTab == tag))
     }
     
     // MARK: - Sections
@@ -454,11 +408,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Collapse Delay")
                             Spacer()
-                            Text(String(format: "%.1fs", autoCollapseDelay))
+                            Text(String(format: "%.2fs", autoCollapseDelay))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Slider(value: $autoCollapseDelay, in: 0.5...2.0, step: 0.5)
+                        Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
                 
@@ -477,11 +431,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Expand Delay")
                             Spacer()
-                            Text(String(format: "%.1fs", autoExpandDelay))
+                            Text(String(format: "%.2fs", autoExpandDelay))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Slider(value: $autoExpandDelay, in: 0.5...2.0, step: 0.5)
+                        Slider(value: $autoExpandDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
             } header: {
@@ -490,25 +444,6 @@ struct SettingsView: View {
             
             // MARK: Shared Features
             Section {
-                // AirDrop Zone (affects both shelf and basket)
-                HStack(spacing: 8) {
-                    AirDropZoneInfoButton()
-                    Toggle(isOn: Binding(
-                        get: { enableAirDropZone || enableShelfAirDropZone },
-                        set: { newValue in
-                            enableAirDropZone = newValue
-                            enableShelfAirDropZone = newValue
-                        }
-                    )) {
-                        VStack(alignment: .leading) {
-                            Text("AirDrop Zone")
-                            Text("Drop files on the right side to share via AirDrop")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                
                 // Auto-Clean (affects Droppy UI only)
                 HStack(spacing: 8) {
                     AutoCleanInfoButton()
@@ -595,8 +530,8 @@ struct SettingsView: View {
                     VStack(alignment: .leading) {
                         Text("Floating Basket")
                         Text(instantBasketOnDrag 
-                            ? "Appears instantly when dragging files anywhere" 
-                            : "Appears when you jiggle files anywhere on screen")
+                            ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files." 
+                            : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -899,6 +834,15 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Auto-Hide Preview")
                                 Text("Fade out mini player after 5 seconds")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        
+                        Toggle(isOn: $autoHideOnFullscreen) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hide in Fullscreen")
+                                Text("Hide when fullscreen apps or videos are active")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1324,11 +1268,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Collapse Delay")
                             Spacer()
-                            Text(String(format: "%.1fs", autoCollapseDelay))
+                            Text(String(format: "%.2fs", autoCollapseDelay))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Slider(value: $autoCollapseDelay, in: 0.5...2.0, step: 0.5)
+                        Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
                 
@@ -1347,11 +1291,11 @@ struct SettingsView: View {
                         HStack {
                             Text("Expand Delay")
                             Spacer()
-                            Text(String(format: "%.1fs", autoExpandDelay))
+                            Text(String(format: "%.2fs", autoExpandDelay))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
-                        Slider(value: $autoExpandDelay, in: 0.5...2.0, step: 0.5)
+                        Slider(value: $autoExpandDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
             } header: {
@@ -1438,8 +1382,11 @@ struct SettingsView: View {
                 }
                 .sheet(isPresented: $showMenuBarHiddenWarning) {
                     MenuBarHiddenSheet(
-                        showInMenuBar: $showInMenuBar,
-                        isPresented: $showMenuBarHiddenWarning
+                        isPresented: $showMenuBarHiddenWarning,
+                        onConfirm: {
+                            // Use main actor to ensure UI update happens
+                            showInMenuBar = false
+                        }
                     )
                 }
                 
@@ -1489,22 +1436,10 @@ struct SettingsView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkles")
-                                .font(.system(size: 12, weight: .semibold))
                             Text("Introduction")
-                                .fontWeight(.semibold)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isIntroHovering ? 1.0 : 0.8))
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isIntroHovering = hovering
                         }
                     }
+                    .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
                 }
                 
                 LabeledContent("Developer", value: "Jordy Spruit")
@@ -1571,19 +1506,8 @@ struct SettingsView: View {
                         showHardResetConfirmation = true
                     } label: {
                         Text("Reset")
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.red.opacity(isHardResetHovering ? 1.0 : 0.8))
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-                    .buttonStyle(.plain)
-                    .onHover { hovering in
-                        withAnimation(DroppyAnimation.hover) {
-                            isHardResetHovering = hovering
-                        }
-                    }
+                    .buttonStyle(DroppyAccentButtonStyle(color: .red, size: .small))
                 }
             } header: {
                 Text("Troubleshooting")
@@ -1982,7 +1906,7 @@ struct SettingsView: View {
                             .font(.system(size: 18))
                             .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 18))
                 }
                 .padding(.vertical, 4)
             }
@@ -1991,14 +1915,12 @@ struct SettingsView: View {
             Button {
                 showAppPicker = true
             } label: {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(.blue)
                     Text("Add App...")
-                        .foregroundStyle(.primary)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             .popover(isPresented: $showAppPicker, arrowEdge: .bottom) {
                 appPickerView
             }
@@ -2060,7 +1982,7 @@ struct SettingsView: View {
                             .padding(.vertical, 8)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppySelectableButtonStyle(isSelected: clipboardManager.isAppExcluded(app.bundleIdentifier ?? "")))
                     }
                 }
                 .padding(.vertical, 8)
@@ -2257,6 +2179,7 @@ struct SwipeGestureInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2303,6 +2226,7 @@ struct NotchShelfInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2347,6 +2271,7 @@ struct BasketGestureInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2390,6 +2315,7 @@ struct PeekModeInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2433,6 +2359,7 @@ struct InstantAppearInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2476,6 +2403,7 @@ struct AirDropZoneInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2519,6 +2447,7 @@ struct AutoCleanInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2562,6 +2491,7 @@ struct AlwaysCopyInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -2654,21 +2584,8 @@ struct ProtectOriginalsWarningSheet: View {
                     dismiss()
                 } label: {
                     Text("Disable Anyway")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringConfirm ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringConfirm = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -2678,21 +2595,8 @@ struct ProtectOriginalsWarningSheet: View {
                     dismiss()
                 } label: {
                     Text("Keep Protection")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringCancel ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringCancel = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -2808,21 +2712,8 @@ struct StabilizeMediaInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Disable")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringDisable = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -2831,21 +2722,8 @@ struct StabilizeMediaInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Got It")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringKeep ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringKeep = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -2961,21 +2839,8 @@ struct AutoFocusSearchInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Disable")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringDisable = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -2984,21 +2849,8 @@ struct AutoFocusSearchInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Got It")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringKeep ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringKeep = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -3067,21 +2919,8 @@ struct FullDiskAccessSheet: View {
                     isPresented = false
                 } label: {
                     Text("Cancel")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringCancel = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -3091,21 +2930,8 @@ struct FullDiskAccessSheet: View {
                     isPresented = false
                 } label: {
                     Text("I've Granted Access")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringGranted ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringGranted = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 // Open Settings (primary - right)
                 Button {
@@ -3114,21 +2940,8 @@ struct FullDiskAccessSheet: View {
                     }
                 } label: {
                     Text("Open Settings")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringOpen ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringOpen = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -3167,8 +2980,8 @@ struct FullDiskAccessSheet: View {
 
 /// Styled sheet for Menu Bar Icon hidden warning
 struct MenuBarHiddenSheet: View {
-    @Binding var showInMenuBar: Bool
     @Binding var isPresented: Bool
+    var onConfirm: () -> Void
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @State private var isHoveringHide = false
     @State private var isHoveringCancel = false
@@ -3226,45 +3039,22 @@ struct MenuBarHiddenSheet: View {
                     isPresented = false
                 } label: {
                     Text("Cancel")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringCancel = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
                 // Hide Icon (primary - right)
                 Button {
-                    showInMenuBar = false
                     isPresented = false
+                    // Use DispatchQueue to ensure sheet dismissal completes before action
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        onConfirm()
+                    }
                 } label: {
                     Text("Hide Icon")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringHide ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringHide = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -3310,6 +3100,7 @@ struct PowerFoldersInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -3367,6 +3158,7 @@ struct ClipboardShortcutInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -3434,6 +3226,7 @@ struct ExternalDisplayInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -3476,6 +3269,7 @@ struct QuickActionsInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -3585,21 +3379,8 @@ struct QuickActionsInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Disable")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringDisable = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -3608,21 +3389,8 @@ struct QuickActionsInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Got It")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringKeep ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringKeep = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }
@@ -3670,6 +3438,7 @@ struct TrackedFoldersInfoButton: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .frame(width: 280)
             }
@@ -3729,12 +3498,10 @@ struct TrackedFoldersSettingsRow: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(.blue)
                                 Text("Add Folder")
-                                    .font(.subheadline)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppyPillButtonStyle(size: .small))
                         
                         Spacer()
                         
@@ -3813,7 +3580,7 @@ struct WatchedFolderRow: View {
                     .font(.system(size: 16))
                     .foregroundStyle(isHovering ? .red : .secondary.opacity(0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyCircleButtonStyle(size: 16))
             .onHover { isHovering = $0 }
         }
         .padding(.vertical, 6)

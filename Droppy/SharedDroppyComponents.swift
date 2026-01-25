@@ -53,5 +53,11 @@ struct MagicProcessingOverlay: View {
                 rotation = 360
             }
         }
+        .onDisappear {
+            // PERFORMANCE FIX: Stop repeatForever animation when removed
+            withAnimation(.linear(duration: 0)) {
+                rotation = 0
+            }
+        }
     }
 }

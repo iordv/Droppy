@@ -21,7 +21,7 @@ struct TerminalNotchButton: View {
                 .padding(10)
                 .background(buttonBackground)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 18))
         .help("Toggle Terminal (Ctrl + `)")
     }
     

@@ -156,23 +156,8 @@ struct VoiceTranscriptionResultView: View {
                     onClose()
                 } label: {
                     Text("Close")
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background((isCloseHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isCloseHovering = h
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 // Save Audio button
                 if hasRecording {
@@ -181,26 +166,10 @@ struct VoiceTranscriptionResultView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "square.and.arrow.down")
-                                .font(.system(size: 12, weight: .semibold))
                             Text("Save Audio")
                         }
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background((isSaveHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isSaveHovering = h
-                        }
-                    }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                 }
                 
                 Spacer()
@@ -220,26 +189,10 @@ struct VoiceTranscriptionResultView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: showCopiedFeedback ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 12, weight: .semibold))
                         Text(showCopiedFeedback ? "Copied!" : "Copy to Clipboard")
                     }
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background((showCopiedFeedback ? Color.green : Color.blue).opacity(isCopyHovering ? 1.0 : 0.8))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isCopyHovering = h
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: showCopiedFeedback ? .green : .blue, size: .small))
             }
             .padding(16)
         }

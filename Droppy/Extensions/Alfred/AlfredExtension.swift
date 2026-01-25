@@ -24,11 +24,11 @@ struct AlfredExtension: ExtensionDefinition {
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/images/alfred-screenshot.png")
+        URL(string: "https://getdroppy.app/assets/images/alfred-screenshot.png")
     }
     
     static var iconURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/icons/alfred.png")
+        URL(string: "https://getdroppy.app/assets/icons/alfred.png")
     }
     
     static let iconPlaceholder = "command.circle.fill"

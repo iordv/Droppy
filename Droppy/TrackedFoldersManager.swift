@@ -287,7 +287,7 @@ final class TrackedFoldersManager: ObservableObject {
             // Add ALL pending files as a SINGLE stack to basket (always show as stack)
             state.addBasketItems(from: urlArray, forceStackAppearance: true)
             state.isBasketVisible = true
-            FloatingBasketWindowController.shared.showBasket()
+            FloatingBasketWindowController.shared.showBasket(atLastPosition: true)
             print("TrackedFolders: Created stack with \(urlArray.count) file(s) in Basket")
         }
     }

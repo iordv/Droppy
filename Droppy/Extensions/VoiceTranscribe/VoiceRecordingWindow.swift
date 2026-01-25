@@ -222,26 +222,11 @@ struct VoiceRecordingOverlayView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "stop.fill")
-                        .font(.system(size: 12, weight: .bold))
                     Text("Stop Recording")
-                        .font(.system(size: 12, weight: .semibold))
                 }
-                .foregroundColor(.primary)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.red.opacity(isHoveringButton ? 1.0 : 0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringButton = h
-                }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: .red, size: .medium))
         }
     }
     

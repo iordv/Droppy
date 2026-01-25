@@ -242,28 +242,22 @@ struct TerminalNotchView: View {
                 // Collapse button
                 Button(action: { manager.toggleExpanded() }) {
                     Image(systemName: "rectangle.compress.vertical")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 24))
                 .help("Collapse to quick mode")
                 
                 // Open in Terminal.app
                 Button(action: { manager.openInTerminalApp() }) {
                     Image(systemName: "arrow.up.forward.app")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 24))
                 .help("Open in Terminal.app")
                 
                 // Close button
                 Button(action: { manager.hide() }) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.6))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyCircleButtonStyle(size: 24))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

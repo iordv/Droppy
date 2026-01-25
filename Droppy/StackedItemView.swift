@@ -116,21 +116,33 @@ struct StackedItemView: View {
             onDragComplete: nil,
             selectionSignature: state.selectedStacks.hashValue
         ) {
-            // Stack content with drop destination
-            ZStack {
-                // Stacked cards (up to 3 visible, rendered back to front)
-                let visibleItems = Array(stack.items.prefix(3))
-                let totalCount = visibleItems.count
-                
-                ForEach(Array(visibleItems.enumerated().reversed()), id: \.element.id) { index, item in
-                    stackedCard(for: item, at: index, total: totalCount)
+            // Stack content with drop destination - VStack matching BasketItemContent layout
+            VStack(spacing: 6) {
+                // 64x64 container for stacked cards
+                ZStack {
+                    // Stacked cards (up to 3 visible, rendered back to front)
+                    let visibleItems = Array(stack.items.prefix(3))
+                    let totalCount = visibleItems.count
+                    
+                    ForEach(Array(visibleItems.enumerated().reversed()), id: \.element.id) { index, item in
+                        stackedCard(for: item, at: index, total: totalCount)
+                    }
+                    
+                    // Count badge (only show for 2+ items)
+                    if stack.count > 1 {
+                        countBadge
+                    }
                 }
+                .frame(width: 64, height: 64)
                 
-                // Count badge (only show for 2+ items)
-                if stack.count > 1 {
-                    countBadge
-                }
+                // "Expand" text label like regular items
+                Text("Expand")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .frame(width: 68)
             }
+            .padding(4)
             .frame(width: 76, height: 96)  // Match grid slot exactly
             // Drop target visual feedback - scale up and blue glow when files dragged over
             .scaleEffect(isDropTargeted ? 1.08 : 1.0)
@@ -415,16 +427,28 @@ struct StackCollapseButton: View {
             HapticFeedback.pop()
             onCollapse()
         }) {
-            ZStack {
-                // Render 3 stacked cards (back to front)
-                ForEach((0..<3).reversed(), id: \.self) { index in
-                    collapseCard(at: index, total: 3)
+            VStack(spacing: 6) {
+                // 64x64 container for stacked cards
+                ZStack {
+                    // Render 3 stacked cards (back to front)
+                    ForEach((0..<3).reversed(), id: \.self) { index in
+                        collapseCard(at: index, total: 3)
+                    }
                 }
+                .frame(width: 64, height: 64)
+                
+                // "Collapse" text label like regular items
+                Text("Collapse")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .frame(width: 68)
             }
+            .padding(4)
             .frame(width: 76, height: 96)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle())
         .scaleEffect(isHovering ? 1.04 : 1.0)
         .animation(ItemStack.peekAnimation, value: isHovering)
         .animation(ItemStack.peekAnimation, value: peekProgress)

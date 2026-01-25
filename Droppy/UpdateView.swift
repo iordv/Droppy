@@ -118,45 +118,15 @@ struct UpdateView: View {
                         UpdateWindowController.shared.closeWindow()
                     } label: {
                         Text("OK")
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 8)
-                            .background(Color.blue.opacity(isOkHovering ? 1.0 : 0.8))
-                            .foregroundStyle(.primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isOkHovering = h
-                        }
-                    }
+                    .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
                 } else {
                     Button {
                         UpdateWindowController.shared.closeWindow()
                     } label: {
                         Text("Later")
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background((isLaterHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                            .foregroundStyle(.primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isLaterHovering = h
-                        }
-                    }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                     
                     Spacer()
                     
@@ -168,26 +138,10 @@ struct UpdateView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 12, weight: .semibold))
                             Text("Update & Restart")
                         }
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isUpdateHovering ? 1.0 : 0.8))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isUpdateHovering = h
-                        }
-                    }
+                    .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
                 }
             }
             .padding(16)

@@ -4,6 +4,9 @@
 //
 //  Created by Jordy Spruit on 02/01/2026.
 //
+//  Uses NSPasteboard(name: .drag) polling to detect drag operations.
+//  This approach works without Accessibility permissions, unlike NSEvent global monitors.
+//
 
 import AppKit
 import Combine

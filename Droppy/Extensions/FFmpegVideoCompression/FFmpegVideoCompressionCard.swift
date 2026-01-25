@@ -18,7 +18,7 @@ struct FFmpegVideoCompressionCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Extension icon from remote URL (cached)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/video-target-size.png")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

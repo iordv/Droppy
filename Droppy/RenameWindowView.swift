@@ -46,23 +46,8 @@ struct RenameWindowView: View {
                         onCancel()
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isHoveringCancel = h
-                        }
-                    }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                     .keyboardShortcut(.escape, modifiers: [])
                     
                     Spacer()
@@ -72,23 +57,8 @@ struct RenameWindowView: View {
                         onRename(text)
                     } label: {
                         Text("Save")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.accentColor.opacity(isHoveringSave ? 1.0 : 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) {
-                            isHoveringSave = h
-                        }
-                    }
+                    .buttonStyle(DroppyAccentButtonStyle(color: .accentColor, size: .small))
                     .keyboardShortcut(.return, modifiers: [])
                 }
                 .padding(.top, 16)

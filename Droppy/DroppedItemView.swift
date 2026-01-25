@@ -27,11 +27,11 @@ struct DroppedItemView: View {
             // Thumbnail/Icon with glass container
             ZStack(alignment: .topTrailing) {
                 // Glass card background
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(.ultraThinMaterial)
                     .frame(width: 64, height: 64)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .strokeBorder(Color(NSColor.labelColor).opacity(0.2), lineWidth: 0.5)
                     }
                     .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
@@ -49,23 +49,16 @@ struct DroppedItemView: View {
                     }
                 }
                 .frame(width: 48, height: 48)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .frame(width: 64, height: 64)
                 
                 // Remove button with animation
                 if showRemoveButton {
                     Button(action: onRemove) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 20, height: 20)
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.secondary)
-                        }
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 20))
                     .offset(x: 6, y: -6)
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -81,11 +74,11 @@ struct DroppedItemView: View {
         }
         .padding(8)
         .background {
-            // Selection/hover background
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            // Selection/hover background - exactly matches shelf outer edge (bottomRadius: 40)
+            RoundedRectangle(cornerRadius: 40, style: .continuous)
                 .fill(backgroundColor)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    RoundedRectangle(cornerRadius: 40, style: .continuous)
                         .strokeBorder(borderColor, lineWidth: isSelected ? 2 : 1)
                 }
         }

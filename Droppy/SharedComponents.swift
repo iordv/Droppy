@@ -20,17 +20,7 @@ enum DesignConstants {
     static let bounceDamping: Double = 0.4
 }
 
-// MARK: - Option Button Style
-
-/// Shared button style with press animation
-struct OptionButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(DroppyAnimation.stateEmphasis, value: configuration.isPressed)
-            .contentShape(Rectangle())
-    }
-}
+// MARK: - Legacy OptionButtonStyle removed - all usages migrated to DroppySelectableButtonStyle
 
 /// Reusable HUD toggle button with horizontal layout matching onboarding style
 /// Used in both OnboardingView and SettingsView for HUD option grids
@@ -59,7 +49,7 @@ struct AnimatedHUDToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -84,15 +74,15 @@ struct AnimatedHUDToggle: View {
             .frame(width: fixedWidth)
             .frame(maxWidth: fixedWidth == nil ? .infinity : nil)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Capsule()
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
         }
-        .buttonStyle(OptionButtonStyle())
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isOn))
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
@@ -131,7 +121,7 @@ struct AnimatedHUDToggleWithSubtitle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -160,16 +150,16 @@ struct AnimatedHUDToggleWithSubtitle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Capsule()
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(isHovering && isEnabled ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
         }
-        .buttonStyle(OptionButtonStyle())
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isOn))
         .contentShape(Rectangle())
         .disabled(!isEnabled)
         .onHover { hovering in
@@ -214,7 +204,7 @@ struct VolumeAndBrightnessToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isEnabled ? AdaptiveColors.subtleBorderAuto : AdaptiveColors.buttonBackgroundAuto)
                     
                     ZStack {
@@ -251,15 +241,15 @@ struct VolumeAndBrightnessToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isEnabled ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Capsule()
                     .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
         }
-        .buttonStyle(OptionButtonStyle())
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isEnabled))
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
@@ -278,9 +268,8 @@ struct DisplayModeButton<Icon: View>: View {
     let icon: Icon
     let action: () -> Void
     
-    @State private var isHovering = false
-    @State private var isPressed = false
     @State private var iconBounce = false
+    @State private var isHovering = false
     
     init(title: String, subtitle: String? = nil, isSelected: Bool, @ViewBuilder icon: () -> Icon, action: @escaping () -> Void) {
         self.title = title
@@ -306,7 +295,7 @@ struct DisplayModeButton<Icon: View>: View {
             HStack(spacing: 12) {
                 // Icon preview area
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isSelected ? Color.blue.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     
                     icon
@@ -336,25 +325,19 @@ struct DisplayModeButton<Icon: View>: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isSelected ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Capsule()
                     .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
-            .scaleEffect(isPressed ? 0.97 : (isHovering ? 1.02 : 1.0))
+            .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
-            .animation(DroppyAnimation.press, value: isPressed)
         }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
+        .contentShape(Capsule())
         .onHover { hovering in
             isHovering = hovering
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
     }
 }
 // MARK: - Animated Sub-Setting Toggle
@@ -386,7 +369,7 @@ struct AnimatedSubSettingToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -415,15 +398,15 @@ struct AnimatedSubSettingToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                Capsule()
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
         }
-        .buttonStyle(OptionButtonStyle())
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isOn))
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering

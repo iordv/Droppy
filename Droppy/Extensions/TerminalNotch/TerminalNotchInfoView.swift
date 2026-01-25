@@ -71,7 +71,7 @@ struct TerminalNotchInfoView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/termi-notch.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/termi-notch.jpg")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "terminal").font(.system(size: 32, weight: .medium)).foregroundStyle(.green)
@@ -114,7 +114,7 @@ struct TerminalNotchInfoView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 Text("Productivity")
                     .font(.caption.weight(.semibold))
@@ -143,7 +143,7 @@ struct TerminalNotchInfoView: View {
             featureRow(icon: "arrow.up.forward.app", text: "Open in Terminal.app anytime")
             
             // Screenshot
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/terminal-notch-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/terminal-notch-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -214,7 +214,7 @@ struct TerminalNotchInfoView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 18))
                     .popover(isPresented: $showShortcutInfo, arrowEdge: .trailing) {
                         VStack(alignment: .center, spacing: 16) {
                             Text("Accessing Termi-Notch")
@@ -259,9 +259,9 @@ struct TerminalNotchInfoView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background(AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(Capsule())
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            Capsule()
                                 .stroke(isRecordingShortcut ? Color.green : AdaptiveColors.subtleBorderAuto, lineWidth: isRecordingShortcut ? 2 : 1)
                         )
                     
@@ -274,18 +274,8 @@ struct TerminalNotchInfoView: View {
                         }
                     } label: {
                         Text(isRecordingShortcut ? "Press..." : "Record")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background((isRecordingShortcut ? Color.red : Color.green).opacity(isHoveringRecord ? 1.0 : 0.85))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hoverQuick) { isHoveringRecord = h }
-                    }
+                    .buttonStyle(DroppyAccentButtonStyle(color: isRecordingShortcut ? .red : .green, size: .small))
                 }
                 
                 Text("Press the shortcut to toggle the terminal from anywhere")
@@ -310,21 +300,8 @@ struct TerminalNotchInfoView: View {
                 dismiss()
             } label: {
                 Text("Close")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringCancel = h }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -334,20 +311,8 @@ struct TerminalNotchInfoView: View {
                     manager.removeShortcut()
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(8)
-                        .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hoverQuick) { isHoveringReset = h }
-                }
+                .buttonStyle(DroppyCircleButtonStyle(size: 32))
                 .help("Reset Shortcut")
             }
             
@@ -358,17 +323,8 @@ struct TerminalNotchInfoView: View {
                     installExtension()
                 } label: {
                     Text("Install")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.green.opacity(isHoveringAction ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hoverQuick) { isHoveringAction = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .small))
             }
         }
         .padding(16)

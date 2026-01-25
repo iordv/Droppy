@@ -79,6 +79,9 @@ struct NotchShelfView: View {
     @State private var dashPhase: CGFloat = 0
     @State private var dropZoneDashPhase: CGFloat = 0
     
+    /// Shared start time for title marquee scrolling - ensures smooth scroll continuity during HUD/expanded morph
+    @State private var sharedMarqueeStartTime: Date = Date()
+    
     // Marquee Selection State
     @State private var selectionRect: CGRect? = nil
     @State private var initialSelection: Set<UUID> = []
@@ -94,7 +97,22 @@ struct NotchShelfView: View {
     // PREMIUM: Dedicated state for hover scale effect - ensures clean single-value animation
     @State private var hoverScaleActive: Bool = false
     
+    // PREMIUM: Album art interaction states
+    @State private var albumArtNudgeOffset: CGFloat = 0  // ±6pt nudge on prev/next tap
+    @State private var albumArtParallaxOffset: CGSize = .zero  // Cursor-following parallax effect
+    @State private var albumArtTapScale: CGFloat = 1.0  // Subtle grow effect when clicking to open source
+    @State private var mediaOverlayAppeared: Bool = false  // Scale+opacity appear animation for morphing overlays
+    @State private var mediaOverlayAnimWorkItem: DispatchWorkItem?  // Cancellable animation trigger for fast swipes
+    
+    // MORPH: Namespace for album art morphing between HUD and expanded player
+    @Namespace private var albumArtNamespace
+    
     // Removed isDropTargeted state as we use shared state now
+    
+    /// Dynamic Island background color - now pure black to match notch appearance
+    private var dynamicIslandGray: Color {
+        Color.black
+    }
     
     /// Dynamic notch width based on screen's actual safe areas
     /// This properly handles all resolutions including "More Space" settings
@@ -129,7 +147,18 @@ struct NotchShelfView: View {
         // Use target screen or fallback to built-in
         guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return 32 }
         let topInset = screen.safeAreaInsets.top
-        return topInset > 0 ? topInset : 32
+        
+        // For screens with a physical notch, use the actual inset
+        if topInset > 0 {
+            return topInset
+        }
+        
+        // For external displays in notch mode: constrain to menu bar height
+        // Menu bar height = difference between full frame and visible frame at the top
+        let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+        // Use 24pt as default if menu bar is auto-hidden, but never exceed actual menu bar
+        let maxHeight = menuBarHeight > 0 ? menuBarHeight : 24
+        return min(32, maxHeight)
     }
     
     /// Whether we're in Dynamic Island mode (no physical notch + setting enabled, or force test)
@@ -155,15 +184,28 @@ struct NotchShelfView: View {
     }
     
     /// Whether the Dynamic Island should use transparent glass effect
-    /// Uses the MAIN "Transparent Background" setting - one toggle controls all transparency
+    /// DISABLED: Dynamic Island now always uses solid black, same as notch mode
     private var shouldUseDynamicIslandTransparent: Bool {
-        isDynamicIslandMode && useTransparentBackground
+        false  // Always solid black to match notch appearance
     }
     
     /// Whether the external display notch should use transparent glass effect
-    /// Only applies to external displays in notch mode (not built-in, as physical notch is black)
+    /// DISABLED: External notch now always uses solid black, same as built-in notch
     private var shouldUseExternalNotchTransparent: Bool {
-        isExternalDisplay && !isDynamicIslandMode && useTransparentBackground
+        false  // Always solid black to match notch appearance
+    }
+    
+    /// Whether the HUD should show a title in the center
+    /// True for Dynamic Island mode OR external displays (no physical camera blocking the center)
+    private var shouldShowTitleInHUD: Bool {
+        isDynamicIslandMode || isExternalDisplay
+    }
+    
+    /// SSOT: notchHeight to use for CONTENT layout calculations
+    /// External displays and DI mode use 0 (symmetrical 20pt padding on all edges)
+    /// Only built-in displays with physical notch use actual notchHeight (content starts below notch)
+    private var contentLayoutNotchHeight: CGFloat {
+        (isDynamicIslandMode || isExternalDisplay) ? 0 : notchHeight
     }
     
     /// Whether THIS specific screen has the shelf expanded
@@ -194,9 +236,9 @@ struct NotchShelfView: View {
     /// Media player horizontal layout dimensions (v8.1.5 redesign)
     /// Wider but shorter for horizontal album art + controls layout
     private let mediaPlayerExpandedWidth: CGFloat = 480
-    /// Content height matching shelf pattern exactly:
-    /// Island mode: 100pt (album) + 20pt top + 20pt bottom = 140pt
-    /// Notch mode: 100pt + (notchHeight + 6) top + 20pt bottom
+    /// Content height matching shelf pattern exactly (SSOT: uses NotchLayoutConstants):
+    /// DI/external mode: 100pt (album) + 20pt top + 20pt bottom = 140pt
+    /// Built-in notch mode: 100pt + notchHeight (top) + 20pt (bottom) = totalHeight varies
     private let mediaPlayerContentHeight: CGFloat = 140
     
     /// Fixed wing sizes (area left/right of notch for content)  
@@ -209,18 +251,22 @@ struct NotchShelfView: View {
     /// This ensures wings are FIXED size regardless of notch size
     /// Volume and Brightness use IDENTICAL widths for visual consistency
     private var volumeHudWidth: CGFloat {
-        if isDynamicIslandMode {
-            return 260  // Compact width for island mode
+        // External monitors (both island and notch mode): use compact 260pt
+        // Built-in MacBook notch: use wide layout for proper fit around physical notch
+        if isExternalDisplay || isDynamicIslandMode {
+            return 260  // Compact width for external/island mode
         }
-        return notchWidth + (volumeWingWidth * 2) + 20  // Same formula as brightness
+        return notchWidth + (volumeWingWidth * 2) + 20  // Wide for built-in notch
     }
     
     /// Brightness HUD - same width as Volume for visual consistency
     private var brightnessHudWidth: CGFloat {
-        if isDynamicIslandMode {
-            return 260  // Compact width for island mode
+        // External monitors (both island and notch mode): use compact 260pt
+        // Built-in MacBook notch: use wide layout
+        if isExternalDisplay || isDynamicIslandMode {
+            return 260  // Compact width for external/island mode
         }
-        return notchWidth + (volumeWingWidth * 2) + 20
+        return notchWidth + (volumeWingWidth * 2) + 20  // Wide for built-in notch
     }
     
     /// Returns appropriate HUD width based on current hudType
@@ -328,31 +374,11 @@ struct NotchShelfView: View {
         } else if HUDManager.shared.isDNDHUDVisible && enableDNDHUD {
             return notchHeight  // Focus/DND HUD just uses notch height (no slider)
         } else if shouldShowMediaHUD {
-            // Dynamic Island stays fixed height - no vertical extension
-            if isDynamicIslandMode {
-                return notchHeight
-            }
-            // External displays: no vertical expansion since no title scrolls underneath
-            if !isBuiltInDisplay {
-                return notchHeight
-            }
-            // Built-in notch: Grow when hovered AND media player is visible (not volume/brightness HUD)
-            // Title row: 4px top + 20px title + 4px bottom = 28px
-            let mediaHUDVisible = showMediaPlayer && !hudIsVisible
-            // Only expand on media hover, NOT when dragging files (prevents sliding animation)
-            let shouldExpand = mediaHUDIsHovered && mediaHUDVisible
-            return shouldExpand ? notchHeight + 28 : notchHeight
+            // No vertical expansion on media HUD hover - just stay at notch height
+            return notchHeight
         } else if enableNotchShelf && (isHoveringOnThisScreen || dragMonitor.isDragging) {
-            // Dynamic Island stays fixed height - no vertical extension on hover
-            if isDynamicIslandMode {
-                return notchHeight
-            }
-            // External displays: no vertical expansion (no title to peek)
-            if !isBuiltInDisplay {
-                return notchHeight
-            }
-            // Peek down when hovering or dragging files - subtle expansion
-            return notchHeight + 16
+            // No vertical expansion on hover - just stay at notch height
+            return notchHeight
         } else {
             return notchHeight
         }
@@ -361,9 +387,11 @@ struct NotchShelfView: View {
     private var currentExpandedHeight: CGFloat {
         // TERMINAL: Expanded height when terminal has output
         if terminalManager.isInstalled && terminalManager.isVisible {
-            // Base height for terminal (taller than media player to fit content + bottom padding)
+            // Base height for terminal (taller than media player to fit content)
             let baseTerminalHeight: CGFloat = 180
-            let topPaddingDelta: CGFloat = isDynamicIslandMode ? 0 : (notchHeight - 14)
+            // SSOT: Use contentLayoutNotchHeight for consistent sizing
+            // Same logic as media player: delta = notchHeight - 20 for built-in notch mode
+            let topPaddingDelta: CGFloat = contentLayoutNotchHeight == 0 ? 0 : (contentLayoutNotchHeight - 20)
             let terminalHeight = baseTerminalHeight + topPaddingDelta
             
             // Height stays constant - no expansion when output is present
@@ -374,12 +402,13 @@ struct NotchShelfView: View {
         let shouldShowMediaPlayer = musicManager.isMediaHUDForced || 
             ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.shelfDisplaySlotCount == 0)
         
-        // MEDIA PLAYER: Content height + notch compensation (if applicable)
+        // MEDIA PLAYER: Content height based on layout
         if showMediaPlayer && shouldShowMediaPlayer && !musicManager.isPlayerIdle {
-            // v8.1.5: Horizontal layout matching shelf pattern exactly
-            // Island mode: 140pt (100pt album + 20pt top + 20pt bottom)
-            // Notch mode: 140pt + (notchHeight + 6 - 20) = 140pt + notchHeight - 14
-            let topPaddingDelta: CGFloat = isDynamicIslandMode ? 0 : (notchHeight - 14)
+            // SSOT: Use contentLayoutNotchHeight for consistent sizing
+            // DI/external mode: 20 (top) + 100 (album) + 20 (bottom) = 140pt (no delta)
+            // Built-in notch mode: notchHeight (top) + 100 (album) + 20 (bottom) = notchHeight + 120
+            // Delta from base 140: notchHeight - 20
+            let topPaddingDelta: CGFloat = contentLayoutNotchHeight == 0 ? 0 : (contentLayoutNotchHeight - 20)
             return mediaPlayerContentHeight + topPaddingDelta
         }
         
@@ -389,9 +418,10 @@ struct NotchShelfView: View {
         let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
         let baseHeight = max(1, rowCount) * 110 // 110 per row, no header
         
-        // In notch mode, add extra height to compensate for top padding that clears physical notch
-        // Island mode doesn't need this as there's no physical obstruction
-        let notchCompensation: CGFloat = isDynamicIslandMode ? 0 : notchHeight
+        // In built-in notch mode, add extra height to compensate for top padding that clears physical notch
+        // Island mode and external displays don't need this as they use symmetrical layout
+        // SSOT: Use contentLayoutNotchHeight for consistent sizing
+        let notchCompensation: CGFloat = contentLayoutNotchHeight
         return baseHeight + notchCompensation
     }
     /// Helper to check if current screen is built-in (MacBook display)
@@ -495,34 +525,22 @@ struct NotchShelfView: View {
                                 terminalManager.openInTerminalApp()
                             }) {
                                 Image(systemName: "arrow.up.forward.app")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 26, height: 26)
-                                    .padding(10)
-                                    .background(indicatorBackground)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: isDynamicIslandMode, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
                             .help("Open in Terminal.app")
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                             
-                            // Clear terminal button (only when there's output)
                             if !terminalManager.lastOutput.isEmpty {
                                 Button(action: {
                                     terminalManager.clearOutput()
                                 }) {
                                     Image(systemName: "arrow.counterclockwise")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 26, height: 26)
-                                        .padding(10)
-                                        .background(indicatorBackground)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: isDynamicIslandMode, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
                                 .help("Clear terminal output")
                                 .transition(.scale(scale: 0.8).combined(with: .opacity))
                             }
                         }
-                        
                         // Toggle terminal button (shows terminal icon when hidden, X when visible)
                         Button(action: {
                             withAnimation(DroppyAnimation.listChange) {
@@ -530,13 +548,8 @@ struct NotchShelfView: View {
                             }
                         }) {
                             Image(systemName: terminalManager.isVisible ? "xmark" : "terminal")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 26, height: 26)
-                                .padding(10)
-                                .background(indicatorBackground)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: isDynamicIslandMode, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                     
@@ -549,13 +562,8 @@ struct NotchShelfView: View {
                             }
                         }) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 26, height: 26)
-                                .padding(10)
-                                .background(indicatorBackground)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: isDynamicIslandMode, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
                     }
                 }
                 // Position exactly below the expanded content using SSOT gap
@@ -680,6 +688,8 @@ struct NotchShelfView: View {
                             isSongTransitioning = false
                         }
                     }
+                    // Reset marquee scroll for new song
+                    sharedMarqueeStartTime = Date()
                 }
                 if !newTitle.isEmpty {
                     mediaHUDFadedOut = false
@@ -911,16 +921,34 @@ struct NotchShelfView: View {
             // MARK: - Expanded Shelf Content
             if isExpandedOnThisScreen && enableNotchShelf {
                 expandedShelfContent
-                    .transition(.scale(scale: 0.85).combined(with: .opacity).animation(DroppyAnimation.expandOpen))
+                    // PREMIUM: Opacity transition with .smooth(0.35) to allow child morphing
+                    .transition(.opacity.animation(.smooth(duration: 0.35)))
                     .frame(width: expandedWidth, height: currentExpandedHeight)
-                    // UNIFIED: Use single notchState animation for all height changes
-                    .animation(DroppyAnimation.notchState, value: currentExpandedHeight)
-                    .animation(DroppyAnimation.notchState, value: musicManager.isMediaHUDForced)
-                    .animation(DroppyAnimation.notchState, value: musicManager.isMediaHUDHidden)
+                    // PREMIUM: Unified .smooth(0.35) for ALL state changes
+                    .animation(.smooth(duration: 0.35), value: currentExpandedHeight)
+                    .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDForced)
+                    .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDHidden)
                     .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 40)) : AnyShape(NotchShape(bottomRadius: 40)))
                     .geometryGroup()
                     .zIndex(2)
             }
+            
+            // MARK: - Morphing Album Art Overlay (Droppy Proxy Pattern)
+            // CRITICAL: This is the SINGLE album art that morphs between HUD and expanded states.
+            // Both MediaHUDView and MediaPlayerView hide their internal album art (showAlbumArt: false)
+            // and this overlay provides the smooth morphing animation.
+            morphingAlbumArtOverlay
+                .zIndex(10)  // Above all content for smooth morphing visibility
+            
+            // MARK: - Morphing Visualizer Overlay (Droppy Proxy Pattern)
+            // Same approach as album art - single visualizer that morphs position
+            morphingVisualizerOverlay
+                .zIndex(11)  // Above album art for visibility
+            
+            // MARK: - Morphing Title Overlay (Droppy Proxy Pattern)
+            // Same approach - single title that morphs from HUD to expanded position
+            morphingTitleOverlay
+                .zIndex(12)  // Above visualizer for visibility
         }
         .opacity(notchController.isTemporarilyHidden ? 0 : 1)
         .frame(width: currentNotchWidth, height: currentNotchHeight)
@@ -1035,7 +1063,12 @@ struct NotchShelfView: View {
         let noHUDsVisible = !hudIsVisible && !HUDManager.shared.isVisible
         let notExpanded = !isExpandedOnThisScreen
         
-        let shouldShowForced = musicManager.isMediaHUDForced && !musicManager.isPlayerIdle && showMediaPlayer && noHUDsVisible && notExpanded
+        // CRITICAL (Issue #101): Hide media HUD when fullscreen app is active ON THIS DISPLAY
+        // Multi-monitor support: Each screen independently tracks its fullscreen state
+        let targetDisplayID = targetScreen?.displayID ?? 0
+        let notInFullscreen = !notchController.fullscreenDisplayIDs.contains(targetDisplayID)
+        
+        let shouldShowForced = musicManager.isMediaHUDForced && !musicManager.isPlayerIdle && showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen
         
         let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
         let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
@@ -1045,16 +1078,395 @@ struct NotchShelfView: View {
         // When isMediaSourceForced is true, we know the source is playing (verified via AppleScript)
         let bypassSafeguards = musicManager.isMediaSourceForced
         let hasContent = !musicManager.songTitle.isEmpty
-        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && 
+        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && 
                               (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
         
         if shouldShowForced || shouldShowNormal {
-            MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth, targetScreen: targetScreen)
+            // Title morphing is handled by overlay for both DI and notch modes
+            MediaHUDView(musicManager: musicManager, isHovered: $mediaHUDIsHovered, notchWidth: notchWidth, notchHeight: notchHeight, hudWidth: hudWidth, targetScreen: targetScreen, albumArtNamespace: albumArtNamespace, showAlbumArt: false, showVisualizer: false, showTitle: false)
                 .frame(width: hudWidth, alignment: .top)
                 .clipShape(isDynamicIslandMode ? AnyShape(DynamicIslandShape(cornerRadius: 50)) : AnyShape(NotchShape(bottomRadius: 18)))
-                .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
+                // PREMIUM: Opacity transition with .smooth(0.35) for unified feel
+                .transition(.opacity.animation(.smooth(duration: 0.35)))
                 .zIndex(3)
         }
+    }
+    // MARK: - Morphing Background
+    
+    // MARK: - Morphing Album Art Overlay (Droppy Proxy Pattern)
+    
+    /// Single album art that morphs smoothly between HUD and expanded states.
+    /// Uses position and size animation rather than matchedGeometryEffect for reliable morphing.
+    @ViewBuilder
+    private var morphingAlbumArtOverlay: some View {
+        // Only show when media is visible
+        let showInHUD = shouldShowMediaHUDForMorphing
+        let showInExpanded = shouldShowExpandedMediaPlayerForMorphing
+        
+        if showInHUD || showInExpanded {
+            // Calculate sizes
+            let hudSize: CGFloat = isDynamicIslandMode ? 18 : 20
+            let expandedSize: CGFloat = 100
+            let currentSize = isExpandedOnThisScreen ? expandedSize : hudSize
+            
+            // Calculate corner radii
+            let hudCornerRadius: CGFloat = isDynamicIslandMode ? hudSize / 2 : 5
+            let expandedCornerRadius: CGFloat = 18
+            let currentCornerRadius = isExpandedOnThisScreen ? expandedCornerRadius : hudCornerRadius
+            
+            // Calculate position offsets based on contentOverlay frame
+            // contentOverlay is framed at currentNotchWidth x currentNotchHeight
+            // For HUD mode we use FIXED dimensions to prevent jumping on hover
+            
+            // HUD X position: Album art at left edge with symmetricPadding inset
+            // Use FIXED HUD container width to prevent jumping during transitions
+            let hudSymmetricPadding: CGFloat = isDynamicIslandMode ? (notchHeight - hudSize) / 2 : max((notchHeight - hudSize) / 2, 6)
+            // In DI mode, use notchHeight as the fixed HUD height. In notch mode, use actual notchHeight.
+            let fixedHUDHeight: CGFloat = isDynamicIslandMode ? notchHeight : notchHeight
+            let fixedHUDContainerWidth: CGFloat = isDynamicIslandMode ? 260 : (notchWidth + (mediaWingWidth * 2))
+            let hudXOffset = -(fixedHUDContainerWidth / 2) + hudSymmetricPadding + (hudSize / 2)
+            
+            // Expanded X position: Album art at left side with content padding
+            let expandedPadding: CGFloat = 20  // NotchLayoutConstants content padding
+            let expandedXOffset = -(expandedWidth / 2) + expandedPadding + (expandedSize / 2)
+            
+            let currentXOffset = isExpandedOnThisScreen ? expandedXOffset : hudXOffset
+            
+            // Y position: ZStack is .top aligned, so offset moves the view's TOP edge down
+            // HUD: Center icon vertically = offset by (containerHeight - iconHeight) / 2
+            let hudYOffset = (fixedHUDHeight - hudSize) / 2
+            // Expanded: Position album art top edge at content padding position
+            // SSOT: Must match NotchLayoutConstants.contentEdgeInsets exactly
+            // - DI/external mode: top padding = 20 (contentPadding)
+            // - Built-in notch mode: top padding = notchHeight
+            let expandedTopPadding: CGFloat = contentLayoutNotchHeight == 0 ? expandedPadding : contentLayoutNotchHeight
+            let expandedYOffset = expandedTopPadding
+            let currentYOffset = isExpandedOnThisScreen ? expandedYOffset : hudYOffset
+            
+            // Album art image with Droppy-style interactions
+            Group {
+                if musicManager.albumArt.size.width > 0 {
+                    Image(nsImage: musicManager.albumArt)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    RoundedRectangle(cornerRadius: currentCornerRadius)
+                        .fill(Color.white.opacity(isExpandedOnThisScreen ? 0.08 : 0.2))
+                        .overlay(
+                            Image(systemName: "music.note")
+                                .font(.system(size: isExpandedOnThisScreen ? 36 : 10))
+                                .foregroundStyle(.white.opacity(isExpandedOnThisScreen ? 0.3 : 0.5))
+                        )
+                }
+            }
+            .frame(width: currentSize, height: currentSize)
+            .clipShape(RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous))
+            // PREMIUM: Subtle darkening overlay when paused (expanded only)
+            .overlay {
+                if isExpandedOnThisScreen && !musicManager.isPlaying {
+                    RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous)
+                        .fill(Color.black.opacity(0.25))
+                }
+            }
+            // Spotify badge (bottom-right corner, expanded only) - fades in without sliding
+            .overlay {
+                ZStack(alignment: .bottomTrailing) {
+                    Color.clear
+                    SpotifyBadge(size: 24)
+                        .offset(x: 5, y: 5)
+                        .opacity(isExpandedOnThisScreen && musicManager.isSpotifySource ? 1 : 0)
+                        .animation(DroppyAnimation.state, value: isExpandedOnThisScreen)
+                        .animation(DroppyAnimation.state, value: musicManager.isSpotifySource)
+                }
+            }
+            .shadow(color: isExpandedOnThisScreen ? .black.opacity(0.3) : .clear, radius: 8, y: 4)
+            // PREMIUM: Cursor-following parallax - MUST be applied BEFORE offset to track correct position
+            .onContinuousHover { phase in
+                guard isExpandedOnThisScreen else {
+                    albumArtParallaxOffset = .zero
+                    return
+                }
+                switch phase {
+                case .active(let location):
+                    // Calculate offset from center (album art is currentSize x currentSize)
+                    let centerX = currentSize / 2
+                    let centerY = currentSize / 2
+                    let deltaX = location.x - centerX
+                    let deltaY = location.y - centerY
+                    // Subtle parallax: max ±4pt shift
+                    let maxOffset: CGFloat = 4
+                    let parallaxX = (deltaX / centerX) * maxOffset
+                    let parallaxY = (deltaY / centerY) * maxOffset
+                    albumArtParallaxOffset = CGSize(width: parallaxX, height: parallaxY)
+                case .ended:
+                    albumArtParallaxOffset = .zero
+                }
+            }
+            // PREMIUM: Subtle shrink when paused (0.95x scale), grow on tap (1.08x)
+            // Tap scale is multiplied to combine with pause shrink
+            .scaleEffect((isExpandedOnThisScreen && !musicManager.isPlaying ? 0.95 : 1.0) * albumArtTapScale)
+            // PREMIUM: Nudge animation on prev/next/play (±6pt horizontal shift)
+            // PREMIUM: Parallax offset follows cursor for magnetic 'pull' effect
+            .offset(
+                x: currentXOffset + albumArtNudgeOffset + (isExpandedOnThisScreen ? albumArtParallaxOffset.width : 0),
+                y: currentYOffset + (isExpandedOnThisScreen ? albumArtParallaxOffset.height : 0)
+            )
+            // PREMIUM: Single unified animation for ALL expand/collapse morphing
+            // This controls: size, position, cornerRadius, scaleEffect (pause shrink), shadow
+            .animation(.smooth(duration: 0.35), value: isExpandedOnThisScreen)
+            .animation(.smooth(duration: 0.35), value: musicManager.isPlaying)  // pause shrink matches expand timing
+            // INTERACTIVE: User-triggered animations kept separate
+            .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.6), value: albumArtNudgeOffset)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.7), value: albumArtParallaxOffset.width)
+            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.7), value: albumArtParallaxOffset.height)
+            .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.5), value: albumArtTapScale)
+            // PREMIUM: Scale+opacity appear animation (same as MediaPlayerView controls)
+            .scaleEffect(mediaOverlayAppeared ? 1.0 : 0.8, anchor: .top)
+            .opacity(mediaOverlayAppeared ? 1.0 : 0)
+            .animation(.smooth(duration: 0.35), value: mediaOverlayAppeared)
+            .onAppear {
+                // PREMIUM: Cancel pending and trigger fresh animation on appear
+                mediaOverlayAnimWorkItem?.cancel()
+                mediaOverlayAppeared = false
+                let workItem = DispatchWorkItem { [self] in
+                    mediaOverlayAppeared = true
+                }
+                mediaOverlayAnimWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+            }
+            .onDisappear {
+                mediaOverlayAnimWorkItem?.cancel()
+                mediaOverlayAppeared = false
+            }
+            // PREMIUM: Re-trigger animation when swiping between shelf and media
+            .onChange(of: musicManager.isMediaHUDForced) { _, _ in
+                mediaOverlayAnimWorkItem?.cancel()
+                mediaOverlayAppeared = false
+                let workItem = DispatchWorkItem { [self] in
+                    mediaOverlayAppeared = true
+                }
+                mediaOverlayAnimWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+            }
+            .onChange(of: musicManager.isMediaHUDHidden) { _, _ in
+                mediaOverlayAnimWorkItem?.cancel()
+                mediaOverlayAppeared = false
+                let workItem = DispatchWorkItem { [self] in
+                    mediaOverlayAppeared = true
+                }
+                mediaOverlayAnimWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+            }
+            // PREMIUM: Re-trigger animation when expanding/collapsing (hover or click)
+            .onChange(of: isExpandedOnThisScreen) { _, _ in
+                mediaOverlayAnimWorkItem?.cancel()
+                mediaOverlayAppeared = false
+                let workItem = DispatchWorkItem { [self] in
+                    mediaOverlayAppeared = true
+                }
+                mediaOverlayAnimWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+            }
+            .geometryGroup()  // Bundle as single element for smooth morphing
+            // Click to open source app (expanded only) with subtle grow effect
+            .onTapGesture {
+                guard isExpandedOnThisScreen else { return }
+                // Subtle grow effect on tap
+                albumArtTapScale = 1.08
+                // Open the source app
+                musicManager.openMusicApp()
+                // Spring back after grow
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    albumArtTapScale = 1.0
+                }
+            }
+            // Nudge on track skip
+            .onChange(of: musicManager.lastSkipDirection) { _, direction in
+                guard direction != .none else { return }
+                let nudgeAmount: CGFloat = direction == .forward ? 6 : -6
+                albumArtNudgeOffset = nudgeAmount
+                // Spring back after nudge
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    albumArtNudgeOffset = 0
+                }
+            }
+        }
+    }
+    
+    // MARK: - Morphing Visualizer Overlay (Droppy Proxy Pattern)
+    
+    /// Single visualizer that morphs smoothly between HUD and expanded states.
+    @ViewBuilder
+    private var morphingVisualizerOverlay: some View {
+        let showInHUD = shouldShowMediaHUDForMorphing
+        let showInExpanded = shouldShowExpandedMediaPlayerForMorphing
+        
+        if showInHUD || showInExpanded {
+            // Calculate sizes
+            // HUD: 5 bars * 2.5 width + 4 gaps * 2 spacing = 20.5 width, 18 height
+            let hudWidth: CGFloat = 20.5  // 5 bars for both modes
+            let hudHeight: CGFloat = 18
+            // Expanded: MUST MATCH AudioVisualizerBars exactly: 5 * 3 + 4 * 2 = 23pt
+            // (AudioVisualizerBars uses barWidth: 3, spacing: 2 in MediaPlayerComponents.swift)
+            let expandedWidth: CGFloat = 23  // 5 bars * 3px + 4 gaps * 2px
+            let expandedHeight: CGFloat = 20  // Matches AudioVisualizerBars height
+            let currentWidth = isExpandedOnThisScreen ? expandedWidth : hudWidth
+            let currentHeight = isExpandedOnThisScreen ? expandedHeight : hudHeight
+            
+            // Calculate position offsets
+            // Use fixed dimensions for HUD to prevent jumping on hover
+            let fixedHUDHeight: CGFloat = notchHeight
+            let hudSymmetricPadding: CGFloat = isDynamicIslandMode ? (notchHeight - hudHeight) / 2 : max((notchHeight - hudHeight) / 2, 6)
+            
+            // HUD X: Right side of HUD (mirror of album art position)
+            // Use FIXED HUD container width to prevent jumping during transitions
+            let fixedHUDContainerWidth: CGFloat = isDynamicIslandMode ? 260 : (notchWidth + (mediaWingWidth * 2))
+            let visualizerHudXOffset = (fixedHUDContainerWidth / 2) - hudSymmetricPadding - (hudWidth / 2)
+            
+            // Expanded X: Align visualizer RIGHT edge with timestamp RIGHT edge
+            let expandedPadding: CGFloat = 20
+            // Timestamp right edge is at container edge - padding = 450 - 20 = 430pt from left
+            // The actual MediaPlayerView frames the visualizer at 28pt but content is only 23pt centered within
+            // So visualizer content right edge = frame right edge - (28-23)/2 = frame right - 2.5pt
+            // To align content precisely, we need to match where the ACTUAL bars end
+            // MediaPlayerView visualizer frame right = 430pt, content right = 430 - 2.5 = 427.5pt
+            // Our visualizer is 23pt, so center should be at 427.5 - 11.5 = 416pt from left = 191pt from center
+            let frameToContentOffset: CGFloat = 2.5  // MediaPlayerView uses 28pt frame for 23pt content
+            let expandedXOffset = (self.expandedWidth / 2) - expandedPadding - (expandedWidth / 2) - frameToContentOffset
+            
+            let currentXOffset = isExpandedOnThisScreen ? expandedXOffset : visualizerHudXOffset
+            
+            // Y position: centered in HUD, at top of expanded content (in title row)
+            let hudYOffset = (fixedHUDHeight - hudHeight) / 2
+            // Expanded: in the title row area, aligned with title text
+            // SSOT: Must match NotchLayoutConstants.contentEdgeInsets exactly
+            let expandedTopPadding: CGFloat = contentLayoutNotchHeight == 0 ? expandedPadding : contentLayoutNotchHeight
+            let expandedYOffset = expandedTopPadding + 1  // +1 to vertically center visualizer with title row
+            let currentYOffset = isExpandedOnThisScreen ? expandedYOffset : hudYOffset
+            
+            // PERFORMANCE: Use cached visualizer color (computed once per track change)
+            
+            // Use AudioSpectrumView which works for both states
+            AudioSpectrumView(
+                isPlaying: musicManager.isPlaying,
+                barCount: 5,  // Always 5 bars
+                barWidth: isExpandedOnThisScreen ? 3 : 2.5,  // Match AudioVisualizerBars (3pt)
+                spacing: 2,
+                height: currentHeight,
+                color: musicManager.visualizerColor  // PERFORMANCE: Cached, not recomputed
+            )
+            .frame(width: currentWidth, height: currentHeight)
+            .offset(x: currentXOffset, y: currentYOffset)
+            .animation(.smooth(duration: 0.35), value: isExpandedOnThisScreen)
+            // PREMIUM: Scale+opacity appear animation (same as album art)
+            .scaleEffect(mediaOverlayAppeared ? 1.0 : 0.8, anchor: .top)
+            .opacity(mediaOverlayAppeared ? 1.0 : 0)
+            .animation(.smooth(duration: 0.35), value: mediaOverlayAppeared)
+            .geometryGroup()  // Bundle as single element for smooth morphing
+        }
+    }
+    
+    // MARK: - Morphing Title Overlay (Droppy Proxy Pattern)
+    
+    /// Single title text that morphs smoothly between HUD and expanded states.
+    /// Shows for Dynamic Island mode AND external displays (no physical camera blocking center)
+    @ViewBuilder
+    private var morphingTitleOverlay: some View {
+        // Show title in HUD for DI mode or external displays (no physical notch camera)
+        // Built-in notch mode has physical camera blocking center, so title fades in on expand
+        if shouldShowTitleInHUD {
+            let showInHUD = shouldShowMediaHUDForMorphing
+            let showInExpanded = shouldShowExpandedMediaPlayerForMorphing
+            
+            if showInHUD || showInExpanded {
+                // Calculate sizes
+                let hudFontSize: CGFloat = 13
+                let expandedFontSize: CGFloat = 15
+                let currentFontSize = isExpandedOnThisScreen ? expandedFontSize : hudFontSize
+                
+                // Calculate title width constraints
+                // HUD: centered with padding for album art (36pt each side)
+                // Expanded: available width after album art + spacing + visualizer
+                let hudTitleWidth: CGFloat = 180
+                let expandedPadding: CGFloat = 20
+                let albumArtSize: CGFloat = 100
+                let contentSpacing: CGFloat = 16
+                let visualizerWidth: CGFloat = 28
+                let expandedTitleWidth: CGFloat = expandedWidth - (expandedPadding * 2) - albumArtSize - contentSpacing - visualizerWidth - 8
+                let currentTitleWidth = isExpandedOnThisScreen ? expandedTitleWidth : hudTitleWidth
+                
+                // Calculate position offsets
+                let fixedHUDHeight: CGFloat = notchHeight
+                
+                // HUD X: Centered in pill container
+                let hudXOffset: CGFloat = 0
+                
+                // Expanded X: After album art + spacing, centered in remaining title area
+                let titleLeftEdge = -(expandedWidth / 2) + expandedPadding + albumArtSize + contentSpacing
+                let expandedXOffset = titleLeftEdge + (expandedTitleWidth / 2)
+                let currentXOffset = isExpandedOnThisScreen ? expandedXOffset : hudXOffset
+                
+                // Y position
+                // HUD: Centered vertically inside pill (+2pt to compensate for text baseline)
+                let hudYOffset: CGFloat = ((fixedHUDHeight - 20) / 2) + 2
+                
+                // SSOT: Must match NotchLayoutConstants.contentEdgeInsets exactly
+                // - DI/external mode: top padding = 20 (contentPadding)
+                // - Built-in notch mode: top padding = notchHeight
+                // Title TOP must align with album art TOP
+                let expandedTopPadding: CGFloat = contentLayoutNotchHeight == 0 ? expandedPadding : contentLayoutNotchHeight
+                let expandedYOffset: CGFloat = expandedTopPadding  // No offset - title top = album art top
+                let currentYOffset = isExpandedOnThisScreen ? expandedYOffset : hudYOffset
+                
+                // Title text
+                let songTitle = musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle
+                
+                // Alignment: Centered in HUD, left-aligned in expanded
+                let currentAlignment: Alignment = isExpandedOnThisScreen ? .leading : .center
+                
+                // SMOOTH MORPH: Use shared start time so scroll position is continuous during expand/collapse
+                MarqueeText(text: songTitle, speed: 30, externalStartTime: sharedMarqueeStartTime, alignment: currentAlignment)
+                    .font(.system(size: currentFontSize, weight: isExpandedOnThisScreen ? .semibold : .medium))
+                    .foregroundStyle(.white.opacity(isExpandedOnThisScreen ? 1.0 : 0.9))
+                    .frame(width: currentTitleWidth, height: 20, alignment: currentAlignment)
+                    .offset(x: currentXOffset, y: currentYOffset)
+                    .geometryGroup()  // Bundle as single element for smooth morphing
+                    // PREMIUM: Smooth spring animation for morphing (matches album art)
+                    .animation(.smooth(duration: 0.35), value: isExpandedOnThisScreen)
+                    // PREMIUM: Scale+opacity appear animation (same as album art)
+                    .scaleEffect(mediaOverlayAppeared ? 1.0 : 0.8, anchor: .top)
+                    .opacity(mediaOverlayAppeared ? 1.0 : 0)
+                    .animation(.smooth(duration: 0.35), value: mediaOverlayAppeared)
+            }
+        }
+    }
+    
+    /// Whether the media HUD should be visible (for morphing calculation)
+    private var shouldShowMediaHUDForMorphing: Bool {
+        let noHUDsVisible = !hudIsVisible && !HUDManager.shared.isVisible
+        let notExpanded = !isExpandedOnThisScreen
+        let targetDisplayID = targetScreen?.displayID ?? 0
+        let notInFullscreen = !notchController.fullscreenDisplayIDs.contains(targetDisplayID)
+        let shouldShowForced = musicManager.isMediaHUDForced && !musicManager.isPlayerIdle && showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen
+        let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
+        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
+        let debounceOk = !debounceMediaChanges || isMediaStable
+        let bypassSafeguards = musicManager.isMediaSourceForced
+        let hasContent = !musicManager.songTitle.isEmpty
+        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen &&
+                              (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
+        return shouldShowForced || shouldShowNormal
+    }
+    
+    /// Whether the expanded media player should be visible (for morphing calculation)
+    private var shouldShowExpandedMediaPlayerForMorphing: Bool {
+        guard isExpandedOnThisScreen && enableNotchShelf else { return false }
+        // TERMINOTCH: Don't show morphing overlays when terminal is visible
+        guard !(terminalManager.isInstalled && terminalManager.isVisible) else { return false }
+        let dragMonitor = DragMonitor.shared
+        return showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && !state.isShelfAirDropZoneTargeted && !dragMonitor.isDragging &&
+               (musicManager.isMediaHUDForced || 
+                ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty))
     }
 
     // MARK: - Morphing Background
@@ -1068,9 +1480,9 @@ struct NotchShelfView: View {
         // MORPH: Both shapes exist, crossfade with opacity for smooth transition
         ZStack {
             // Dynamic Island shape (pill)
-            // When transparent DI is enabled, use glass material instead of black
+            // When transparent DI is enabled, use glass material instead of gray
             DynamicIslandShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
-                .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(dynamicIslandGray))
                 .opacity(isDynamicIslandMode ? 1 : 0)
                 .scaleEffect(isDynamicIslandMode ? 1 : 0.85)
             
@@ -1092,12 +1504,26 @@ struct NotchShelfView: View {
                 // Shadow visible when expanded OR hovering (premium depth effect)
                 let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen
                 DynamicIslandShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
-                    .fill(Color.black)
+                    .fill(dynamicIslandGray)
                     .shadow(
-                        color: showShadow ? Color.black.opacity(isExpandedOnThisScreen ? 0.5 : 0.4) : .clear,
-                        radius: isExpandedOnThisScreen ? 12 : 6,
+                        // PREMIUM EXACT: .black.opacity(0.7) radius 6
+                        color: showShadow ? Color.black.opacity(0.7) : .clear,
+                        radius: 6,
                         x: 0,
-                        y: isExpandedOnThisScreen ? 6 : 3
+                        y: isExpandedOnThisScreen ? 4 : 2
+                    )
+            } else if !isDynamicIslandMode {
+                // PREMIUM: Shadow for notch mode as well
+                // Shadow visible when expanded OR hovering (premium depth effect)
+                let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen
+                NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
+                    .fill(shouldUseExternalNotchTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                    .shadow(
+                        // PREMIUM EXACT: .black.opacity(0.7) radius 6
+                        color: showShadow ? Color.black.opacity(0.7) : .clear,
+                        radius: 6,
+                        x: 0,
+                        y: isExpandedOnThisScreen ? 4 : 2
                     )
             }
         }
@@ -1112,22 +1538,21 @@ struct NotchShelfView: View {
         // PREMIUM: Subtle scale feedback on hover - "I'm ready to expand!"
         // Uses dedicated state for clean single-value animation (no two-value dependency)
         .scaleEffect(hoverScaleActive ? 1.02 : 1.0, anchor: .center)
-        // PREMIUM: Buttery smooth animation for hover scale (dedicated preset)
-        .animation(DroppyAnimation.hoverScale, value: hoverScaleActive)
+        // PREMIUM: Buttery smooth animation for hover scale (matches Droppy: .bouncy.speed(1.2))
+        .animation(DroppyAnimation.hoverBouncy, value: hoverScaleActive)
         // Note: Idle indicator removed - island is now completely invisible when idle
         // Only appears on hover, drag, or when HUDs/media are active
         .overlay(morphingOutline)
-        // UNIFIED PREMIUM ANIMATION: Single animation for all state changes
-        // Using asymmetric expand/close prevents conflicting spring values
-        .animation(state.isExpanded ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose, value: state.isExpanded)
+        // PREMIUM: Single unified .smooth(duration: 0.35) for ALL expand/collapse transitions
+        .animation(.smooth(duration: 0.35), value: state.isExpanded)
+        .animation(.smooth(duration: 0.35), value: mediaHUDIsHovered)
+        .animation(.smooth(duration: 0.35), value: musicManager.isPlaying)
+        .animation(.smooth(duration: 0.35), value: isSongTransitioning)
+        .animation(.smooth(duration: 0.35), value: state.shelfDisplaySlotCount)
+        .animation(.smooth(duration: 0.35), value: useDynamicIslandStyle)
+        // INTERACTIVE: Keep bouncy for user-triggered actions
         .animation(DroppyAnimation.hoverBouncy, value: dragMonitor.isDragging)
         .animation(DroppyAnimation.hoverBouncy, value: hudIsVisible)
-        .animation(DroppyAnimation.notchState, value: musicManager.isPlaying)
-        .animation(DroppyAnimation.notchState, value: isSongTransitioning)
-        .animation(DroppyAnimation.notchState, value: state.shelfDisplaySlotCount)
-        .animation(DroppyAnimation.viewChange, value: useDynamicIslandStyle)
-        // CRITICAL: Asymmetric animation for media HUD hover - buttery smooth close
-        .animation(mediaHUDIsHovered ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose, value: mediaHUDIsHovered)
         .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0)
         .contextMenu {
             if showClipboardButton {
@@ -1294,23 +1719,19 @@ struct NotchShelfView: View {
         ZStack {
             // TERMINAL VIEW: Highest priority - takes over the shelf when active
             if terminalManager.isInstalled && terminalManager.isVisible {
-                TerminalNotchView(manager: terminalManager, notchHeight: isDynamicIslandMode ? 0 : notchHeight)
+                // SSOT: contentLayoutNotchHeight for consistent terminal content layout
+                TerminalNotchView(manager: terminalManager, notchHeight: contentLayoutNotchHeight)
                     .frame(height: currentExpandedHeight, alignment: .top)
                     .id("terminal-view")
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.95).combined(with: .opacity),
-                        removal: .scale(scale: 0.95).combined(with: .opacity)
-                    ))
+                    // PREMIUM: Exact scale(0.8, anchor: .top) + opacity transition
+                    .notchTransition()
             }
             // Show drop zone when dragging over (takes priority)
             // ALSO show when hovering over AirDrop zone (isShelfAirDropZoneTargeted) to prevent snap-back to media
             else if (state.isDropTargeted || state.isShelfAirDropZoneTargeted) && state.items.isEmpty {
                 emptyShelfContent
                     .frame(height: currentExpandedHeight)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.95)),
-                        removal: .opacity.combined(with: .scale(scale: 0.95))
-                    ))
+                    .notchTransition()
                 }
                 // MEDIA PLAYER VIEW: Show if:
                 // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused
@@ -1320,19 +1741,16 @@ struct NotchShelfView: View {
                 else if showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && !state.isShelfAirDropZoneTargeted && !dragMonitor.isDragging &&
                         (musicManager.isMediaHUDForced || 
                          ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
-                    MediaPlayerView(musicManager: musicManager, notchHeight: isDynamicIslandMode ? 0 : notchHeight)
+                    // SSOT: contentLayoutNotchHeight ensures MediaPlayerView and morphing overlays use identical positioning
+                    // showTitle: false when morphing overlay handles it (DI mode OR external displays)
+                    MediaPlayerView(musicManager: musicManager, notchHeight: contentLayoutNotchHeight, albumArtNamespace: albumArtNamespace, showAlbumArt: false, showVisualizer: false, showTitle: !shouldShowTitleInHUD)
                         .frame(height: currentExpandedHeight)
                         // Capture all clicks within the media player area
                         .contentShape(Rectangle())
                         // Stable identity for animation - prevents jitter on state changes
                         .id("media-player-view")
-                        // PERFORMANCE FIX (Issue #81): Use scale + opacity instead of .move()
-                        // .move(edge:) transitions cause expensive frame layout recalculations
-                        // Scale + opacity is GPU-accelerated and doesn't trigger layout passes
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .scale(scale: 0.95).combined(with: .opacity)
-                        ))
+                        // PREMIUM: Exact scale(0.8, anchor: .top) + opacity transition
+                        .notchTransition()
                 }
                 // Show empty shelf when no items and no music (or user swiped to hide music)
                 else if state.items.isEmpty {
@@ -1341,10 +1759,7 @@ struct NotchShelfView: View {
                         // Stable identity for animation
                         .id("empty-shelf-view")
                         // Scale transition matching basket pattern for polished appearance
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.9).combined(with: .opacity),
-                            removal: .scale(scale: 0.9).combined(with: .opacity)
-                        ))
+                        .notchTransition()
                 }
                 // Show items grid when items exist
                 else {
@@ -1353,19 +1768,16 @@ struct NotchShelfView: View {
                         // Stable identity for animation
                         .id("items-grid-view")
                         // Scale transition matching basket pattern for polished appearance
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.9).combined(with: .opacity),
-                            removal: .scale(scale: 0.9).combined(with: .opacity)
-                        ))
+                        .notchTransition()
             }
             
 
         }
         // NOTE: .drawingGroup() removed - breaks NSViewRepresentable views like AudioSpectrumView
         // which cannot be rasterized into Metal textures (Issue #81 partial rollback)
-        // UNIFIED: Single animation modifier for all media state changes (avoids redundant calculations)
-        .animation(DroppyAnimation.notchState, value: musicManager.isMediaHUDForced)
-        .animation(DroppyAnimation.notchState, value: musicManager.isMediaHUDHidden)
+        // PREMIUM: Smooth animation for view switching (swipe between shelf/media)
+        .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDForced)
+        .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDHidden)
         .onHover { isHovering in
             
             // Track hover state for the auto-shrink timer
@@ -1548,9 +1960,9 @@ struct NotchShelfView: View {
                     }
                 }
                 .padding(.horizontal, 12)
-                // More top padding in notch mode to clear physical notch
-                // Top padding clears physical notch in notch mode (notchHeight + margin)
-                .padding(.top, isDynamicIslandMode ? 8 : notchHeight + 4)
+                // SSOT: Top padding clears physical notch in built-in notch mode
+                // External displays and DI mode use smaller symmetrical padding
+                .padding(.top, contentLayoutNotchHeight == 0 ? 8 : contentLayoutNotchHeight + 4)
                 .padding(.bottom, 6)
             }
         }
@@ -1823,10 +2235,18 @@ extension NotchShelfView {
         // Use SSOT for consistent padding across all expanded views
         // Island mode: 20pt uniform on ALL sides
         // Notch mode: top = notchHeight (just below physical notch), 20pt on left/right/bottom
-        .padding(NotchLayoutConstants.contentEdgeInsets(notchHeight: isDynamicIslandMode ? 0 : notchHeight))
+        // SSOT: contentLayoutNotchHeight for consistent shelf content layout
+        .padding(NotchLayoutConstants.contentEdgeInsets(notchHeight: contentLayoutNotchHeight))
         .onAppear {
             withAnimation(.linear(duration: 25).repeatForever(autoreverses: false)) {
                 dropZoneDashPhase -= 280 // Multiple of 14 (6+8) for smooth loop
+            }
+        }
+        .onDisappear {
+            // PERFORMANCE: Stop the repeatForever animation when shelf collapses
+            // Without this, the animation continues running and causes CPU drain
+            withAnimation(.linear(duration: 0)) {
+                dropZoneDashPhase = 0  // Reset to stop animation
             }
         }
     }

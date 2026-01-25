@@ -100,23 +100,8 @@ struct TargetSizeDialogView: View {
                     onCancel()
                 } label: {
                     Text("Cancel")
-                        .fontWeight(.medium)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background((isCancelButtonHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-                        .foregroundStyle(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isCancelButtonHovering = h
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -125,26 +110,10 @@ struct TargetSizeDialogView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.down.right.and.arrow.up.left")
-                            .font(.system(size: 12, weight: .semibold))
                         Text("Compress")
                     }
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.blue.opacity(isCompressButtonHovering ? 1.0 : 0.8))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isCompressButtonHovering = h
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
                 .disabled(targetBytes == nil || targetBytes! >= currentSize)
                 .opacity(targetBytes == nil || targetBytes! >= currentSize ? 0.5 : 1.0)
             }

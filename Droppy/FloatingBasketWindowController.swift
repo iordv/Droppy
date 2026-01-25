@@ -52,6 +52,9 @@ final class FloatingBasketWindowController: NSObject {
     /// Stored full-size basket position for restoration
     private var fullSizeFrame: NSRect = .zero
     
+    /// Last used basket position (for tracked folders to reopen at same spot)
+    private var lastBasketFrame: NSRect = .zero
+    
     /// Peek sliver size in pixels - how much of the window stays on screen
     /// With 3D tilt + 0.85 scale, we need less visible area
     private let peekSize: CGFloat = 200
@@ -75,15 +78,15 @@ final class FloatingBasketWindowController: NSObject {
     func onDragEnded() {
         guard basketWindow != nil, !isShowingOrHiding else { return }
         
-        // Don't hide during file operations
-        guard !DroppyState.shared.isFileOperationInProgress else { return }
+        // Don't hide during file operations or sharing
+        guard !DroppyState.shared.isFileOperationInProgress, !DroppyState.shared.isSharingInProgress else { return }
         
         // Delay to allow drop operation to complete before checking
         // 300ms gives enough time for file URLs to be processed
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self, self.basketWindow != nil else { return }
-            // Don't hide during file operations (check again after delay)
-            guard !DroppyState.shared.isFileOperationInProgress else { return }
+            // Don't hide during file operations or sharing (check again after delay)
+            guard !DroppyState.shared.isFileOperationInProgress, !DroppyState.shared.isSharingInProgress else { return }
             // Only hide if basket is empty
             if DroppyState.shared.basketItems.isEmpty {
                 self.hideBasket()
@@ -148,25 +151,35 @@ final class FloatingBasketWindowController: NSObject {
         panel.orderFrontRegardless()
     }
     
-    /// Shows the basket near the current mouse location
-    func showBasket() {
+    /// Shows the basket near the current mouse location (or last position if specified)
+    /// - Parameter atLastPosition: If true, opens at last used position instead of mouse location
+    func showBasket(atLastPosition: Bool = false) {
         guard !isShowingOrHiding else { return }
         
         // Defensive check: reclaim orphan window OR reuse existing hidden window
         if let panel = basketWindow ?? NSApp.windows.first(where: { $0 is BasketPanel }) as? NSPanel {
             basketWindow = panel
             panel.animator().alphaValue = 1.0 // Ensure visible
-            moveBasketToMouse()
+            if !atLastPosition {
+                moveBasketToMouse()
+            }
             return
         }
 
         isShowingOrHiding = true
         
-        // Calculate window position based on snap preference (v5.2)
-        let windowFrame = calculateBasketPosition()
+        // Calculate window position - use last position if requested and available
+        let windowFrame: NSRect
+        if atLastPosition && lastBasketFrame.width > 0 {
+            windowFrame = lastBasketFrame
+        } else {
+            windowFrame = calculateBasketPosition()
+        }
         
         // Store initial position for expand direction logic
-        let mouseLocation = NSEvent.mouseLocation
+        let mouseLocation = atLastPosition && lastBasketFrame.width > 0 
+            ? CGPoint(x: lastBasketFrame.midX, y: lastBasketFrame.midY)
+            : NSEvent.mouseLocation
         initialBasketOrigin = CGPoint(x: mouseLocation.x, y: mouseLocation.y)
         
         // Calculate expand direction once (basket expands upward if low on screen, downward if high)
@@ -206,6 +219,7 @@ final class FloatingBasketWindowController: NSObject {
         let basketView = FloatingBasketView(state: DroppyState.shared)
             .preferredColorScheme(.dark) // Force dark mode always
         let hostingView = NSHostingView(rootView: basketView)
+        
         
 
         
@@ -276,6 +290,7 @@ final class FloatingBasketWindowController: NSObject {
         }, completionHandler: nil)
         
         basketWindow = panel
+        lastBasketFrame = windowFrame  // Save position for tracked folder reopening
         isShowingOrHiding = false
         
         // PREMIUM: Haptic feedback confirms jiggle gesture success
@@ -361,7 +376,7 @@ final class FloatingBasketWindowController: NSObject {
         guard let panel = basketWindow, !isShowingOrHiding else { return }
         
         // Block hiding during file operations UNLESS basket is empty (user cleared it manually)
-        if DroppyState.shared.isFileOperationInProgress && !DroppyState.shared.basketItems.isEmpty {
+        if (DroppyState.shared.isFileOperationInProgress || DroppyState.shared.isSharingInProgress) && !DroppyState.shared.basketItems.isEmpty {
             return 
         }
         

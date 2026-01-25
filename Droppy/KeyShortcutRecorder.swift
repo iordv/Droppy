@@ -53,9 +53,9 @@ struct KeyShortcutRecorder: View {
         HStack(spacing: 8) {
             // Shortcut display
             Text(shortcut?.description ?? "None")
-                .fontWeight(.medium)
+                .font(.system(size: 12, weight: .medium))
                 .frame(minWidth: 80, alignment: .center)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .padding(.horizontal, 12)
                 .background(AdaptiveColors.buttonBackgroundAuto)
                 .foregroundStyle(.primary)
@@ -74,25 +74,10 @@ struct KeyShortcutRecorder: View {
                 }
             } label: {
                 Text(isRecording ? "Press Keys..." : "Record Shortcut")
-                    .fontWeight(.semibold)
                     .lineLimit(1)
                     .frame(width: 120)
-                    .padding(.vertical, 10)
-                    .background((isRecording ? Color.red : Color.blue).opacity(isHovering ? 1.0 : 0.8))
-                    .foregroundStyle(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
-                    )
-                    .animation(DroppyAnimation.hoverQuick, value: isHovering)
             }
-            .buttonStyle(.plain)
-            .onHover { hovering in
-                withAnimation(DroppyAnimation.hover) {
-                    isHovering = hovering
-                }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: isRecording ? .red : .blue, size: .small))
         }
         .onDisappear {
             stopRecording() // Cleanup

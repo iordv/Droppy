@@ -162,19 +162,11 @@ struct SmartExportSettingsView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "folder")
-                                .font(.system(size: 11))
                             Text(folderDisplayName(for: operation))
-                                .font(.callout.weight(.medium))
                             Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 10))
                         }
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(AdaptiveColors.subtleBorderAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                 }
                 .padding(16)
                 
@@ -218,23 +210,8 @@ struct SmartExportSettingsView: View {
                 dismiss()
             } label: {
                 Text("Done")
-                    .fontWeight(.medium)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(Color.blue.opacity(isHoveringClose ? 1.0 : 0.85))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hover) {
-                    isHoveringClose = h
-                }
-            }
+            .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
         }
         .padding(16)
     }
@@ -326,6 +303,7 @@ struct SmartExportSettingsRow: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .frame(width: 280)
                 }
@@ -354,25 +332,8 @@ struct SmartExportSettingsRow: View {
                     showSheet = true
                 } label: {
                     Text("Configure")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(isConfigureHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(DroppyAnimation.easeOut) {
-                        isConfigureHovering = hovering
-                    }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
             } else {
                 // Disabled State: Master Toggle
                 Toggle(isOn: Binding(
@@ -596,21 +557,8 @@ struct SmartExportInfoSheet: View {
                     dismiss()
                 } label: {
                     Text("Disable")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isHoveringDisable ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringDisable = h }
-                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 
                 Spacer()
                 
@@ -623,21 +571,8 @@ struct SmartExportInfoSheet: View {
                     }
                 } label: {
                     Text("Configure")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isHoveringConfigure ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isHoveringConfigure = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }

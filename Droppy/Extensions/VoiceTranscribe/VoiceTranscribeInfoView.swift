@@ -70,7 +70,7 @@ struct VoiceTranscribeInfoView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/voice-transcribe.jpg")) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
                 Image(systemName: "waveform.and.mic").font(.system(size: 32)).foregroundStyle(.blue)
@@ -113,7 +113,7 @@ struct VoiceTranscribeInfoView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 Text("AI")
                     .font(.caption.weight(.semibold))
@@ -141,7 +141,7 @@ struct VoiceTranscribeInfoView: View {
             featureRow(icon: "lock.fill", text: "100% private, no data leaves your Mac")
             
             // Screenshot
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/voice-transcribe-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/voice-transcribe-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -333,7 +333,7 @@ struct VoiceTranscribeInfoView: View {
                             .font(.system(size: 22))
                             .foregroundStyle(Color(NSColor.labelColor).opacity(0.7))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyCircleButtonStyle(size: 22))
                 }
             } else if !manager.isModelDownloaded {
                 // Download button
@@ -342,26 +342,11 @@ struct VoiceTranscribeInfoView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
                         Text("Download Model")
                     }
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.blue.opacity(isHoveringDownload ? 1.0 : 0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) {
-                        isHoveringDownload = h
-                    }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))
             }
             
             // Keyboard Shortcuts Section (only when model is installed)
@@ -427,20 +412,10 @@ struct VoiceTranscribeInfoView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "trash")
-                                    .font(.system(size: 11))
                                 Text("Delete")
-                                    .font(.caption.weight(.medium))
                             }
-                            .foregroundStyle(.red.opacity(0.9))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.red.opacity(isHoveringDelete ? 0.2 : 0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
-                        .buttonStyle(.plain)
-                        .onHover { h in
-                            withAnimation(DroppyAnimation.hoverQuick) { isHoveringDelete = h }
-                        }
+                        .buttonStyle(DroppyAccentButtonStyle(color: .red, size: .small))
                     }
                 }
                 .padding(16)
@@ -464,21 +439,8 @@ struct VoiceTranscribeInfoView: View {
                 dismiss()
             } label: {
                 Text("Close")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isHoveringCancel ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringCancel = h }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -488,20 +450,8 @@ struct VoiceTranscribeInfoView: View {
                 manager.removeShortcut(for: .invisi)
             } label: {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringReset = h }
-            }
+            .buttonStyle(DroppyCircleButtonStyle(size: 32))
             .help("Reset Shortcuts")
             
             DisableExtensionButton(extensionType: .voiceTranscribe)
@@ -542,9 +492,9 @@ struct VoiceTranscribeInfoView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(Capsule())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        Capsule()
                             .stroke(recordingMode == mode ? Color.blue : AdaptiveColors.subtleBorderAuto, lineWidth: recordingMode == mode ? 2 : 1)
                     )
                 
@@ -557,18 +507,8 @@ struct VoiceTranscribeInfoView: View {
                     }
                 } label: {
                     Text(recordingMode == mode ? "Press..." : "Record")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background((recordingMode == mode ? Color.red : Color.blue).opacity(isHoveringRecord[mode] == true ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hoverQuick) { isHoveringRecord[mode] = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: recordingMode == mode ? .red : .blue, size: .small))
             }
         }
         .padding(14)

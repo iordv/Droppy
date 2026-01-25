@@ -178,19 +178,8 @@ struct OnboardingView: View {
                             .font(.system(size: 11, weight: .semibold))
                         Text("Back")
                     }
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isBackHovering ? Color.white.opacity(0.1) : Color.white.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
-                .onHover { isBackHovering = $0 }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
             } else {
                 Spacer().frame(width: 90)
             }
@@ -216,19 +205,8 @@ struct OnboardingView: View {
                     Image(systemName: currentPage == .ready ? "arrow.right" : "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background((currentPage == .ready ? Color.green : Color.blue).opacity(isNextHovering ? 1.0 : 0.85))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
-            .buttonStyle(.plain)
-            .onHover { isNextHovering = $0 }
+            .buttonStyle(DroppyAccentButtonStyle(color: currentPage == .ready ? .green : .blue, size: .small))
         }
         .padding(.horizontal, 30)
     }
@@ -557,7 +535,7 @@ private struct ClipboardContent: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(Color.cyan.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(Capsule())
             .foregroundStyle(.cyan)
             
             Text("Access everything you've copied. Search instantly,\nextract text from images, and pin your favorites.")
@@ -676,13 +654,13 @@ private struct HUDToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background(isHovering && available ? Color.white.opacity(0.06) : Color.white.opacity(0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                Capsule()
                     .stroke(isOn && available ? color.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isOn && available))
         .onHover { isHovering = $0 }
         .opacity(available ? 1.0 : 0.65)
     }
@@ -763,6 +741,12 @@ private struct OnboardingMediaPreview: View {
         .onAppear {
             withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 progress = 0.8
+            }
+        }
+        .onDisappear {
+            // PERFORMANCE FIX: Stop repeatForever animation
+            withAnimation(.linear(duration: 0)) {
+                progress = 0.3
             }
         }
     }
@@ -1026,7 +1010,7 @@ private struct StyleButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(Color.white.opacity(0.03))
                         .frame(width: 90, height: 55)
                     
@@ -1041,7 +1025,7 @@ private struct StyleButton: View {
                     }
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .stroke(isSelected ? Color.blue : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
                 )
                 .scaleEffect(hovering ? 1.03 : 1.0)
@@ -1051,7 +1035,7 @@ private struct StyleButton: View {
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
         .onHover { hovering = $0 }
         .animation(DroppyAnimation.hoverQuick, value: hovering)
     }

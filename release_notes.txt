@@ -1,19 +1,22 @@
+📢 Important
+- getdroppy.app is now live! Visit our new home
+- Droppy is now officially signed and notarized by Apple
+
 ✨ New Features
-- Added hard reset button in About section to completely clear all data
-- Added new tracked folders function
-- Added buttery smooth notch animations for opening/closing and hovering to see media title underneath
-- Added new hover effects for files (more premium look)
-- Added renewed shelf and AirDrop icons
-- Added option to turn off haptics in settings (on by default)
-- Added option to close notch/island by right clicking (off by default, was confusing before)
+- Droppy Quickshare: Instantly share files up to 512MB with blazing fast uploads. Get shareable links in seconds - works via quick actions or right-click menu
+- Completely renewed Basket with new design, Grid + List view toggle, and Quick Action buttons for drag-to-action workflows
+- Tracked Folders: Monitor folders and auto-add new files to the basket
+- Folder Tracking remembers basket position from last session
+- New morphing animations: Small media HUD smoothly transforms into the full player
+- Auto-expand/collapse timing now configurable from 0.1s for near-instant response
+- Haptics can now be turned off in settings
+
+🎨 Design & Polish  
+- All buttons completely redesigned for a cleaner, more polished look
+- Settings window major upgrade: new previews, better organization, faster performance
+- Renewed animations throughout all HUDs for smoother interactions
 
 🐛 Bug Fixes
-- Fixed some stuck settings for menu bar manager
-- Fixed play/pause/next/previous hardware buttons not working
-- Fixed stacks being pushed to shelf staying a stack
-- Fixed shelf opening after adding files (it stayed collapsed before)
-- Fixed caps lock crash while in settings
-- Fixed adding existing files to an existing stack in shelf causing bugs
-- Fixed adding files to an existing stack closing the open shelf
-- Removed marching blue ants outline for cleaner appearance
-- Cleaned up About section layout
+- Fixed major CPU leak causing spikes up to 80%
+- Fixed media HUD staying open in fullscreen (now toggleable)
+- Many performance and stability improvements

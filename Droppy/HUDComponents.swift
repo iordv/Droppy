@@ -90,6 +90,23 @@ struct HUDSlider: View {
     }
 }
 
+// MARK: - Album Art Matched Geometry Modifier
+
+/// PREMIUM-STYLE: Applies matchedGeometryEffect to views for smooth morphing between HUD and expanded player.
+/// Only applies the effect when a namespace is provided, allowing optional usage.
+struct AlbumArtMatchedGeometry: ViewModifier {
+    var namespace: Namespace.ID?
+    var id: String = "albumArt"
+    
+    func body(content: Content) -> some View {
+        if let ns = namespace {
+            content.matchedGeometryEffect(id: id, in: ns)
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Media Player HUD
 
 /// Compact media HUD that sits inside the notch
@@ -101,6 +118,11 @@ struct MediaHUDView: View {
     let notchHeight: CGFloat // Physical notch height (for vertical centering)
     let hudWidth: CGFloat    // Total HUD width
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
+    var albumArtNamespace: Namespace.ID? = nil  // MORPH: For matchedGeometryEffect morphing
+    var showAlbumArt: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+    var showVisualizer: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+    var showTitle: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+
     
     /// Whether we're in Dynamic Island mode (screen-aware for multi-monitor)
     /// For HUD LAYOUT purposes: external displays always use compact layout (no physical notch)
@@ -130,11 +152,9 @@ struct MediaHUDView: View {
     }
     
     /// Dominant color extracted from album art for visualizer
+    /// PERFORMANCE: Uses cached value from MusicManager (computed once per track change)
     private var visualizerColor: Color {
-        if musicManager.albumArt.size.width > 0 {
-            return musicManager.albumArt.dominantColor()
-        }
-        return .white.opacity(0.7)
+        musicManager.visualizerColor
     }
     
     /// Width of each "wing" (area left/right of physical notch) - only used in notch mode
@@ -153,42 +173,60 @@ struct MediaHUDView: View {
                 
                 ZStack {
                     // Title - truly centered in the island (both horizontally and vertically)
-                    VStack {
-                        Spacer(minLength: 0)
-                        MarqueeText(text: musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle, speed: 30)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.9))
-                            .frame(height: 16) // Fixed height for text
-                        Spacer(minLength: 0)
+                    // PREMIUM: When showTitle is false, morphing is handled externally
+                    if showTitle {
+                        VStack {
+                            Spacer(minLength: 0)
+                            MarqueeText(text: musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle, speed: 30, alignment: .center)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .frame(height: 16, alignment: .center) // Fixed height, centered
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)  // Center horizontally
+                        .padding(.horizontal, 36) // Leave space for album art and visualizer
                     }
-                    .padding(.horizontal, 36) // Leave space for album art and visualizer
                     
                     // Album art (left) and Visualizer (right)
                     HStack {
                         // Album art - matches icon size from other HUDs
-                        Group {
-                            if musicManager.albumArt.size.width > 0 {
-                                Image(nsImage: musicManager.albumArt)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } else {
-                            RoundedRectangle(cornerRadius: iconSize / 2)  // Circular to match pill-shaped DI edges
-                                    .fill(Color.white.opacity(0.2))
-                                    .overlay(
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.white.opacity(0.5))
-                                    )
+                        // PREMIUM: matchedGeometryEffect goes BEFORE clipShape for morphing to work
+                        // When showAlbumArt is false, morphing is handled externally - show invisible spacer
+                        if showAlbumArt {
+                            Group {
+                                if musicManager.albumArt.size.width > 0 {
+                                    Image(nsImage: musicManager.albumArt)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } else {
+                                    RoundedRectangle(cornerRadius: iconSize / 2)  // Circular to match pill-shaped DI edges
+                                        .fill(Color.white.opacity(0.2))
+                                        .overlay(
+                                            Image(systemName: "music.note")
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.white.opacity(0.5))
+                                        )
+                                }
                             }
+                            .frame(width: iconSize, height: iconSize)
+                            .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "albumArt"))  // BEFORE clipShape!
+                            .clipShape(RoundedRectangle(cornerRadius: iconSize / 2))  // Circular to match pill-shaped DI edges
+                        } else {
+                            // PREMIUM MORPH: External morphing - keep layout with invisible spacer
+                            Color.clear.frame(width: iconSize, height: iconSize)
                         }
-                        .frame(width: iconSize, height: iconSize)
-                        .clipShape(RoundedRectangle(cornerRadius: iconSize / 2))  // Circular to match pill-shaped DI edges
                         
                         Spacer()
                         
                         // Visualizer - harmonized to match icon size (18px for DI mode)
-                        AudioSpectrumView(isPlaying: musicManager.isPlaying, barCount: 3, barWidth: 2.5, spacing: 2, height: 18, color: visualizerColor)
-                            .frame(width: 3 * 2.5 + 2 * 2, height: 18)
+                        // PREMIUM: visualizer also uses matchedGeometryEffect for morphing
+                        if showVisualizer {
+                            AudioSpectrumView(isPlaying: musicManager.isPlaying, barCount: 3, barWidth: 2.5, spacing: 2, height: 18, color: visualizerColor)
+                                .frame(width: 3 * 2.5 + 2 * 2, height: 18)
+                                .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "spectrum"))
+                        } else {
+                            Color.clear.frame(width: 3 * 2.5 + 2 * 2, height: 18)
+                        }
                     }
                     .padding(.horizontal, symmetricPadding)  // Same as vertical for symmetry
                 }
@@ -202,23 +240,30 @@ struct MediaHUDView: View {
                 HStack(spacing: 0) {
                     // Left wing: Album art near left edge
                     HStack {
-                        Group {
-                            if musicManager.albumArt.size.width > 0 {
-                                Image(nsImage: musicManager.albumArt)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            } else {
-                                RoundedRectangle(cornerRadius: 5)  // ~25% of size for Apple-style rounded corners
-                                    .fill(Color.white.opacity(0.2))
-                                    .overlay(
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(.white.opacity(0.5))
-                                    )
+                        // PREMIUM: Album art with optional external morphing
+                        if showAlbumArt {
+                            Group {
+                                if musicManager.albumArt.size.width > 0 {
+                                    Image(nsImage: musicManager.albumArt)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 5)  // ~25% of size for Apple-style rounded corners
+                                        .fill(Color.white.opacity(0.2))
+                                        .overlay(
+                                            Image(systemName: "music.note")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.white.opacity(0.5))
+                                        )
+                                }
                             }
+                            .frame(width: iconSize, height: iconSize)
+                            .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "albumArt"))  // BEFORE clipShape!
+                            .clipShape(RoundedRectangle(cornerRadius: 5))  // ~25% of size for Apple-style rounded corners
+                        } else {
+                            // PREMIUM MORPH: External morphing - keep layout with invisible spacer
+                            Color.clear.frame(width: iconSize, height: iconSize)
                         }
-                        .frame(width: iconSize, height: iconSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))  // ~25% of size for Apple-style rounded corners
                         Spacer(minLength: 0)
                     }
                     .padding(.leading, symmetricPadding)
@@ -231,7 +276,12 @@ struct MediaHUDView: View {
                     // Right wing: Visualizer near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        MiniAudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
+                        if showVisualizer {
+                            MiniAudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
+                                .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "spectrum"))  // Visualizer morphing
+                        } else {
+                            Color.clear.frame(width: 5 * 3 + 4 * 2, height: 20)
+                        }
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -239,25 +289,12 @@ struct MediaHUDView: View {
                 .frame(height: notchHeight)
             }
             
-            // Hover: Scrolling song info (appears below album art / visualizer row)
-            // Only in Notch mode - Dynamic Island already shows title inline
-            // SMOOTH GROW: Always present but with animated height/opacity instead of if/else
-            if !isDynamicIslandMode {
-                MarqueeText(text: songInfo, speed: 40)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .frame(height: isHovered ? 20 : 0)
-                    .padding(.vertical, isHovered ? 4 : 0)
-                    .padding(.horizontal, 8)
-                    .opacity(isHovered ? 1 : 0)
-                    .scaleEffect(y: isHovered ? 1 : 0.5, anchor: .top)
-                    .clipped()
-            }
+            // NOTE: Hover text below notch removed - auto-expand is fast enough that users won't see it
         }
-        // UNIFIED ANIMATION: Asymmetric expand/close to match parent (morphingBackground)
-        // This ensures content and background animate together with same feel
+        // PREMIUM: Unified smooth animation for ALL transitions
+        // This matches the morphing animation (.smooth(duration: 0.35)) for consistent feel
         .compositingGroup() // Unity Standard: animate as single layer
-        .animation(isHovered ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose, value: isHovered)
+        .animation(.smooth(duration: 0.35), value: isHovered)
         .allowsHitTesting(true)
         .onTapGesture {
             withAnimation(DroppyAnimation.state) {
@@ -329,70 +366,63 @@ private class MiniAudioVisualizerState: ObservableObject {
 /// Scrolling marquee text view using TimelineView for efficiency
 struct MarqueeText: View {
     let text: String
-    let speed: Double // Points per second
+    let speed: Double // Points per second (unused, kept for API compatibility)
+    /// Optional external start time for synchronized scrolling across morphing transitions (unused, kept for API compatibility)
+    var externalStartTime: Date? = nil
+    /// Text alignment when text fits without overflow (default: .leading for backwards compatibility)
+    var alignment: Alignment = .leading
     
     @State private var textWidth: CGFloat = 0
     @State private var containerWidth: CGFloat = 0
-    @State private var startTime: Date = Date()
-    @State private var measurementId = UUID()
     
-    private var needsScroll: Bool {
+    private var needsFade: Bool {
         textWidth > containerWidth && containerWidth > 0 && textWidth > 0
+    }
+    
+    /// Effective alignment: use provided alignment when text fits, always leading when scrolling/fading
+    private var effectiveAlignment: Alignment {
+        needsFade ? .leading : alignment
     }
     
     var body: some View {
         GeometryReader { geo in
-            // Use native display refresh rate for smooth 120Hz ProMotion scrolling
-            TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !needsScroll)) { timeline in
-                let totalDistance = textWidth + 50
-                let elapsed = timeline.date.timeIntervalSince(startTime)
-                let rawOffset = elapsed * speed
-                let offset = needsScroll ? -CGFloat(rawOffset.truncatingRemainder(dividingBy: Double(totalDistance))) : 0
-                
-                HStack(spacing: needsScroll ? 50 : 0) {
-                    Text(text)
-                        .fixedSize()
-                        .background(
-                            GeometryReader { textGeo in
-                                Color.clear
-                                    .onAppear {
-                                        // Measure after a tiny delay to ensure layout is complete
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                            if textGeo.size.width > 0 {
-                                                textWidth = textGeo.size.width
-                                            }
-                                        }
-                                    }
-                                    .onChange(of: text) { _, _ in
-                                        // Force remeasure on text change
-                                        measurementId = UUID()
-                                        startTime = Date()
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                            textWidth = textGeo.size.width
-                                        }
-                                    }
-                                    .onChange(of: measurementId) { _, _ in
+            ZStack(alignment: effectiveAlignment.horizontal == .center ? .center : .leading) {
+                Text(text)
+                    .fixedSize()
+                    .background(
+                        GeometryReader { textGeo in
+                            Color.clear
+                                .onAppear {
+                                    textWidth = textGeo.size.width
+                                }
+                                .onChange(of: text) { _, _ in
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         textWidth = textGeo.size.width
                                     }
-                            }
-                        )
-                    
-                    if needsScroll {
-                        Text(text)
-                            .fixedSize()
-                    }
-                }
-                .offset(x: offset)
-                // SMOOTH INTERPOLATION: Apply linear animation to interpolate between timeline ticks
-                .animation(.linear(duration: 1.0 / 60.0), value: offset)
-                // Center text when it fits, left-align when scrolling
-                .frame(maxWidth: .infinity, alignment: needsScroll ? .leading : .center)
+                                }
+                        }
+                    )
             }
+            // iOS-style fade: mask with gradient to fade out right edge when text overflows
+            .mask {
+                if needsFade {
+                    // Fade gradient: solid left, fading to transparent on right
+                    HStack(spacing: 0) {
+                        Color.white
+                        LinearGradient(
+                            colors: [.white, .white.opacity(0)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: 30)
+                    }
+                } else {
+                    Color.white
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: effectiveAlignment)
             .onAppear {
                 containerWidth = geo.size.width
-                startTime = Date()
-                // Force remeasure when view appears
-                measurementId = UUID()
             }
             .onChange(of: geo.size.width) { _, newWidth in
                 containerWidth = newWidth

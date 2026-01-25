@@ -24,11 +24,11 @@ struct WindowSnapExtension: ExtensionDefinition {
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/images/window-snap-screenshot.png")
+        URL(string: "https://getdroppy.app/assets/images/window-snap-screenshot.png")
     }
     
     static var iconURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")
+        URL(string: "https://getdroppy.app/assets/icons/window-snap.jpg")
     }
     
     static let iconPlaceholder = "rectangle.split.2x2"

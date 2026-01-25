@@ -182,6 +182,10 @@ enum InlineHUDType: Equatable {
 struct MediaPlayerView: View {
     @ObservedObject var musicManager: MusicManager
     var notchHeight: CGFloat = 0  // Physical notch height to clear (0 for Dynamic Island)
+    var albumArtNamespace: Namespace.ID? = nil  // MORPH: For matchedGeometryEffect morphing
+    var showAlbumArt: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+    var showVisualizer: Bool = true  // PREMIUM: Set to false when morphing is handled externally
+    var showTitle: Bool = true  // PREMIUM: Set to false when morphing is handled externally
     @State private var isDragging: Bool = false
     @State private var dragValue: Double = 0
     @State private var lastDragTime: Date = .distantPast
@@ -189,6 +193,8 @@ struct MediaPlayerView: View {
     @State private var isAlbumArtHovering: Bool = false
     @State private var albumArtFlipAngle: Double = 0  // For track change flip animation
     @State private var albumArtPauseScale: CGFloat = 1.0  // For pause/play scale animation
+    @State private var contentAppeared: Bool = false  // PREMIUM: For scale+opacity appear animation
+    @State private var contentAppearedWorkItem: DispatchWorkItem?  // Cancellable for fast open/close
     
     // MARK: - Observed Managers for Fast HUD Updates
     @ObservedObject private var volumeManager = VolumeManager.shared
@@ -207,11 +213,9 @@ struct MediaPlayerView: View {
     @State private var inlineHUDHideWorkItem: DispatchWorkItem?
     
     /// Dominant color from album art for visualizer
+    /// PERFORMANCE: Uses cached value from MusicManager (computed once per track change)
     private var visualizerColor: Color {
-        if musicManager.albumArt.size.width > 0 {
-            return musicManager.albumArt.dominantColor()
-        }
-        return .white.opacity(0.7)
+        musicManager.visualizerColor
     }
     
     /// Compute estimated position at given date
@@ -259,32 +263,24 @@ struct MediaPlayerView: View {
             let currentDate = context.date
             
             // MARK: - Horizontal Layout: Big Album Art Left | Controls Right
-            HStack(alignment: .top, spacing: 16) {
+            HStack(alignment: .bottom, spacing: 16) {
                 // MARK: - Left: Large Album Art (100x100) with glow
-                albumArtViewLarge
+                // PREMIUM: When showAlbumArt is false, morphing is handled externally
+                if showAlbumArt {
+                    albumArtViewLarge
+                } else {
+                    // PREMIUM MORPH: External morphing - keep layout with invisible spacer
+                    Color.clear.frame(width: albumArtSize, height: albumArtSize)
+                }
                 
                 // MARK: - Right: Stacked Controls
-                VStack(alignment: .leading, spacing: 4) {
-                    // Row 1: Song Title + Visualizer (with smooth grow animation)
-                    let songTitle = musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle
-                    HStack(spacing: 8) {
-                        MarqueeText(text: songTitle, speed: 30)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        
-                        // Audio Visualizer (colored by album art)
-                        AudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
-                            .frame(width: 28, height: 18)
-                    }
-                    .frame(height: 20)
+                // Spacing reduced to 2pt to match morphing overlay visual gap on external displays
+                VStack(alignment: .leading, spacing: 2) {
+                    // Row 1: Song Title + Visualizer (extracted to reduce type-checker complexity)
+                    titleRowView
                     
-                    // Row 2: Artist Name (also scrolling if long)
-                    let artistName = musicManager.artistName.isEmpty ? "—" : musicManager.artistName
-                    MarqueeText(text: artistName, speed: 25)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .frame(height: 18)
+                    // Row 2: Artist Name (extracted to reduce type-checker complexity)
+                    artistRowView
                     
                     Spacer(minLength: 0)
                     
@@ -306,9 +302,30 @@ struct MediaPlayerView: View {
                     }
                     
                     // Row 4: Media Controls (centered)
+                    // Push controls slightly lower to align button bottoms with album art bottom
                     controlsRowCompact
+                        .padding(.bottom, -8)
                 }
+                // Controls bottom-aligned with album art bottom edge
                 .frame(maxWidth: .infinity, minHeight: albumArtSize, maxHeight: albumArtSize)
+                // PREMIUM: Scale+opacity appear animation (starts at 0.8/0, animates to 1.0/1)
+                .scaleEffect(contentAppeared ? 1.0 : 0.8, anchor: .top)
+                .opacity(contentAppeared ? 1.0 : 0)
+                .animation(.smooth(duration: 0.35), value: contentAppeared)
+                .onAppear {
+                    // PREMIUM: Cancel pending and trigger fresh animation on appear
+                    contentAppearedWorkItem?.cancel()
+                    contentAppeared = false
+                    let workItem = DispatchWorkItem { [self] in
+                        contentAppeared = true
+                    }
+                    contentAppearedWorkItem = workItem
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01, execute: workItem)
+                }
+                .onDisappear {
+                    contentAppearedWorkItem?.cancel()
+                    contentAppeared = false
+                }
             }
             // Use SSOT for consistent padding across all expanded views
             .padding(NotchLayoutConstants.contentEdgeInsets(notchHeight: notchHeight))
@@ -451,6 +468,7 @@ struct MediaPlayerView: View {
                     }
                 }
                 .frame(width: 64, height: 64)
+                .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "albumArt"))  // BEFORE clipShape!
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 
                 // Spotify badge (bottom-right corner)
@@ -468,7 +486,7 @@ struct MediaPlayerView: View {
             .compositingGroup()
             .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 16))
         .scaleEffect((isAlbumArtPressed ? 0.95 : (isAlbumArtHovering ? 1.02 : 1.0)) * albumArtPauseScale)
         // Premium 3D flip on track change (Y-axis rotation)
         .rotation3DEffect(
@@ -491,6 +509,46 @@ struct MediaPlayerView: View {
                     isAlbumArtPressed = false
                 }
         )
+    }
+    
+    // MARK: - Title Row (extracted to reduce type-checker complexity)
+    
+    private var titleRowView: some View {
+        let songTitle = musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle
+        return HStack(spacing: 8) {
+            // PREMIUM: When showTitle is false, morphing is handled externally
+            if showTitle {
+                MarqueeText(text: songTitle, speed: 30)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(height: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                // Keep layout with invisible spacer - MUST use fixed height to match title row
+                Color.clear
+                    .frame(height: 20)
+                    .frame(maxWidth: .infinity)
+            }
+            
+            // Audio Visualizer (colored by album art)
+            if showVisualizer {
+                AudioVisualizerBars(isPlaying: musicManager.isPlaying, color: visualizerColor)
+                    .frame(width: 28, height: 18)
+            } else {
+                Color.clear.frame(width: 28, height: 18)
+            }
+        }
+        .frame(height: 20)
+    }
+    
+    // MARK: - Artist Row (extracted to reduce type-checker complexity)
+    
+    private var artistRowView: some View {
+        let artistName = musicManager.artistName.isEmpty ? "—" : musicManager.artistName
+        return MarqueeText(text: artistName, speed: 25)
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white.opacity(0.6))
+            .frame(height: 18)
     }
     
     // MARK: - Large Album Art (for horizontal layout)
@@ -531,13 +589,15 @@ struct MediaPlayerView: View {
                         }
                     }
                     .frame(width: 100, height: 100)
+                    // PREMIUM: matchedGeometryEffect BEFORE clipShape - critical for morphing!
+                    .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "albumArt"))
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     
-                    // Spotify badge (bottom-right corner)
-                    if musicManager.isSpotifySource {
-                        SpotifyBadge()
-                            .offset(x: 5, y: 5)
-                    }
+                    // Spotify badge (bottom-right corner) - fades in without sliding
+                    SpotifyBadge()
+                        .offset(x: 5, y: 5)
+                        .opacity(musicManager.isSpotifySource ? 1 : 0)
+                        .animation(DroppyAnimation.state, value: musicManager.isSpotifySource)
                 }
                 // Subtle border highlight
                 .overlay(
@@ -547,7 +607,7 @@ struct MediaPlayerView: View {
                 .compositingGroup()
                 .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppyCardButtonStyle(cornerRadius: 18))
             .scaleEffect((isAlbumArtPressed ? 0.96 : (isAlbumArtHovering ? 1.02 : 1.0)) * albumArtPauseScale)
             // Premium 3D flip on track change (Y-axis rotation)
             .rotation3DEffect(

@@ -201,8 +201,19 @@ enum DroppyAnimation {
     /// Smooth ease-in-out curve.
     static let easeInOut = Animation.spring(response: 0.3, dampingFraction: 0.7)
     
+    
     /// Quick linear (for progress indicators).
     static let linear = Animation.linear(duration: 0.1)
+    
+    // MARK: - Notch View Transition
+    
+    /// Premium view transition: scale(0.8, anchor: .top) + opacity with smooth duration.
+    static var notchViewTransition: AnyTransition {
+        AnyTransition.asymmetric(
+            insertion: AnyTransition.scale(scale: 0.8, anchor: .top).combined(with: .opacity),
+            removal: AnyTransition.scale(scale: 0.8, anchor: .top).combined(with: .opacity)
+        ).animation(.smooth(duration: 0.35))
+    }
 }
 
 // MARK: - Asymmetric Expand/Collapse Extension
@@ -220,6 +231,11 @@ extension View {
             isExpanded ? DroppyAnimation.expandOpen : DroppyAnimation.expandClose,
             value: isExpanded
         )
+    }
+    
+    /// Applies premium view transition: scale(0.8, anchor: .top) + opacity with .smooth(0.35).
+    func notchTransition() -> some View {
+        self.transition(DroppyAnimation.notchViewTransition)
     }
 }
 

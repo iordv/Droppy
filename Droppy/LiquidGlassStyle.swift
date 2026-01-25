@@ -116,7 +116,7 @@ struct LiquidButton: View {
                     .stroke(.white.opacity(isHovering ? 0.3 : 0.0), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 99))
         .onHover { hover in
             withAnimation(DroppyAnimation.hover) {
                 isHovering = hover

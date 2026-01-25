@@ -146,9 +146,10 @@ enum PreferenceDefault {
     
     // MARK: - Shelf Behavior
     static let autoCollapseShelf = true
-    static let autoCollapseDelay: Double = 1.0
+    // PREMIUM PARITY: 0.25s expand, 0.10s collapse (v1.3.109)
+    static let autoCollapseDelay: Double = 0.10
     static let autoExpandShelf = true
-    static let autoExpandDelay: Double = 1.0
+    static let autoExpandDelay: Double = 0.25
     static let autoShrinkShelf = true  // Legacy
     static let autoShrinkDelay = 3  // Legacy
     

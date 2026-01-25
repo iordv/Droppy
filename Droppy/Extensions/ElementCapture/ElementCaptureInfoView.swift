@@ -65,7 +65,7 @@ struct ElementCaptureInfoView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon from remote URL (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/element-capture.jpg")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -114,7 +114,7 @@ struct ElementCaptureInfoView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 // Category badge
                 Text("Productivity")
@@ -151,7 +151,7 @@ struct ElementCaptureInfoView: View {
             }
             
             // Screenshot
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/element-capture-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/element-capture-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -194,9 +194,9 @@ struct ElementCaptureInfoView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 10)
                     .background(AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(Capsule())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        Capsule()
                             .stroke(isRecording ? Color.blue : AdaptiveColors.subtleBorderAuto, lineWidth: isRecording ? 2 : 1)
                     )
                 
@@ -209,17 +209,8 @@ struct ElementCaptureInfoView: View {
                     }
                 } label: {
                     Text(isRecording ? "Press..." : "Record")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background((isRecording ? Color.red : Color.blue).opacity(isHoveringRecord ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hoverQuick) { isHoveringRecord = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: isRecording ? .red : .blue, size: .small))
             }
         }
         .padding(16)
@@ -240,21 +231,8 @@ struct ElementCaptureInfoView: View {
                 dismiss()
             } label: {
                 Text("Close")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringClose = h }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -266,20 +244,8 @@ struct ElementCaptureInfoView: View {
                 currentShortcut = nil
             } label: {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringReset = h }
-            }
+            .buttonStyle(DroppyCircleButtonStyle(size: 32))
             .help("Reset Shortcut")
             
             DisableExtensionButton(extensionType: .elementCapture)

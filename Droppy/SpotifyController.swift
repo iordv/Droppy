@@ -385,7 +385,12 @@ final class SpotifyController {
     
     /// Sync MusicManager elapsed time with Spotify's true position
     func syncPlayerPosition() {
-        guard isSpotifyRunning else { return }
+        // PERFORMANCE FIX: Stop the timer entirely when Spotify isn't running
+        // This prevents a "zombie timer" that fires forever even after Spotify is closed
+        guard isSpotifyRunning else {
+            stopPositionSyncTimer()
+            return
+        }
         
         fetchPlayerPosition { position in
             // ALWAYS update to Spotify's true position

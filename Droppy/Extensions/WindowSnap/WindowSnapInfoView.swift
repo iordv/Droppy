@@ -69,7 +69,7 @@ struct WindowSnapInfoView: View {
     private var headerSection: some View {
         VStack(spacing: 12) {
             // Icon from remote URL (cached to prevent flashing)
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/window-snap.jpg")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -118,7 +118,7 @@ struct WindowSnapInfoView: View {
                     }
                     .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 
                 // Category badge
                 Text("Productivity")
@@ -155,7 +155,7 @@ struct WindowSnapInfoView: View {
             }
             
             // Screenshot
-            CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/images/window-snap-screenshot.png")) { image in
+            CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/window-snap-screenshot.png")) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -198,18 +198,8 @@ struct WindowSnapInfoView: View {
                     Text("Load Defaults")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.cyan)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.cyan.opacity(isHoveringDefaults ? 0.25 : 0.15))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
                 .onHover { h in
                     withAnimation(DroppyAnimation.hoverQuick) { isHoveringDefaults = h }
                 }
@@ -278,11 +268,11 @@ struct WindowSnapInfoView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    Capsule()
                         .fill(recordingAction == action ? Color.red.opacity(isHoveringShortcut[action] == true ? 1.0 : 0.85) : (isHoveringShortcut[action] == true ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
                 )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DroppySelectableButtonStyle(isSelected: shortcuts[action] != nil))
             .onHover { h in
                 withAnimation(DroppyAnimation.hoverQuick) { isHoveringShortcut[action] = h }
             }
@@ -305,21 +295,8 @@ struct WindowSnapInfoView: View {
                 dismiss()
             } label: {
                 Text("Close")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(isHoveringClose ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringClose = h }
-            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
             
             Spacer()
             
@@ -328,20 +305,8 @@ struct WindowSnapInfoView: View {
                 removeDefaults()
             } label: {
                 Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .background(isHoveringReset ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                    )
             }
-            .buttonStyle(.plain)
-            .onHover { h in
-                withAnimation(DroppyAnimation.hoverQuick) { isHoveringReset = h }
-            }
+            .buttonStyle(DroppyCircleButtonStyle(size: 32))
             .help("Reset Shortcuts")
             
             DisableExtensionButton(extensionType: .windowSnap)

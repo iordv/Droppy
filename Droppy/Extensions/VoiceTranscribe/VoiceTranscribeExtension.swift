@@ -24,11 +24,11 @@ struct VoiceTranscribeExtension: ExtensionDefinition {
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/images/voice-transcribe-screenshot.png")
+        URL(string: "https://getdroppy.app/assets/images/voice-transcribe-screenshot.png")
     }
     
     static var iconURL: URL? {
-        URL(string: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg")
+        URL(string: "https://getdroppy.app/assets/icons/voice-transcribe.jpg")
     }
     
     static let iconPlaceholder = "waveform.and.mic"

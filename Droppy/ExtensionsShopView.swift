@@ -79,8 +79,8 @@ struct ExtensionsShopView: View {
                     category: "",
                     title: "Remove Backgrounds",
                     subtitle: "Local AI processing",
-                    iconURL: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg",
-                    screenshotURL: "https://iordv.github.io/Droppy/assets/images/ai-bg-screenshot.png",
+                    iconURL: "https://getdroppy.app/assets/icons/ai-bg.jpg",
+                    screenshotURL: "https://getdroppy.app/assets/images/ai-bg-screenshot.png",
                     accentColor: .cyan,
                     isInstalled: isAIInstalled
                 ) {
@@ -94,8 +94,8 @@ struct ExtensionsShopView: View {
                     category: "",
                     title: "Voice Transcribe",
                     subtitle: "Speech to text",
-                    iconURL: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg",
-                    screenshotURL: "https://iordv.github.io/Droppy/assets/images/voice-transcribe-screenshot.png",
+                    iconURL: "https://getdroppy.app/assets/icons/voice-transcribe.jpg",
+                    screenshotURL: "https://getdroppy.app/assets/images/voice-transcribe-screenshot.png",
                     accentColor: .cyan,
                     isInstalled: isVoiceTranscribeInstalled
                 ) {
@@ -110,8 +110,8 @@ struct ExtensionsShopView: View {
             FeaturedExtensionCardWide(
                 title: "Window Snap",
                 subtitle: "Manage windows like a pro",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg",
-                screenshotURL: "https://iordv.github.io/Droppy/assets/images/window-snap-screenshot.png",
+                iconURL: "https://getdroppy.app/assets/icons/window-snap.jpg",
+                screenshotURL: "https://getdroppy.app/assets/images/window-snap-screenshot.png",
                 accentColor: .purple,
                 isInstalled: isWindowSnapInstalled,
                 features: ["Keyboard shortcuts", "Multi-monitor", "Edge snapping"]
@@ -128,8 +128,8 @@ struct ExtensionsShopView: View {
                     category: "NEW",
                     title: "Menu Bar Manager",
                     subtitle: "Clean up menu bar",
-                    iconURL: "https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg",
-                    screenshotURL: "https://iordv.github.io/Droppy/assets/screenshots/menu-bar-manager.png",
+                    iconURL: "https://getdroppy.app/assets/icons/menu-bar-manager.jpg",
+                    screenshotURL: "https://getdroppy.app/assets/screenshots/menu-bar-manager.png",
                     accentColor: .blue,
                     isInstalled: isMenuBarManagerInstalled
                 ) {
@@ -143,8 +143,8 @@ struct ExtensionsShopView: View {
                     category: "",
                     title: "Termi-Notch",
                     subtitle: "Quick terminal",
-                    iconURL: "https://iordv.github.io/Droppy/assets/icons/termi-notch.jpg",
-                    screenshotURL: "https://iordv.github.io/Droppy/assets/images/terminal-notch-screenshot.png",
+                    iconURL: "https://getdroppy.app/assets/icons/termi-notch.jpg",
+                    screenshotURL: "https://getdroppy.app/assets/images/terminal-notch-screenshot.png",
                     accentColor: .green,
                     isInstalled: isTerminalNotchInstalled
                 ) {
@@ -246,7 +246,7 @@ struct ExtensionsShopView: View {
             // AI Extensions
             ExtensionListItem(
                 id: "aiBackgroundRemoval",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/ai-bg.jpg",
                 title: "AI Background Removal",
                 subtitle: "Remove backgrounds instantly",
                 category: .ai,
@@ -261,7 +261,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "voiceTranscribe",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/voice-transcribe.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/voice-transcribe.jpg",
                 title: "Voice Transcribe",
                 subtitle: "Speech to text with AI",
                 category: .ai,
@@ -277,7 +277,7 @@ struct ExtensionsShopView: View {
             // Media Extensions
             ExtensionListItem(
                 id: "ffmpegVideoCompression",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/video-target-size.png",
+                iconURL: "https://getdroppy.app/assets/icons/video-target-size.png",
                 title: "Video Target Size",
                 subtitle: "Compress videos to size",
                 category: .media,
@@ -293,7 +293,7 @@ struct ExtensionsShopView: View {
             // Productivity Extensions
             ExtensionListItem(
                 id: "alfred",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/alfred.png",
+                iconURL: "https://getdroppy.app/assets/icons/alfred.png",
                 title: "Alfred Workflow",
                 subtitle: "Push files via keyboard",
                 category: .productivity,
@@ -314,7 +314,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "elementCapture",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/element-capture.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/element-capture.jpg",
                 title: "Element Capture",
                 subtitle: "Screenshot UI elements",
                 category: .productivity,
@@ -329,7 +329,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "finder",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/finder.png",
+                iconURL: "https://getdroppy.app/assets/icons/finder.png",
                 title: "Finder Services",
                 subtitle: "Right-click integration",
                 category: .productivity,
@@ -348,7 +348,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "spotify",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/spotify.png",
+                iconURL: "https://getdroppy.app/assets/icons/spotify.png",
                 title: "Spotify Integration",
                 subtitle: "Control music playback",
                 category: .media,
@@ -369,7 +369,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "windowSnap",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/window-snap.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/window-snap.jpg",
                 title: "Window Snap",
                 subtitle: "Snap with shortcuts",
                 category: .productivity,
@@ -384,7 +384,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "terminalNotch",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/termi-notch.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/termi-notch.jpg",
                 title: "Termi-Notch",
                 subtitle: "Quick terminal access",
                 category: .productivity,
@@ -399,7 +399,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "menuBarManager",
-                iconURL: "https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg",
+                iconURL: "https://getdroppy.app/assets/icons/menu-bar-manager.jpg",
                 title: "Menu Bar Manager",
                 subtitle: "Hide unused icons",
                 category: .productivity,
@@ -578,7 +578,7 @@ struct FeaturedExtensionCard<DetailView: View>: View {
             .scaleEffect(isHovering ? 1.01 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 20))
         .onHover { hovering in
             isHovering = hovering
         }
@@ -702,7 +702,7 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
             .scaleEffect(isHovering ? 1.01 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 18))
         .onHover { hovering in
             isHovering = hovering
         }
@@ -831,7 +831,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle(cornerRadius: 16))
         .onHover { hovering in
             isHovering = hovering
         }
@@ -891,11 +891,11 @@ struct CompactExtensionRow<DetailView: View>: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        Capsule()
                             .fill(AdaptiveColors.buttonBackgroundAuto)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        Capsule()
                             .stroke(Color.white.opacity(0.08), lineWidth: 1)
                     )
             }
@@ -904,7 +904,7 @@ struct CompactExtensionRow<DetailView: View>: View {
             .background(isHovering ? Color.white.opacity(0.03) : Color.clear)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppyCardButtonStyle())
         .onHover { hovering in
             withAnimation(DroppyAnimation.hover) {
                 isHovering = hovering
@@ -939,20 +939,20 @@ struct CategoryPillButton: View {
             .padding(.vertical, 8)
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(Color.blue.opacity(isHovering ? 1.0 : 0.85))
                         .matchedGeometryEffect(id: "SelectedCategory", in: namespace)
                 } else {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    Capsule()
                         .fill(isHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
                 }
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                Capsule()
                     .stroke(isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08), lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
         .onHover { hovering in
             withAnimation(DroppyAnimation.hover) {
                 isHovering = hovering
@@ -1096,7 +1096,7 @@ struct AIBackgroundRemovalSettingsRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/ai-bg.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) { image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)

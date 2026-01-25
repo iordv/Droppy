@@ -123,21 +123,8 @@ struct DroppyAlertView: View {
                         onSecondary()
                     } label: {
                         Text(secondaryTitle)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(isSecondaryHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .onHover { h in
-                        withAnimation(DroppyAnimation.hover) { isSecondaryHovering = h }
-                    }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                 }
                 
                 Spacer()
@@ -146,21 +133,8 @@ struct DroppyAlertView: View {
                     onPrimary()
                 } label: {
                     Text(primaryButtonTitle)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue.opacity(isPrimaryHovering ? 1.0 : 0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
                 }
-                .buttonStyle(.plain)
-                .onHover { h in
-                    withAnimation(DroppyAnimation.hover) { isPrimaryHovering = h }
-                }
+                .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
             }
             .padding(16)
         }

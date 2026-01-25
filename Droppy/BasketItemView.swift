@@ -4,11 +4,18 @@ import UniformTypeIdentifiers
 // MARK: - Basket Item Components
 // Extracted from FloatingBasketView.swift for faster incremental builds
 
+/// Layout mode for basket items
+enum BasketItemLayout {
+    case grid   // Standard grid card layout
+    case list   // Compact list row layout
+}
+
 struct BasketItemView: View {
     let item: DroppedItem
     let state: DroppyState
     @Binding var renamingItemId: UUID?
     let onRemove: () -> Void
+    var layoutMode: BasketItemLayout = .grid
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault.enableNotchShelf
     @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
@@ -85,6 +92,17 @@ struct BasketItemView: View {
         }
     }
     
+    /// File size for list layout
+    private var listFileSize: String {
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: item.url.path)
+            if let size = attributes[.size] as? Int64 {
+                return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+            }
+        } catch {}
+        return "—"
+    }
+    
     var body: some View {
         DraggableArea(
             items: {
@@ -146,40 +164,205 @@ struct BasketItemView: View {
             },
             selectionSignature: state.selectedBasketItems.hashValue
         ) {
-            BasketItemContent(
-                item: item,
-                state: state,
-                onRemove: onRemove,
-                thumbnail: thumbnail,
-                isHovering: isHovering,
-                isConverting: isConverting,
-                isExtractingText: isExtractingText,
-                isRemovingBackground: isRemovingBackground,
-                isCompressing: isCompressing,
-                isCreatingZIP: isCreatingZIP,
-                isSelected: isSelected,
-                isPoofing: $isPoofing,
-                pendingConvertedItem: $pendingConvertedItem,
-                renamingItemId: $renamingItemId,
-                renamingText: $renamingText,
-                onRename: performRename
-            )
-            .offset(x: shakeOffset)
-            .overlay(alignment: .center) {
-                if isShakeAnimating {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
-                            .frame(width: 44, height: 44)
-                            .shadow(radius: 4)
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom))
+            Group {
+                if layoutMode == .list {
+                    // List row layout
+                    HStack(spacing: 12) {
+                        // Circular thumbnail with activity overlay
+                        ZStack {
+                            Group {
+                                if item.isDirectory {
+                                    // Folder icon for directories with subtle background
+                                    Circle()
+                                        .fill(item.isPinned ? Color.orange.opacity(0.15) : Color.blue.opacity(0.12))
+                                        .overlay(
+                                            FolderIcon(size: 20, isPinned: item.isPinned, isHovering: false)
+                                        )
+                                } else if item.url.pathExtension.lowercased() == "zip" {
+                                    // ZIP file icon
+                                    Circle()
+                                        .fill(Color.purple.opacity(0.12))
+                                        .overlay(
+                                            ZIPFileIcon(size: 20, isHovering: false)
+                                        )
+                                } else if let thumb = thumbnail {
+                                    Image(nsImage: thumb)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } else {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.08))
+                                        .overlay(
+                                            Image(nsImage: item.icon)
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(width: 24, height: 24)
+                                        )
+                                }
+                            }
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                            
+                            // Activity indicator overlay
+                            if isConverting || isCompressing || isRemovingBackground || isExtractingText || isCreatingZIP {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .tint(.white)
+                                    )
+                            }
+                            
+                            // Poof overlay
+                            if isPoofing {
+                                Circle()
+                                    .fill(Color.green.opacity(0.8))
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 16, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    )
+                                    .transition(.scale.combined(with: .opacity))
+                                    .onAppear {
+                                        // Auto-fade after 1.5 seconds
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                            withAnimation(DroppyAnimation.easeOut) {
+                                                isPoofing = false
+                                            }
+                                        }
+                                    }
+                            }
+                        }
+                        
+                        // Name and size (with renaming support)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if renamingItemId == item.id {
+                                // Auto-select rename text field
+                                AutoSelectTextField(
+                                    text: $renamingText,
+                                    onSubmit: performRename,
+                                    onCancel: {
+                                        renamingItemId = nil
+                                        state.isRenaming = false
+                                        state.endFileOperation()
+                                    }
+                                )
+                                .font(.system(size: 13, weight: .medium))
+                                .frame(height: 20)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.15)))
+                                .onAppear {
+                                    renamingText = item.url.deletingPathExtension().lastPathComponent
+                                }
+                            } else {
+                                Text(item.name)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(isSelected ? .white : .white.opacity(0.9))
+                                    .lineLimit(1)
+                            }
+                            
+                            // Status text or file size (use white text on blue selection)
+                            if isConverting {
+                                Text("Converting...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .orange.opacity(0.8))
+                            } else if isCompressing {
+                                Text("Compressing...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .blue.opacity(0.8))
+                            } else if isRemovingBackground {
+                                Text("Removing BG...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .purple.opacity(0.8))
+                            } else if isExtractingText {
+                                Text("Extracting text...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .green.opacity(0.8))
+                            } else if isCreatingZIP {
+                                Text("Creating ZIP...")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : .cyan.opacity(0.8))
+                            } else if item.isDirectory {
+                                Text(item.isPinned ? "Pinned Folder" : "Folder")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.white.opacity(0.5))
+                            } else {
+                                Text(listFileSize)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.white.opacity(0.5))
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        // File extension or folder badge
+                        if item.isDirectory {
+                            Text("FOLDER")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.white.opacity(0.1)))
+                        } else if !item.url.pathExtension.isEmpty {
+                            Text(item.url.pathExtension.uppercased())
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.white.opacity(0.1)))
+                        }
                     }
-                    .transition(.scale.combined(with: .opacity))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(isSelected 
+                                  ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
+                                  : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                    )
+                    .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
+                } else {
+                    // Grid card layout (original)
+                    BasketItemContent(
+                        item: item,
+                        state: state,
+                        onRemove: onRemove,
+                        thumbnail: thumbnail,
+                        isHovering: isHovering,
+                        isConverting: isConverting,
+                        isExtractingText: isExtractingText,
+                        isRemovingBackground: isRemovingBackground,
+                        isCompressing: isCompressing,
+                        isCreatingZIP: isCreatingZIP,
+                        isSelected: isSelected,
+                        isPoofing: $isPoofing,
+                        pendingConvertedItem: $pendingConvertedItem,
+                        renamingItemId: $renamingItemId,
+                        renamingText: $renamingText,
+                        onRename: performRename
+                    )
+                    .offset(x: shakeOffset)
+                    .overlay(alignment: .center) {
+                        if isShakeAnimating {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                                    .frame(width: 44, height: 44)
+                                    .shadow(radius: 4)
+                                Image(systemName: "checkmark.shield.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(LinearGradient(colors: [.green, .mint], startPoint: .top, endPoint: .bottom))
+                            }
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .frame(width: 76, height: 96)
                 }
             }
-            .frame(width: 76, height: 96)
             // Drop target for pinned folders - drop files INTO the folder
             .dropDestination(for: URL.self) { urls, location in
                 guard enablePowerFolders && item.isPinned && item.isDirectory else { return false }
@@ -371,6 +554,16 @@ struct BasketItemView: View {
             Label("Share", systemImage: "square.and.arrow.up")
         }
         
+        // Droppy Quickshare - upload and get shareable link
+        Button {
+            let itemsToShare = state.selectedBasketItems.isEmpty
+                ? [item.url]
+                : state.basketItems.filter { state.selectedBasketItems.contains($0.id) }.map { $0.url }
+            DroppyQuickshare.share(urls: itemsToShare)
+        } label: {
+            Label("Droppy Quickshare", systemImage: "drop.fill")
+        }
+        
         Button {
             // Bulk save: save all selected items
             if state.selectedBasketItems.count > 1 && state.selectedBasketItems.contains(item.id) {
@@ -551,6 +744,15 @@ struct BasketItemView: View {
         }
         
         Divider()
+        
+        // Create Stack option - only when 2+ items selected
+        if state.selectedBasketItems.count >= 2 && state.selectedBasketItems.contains(item.id) {
+            Button {
+                state.createStackFromSelectedBasketItems()
+            } label: {
+                Label("Create Stack (\(state.selectedBasketItems.count))", systemImage: "square.stack.3d.up.fill")
+            }
+        }
         
         // Hide delete button for pinned folders - must unpin first
         if !item.isPinned {
@@ -784,14 +986,18 @@ struct BasketItemView: View {
                 
                 await MainActor.run {
                     isCreatingZIP = false
-                    // Keep isFileOperationInProgress = true since we auto-start renaming
-                    // The flag will be reset when rename completes or is cancelled
                     // Update state immediately (animation deferred to poof effect)
                     state.replaceBasketItems(itemsToZip, with: newItem)
-                    // Auto-start renaming the new zip file (flag stays true)
-                    renamingItemId = newItem.id
+                    
+                    // Delay setting rename ID to ensure new item's view is created
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        // Auto-start renaming the new zip file
+                        renamingItemId = newItem.id
+                        state.isRenaming = true
+                    }
+                    
                     // Trigger poof animation after view has appeared
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         state.triggerPoof(for: newItem.id)
                     }
                 }
@@ -1169,16 +1375,9 @@ private struct BasketItemContent: View {
                 // Remove button on hover - hidden for pinned folders (must unpin first)
                 if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
                     Button(action: onRemove) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.red.opacity(0.9))
-                                .frame(width: 20, height: 20)
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        Image(systemName: "xmark")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DroppyDestructiveCircleButtonStyle(size: 20))
                     .offset(x: 6, y: -6)
                     .transition(.scale.combined(with: .opacity))
                 }

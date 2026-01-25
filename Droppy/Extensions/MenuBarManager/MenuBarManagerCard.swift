@@ -18,7 +18,7 @@ struct MenuBarManagerCard: View {
             // Header with icon, stats, and badge
             HStack(alignment: .top) {
                 // Icon from remote URL (cached to prevent flashing)
-                CachedAsyncImage(url: URL(string: "https://iordv.github.io/Droppy/assets/icons/menu-bar-manager.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/menu-bar-manager.jpg")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
