@@ -36,20 +36,16 @@ struct QuickshareInfoView: View {
             // Scrollable content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
-                    // Settings Toggle
+                    // 1. Explanation + Screenshot
+                    featuresSection
+                    
+                    // 2. Menu Bar Toggle
                     settingsSection
                     
+                    // 3. Files List (at bottom)
                     if !manager.items.isEmpty {
-                        Divider()
+                        managerSection
                     }
-                    
-                    // Manager UI (Status + List)
-                    managerSection
-                    
-                    Divider()
-                    
-                    // Features
-                    featuresSection
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
