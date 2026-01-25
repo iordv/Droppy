@@ -63,6 +63,11 @@ enum ExtensionType: String, CaseIterable, Identifiable {
         definition?.screenshotURL
     }
     
+    /// Optional SwiftUI preview view to use instead of screenshot URL
+    var previewView: AnyView? {
+        definition?.previewView
+    }
+    
     @ViewBuilder
     var iconView: some View {
         if let def = definition {

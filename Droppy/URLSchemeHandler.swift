@@ -154,6 +154,8 @@ struct URLSchemeHandler {
             extensionType = .terminalNotch
         case "menu-bar-manager", "menubarmanager", "menu-bar":
             extensionType = .menuBarManager
+        case "quickshare", "quick-share":
+            extensionType = .quickshare
         default:
             print("⚠️ URLSchemeHandler: Unknown extension ID '\(extensionId)'")
             extensionType = nil
