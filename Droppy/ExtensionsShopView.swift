@@ -414,7 +414,7 @@ struct ExtensionsShopView: View {
             },
             ExtensionListItem(
                 id: "quickshare",
-                iconURL: "", // Local icon used in detail view
+                iconURL: "https://getdroppy.app/assets/icons/quickshare.jpg",
                 title: "Droppy Quickshare",
                 subtitle: "Share files via 0x0.st",
                 category: .productivity,
