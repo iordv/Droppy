@@ -95,7 +95,6 @@ struct SettingsView: View {
                 VStack(spacing: 6) {
                     sidebarButton(title: "Shelf & Basket", icon: "star.fill", tag: "Features")
                     sidebarButton(title: "Clipboard", icon: "clipboard.fill", tag: "Clipboard")
-                    sidebarButton(title: "Droppy Quickshare", icon: "drop.fill", tag: "Quickshare")
                     sidebarButton(title: "HUDs", icon: "dial.medium.fill", tag: "HUDs")
                     sidebarButton(title: "Extensions", icon: "puzzlepiece.extension.fill", tag: "Extensions")
                     sidebarButton(title: "About", icon: "info.circle.fill", tag: "About")
@@ -135,7 +134,7 @@ struct SettingsView: View {
                         QuickshareManagerWindowController.show()
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "tray.full.fill")
+                            Image(systemName: "drop.fill")
                                 .font(.system(size: 14, weight: .medium))
                                 .frame(width: 20)
                             Text("Quickshare")
@@ -156,8 +155,6 @@ struct SettingsView: View {
                             featuresSettings
                         } else if selectedTab == "Clipboard" {
                             clipboardSettings
-                        } else if selectedTab == "Quickshare" {
-                            quickshareSettings
                         } else if selectedTab == "HUDs" {
                             hudSettings
                         } else if selectedTab == "Extensions" {
@@ -816,99 +813,6 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: Droppy Quickshare Tab
-    private var quickshareSettings: some View {
-        Section {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 6) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.cyan)
-                    
-                    Text("Droppy Quickshare")
-                        .font(.title3.bold())
-                    
-                    Text("Powered by 0x0.st")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.white.opacity(0.1)))
-                }
-                .padding(.top, 12)
-                
-                // Content
-                VStack(spacing: 0) {
-                    // Menu Bar Toggle (Accessibility requirement)
-                    Toggle(isOn: $showQuickshareInMenuBar) {
-                        VStack(alignment: .leading) {
-                            Text("Show in Menu Bar")
-                            Text("Quick access to uploads and history")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding()
-                    
-                    Divider()
-                        .padding(.leading, 16)
-                    
-                    // Manage History
-                    Button {
-                        QuickshareManagerWindowController.show()
-                        SettingsWindowController.shared.close()
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Manage Uploads")
-                                Text("View history, copy links, or delete files")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding()
-                }
-                .background(Color.white.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                
-                // Legal / Info
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Privacy & Usage", systemImage: "hand.raised.fill")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    
-                    Group {
-                        Text("• Files are hosted by **0x0.st** (The Null Pointer)")
-                        Text("• Droppy only uploads files you explicitly share")
-                        Text("• We store management tokens locally to allow deletion")
-                        Text("• Do not upload illegal or sensitive content")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Color.red.opacity(0.2), lineWidth: 1)
-                )
-                
-                Spacer()
-            }
-            .padding(.horizontal)
-        }
-    }
-    
     // MARK: HUDs Tab
     private var hudSettings: some View {
         Group {
@@ -1237,7 +1141,7 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
                         case .spotify:
                             SpotifyAuthManager.shared.startAuthentication()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare:
                             break // No action needed - these have their own configuration UI
                         }
                     }

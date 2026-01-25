@@ -105,6 +105,7 @@ final class ExtensionRegistry {
         register(VideoTargetSizeExtension.self)
         register(TermiNotchExtension.self)
         register(MenuBarManagerExtension.self)
+        register(QuickshareExtension.self)
     }
     
     /// Register an extension definition

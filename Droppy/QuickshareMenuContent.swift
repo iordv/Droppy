@@ -63,16 +63,7 @@ struct QuickshareMenuContent: View {
             Label("Manage Uploads...", systemImage: "list.bullet")
         }
         
-        Divider()
-        
-        Button {
-            // Open settings to Quickshare tab
-            // This requires SettingsWindowController support for opening specific tab
-             SettingsWindowController.shared.showSettings() 
-             // Ideally switch tab, but simple open is fine for now
-        } label: {
-            Label("Quickshare Settings...", systemImage: "gear")
-        }
+
     }
     
     // MARK: - Helpers

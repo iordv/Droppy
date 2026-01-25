@@ -21,6 +21,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     case ffmpegVideoCompression
     case terminalNotch
     case menuBarManager
+    case quickshare
     
     /// URL-safe ID for deep links
     case finderServices  // Alias for finder
@@ -89,7 +90,9 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     
     /// Check if this extension has been removed by the user
     var isRemoved: Bool {
-        UserDefaults.standard.bool(forKey: removedKey)
+        // Quickshare is a core extension and cannot be removed
+        if self == .quickshare { return false }
+        return UserDefaults.standard.bool(forKey: removedKey)
     }
     
     /// Set the removed state for this extension
