@@ -37,8 +37,10 @@ final class QuickshareManager {
     
     /// Add a new quickshare item to history
     func addItem(_ item: QuickshareItem) {
+        print("📦 [QuickshareManager] Adding item: \(item.filename) - \(item.shareURL)")
         items.insert(item, at: 0) // Most recent first
         save()
+        print("📦 [QuickshareManager] Items count after add: \(items.count)")
     }
     
     /// Remove an item from local history only (does not delete from server)
@@ -124,6 +126,7 @@ final class QuickshareManager {
         do {
             let data = try JSONEncoder().encode(items)
             try data.write(to: storageURL)
+            print("✅ [QuickshareManager] Saved \(items.count) items to: \(storageURL.path)")
         } catch {
             print("❌ [Quickshare] Failed to save history: \(error)")
         }

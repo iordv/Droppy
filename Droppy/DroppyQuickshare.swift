@@ -67,7 +67,9 @@ enum DroppyQuickshare {
                         token: result.token,
                         fileSize: result.fileSize
                     )
+                    print("🚀 [DroppyQuickshare] Created item, calling addItem...")
                     QuickshareManager.shared.addItem(quickshareItem)
+                    print("🚀 [DroppyQuickshare] addItem called, manager items: \(QuickshareManager.shared.items.count)")
                     
                     // Show success feedback
                     DroppyState.shared.quickShareStatus = .success(urls: [result.shareURL])
