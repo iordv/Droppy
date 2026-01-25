@@ -3,6 +3,7 @@
 //  Droppy
 //
 //  SwiftUI view for managing Quickshare upload history
+//  Native Droppy styling: black background, cyan accents
 //
 
 import SwiftUI
@@ -14,46 +15,47 @@ struct QuickshareManagerView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header - native Droppy style
             HStack {
                 Image(systemName: "drop.fill")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.cyan)
                 
-                Text("Quickshare Manager")
+                Text("Quickshare")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                 
                 Spacer()
                 
                 Text("\(manager.items.count) file\(manager.items.count == 1 ? "" : "s")")
                     .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.5))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color(NSColor.windowBackgroundColor))
             
-            Divider()
+            // Subtle separator
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1)
             
             if manager.items.isEmpty {
-                // Empty state
+                // Empty state - native Droppy style
                 VStack(spacing: 12) {
                     Image(systemName: "tray")
                         .font(.system(size: 40, weight: .light))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.white.opacity(0.2))
                     
                     Text("No shared files")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.5))
                     
                     Text("Files you share via Quickshare will appear here")
                         .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.white.opacity(0.3))
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(NSColor.textBackgroundColor))
             } else {
                 // List of shared files
                 ScrollView {
@@ -83,10 +85,10 @@ struct QuickshareManagerView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                .background(Color(NSColor.textBackgroundColor))
             }
         }
-        .frame(width: 400, height: 450)
+        .frame(minWidth: 350, idealWidth: 420, minHeight: 300, idealHeight: 480)
+        .background(Color.black)
         .alert("Delete from Server?", isPresented: Binding(
             get: { showDeleteConfirmation != nil },
             set: { if !$0 { showDeleteConfirmation = nil } }
@@ -134,48 +136,48 @@ struct QuickshareItemRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // File icon
+            // File icon - cyan accent
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.blue.opacity(0.1))
+                    .fill(Color.cyan.opacity(0.15))
                     .frame(width: 40, height: 40)
                 
                 Image(systemName: fileIcon)
                     .font(.system(size: 18))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(.cyan)
             }
             
             // File info
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.filename)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                 
                 HStack(spacing: 6) {
                     Text(item.formattedSize)
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.5))
                     
                     Text("•")
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.white.opacity(0.3))
                     
                     Text(item.expirationText)
                         .font(.system(size: 11))
-                        .foregroundStyle(item.isExpired ? .red : .secondary)
+                        .foregroundStyle(item.isExpired ? .red : .white.opacity(0.5))
                 }
             }
             
             Spacer()
             
-            // Action buttons (visible on hover or always on touch)
+            // Action buttons (visible on hover)
             if isHovering || isDeleting {
                 HStack(spacing: 8) {
                     // Copy button
                     Button(action: onCopy) {
                         Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(isCopied ? .green : .secondary)
+                            .foregroundStyle(isCopied ? .green : .white.opacity(0.6))
                     }
                     .buttonStyle(.borderless)
                     .help("Copy link")
@@ -184,7 +186,7 @@ struct QuickshareItemRow: View {
                     Button(action: onShare) {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                     .buttonStyle(.borderless)
                     .help("Share")
@@ -210,13 +212,13 @@ struct QuickshareItemRow: View {
                 // URL preview when not hovering
                 Text(item.shortURL)
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.white.opacity(0.3))
                     .lineLimit(1)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(isHovering ? Color.primary.opacity(0.05) : Color.clear)
+        .background(isHovering ? Color.white.opacity(0.05) : Color.clear)
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.15)) {
@@ -243,4 +245,5 @@ struct QuickshareItemRow: View {
 
 #Preview {
     QuickshareManagerView()
+        .preferredColorScheme(.dark)
 }
