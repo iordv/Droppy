@@ -225,6 +225,7 @@ struct ExtensionInfoView: View {
         case .ffmpegVideoCompression: return "Install"
         case .terminalNotch: return "Configure"
         case .menuBarManager: return "Configure"
+        case .quickshare: return "Manage"
         }
     }
     
@@ -240,6 +241,7 @@ struct ExtensionInfoView: View {
         case .ffmpegVideoCompression: return "Install FFmpeg"
         case .terminalNotch: return "Configure"
         case .menuBarManager: return "Configure"
+        case .quickshare: return "Manage Uploads"
         }
     }
     
@@ -255,6 +257,7 @@ struct ExtensionInfoView: View {
         case .ffmpegVideoCompression: return "arrow.down.circle.fill"
         case .terminalNotch: return "terminal"
         case .menuBarManager: return "menubar.rectangle"
+        case .quickshare: return "tray.full"
         }
     }
 }

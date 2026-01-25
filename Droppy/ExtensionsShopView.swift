@@ -411,6 +411,23 @@ struct ExtensionsShopView: View {
                     installCount: extensionCounts["menuBarManager"],
                     rating: extensionRatings["menuBarManager"]
                 ))
+            ),
+            ExtensionListItem(
+                id: "quickshare",
+                iconURL: "", // Local icon used in detail view
+                title: "Droppy Quickshare",
+                subtitle: "Share files via 0x0.st",
+                category: .productivity,
+                isInstalled: true, // Always installed (core)
+                analyticsKey: "quickshare",
+                extensionType: .quickshare
+            ) {
+                AnyView(ExtensionInfoView(
+                    extensionType: .quickshare,
+                    onAction: nil, // Managed via "Manage Uploads" in InfoView
+                    installCount: extensionCounts["quickshare"],
+                    rating: extensionRatings["quickshare"]
+                ))
             }
         ]
         
