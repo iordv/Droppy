@@ -359,10 +359,14 @@ struct FloatingBasketView: View {
     private var emptyContent: some View {
         // Dropover-style empty state with "Drop files here" text - PERFECTLY CENTERED
         ZStack {
-            // Centered text
-            Text("Drop files here")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.white.opacity(0.5))
+            // Centered text - explicit vertical centering with Spacers
+            VStack {
+                Spacer()
+                Text("Drop files here")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                Spacer()
+            }
             
             // X button overlay in top-left
             VStack {
@@ -385,10 +389,14 @@ struct FloatingBasketView: View {
     @ViewBuilder
     private func quickActionExplanation(for action: QuickActionType) -> some View {
         ZStack {
-            // Centered text (matches "Drop files here" style)
-            Text(action.description)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.white.opacity(0.5))
+            // Centered text - explicit vertical centering with Spacers
+            VStack {
+                Spacer()
+                Text(action.description)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                Spacer()
+            }
             
             // X button overlay in top-left
             VStack {
