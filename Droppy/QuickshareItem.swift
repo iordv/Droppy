@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AppKit
 
 /// Represents a file uploaded via Droppy Quickshare
 struct QuickshareItem: Identifiable, Codable, Equatable {
@@ -16,8 +17,11 @@ struct QuickshareItem: Identifiable, Codable, Equatable {
     let uploadDate: Date
     let fileSize: Int64
     let expirationDate: Date
+    let thumbnailData: Data?  // Base64-encoded preview (PNG, max 64x64)
+    let isZip: Bool  // Whether this is a zip archive (for stacked icon)
+    let itemCount: Int  // Number of items (1 for single file, >1 for multi-file zip)
     
-    init(filename: String, shareURL: String, token: String, fileSize: Int64) {
+    init(filename: String, shareURL: String, token: String, fileSize: Int64, thumbnailData: Data? = nil, itemCount: Int = 1) {
         self.id = UUID()
         self.filename = filename
         self.shareURL = shareURL
@@ -25,6 +29,9 @@ struct QuickshareItem: Identifiable, Codable, Equatable {
         self.uploadDate = Date()
         self.fileSize = fileSize
         self.expirationDate = Self.calculateExpiration(fileSize: fileSize, from: Date())
+        self.thumbnailData = thumbnailData
+        self.isZip = filename.lowercased().hasSuffix(".zip")
+        self.itemCount = itemCount
     }
     
     /// Calculate expiration date based on 0x0.st retention formula
@@ -42,6 +49,54 @@ struct QuickshareItem: Identifiable, Codable, Equatable {
         let retentionDays = minAge + (minAge - maxAge) * pow(clampedRatio - 1, 3)
         
         return uploadDate.addingTimeInterval(retentionDays * 24 * 60 * 60)
+    }
+    
+    /// Generate a thumbnail from a file URL (max 64x64)
+    static func generateThumbnail(from url: URL) -> Data? {
+        // For images, generate a small preview
+        let ext = url.pathExtension.lowercased()
+        
+        if ["jpg", "jpeg", "png", "gif", "webp", "heic", "tiff", "bmp"].contains(ext) {
+            guard let image = NSImage(contentsOf: url) else { return nil }
+            return resizeImage(image, maxSize: 64)
+        }
+        
+        // For other files, use Quick Look thumbnail
+        if let icon = NSWorkspace.shared.icon(forFile: url.path) as NSImage? {
+            return resizeImage(icon, maxSize: 64)
+        }
+        
+        return nil
+    }
+    
+    /// Resize an NSImage to fit within maxSize while preserving aspect ratio
+    private static func resizeImage(_ image: NSImage, maxSize: CGFloat) -> Data? {
+        let originalSize = image.size
+        guard originalSize.width > 0, originalSize.height > 0 else { return nil }
+        
+        let scale = min(maxSize / originalSize.width, maxSize / originalSize.height, 1.0)
+        let newSize = NSSize(width: originalSize.width * scale, height: originalSize.height * scale)
+        
+        let newImage = NSImage(size: newSize)
+        newImage.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: newSize),
+                   from: NSRect(origin: .zero, size: originalSize),
+                   operation: .copy, fraction: 1.0)
+        newImage.unlockFocus()
+        
+        guard let tiff = newImage.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:]) else {
+            return nil
+        }
+        
+        return png
+    }
+    
+    /// Get the thumbnail as NSImage
+    var thumbnail: NSImage? {
+        guard let data = thumbnailData else { return nil }
+        return NSImage(data: data)
     }
     
     /// Formatted time until expiration

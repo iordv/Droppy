@@ -251,16 +251,8 @@ struct QuickshareItemRow: View {
     
     private var rowContent: some View {
         HStack(spacing: 10) {
-            // Icon - circular like ClipboardItemRow
-            ZStack {
-                Circle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                
-                Image(systemName: fileIcon)
-                    .foregroundStyle(.white)
-                    .font(.system(size: 12))
-            }
+            // Thumbnail preview - circular like ClipboardItemRow
+            thumbnailView
             
             // Title and metadata
             VStack(alignment: .leading, spacing: 1) {
@@ -270,6 +262,11 @@ struct QuickshareItemRow: View {
                     .lineLimit(1)
                 
                 HStack(spacing: 4) {
+                    // Show item count for multi-file zips
+                    if item.itemCount > 1 {
+                        Text("\(item.itemCount) files")
+                        Text("•")
+                    }
                     Text(item.formattedSize)
                     Text("•")
                     Text(item.expirationText)
@@ -288,6 +285,45 @@ struct QuickshareItemRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+    }
+    
+    private var thumbnailView: some View {
+        ZStack {
+            // Stacked appearance for multi-file zips
+            if item.itemCount > 1 {
+                // Back cards (offset to show stacking)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+                    .frame(width: 28, height: 28)
+                    .offset(x: 3, y: -3)
+                
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 28, height: 28)
+                    .offset(x: 1.5, y: -1.5)
+            }
+            
+            // Main thumbnail
+            if let thumbnail = item.thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            } else {
+                // Fallback to system icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: fileIcon)
+                        .foregroundStyle(.white)
+                        .font(.system(size: 14))
+                }
+            }
+        }
+        .frame(width: 36, height: 36) // Slightly larger to accommodate stacking
     }
     
     private var rowBackground: some View {

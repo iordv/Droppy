@@ -188,12 +188,22 @@ struct BasketQuickActionsBar: View {
             DroppyState.shared.quickShareStatus = .uploading
         }
         
-        // Determine display filename for history
+        // Determine display filename and item count for history
         let displayFilename: String
+        let itemCount = urls.count
         if urls.count == 1 {
             displayFilename = urls[0].lastPathComponent
         } else {
             displayFilename = "Droppy-Share.zip"
+        }
+        
+        // Generate thumbnail from first file (or stacked preview for multiple)
+        let thumbnailData: Data?
+        if urls.count == 1 {
+            thumbnailData = QuickshareItem.generateThumbnail(from: urls[0])
+        } else {
+            // For multi-file, use first file's thumbnail
+            thumbnailData = QuickshareItem.generateThumbnail(from: urls[0])
         }
         
         DispatchQueue.global(qos: .userInitiated).async {
@@ -236,12 +246,14 @@ struct BasketQuickActionsBar: View {
                     clipboard.clearContents()
                     clipboard.setString(result.shareURL, forType: .string)
                     
-                    // Store in Quickshare Manager for history
+                    // Store in Quickshare Manager for history with thumbnail
                     let quickshareItem = QuickshareItem(
                         filename: displayFilename,
                         shareURL: result.shareURL,
                         token: result.token,
-                        fileSize: result.fileSize
+                        fileSize: result.fileSize,
+                        thumbnailData: thumbnailData,
+                        itemCount: itemCount
                     )
                     QuickshareManager.shared.addItem(quickshareItem)
                     
