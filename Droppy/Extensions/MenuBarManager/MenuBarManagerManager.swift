@@ -202,26 +202,16 @@ final class MenuBarManager: ObservableObject {
     private func updateToggleIcon() {
         guard let button = toggleItem?.button else { return }
         
-        // Both icons use same size for consistency
-        let size: CGFloat = 10
+        // Same size and weight for both states
+        let config = NSImage.SymbolConfiguration(pointSize: 10, weight: .regular)
         
-        if isExpanded {
-            // Items visible (expanded) - show filled circle
-            let config = NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
-            if let image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Hide menu bar icons")?
-                .withSymbolConfiguration(config) {
-                image.isTemplate = true
-                button.image = image
-            }
-        } else {
-            // Items hidden (collapsed) - show hollow circle
-            // circlebadge is visually larger, so use slightly smaller size to match circle.fill
-            let config = NSImage.SymbolConfiguration(pointSize: size - 1, weight: .bold)
-            if let image = NSImage(systemSymbolName: "circlebadge", accessibilityDescription: "Show menu bar icons")?
-                .withSymbolConfiguration(config) {
-                image.isTemplate = true
-                button.image = image
-            }
+        let symbolName = isExpanded ? "circle.fill" : "circle"
+        let description = isExpanded ? "Hide menu bar icons" : "Show menu bar icons"
+        
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: description)?
+            .withSymbolConfiguration(config) {
+            image.isTemplate = true
+            button.image = image
         }
     }
     
