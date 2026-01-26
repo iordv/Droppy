@@ -340,6 +340,8 @@ struct NotchShelfView: View {
             return batteryHudWidth  // Caps Lock HUD uses same width as battery HUD
         } else if HUDManager.shared.isDNDHUDVisible && enableDNDHUD {
             return batteryHudWidth  // Focus/DND HUD uses same width as battery HUD
+        } else if aiAgentMonitor.isActive && aiAgentMonitor.isEnabled {
+            return batteryHudWidth  // AI Agent HUD uses same width as battery HUD
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && isHoveringOnThisScreen {
@@ -1062,6 +1064,8 @@ struct NotchShelfView: View {
                 targetScreen: targetScreen
             )
             .frame(width: batteryHudWidth, height: notchHeight)
+            // Instantly hide when expanding to prevent position artifacts during transition
+            .opacity(isExpandedOnThisScreen ? 0 : 1)
             .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
             .zIndex(8)
         }

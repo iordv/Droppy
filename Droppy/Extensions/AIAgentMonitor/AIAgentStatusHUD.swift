@@ -25,6 +25,7 @@ struct AIAgentHUDView: View {
     @State private var isPulsing = false
 
     var body: some View {
+        // Match BatteryHUDView pattern exactly
         VStack(alignment: .center, spacing: 0) {
             if layout.isDynamicIslandMode {
                 // DYNAMIC ISLAND: Icon on left edge, name on right edge
@@ -85,6 +86,8 @@ struct AIAgentHUDView: View {
             }
         }
         .onAppear {
+            print("AIAgentHUDView appeared - isDynamicIsland: \(layout.isDynamicIslandMode), hudWidth: \(hudWidth), wingWidth: \(layout.wingWidth(for: hudWidth)), notchWidth: \(layout.notchWidth)")
+            print("  isActive: \(manager.isActive), source: \(manager.currentSource.displayName)")
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                 isPulsing = true
             }
@@ -349,7 +352,11 @@ struct AIAgentShelfStatusView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(manager.currentSource.borderColor.opacity(0.15))
+                .fill(Color.black.opacity(0.95))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(manager.currentSource.borderColor.opacity(0.15))
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(manager.currentSource.borderColor.opacity(0.4), lineWidth: 1)
