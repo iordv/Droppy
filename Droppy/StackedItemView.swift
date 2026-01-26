@@ -180,6 +180,7 @@ struct StackedItemView: View {
             .padding(2)
             .frame(width: 64, height: 80)
             .contentShape(Rectangle())
+            .fixedSize()
             // Drop target visual feedback - scale up and blue glow when files dragged over
             .scaleEffect(isDropTargeted ? 1.08 : 1.0)
             .animation(DroppyAnimation.bouncy, value: isDropTargeted)
