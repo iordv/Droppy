@@ -95,21 +95,19 @@ struct MenuBarItem: Identifiable, Equatable, Hashable {
             return []
         }
         
-        // Get main screen menu bar bounds
-        guard let mainScreen = NSScreen.main else { return [] }
-        let menuBarHeight: CGFloat = 24
-        let menuBarMinY = mainScreen.frame.maxY - menuBarHeight
+        // kCGStatusWindowLevel is the proper level for menu bar items (like Ice uses)
+        let statusWindowLevel = Int(CGWindowLevelForKey(.statusWindow))
         
         var items: [MenuBarItem] = []
         
         for windowInfo in windowInfoList {
-            // Must have layer 25 (menu bar level) or similar
+            // Must have the status window layer (menu bar level)
             guard let layer = windowInfo[kCGWindowLayer as String] as? Int else {
                 continue
             }
             
-            // Menu bar items are at layer 25
-            guard layer == 25 else {
+            // Menu bar items are at kCGStatusWindowLevel
+            guard layer == statusWindowLevel else {
                 continue
             }
             
@@ -117,18 +115,20 @@ struct MenuBarItem: Identifiable, Equatable, Hashable {
                 continue
             }
             
-            // Must be in menu bar Y range
-            guard item.frame.minY >= menuBarMinY - 5 else {
+            // Skip Window Server windows
+            if item.ownerName == "Window Server" {
                 continue
             }
             
-            // Skip system items (Spotlight, Control Center, etc) - they have no title
-            // Actually we want most items, so don't filter too aggressively
+            // Skip our own Droppy items
+            if item.ownerName == "Droppy" {
+                continue
+            }
             
             items.append(item)
         }
         
-        // Sort by X position (left to right in menu bar = right items first in our storage)
+        // Sort by X position (right to left in menu bar)
         return items.sorted { $0.frame.minX > $1.frame.minX }
     }
     

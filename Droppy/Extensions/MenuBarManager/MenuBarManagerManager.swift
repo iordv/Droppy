@@ -543,7 +543,9 @@ final class MenuBarManager: ObservableObject {
         let mouseLocation = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { NSMouseInRect(mouseLocation, $0.frame, false) }) ?? NSScreen.main
         
-        droppyBarPanel?.show(on: screen)
+        Task { @MainActor in
+            await droppyBarPanel?.show(on: screen)
+        }
         print("[MenuBarManager] Droppy Bar shown")
     }
     
