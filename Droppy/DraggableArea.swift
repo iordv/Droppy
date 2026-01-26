@@ -111,6 +111,12 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         fatalError("init(coder:) has not been implemented")
     }
     
+    /// CRITICAL: Report the hosting view's intrinsic size to SwiftUI
+    /// Without this, the NSView may size incorrectly in LazyVGrid
+    override var intrinsicContentSize: NSSize {
+        return hostingView.intrinsicContentSize
+    }
+    
     func update(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?) {
         self.hostingView.rootView = rootView
         self.items = items
