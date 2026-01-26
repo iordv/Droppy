@@ -16,7 +16,7 @@ import Combine
 /// Animation timing constants for lock screen panel transitions
 enum LockScreenMediaAnimationTimings {
     static let panelShow: TimeInterval = 0.2
-    static let panelHide: TimeInterval = 0.15
+    static let panelHide: TimeInterval = 0.1
 }
 
 /// Animator for panel visibility state - allows SwiftUI to animate entry/exit

@@ -52,9 +52,11 @@ struct LockScreenMediaPanelView: View {
                             .lineLimit(1)
                     }
                     
-                    Spacer(minLength: 0)
-                    
-                    // Visualizer (5 bars)
+                    Spacer()
+                }
+                .frame(height: albumArtSize)
+                .overlay(alignment: .trailing) {
+                    // Visualizer (5 bars) - positioned at trailing edge
                     AudioSpectrumView(
                         isPlaying: musicManager.isPlaying,
                         barCount: 5,
@@ -64,7 +66,6 @@ struct LockScreenMediaPanelView: View {
                         color: .white
                     )
                 }
-                .frame(height: albumArtSize)
                 
                 // Row 2: Progress bar with timestamps
                 HStack(spacing: 8) {
@@ -139,7 +140,7 @@ struct LockScreenMediaPanelView: View {
             // Entry/exit animations - FAST
             .scaleEffect(animator.isPresented ? 1 : 0.9, anchor: .center)
             .opacity(animator.isPresented ? 1 : 0)
-            .animation(.easeOut(duration: 0.15), value: animator.isPresented)
+            .animation(.easeOut(duration: 0.1), value: animator.isPresented)
         }
     }
     
