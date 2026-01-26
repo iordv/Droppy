@@ -208,27 +208,23 @@ struct DroppyBarContentView: View {
         // Get all menu bar items
         let allItems = MenuBarItem.getMenuBarItems(onScreenOnly: false, activeSpaceOnly: true)
         
-        // Get configured owner names from store
-        let configuredOwnerNames = MenuBarManager.shared.getDroppyBarItemStore().enabledOwnerNames
+        // Get configured unique keys from store
+        let configuredUniqueKeys = MenuBarManager.shared.getDroppyBarItemStore().enabledUniqueKeys
         
-        print("[DroppyBar] Looking for \(configuredOwnerNames.count) configured items: \(configuredOwnerNames)")
+        print("[DroppyBar] Looking for \(configuredUniqueKeys.count) configured items: \(configuredUniqueKeys)")
         
-        // Filter to only show configured items and DEDUPLICATE
-        if configuredOwnerNames.isEmpty {
+        // Filter to only show configured items - match by uniqueKey for accuracy
+        if configuredUniqueKeys.isEmpty {
             items = []
             print("[DroppyBar] No configured items, showing empty")
         } else {
-            // Group by owner name to remove duplicates
-            let groups = Dictionary(grouping: allItems.filter { configuredOwnerNames.contains($0.ownerName) }) { $0.ownerName }
+            // Match items by uniqueKey (bundleIdentifier:title)
+            items = allItems.filter { configuredUniqueKeys.contains($0.uniqueKey) }
             
-            // For each configured owner, pick the best window (e.g. valid size)
-            items = configuredOwnerNames.compactMap { ownerName in
-                guard let candidates = groups[ownerName], !candidates.isEmpty else { return nil }
-                // Use the first valid candidate (sorting by X in MenuBarItem helps pick the right one usually)
-                return candidates.first
+            print("[DroppyBar] Showing \(items.count) matched items")
+            for item in items {
+                print("  - \(item.displayName) (\(item.uniqueKey))")
             }
-            
-            print("[DroppyBar] Showing \(items.count) unique matched items")
         }
     }
 }

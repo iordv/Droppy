@@ -12,8 +12,11 @@ import Combine
 /// Represents a menu bar item that can be displayed in the Droppy Bar
 struct DroppyBarItem: Identifiable, Codable, Equatable {
     
-    /// Unique identifier - uses displayName since ownerName can be shared (e.g., Control Centre)
-    var id: String { displayName }
+    /// Unique identifier - uses uniqueKey (bundleID:title) for accurate matching
+    var id: String { uniqueKey }
+    
+    /// Unique key in format bundleIdentifier:title - matches Ice's approach
+    let uniqueKey: String
     
     /// The name of the app that owns this menu bar item (from MenuBarItem.ownerName)
     let ownerName: String
@@ -32,7 +35,8 @@ struct DroppyBarItem: Identifiable, Codable, Equatable {
     
     // MARK: - Initialization
     
-    init(ownerName: String, bundleIdentifier: String?, displayName: String, position: Int = 0) {
+    init(uniqueKey: String, ownerName: String, bundleIdentifier: String?, displayName: String, position: Int = 0) {
+        self.uniqueKey = uniqueKey
         self.ownerName = ownerName
         self.bundleIdentifier = bundleIdentifier
         self.displayName = displayName
@@ -94,16 +98,16 @@ final class DroppyBarItemStore: ObservableObject {
     
     /// Add an item to the Droppy Bar
     func addItem(_ item: DroppyBarItem) {
-        // Don't add duplicates - use displayName as unique key
-        guard !items.contains(where: { $0.displayName == item.displayName }) else {
-            print("[DroppyBarItemStore] Skipping duplicate: \(item.displayName)")
+        // Don't add duplicates - use uniqueKey for accurate matching
+        guard !items.contains(where: { $0.uniqueKey == item.uniqueKey }) else {
+            print("[DroppyBarItemStore] Skipping duplicate: \(item.uniqueKey)")
             return
         }
         var newItem = item
         newItem.position = items.count
         items.append(newItem)
         saveItems()
-        print("[DroppyBarItemStore] Added: \(item.displayName)")
+        print("[DroppyBarItemStore] Added: \(item.displayName) (\(item.uniqueKey))")
     }
     
     /// Remove an item from the Droppy Bar
@@ -137,9 +141,14 @@ final class DroppyBarItemStore: ObservableObject {
         Set(items.filter { $0.isVisible }.map { $0.ownerName })
     }
     
-    /// Get display names of visible items - use this as the unique key
+    /// Get display names of visible items
     var enabledDisplayNames: Set<String> {
         Set(items.filter { $0.isVisible }.map { $0.displayName })
+    }
+    
+    /// Get unique keys of visible items - use this for accurate matching
+    var enabledUniqueKeys: Set<String> {
+        Set(items.filter { $0.isVisible }.map { $0.uniqueKey })
     }
     
     /// Check if an item exists

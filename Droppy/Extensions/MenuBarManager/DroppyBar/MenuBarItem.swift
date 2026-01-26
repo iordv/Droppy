@@ -28,9 +28,19 @@ struct MenuBarItem: Identifiable, Equatable, Hashable {
     /// The owning application's bundle identifier
     let bundleIdentifier: String?
     
+    // MARK: - Unique Key (Ice's approach: bundleIdentifier:title)
+    
+    /// Unique key for this item - combines bundleIdentifier and title like Ice
+    /// This is stable across app restarts and uniquely identifies each item
+    var uniqueKey: String {
+        let namespace = bundleIdentifier ?? "<null>"
+        let itemTitle = title ?? ""
+        return "\(namespace):\(itemTitle)"
+    }
+    
     // MARK: - Identifiable
     
-    var id: CGWindowID { windowID }
+    var id: String { uniqueKey }  // Use uniqueKey as the stable ID
     
     // MARK: - Computed Properties
     

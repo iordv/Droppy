@@ -13,7 +13,7 @@ struct DroppyBarConfigView: View {
     let onDismiss: () -> Void
     
     @State private var menuBarItems: [MenuBarItem] = []
-    @State private var selectedDisplayNames: Set<String> = []  // Use displayName as unique key
+    @State private var selectedUniqueKeys: Set<String> = []  // Use uniqueKey (bundleID:title) for accurate matching
     @State private var isLoading = true
     
     private var itemStore: DroppyBarItemStore {
@@ -45,7 +45,7 @@ struct DroppyBarConfigView: View {
                 .padding(.top, 8)
             
             // Debug info
-            Text("Selected: \(selectedDisplayNames.count) items")
+            Text("Selected: \(selectedUniqueKeys.count) items")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .padding(.top, 4)
@@ -101,14 +101,14 @@ struct DroppyBarConfigView: View {
                             
                             Spacer()
                             
-                            // Toggle - use displayName as unique key
+                            // Toggle - use uniqueKey for accurate matching
                             Toggle("", isOn: Binding(
-                                get: { selectedDisplayNames.contains(item.displayName) },
+                                get: { selectedUniqueKeys.contains(item.uniqueKey) },
                                 set: { isSelected in
                                     if isSelected {
-                                        selectedDisplayNames.insert(item.displayName)
+                                        selectedUniqueKeys.insert(item.uniqueKey)
                                     } else {
-                                        selectedDisplayNames.remove(item.displayName)
+                                        selectedUniqueKeys.remove(item.uniqueKey)
                                     }
                                 }
                             ))
@@ -155,8 +155,8 @@ struct DroppyBarConfigView: View {
                 return true
             }
             
-            // Load current selection - now using displayName
-            selectedDisplayNames = itemStore.enabledDisplayNames
+            // Load current selection - now using uniqueKey
+            selectedUniqueKeys = itemStore.enabledUniqueKeys
             
             isLoading = false
             print("[DroppyBarConfig] Showing \(menuBarItems.count) individual items")
@@ -164,17 +164,18 @@ struct DroppyBarConfigView: View {
     }
     
     private func saveSelection() {
-        print("[DroppyBarConfig] Saving \(selectedDisplayNames.count) items: \(selectedDisplayNames)")
+        print("[DroppyBarConfig] Saving \(selectedUniqueKeys.count) items: \(selectedUniqueKeys)")
         
         // Clear existing items
         itemStore.clearAll()
         
-        // Add selected items - match by displayName
+        // Add selected items - match by uniqueKey
         var position = 0
-        for item in menuBarItems where selectedDisplayNames.contains(item.displayName) {
+        for item in menuBarItems where selectedUniqueKeys.contains(item.uniqueKey) {
             let droppyItem = DroppyBarItem(
+                uniqueKey: item.uniqueKey,
                 ownerName: item.ownerName,
-                bundleIdentifier: item.owningApplication?.bundleIdentifier,
+                bundleIdentifier: item.bundleIdentifier,
                 displayName: item.displayName,
                 position: position
             )
