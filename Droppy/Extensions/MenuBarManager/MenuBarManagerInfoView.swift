@@ -41,6 +41,9 @@ struct MenuBarManagerInfoView: View {
                     // Usage instructions (when enabled)
                     if manager.isEnabled {
                         usageSection
+                        
+                        // Discovered items section
+                        discoveredItemsSection
                     }
                 }
                 .padding(.horizontal, 24)
@@ -265,6 +268,72 @@ struct MenuBarManagerInfoView: View {
         }
     }
     
+    // MARK: - Discovered Items Section
+    
+    private var discoveredItemsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Menu Bar Items")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button {
+                    manager.refreshDiscoveredItems()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
+                .help("Refresh item list")
+            }
+            
+            if manager.discoveredItems.isEmpty {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    Text("No menu bar items discovered")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(manager.discoveredItems, id: \.id) { item in
+                        MenuBarItemRow(item: item, manager: manager)
+                        
+                        if item.id != manager.discoveredItems.last?.id {
+                            Divider()
+                                .padding(.leading, 44)
+                        }
+                    }
+                }
+                .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            
+            // IceBar button
+            Button {
+                manager.toggleIceBar()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.bottomhalf.filled")
+                    Text("Show Hidden Items Bar")
+                }
+            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
+            .disabled(manager.items(in: .hidden).isEmpty && manager.items(in: .alwaysHidden).isEmpty)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+    
     private var buttonSection: some View {
         HStack(spacing: 10) {
             Button {
@@ -279,5 +348,59 @@ struct MenuBarManagerInfoView: View {
             DisableExtensionButton(extensionType: .menuBarManager)
         }
         .padding(16)
+    }
+}
+
+// MARK: - Menu Bar Item Row
+
+struct MenuBarItemRow: View {
+    let item: MenuBarItem
+    let manager: MenuBarManager
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // App icon or placeholder
+            Group {
+                if let icon = item.appIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                } else {
+                    Image(systemName: "app")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 24, height: 24)
+            
+            // Name
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.displayName)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                
+                Text(item.ownerName)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            // Section picker
+            Picker("", selection: Binding(
+                get: { item.section },
+                set: { manager.setItemSection(item.id, section: $0) }
+            )) {
+                ForEach(MenuBarSection.allCases) { section in
+                    Label(section.displayName, systemImage: section.icon)
+                        .tag(section)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 130)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }
