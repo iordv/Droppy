@@ -157,8 +157,16 @@ private struct DroppyCircleButtonContent: View {
             .foregroundStyle(.white.opacity(0.8))
             .frame(width: size, height: size)
             .background(
-                Circle()
-                    .fill(buttonFill)
+                Group {
+                    // Transparent mode: use glass material (overrides solidFill)
+                    if useTransparent {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                    } else {
+                        Circle()
+                            .fill(buttonFill)
+                    }
+                }
             )
             .overlay(
                 // Border only in transparent mode (matches basket buttons)
