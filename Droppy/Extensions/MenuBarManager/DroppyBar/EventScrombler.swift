@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  Ice-style event delivery for reliably clicking menu bar items.
-//  Uses dual EventTap pattern to route events to background apps.
+//  Simplified version that avoids Swift 6 async/CFRunLoop conflicts.
 //
 
 import Cocoa
@@ -13,22 +13,18 @@ import Carbon.HIToolbox
 enum EventError: Error, LocalizedError {
     case invalidEventSource
     case eventCreationFailure
-    case eventTapCreationFailed
-    case eventTapTimeout
     case eventDeliveryFailed
     
     var errorDescription: String? {
         switch self {
         case .invalidEventSource: return "Could not create event source"
         case .eventCreationFailure: return "Could not create CGEvent"
-        case .eventTapCreationFailed: return "Could not create event tap"
-        case .eventTapTimeout: return "Event tap timed out"
         case .eventDeliveryFailed: return "Event delivery failed"
         }
     }
 }
 
-/// Ice-style event delivery using scromble mechanism
+/// Ice-style event delivery
 @MainActor
 final class EventScrombler {
     
@@ -98,27 +94,39 @@ final class EventScrombler {
         // Hide cursor
         CGDisplayHideCursor(CGMainDisplayID())
         
-        defer {
-            // Restore cursor
-            CGWarpMouseCursorPosition(cursorLocation)
-            CGDisplayShowCursor(CGMainDisplayID())
-        }
-        
         // Warp cursor to click point
         CGWarpMouseCursorPosition(clickPoint)
         
         // Small delay for warp
         try await Task.sleep(for: .milliseconds(10))
         
-        // Scromble the events (route through event tap for reliable delivery)
-        try await scrombleEvent(mouseDownEvent, targetPID: item.ownerPID)
+        // Post the events using .cghidEventTap for better reliability
+        // This is the HID layer which is closer to hardware events
+        mouseDownEvent.post(tap: .cghidEventTap)
         
         // Small delay between down and up
         try await Task.sleep(for: .milliseconds(50))
         
-        try await scrombleEvent(mouseUpEvent, targetPID: item.ownerPID)
+        mouseUpEvent.post(tap: .cghidEventTap)
+        
+        // Wait for event to process
+        try await Task.sleep(for: .milliseconds(100))
+        
+        // Restore cursor
+        CGWarpMouseCursorPosition(cursorLocation)
+        CGDisplayShowCursor(CGMainDisplayID())
         
         print("[EventScrombler] Click complete for \(item.displayName)")
+    }
+    
+    // MARK: - Alternative: Direct Activation
+    
+    /// Fallback: just activate the app and let user click manually
+    func activateApp(for item: MenuBarItem) {
+        if let app = item.owningApplication {
+            app.activate()
+            print("[EventScrombler] Activated app: \(app.localizedName ?? "unknown")")
+        }
     }
     
     // MARK: - Private Implementation
@@ -156,111 +164,4 @@ final class EventScrombler {
         @unknown default: return (.leftMouseDown, .leftMouseUp)
         }
     }
-    
-    /// Ice-style scromble: route event through event tap for reliable delivery
-    /// This creates a temporary event tap to intercept and reroute the event
-    private func scrombleEvent(_ event: CGEvent, targetPID: pid_t) async throws {
-        // Create proxy event source for routing
-        guard let proxySource = CGEventSource(stateID: .combinedSessionState) else {
-            throw EventError.invalidEventSource
-        }
-        
-        // Create callback context
-        let context = ScrombleContext(targetEvent: event, targetPID: targetPID)
-        let contextPtr = Unmanaged.passRetained(context).toOpaque()
-        
-        defer {
-            Unmanaged<ScrombleContext>.fromOpaque(contextPtr).release()
-        }
-        
-        // Create event tap to receive our event
-        let eventMask = (1 << CGEventType.leftMouseDown.rawValue) |
-                        (1 << CGEventType.leftMouseUp.rawValue) |
-                        (1 << CGEventType.rightMouseDown.rawValue) |
-                        (1 << CGEventType.rightMouseUp.rawValue)
-        
-        guard let eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: scrombleCallback,
-            userInfo: contextPtr
-        ) else {
-            throw EventError.eventTapCreationFailed
-        }
-        
-        // Create run loop source
-        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-        
-        defer {
-            CGEvent.tapEnable(tap: eventTap, enable: false)
-            if let source = runLoopSource {
-                CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
-            }
-        }
-        
-        // Post the event - it will be intercepted by our tap
-        event.post(tap: .cgSessionEventTap)
-        
-        // Wait for delivery with timeout
-        let timeout: TimeInterval = 0.5
-        let startTime = Date()
-        
-        while !context.isDelivered && Date().timeIntervalSince(startTime) < timeout {
-            // Run the run loop briefly to process events
-            CFRunLoopRunInMode(.defaultMode, 0.01, false)
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        
-        if !context.isDelivered {
-            // Fallback: just post directly without tap
-            print("[EventScrombler] Event tap timeout, posting directly")
-            event.post(tap: .cgSessionEventTap)
-        }
-    }
-}
-
-/// Context for scromble callback
-private final class ScrombleContext {
-    let targetEvent: CGEvent
-    let targetPID: pid_t
-    var isDelivered = false
-    
-    init(targetEvent: CGEvent, targetPID: pid_t) {
-        self.targetEvent = targetEvent
-        self.targetPID = targetPID
-    }
-}
-
-/// Scromble callback - intercepts and reroutes events
-private func scrombleCallback(
-    proxy: CGEventTapProxy,
-    type: CGEventType,
-    event: CGEvent,
-    userInfo: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-    guard let userInfo = userInfo else {
-        return Unmanaged.passUnretained(event)
-    }
-    
-    let context = Unmanaged<ScrombleContext>.fromOpaque(userInfo).takeUnretainedValue()
-    
-    // Check if this is our event (compare locations as a simple check)
-    let eventLocation = event.location
-    let targetLocation = context.targetEvent.location
-    
-    if abs(eventLocation.x - targetLocation.x) < 1 && abs(eventLocation.y - targetLocation.y) < 1 {
-        // This is our event - mark as delivered
-        context.isDelivered = true
-        
-        // Set PID target and let it through
-        event.setIntegerValueField(.eventTargetUnixProcessID, value: Int64(context.targetPID))
-        
-        return Unmanaged.passUnretained(event)
-    }
-    
-    return Unmanaged.passUnretained(event)
 }
