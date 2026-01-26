@@ -202,11 +202,12 @@ final class MenuBarManager: ObservableObject {
     private func updateToggleIcon() {
         guard let button = toggleItem?.button else { return }
         
-        // Use heavier weight and template mode for menu bar visibility
-        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        // Both icons use same size for consistency
+        let size: CGFloat = 10
         
         if isExpanded {
             // Items visible (expanded) - show filled circle
+            let config = NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
             if let image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Hide menu bar icons")?
                 .withSymbolConfiguration(config) {
                 image.isTemplate = true
@@ -214,14 +215,10 @@ final class MenuBarManager: ObservableObject {
             }
         } else {
             // Items hidden (collapsed) - show hollow circle
-            // Using "circlebadge" which has a thicker, more visible stroke than "circle"
+            // circlebadge is visually larger, so use slightly smaller size to match circle.fill
+            let config = NSImage.SymbolConfiguration(pointSize: size - 1, weight: .bold)
             if let image = NSImage(systemSymbolName: "circlebadge", accessibilityDescription: "Show menu bar icons")?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 11, weight: .bold)) {
-                image.isTemplate = true
-                button.image = image
-            } else if let image = NSImage(systemSymbolName: "circle", accessibilityDescription: "Show menu bar icons")?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .heavy)) {
-                // Fallback to larger, heavier circle
+                .withSymbolConfiguration(config) {
                 image.isTemplate = true
                 button.image = image
             }
