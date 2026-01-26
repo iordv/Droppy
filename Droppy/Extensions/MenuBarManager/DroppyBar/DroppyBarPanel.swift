@@ -208,20 +208,25 @@ struct DroppyBarContentView: View {
         // Get all menu bar items
         let allItems = MenuBarItem.getMenuBarItems(onScreenOnly: false, activeSpaceOnly: true)
         
-        // Get configured bundle IDs from store
-        let configuredBundleIds = MenuBarManager.shared.getDroppyBarItemStore().enabledBundleIds
+        // Get configured owner names from store
+        let configuredOwnerNames = MenuBarManager.shared.getDroppyBarItemStore().enabledOwnerNames
+        
+        print("[DroppyBar] Looking for \(configuredOwnerNames.count) configured items: \(configuredOwnerNames)")
         
         // Filter to only show configured items
-        if configuredBundleIds.isEmpty {
+        if configuredOwnerNames.isEmpty {
             items = []
+            print("[DroppyBar] No configured items, showing empty")
         } else {
             items = allItems.filter { item in
-                guard let bundleId = item.owningApplication?.bundleIdentifier else { return false }
-                return configuredBundleIds.contains(bundleId)
+                let isMatch = configuredOwnerNames.contains(item.ownerName)
+                if isMatch {
+                    print("[DroppyBar] Match: \(item.ownerName)")
+                }
+                return isMatch
             }
+            print("[DroppyBar] Showing \(items.count) matched items")
         }
-        
-        print("[DroppyBar] Showing \(items.count) configured items")
     }
 }
 

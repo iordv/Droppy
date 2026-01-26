@@ -3,7 +3,6 @@
 //  Droppy
 //
 //  Configuration view for selecting which menu bar icons to show in Droppy Bar.
-//  Selected icons will be hidden from the main menu bar and shown in Droppy Bar.
 //
 
 import SwiftUI
@@ -14,7 +13,7 @@ struct DroppyBarConfigView: View {
     let onDismiss: () -> Void
     
     @State private var menuBarItems: [MenuBarItem] = []
-    @State private var selectedItemIds: Set<CGWindowID> = []
+    @State private var selectedOwnerNames: Set<String> = []
     @State private var isLoading = true
     
     private var itemStore: DroppyBarItemStore {
@@ -39,12 +38,17 @@ struct DroppyBarConfigView: View {
             Divider()
             
             // Instructions
-            Text("Toggle items to move them to the Droppy Bar. They will be hidden from the main menu bar.")
+            Text("Toggle items to show them in the Droppy Bar.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
                 .padding(.horizontal)
                 .padding(.top, 8)
+            
+            // Debug info
+            Text("Selected: \(selectedOwnerNames.count) items")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 4)
             
             // Item list
             if isLoading {
@@ -62,7 +66,7 @@ struct DroppyBarConfigView: View {
                         .foregroundStyle(.orange)
                     Text("No menu bar items found")
                         .font(.callout)
-                    Text("Make sure screen recording is enabled in System Settings")
+                    Text("Make sure screen recording is enabled")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -70,17 +74,46 @@ struct DroppyBarConfigView: View {
             } else {
                 List {
                     ForEach(menuBarItems) { item in
-                        MenuBarItemRow(
-                            item: item,
-                            isSelected: selectedItemIds.contains(item.windowID),
-                            onToggle: { isSelected in
-                                if isSelected {
-                                    selectedItemIds.insert(item.windowID)
-                                } else {
-                                    selectedItemIds.remove(item.windowID)
-                                }
+                        HStack(spacing: 12) {
+                            // Icon
+                            if let app = item.owningApplication, let icon = app.icon {
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 24, height: 24)
+                            } else {
+                                Image(systemName: "menubar.rectangle")
+                                    .frame(width: 24, height: 24)
+                                    .foregroundStyle(.secondary)
                             }
-                        )
+                            
+                            // Name
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.ownerName)
+                                    .font(.body)
+                                    .lineLimit(1)
+                                Text("Window ID: \(item.windowID)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            
+                            Spacer()
+                            
+                            // Toggle
+                            Toggle("", isOn: Binding(
+                                get: { selectedOwnerNames.contains(item.ownerName) },
+                                set: { isSelected in
+                                    if isSelected {
+                                        selectedOwnerNames.insert(item.ownerName)
+                                    } else {
+                                        selectedOwnerNames.remove(item.ownerName)
+                                    }
+                                }
+                            ))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
             }
@@ -95,99 +128,53 @@ struct DroppyBarConfigView: View {
         isLoading = true
         
         Task { @MainActor in
-            // Get all menu bar items - be inclusive!
+            // Get all menu bar items
             let allItems = MenuBarItem.getMenuBarItems(onScreenOnly: false, activeSpaceOnly: true)
             
-            // Filter out our own toggle and system items that shouldn't be moved
-            menuBarItems = allItems.filter { item in
-                // Keep most items, only filter our own controls
-                !item.ownerName.contains("Droppy") &&
-                item.ownerName != "SystemUIServer" // Keep Control Center items by owner name
+            print("[DroppyBarConfig] Raw items: \(allItems.count)")
+            for item in allItems {
+                print("  - \(item.ownerName) (bundle: \(item.owningApplication?.bundleIdentifier ?? "nil"))")
             }
             
-            // Load current selection from store
-            let storedBundleIds = itemStore.enabledBundleIds
-            for item in menuBarItems {
-                if let bundleId = item.owningApplication?.bundleIdentifier,
-                   storedBundleIds.contains(bundleId) {
-                    selectedItemIds.insert(item.windowID)
-                }
+            // Filter out our own controls and deduplicate by ownerName
+            var seenOwners: Set<String> = []
+            menuBarItems = allItems.filter { item in
+                // Skip Droppy's own items
+                guard !item.ownerName.contains("Droppy") else { return false }
+                
+                // Skip duplicates
+                guard !seenOwners.contains(item.ownerName) else { return false }
+                seenOwners.insert(item.ownerName)
+                
+                return true
             }
+            
+            // Load current selection
+            selectedOwnerNames = itemStore.enabledOwnerNames
             
             isLoading = false
-            print("[DroppyBarConfig] Found \(menuBarItems.count) menu bar items")
+            print("[DroppyBarConfig] Showing \(menuBarItems.count) unique items")
         }
     }
     
     private func saveSelection() {
+        print("[DroppyBarConfig] Saving \(selectedOwnerNames.count) items: \(selectedOwnerNames)")
+        
         // Clear existing items
         itemStore.clearAll()
         
         // Add selected items
         var position = 0
-        for windowId in selectedItemIds {
-            guard let item = menuBarItems.first(where: { $0.windowID == windowId }) else { continue }
-            
-            let bundleId = item.owningApplication?.bundleIdentifier ?? "unknown.\(item.ownerName)"
+        for item in menuBarItems where selectedOwnerNames.contains(item.ownerName) {
             let droppyItem = DroppyBarItem(
-                bundleIdentifier: bundleId,
+                ownerName: item.ownerName,
+                bundleIdentifier: item.owningApplication?.bundleIdentifier,
                 displayName: item.displayName,
                 position: position
             )
             itemStore.addItem(droppyItem)
             position += 1
         }
-        
-        print("[DroppyBarConfig] Saved \(position) items")
-    }
-}
-
-/// Row view for a menu bar item
-struct MenuBarItemRow: View {
-    let item: MenuBarItem
-    let isSelected: Bool
-    let onToggle: (Bool) -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Icon (from app or captured image)
-            Group {
-                if let app = item.owningApplication, let icon = app.icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } else {
-                    Image(systemName: "menubar.rectangle")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 24, height: 24)
-            
-            // Name and bundle ID
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.displayName)
-                    .font(.body)
-                    .lineLimit(1)
-                
-                if let bundleId = item.owningApplication?.bundleIdentifier {
-                    Text(bundleId)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-            
-            Spacer()
-            
-            // Toggle
-            Toggle("", isOn: Binding(
-                get: { isSelected },
-                set: { onToggle($0) }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-        }
-        .padding(.vertical, 4)
     }
 }
 
