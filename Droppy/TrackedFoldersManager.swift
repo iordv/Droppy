@@ -278,17 +278,17 @@ final class TrackedFoldersManager: ObservableObject {
         
         switch folder.destination {
         case .shelf:
-            // Add ALL pending files as a SINGLE stack to shelf (always show as stack)
-            state.addItems(from: urlArray, forceStackAppearance: true)
+            // Add all pending files to shelf
+            state.addItems(from: urlArray)
             state.isExpanded = true  // This expands the notch shelf
-            print("TrackedFolders: Created stack with \(urlArray.count) file(s) in Shelf")
+            print("TrackedFolders: Added \(urlArray.count) file(s) to Shelf")
             
         case .basket:
-            // Add ALL pending files as a SINGLE stack to basket (always show as stack)
-            state.addBasketItems(from: urlArray, forceStackAppearance: true)
+            // Add all pending files to basket
+            state.addBasketItems(from: urlArray)
             state.isBasketVisible = true
             FloatingBasketWindowController.shared.showBasket(atLastPosition: true)
-            print("TrackedFolders: Created stack with \(urlArray.count) file(s) in Basket")
+            print("TrackedFolders: Added \(urlArray.count) file(s) to Basket")
         }
     }
     

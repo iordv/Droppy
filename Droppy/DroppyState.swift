@@ -58,89 +58,47 @@ enum QuickActionType: String, CaseIterable {
 /// Main application state for the Droppy shelf
 @Observable
 final class DroppyState {
-    /// Items currently on the shelf (LEGACY - maintained for backwards compatibility)
-    /// Use shelfStacks for new code - this flattens all stacks into a single array
+    // MARK: - Simple Item Arrays (post-v9.3.0 - stacks removed)
+    
+    /// Items currently on the shelf (regular files)
+    var shelfItems: [DroppedItem] = []
+    
+    /// Power Folders on shelf (pinned directories)
+    var shelfPowerFolders: [DroppedItem] = []
+    
+    /// Items currently in the basket (regular files)
+    var basketItemsList: [DroppedItem] = []
+    
+    /// Power Folders in basket (pinned directories)
+    var basketPowerFolders: [DroppedItem] = []
+    
+    /// Legacy computed property - returns all shelf items + power folders
     var items: [DroppedItem] {
-        get {
-            // Flatten all stacks + power folders into items array
-            var allItems: [DroppedItem] = []
-            for stack in shelfStacks {
-                allItems.append(contentsOf: stack.items)
-            }
-            allItems.append(contentsOf: shelfPowerFolders)
-            return allItems
-        }
+        get { shelfItems + shelfPowerFolders }
         set {
-            // Direct set clears stacks and creates individual stacks per item
-            shelfStacks = newValue.filter { !$0.isPinned || !$0.isDirectory }
-                .map { ItemStack(item: $0) }
+            shelfItems = newValue.filter { !($0.isPinned && $0.isDirectory) }
             shelfPowerFolders = newValue.filter { $0.isPinned && $0.isDirectory }
         }
     }
     
-    /// Items currently in the floating basket (LEGACY - maintained for backwards compatibility)
+    /// Legacy computed property - returns all basket items + power folders
     var basketItems: [DroppedItem] {
-        get {
-            var allItems: [DroppedItem] = []
-            for stack in basketStacks {
-                allItems.append(contentsOf: stack.items)
-            }
-            allItems.append(contentsOf: basketPowerFolders)
-            return allItems
-        }
+        get { basketItemsList + basketPowerFolders }
         set {
-            basketStacks = newValue.filter { !$0.isPinned || !$0.isDirectory }
-                .map { ItemStack(item: $0) }
+            basketItemsList = newValue.filter { !($0.isPinned && $0.isDirectory) }
             basketPowerFolders = newValue.filter { $0.isPinned && $0.isDirectory }
         }
     }
     
-    // MARK: - Stacked Items Architecture (v9.3.0)
-    
-    /// Stacks of items for the shelf (groups dropped together)
-    var shelfStacks: [ItemStack] = []
-    
-    /// Stacks of items for the basket
-    var basketStacks: [ItemStack] = []
-    
-    /// Power Folders on shelf (always distinct, never stacked)
-    var shelfPowerFolders: [DroppedItem] = []
-    
-    /// Power Folders in basket (always distinct, never stacked)
-    var basketPowerFolders: [DroppedItem] = []
-    
-    /// Whether stacking mode is enabled (user setting)
-    @ObservationIgnored
-    var enableStackedView: Bool {
-        get { UserDefaults.standard.object(forKey: "enableStackedView") as? Bool ?? true }
-        set { UserDefaults.standard.set(newValue, forKey: "enableStackedView") }
-    }
-    
     /// Number of display slots used on shelf (for grid layout calculations)
-    /// Collapsed stacks count as 1, expanded stacks count as their item count + 1 (collapse button)
+    /// Now simply the count of all items
     var shelfDisplaySlotCount: Int {
-        var count = shelfPowerFolders.count
-        for stack in shelfStacks {
-            if stack.isExpanded {
-                count += stack.count + 1  // Items + collapse button
-            } else {
-                count += 1  // Collapsed stack = 1 slot
-            }
-        }
-        return count
+        shelfItems.count + shelfPowerFolders.count
     }
     
     /// Number of display slots used in basket (for grid layout calculations)
     var basketDisplaySlotCount: Int {
-        var count = basketPowerFolders.count
-        for stack in basketStacks {
-            if stack.isExpanded {
-                count += stack.count + 1  // Items + collapse button
-            } else {
-                count += 1  // Collapsed stack = 1 slot
-            }
-        }
-        return count
+        basketItemsList.count + basketPowerFolders.count
     }
     
     
@@ -152,9 +110,6 @@ final class DroppyState {
     
     /// Currently selected basket items
     var selectedBasketItems: Set<UUID> = []
-    
-    /// Currently selected stacks (by stack ID) for bulk operations
-    var selectedStacks: Set<UUID> = []
     
     /// Position where the shelf should appear (near cursor)
     var shelfPosition: CGPoint = .zero
@@ -386,7 +341,7 @@ final class DroppyState {
         // Calculate ALL possible content heights
         let terminalHeight: CGFloat = 180 + topPaddingDelta
         let mediaPlayerHeight: CGFloat = 140 + topPaddingDelta
-        // Use shelfDisplaySlotCount for correct row count (collapsed stacks = 1 slot)
+        // Use shelfDisplaySlotCount for correct row count
         let rowCount = ceil(Double(DroppyState.shared.shelfDisplaySlotCount) / 5.0)
         let shelfHeight: CGFloat = max(1, rowCount) * 110 + notchCompensation
         
@@ -415,87 +370,34 @@ final class DroppyState {
     
     // MARK: - Item Management (Shelf)
     
-    /// Adds a new item to the shelf (creates single-item stack)
+    /// Adds a new item to the shelf
     func addItem(_ item: DroppedItem) {
         // Check for Power Folder (pinned directory)
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
         if item.isDirectory && enablePowerFolders {
-            // Power Folders go to separate list (never stacked)
+            // Power Folders go to separate list
             guard !shelfPowerFolders.contains(where: { $0.url == item.url }) else { return }
             var pinnedItem = item
             pinnedItem.isPinned = true
             shelfPowerFolders.append(pinnedItem)
         } else {
-            // Regular items - avoid duplicates across all stacks
-            let allExistingURLs = shelfStacks.flatMap { $0.items.map { $0.url } }
-            guard !allExistingURLs.contains(item.url) else { return }
-            shelfStacks.append(ItemStack(item: item))
+            // Regular items - avoid duplicates
+            guard !shelfItems.contains(where: { $0.url == item.url }) else { return }
+            shelfItems.append(item)
         }
         triggerAutoExpand()
         HapticFeedback.drop()
     }
     
-    /// Adds an item to an existing stack (for drag-into-stack feature)
-    /// Works for both shelf stacks and basket stacks
-    func addItemToStack(_ item: DroppedItem, stackId: UUID) {
-        // Try shelf stacks first
-        if let stackIndex = shelfStacks.firstIndex(where: { $0.id == stackId }) {
-            // Check if item is already in this stack
-            guard !shelfStacks[stackIndex].items.contains(where: { $0.url == item.url }) else { return }
-            
-            // Check if item exists anywhere else - if so, remove it first
-            for i in shelfStacks.indices {
-                if shelfStacks[i].id != stackId {
-                    shelfStacks[i].items.removeAll { $0.url == item.url }
-                }
-            }
-            // Remove empty stacks
-            shelfStacks.removeAll { $0.isEmpty }
-            
-            // Re-find index after modifications (removeAll may have changed indices)
-            guard let newStackIndex = shelfStacks.firstIndex(where: { $0.id == stackId }) else { return }
-            
-            // Add to the target stack
-            shelfStacks[newStackIndex].items.append(item)
-            triggerAutoExpand()
-            return
-        }
-        
-        // Try basket stacks
-        if let stackIndex = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            // Check if item is already in this stack
-            guard !basketStacks[stackIndex].items.contains(where: { $0.url == item.url }) else { return }
-            
-            // Check if item exists anywhere else in basket - if so, remove it first
-            for i in basketStacks.indices {
-                if basketStacks[i].id != stackId {
-                    basketStacks[i].items.removeAll { $0.url == item.url }
-                }
-            }
-            // Remove empty stacks
-            basketStacks.removeAll { $0.isEmpty }
-            
-            // Re-find index after modifications (removeAll may have changed indices)
-            guard let newStackIndex = basketStacks.firstIndex(where: { $0.id == stackId }) else { return }
-            
-            // Add to the target stack
-            basketStacks[newStackIndex].items.append(item)
-        }
-    }
-    
-    /// Adds multiple items from file URLs (creates a SINGLE stack for all items)
-    /// This is the key method for stacking - items dropped together = one stack
-    /// - Parameters:
-    ///   - urls: File URLs to add
-    ///   - forceStackAppearance: If true, stack always renders as stack even with 1 item (for tracked folders)
-    func addItems(from urls: [URL], forceStackAppearance: Bool = false) {
+    /// Adds multiple items from file URLs
+    func addItems(from urls: [URL]) {
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
         
         var regularItems: [DroppedItem] = []
         var powerFolders: [DroppedItem] = []
         
         // Get all existing URLs to check for duplicates
-        let existingURLs = Set(shelfStacks.flatMap { $0.items.map { $0.url } } + shelfPowerFolders.map { $0.url })
+        let existingURLs = Set(shelfItems.map { $0.url } + shelfPowerFolders.map { $0.url })
         
         for url in urls {
             // Skip duplicates
@@ -503,7 +405,7 @@ final class DroppyState {
             
             let item = DroppedItem(url: url)
             
-            // Power Folders: Directories go to separate list (always distinct)
+            // Power Folders: Directories go to separate list
             if item.isDirectory && enablePowerFolders {
                 var pinnedItem = item
                 pinnedItem.isPinned = true
@@ -513,14 +415,12 @@ final class DroppyState {
             }
         }
         
-        // Add Power Folders individually (never stacked)
+        // Add Power Folders
         shelfPowerFolders.append(contentsOf: powerFolders)
         
-        // Create a SINGLE stack for all regular items dropped together
+        // Add regular items
         if !regularItems.isEmpty {
-            var stack = ItemStack(items: regularItems)
-            stack.forceStackAppearance = forceStackAppearance
-            shelfStacks.append(stack)
+            shelfItems.append(contentsOf: regularItems)
             triggerAutoExpand()
             HapticFeedback.drop()
         }
@@ -531,28 +431,22 @@ final class DroppyState {
         }
     }
     
-    /// Removes an item from the shelf (from any stack)
+    /// Removes an item from the shelf
     func removeItem(_ item: DroppedItem) {
         item.cleanupIfTemporary()
         
         // Remove from power folders
         shelfPowerFolders.removeAll { $0.id == item.id }
         
-        // Remove from stacks
-        for i in shelfStacks.indices.reversed() {
-            shelfStacks[i].removeItem(withId: item.id)
-            // Remove empty stacks
-            if shelfStacks[i].isEmpty {
-                shelfStacks.remove(at: i)
-            }
-        }
+        // Remove from regular items
+        shelfItems.removeAll { $0.id == item.id }
         
         selectedItems.remove(item.id)
         cleanupTempFoldersIfEmpty()
         HapticFeedback.delete()
     }
     
-    /// Removes selected items from all stacks
+    /// Removes selected items
     func removeSelectedItems() {
         // Remove from power folders
         for item in shelfPowerFolders.filter({ selectedItems.contains($0.id) }) {
@@ -560,18 +454,11 @@ final class DroppyState {
         }
         shelfPowerFolders.removeAll { selectedItems.contains($0.id) }
         
-        // Remove from stacks
-        for i in shelfStacks.indices.reversed() {
-            for itemId in selectedItems {
-                if let item = shelfStacks[i].items.first(where: { $0.id == itemId }) {
-                    item.cleanupIfTemporary()
-                }
-                shelfStacks[i].removeItem(withId: itemId)
-            }
-            if shelfStacks[i].isEmpty {
-                shelfStacks.remove(at: i)
-            }
+        // Remove from regular items
+        for item in shelfItems.filter({ selectedItems.contains($0.id) }) {
+            item.cleanupIfTemporary()
         }
+        shelfItems.removeAll { selectedItems.contains($0.id) }
         
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
@@ -579,89 +466,28 @@ final class DroppyState {
     
     /// Clears all items from the shelf
     func clearAll() {
-        for stack in shelfStacks {
-            stack.cleanupTemporaryFiles()
+        for item in shelfItems {
+            item.cleanupIfTemporary()
         }
         for item in shelfPowerFolders {
             item.cleanupIfTemporary()
         }
-        shelfStacks.removeAll()
+        shelfItems.removeAll()
         shelfPowerFolders.removeAll()
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
-    }
-    
-    // MARK: - Stack Management
-    
-    /// Toggles stack expansion (collapsed ↔ expanded)
-    func toggleStackExpansion(_ stackId: UUID) {
-        if let index = shelfStacks.firstIndex(where: { $0.id == stackId }) {
-            shelfStacks[index].isExpanded.toggle()
-        }
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].isExpanded.toggle()
-        }
-    }
-    
-    /// Expands a stack
-    func expandStack(_ stackId: UUID) {
-        if let index = shelfStacks.firstIndex(where: { $0.id == stackId }) {
-            shelfStacks[index].isExpanded = true
-        }
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].isExpanded = true
-        }
-    }
-    
-    /// Collapses a stack
-    func collapseStack(_ stackId: UUID) {
-        if let index = shelfStacks.firstIndex(where: { $0.id == stackId }) {
-            shelfStacks[index].isExpanded = false
-        }
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].isExpanded = false
-        }
-    }
-    
-    /// Removes an entire stack
-    func removeStack(_ stackId: UUID) {
-        if let index = shelfStacks.firstIndex(where: { $0.id == stackId }) {
-            shelfStacks[index].cleanupTemporaryFiles()
-            // Remove all items from selection
-            for item in shelfStacks[index].items {
-                selectedItems.remove(item.id)
-            }
-            shelfStacks.remove(at: index)
-            cleanupTempFoldersIfEmpty()
-            HapticFeedback.delete()
-        }
-    }
-    
-    /// Selects all items in a stack (works for both shelf and basket)
-    func selectAllInStack(_ stackId: UUID) {
-        // Check shelf stacks first
-        if let stack = shelfStacks.first(where: { $0.id == stackId }) {
-            selectedItems.formUnion(stack.itemIds)
-            return
-        }
-        // Check basket stacks
-        if let stack = basketStacks.first(where: { $0.id == stackId }) {
-            selectedBasketItems.formUnion(stack.itemIds)
-        }
     }
     
     // MARK: - Folder Pinning
     
     /// Toggles the pinned state of a folder item
     func togglePin(_ item: DroppedItem) {
-        // Check shelf stacks
-        for stackIndex in shelfStacks.indices {
-            if let itemIndex = shelfStacks[stackIndex].items.firstIndex(where: { $0.id == item.id }) {
-                shelfStacks[stackIndex].items[itemIndex].isPinned.toggle()
-                savePinnedFolders()
-                HapticFeedback.pin()
-                return
-            }
+        // Check shelf items
+        if let index = shelfItems.firstIndex(where: { $0.id == item.id }) {
+            shelfItems[index].isPinned.toggle()
+            savePinnedFolders()
+            HapticFeedback.pin()
+            return
         }
         
         // Check shelf power folders
@@ -672,14 +498,12 @@ final class DroppyState {
             return
         }
         
-        // Check basket stacks
-        for stackIndex in basketStacks.indices {
-            if let itemIndex = basketStacks[stackIndex].items.firstIndex(where: { $0.id == item.id }) {
-                basketStacks[stackIndex].items[itemIndex].isPinned.toggle()
-                savePinnedFolders()
-                HapticFeedback.pin()
-                return
-            }
+        // Check basket items
+        if let index = basketItemsList.firstIndex(where: { $0.id == item.id }) {
+            basketItemsList[index].isPinned.toggle()
+            savePinnedFolders()
+            HapticFeedback.pin()
+            return
         }
         
         // Check basket power folders
@@ -835,26 +659,20 @@ final class DroppyState {
             guard !basketPowerFolders.contains(where: { $0.url == item.url }) else { return }
             basketPowerFolders.append(item)
         } else {
-            let allExistingURLs = basketStacks.flatMap { $0.items.map { $0.url } }
-            guard !allExistingURLs.contains(item.url) else { return }
-            basketStacks.append(ItemStack(item: item))
+            guard !basketItemsList.contains(where: { $0.url == item.url }) else { return }
+            basketItemsList.append(item)
         }
         HapticFeedback.drop()
     }
     
     /// Adds multiple items to the basket from file URLs
-    /// CHANGED: Each file now creates its OWN separate stack (no auto-stacking)
-    /// Users can manually create stacks via context menu > Create Stack
-    /// - Parameters:
-    ///   - urls: File URLs to add
-    ///   - forceStackAppearance: If true, stack always renders as stack even with 1 item (for tracked folders)
-    func addBasketItems(from urls: [URL], forceStackAppearance: Bool = false) {
+    func addBasketItems(from urls: [URL]) {
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
         
         var regularItems: [DroppedItem] = []
         var powerFolders: [DroppedItem] = []
         
-        let existingURLs = Set(basketStacks.flatMap { $0.items.map { $0.url } } + basketPowerFolders.map { $0.url })
+        let existingURLs = Set(basketItemsList.map { $0.url } + basketPowerFolders.map { $0.url })
         
         for url in urls {
             guard !existingURLs.contains(url) else { continue }
@@ -869,64 +687,19 @@ final class DroppyState {
         }
         
         basketPowerFolders.append(contentsOf: powerFolders)
-        
-        // CHANGED: Create INDIVIDUAL stacks for each item (no auto-stacking)
-        // Users can manually create stacks via right-click > Create Stack
-        for item in regularItems {
-            var stack = ItemStack(item: item)
-            stack.forceStackAppearance = forceStackAppearance
-            basketStacks.append(stack)
-        }
+        basketItemsList.append(contentsOf: regularItems)
         
         if !regularItems.isEmpty || !powerFolders.isEmpty {
             HapticFeedback.drop()
         }
     }
     
-    /// Adds an existing stack to the basket (preserves stack structure)
-    /// Use this when transferring stacks between shelf/basket to maintain grouping
-    func addStackToBasket(_ stack: ItemStack) {
-        // Check for duplicates
-        let existingURLs = Set(basketStacks.flatMap { $0.items.map { $0.url } })
-        let newItems = stack.items.filter { !existingURLs.contains($0.url) }
-        
-        guard !newItems.isEmpty else { return }
-        
-        // Create new stack with filtered items (preserving stack identity)
-        var newStack = stack
-        newStack.items = newItems
-        basketStacks.append(newStack)
-        HapticFeedback.drop()
-    }
-    
-    /// Adds an existing stack to the shelf (preserves stack structure)
-    /// Use this when transferring stacks between basket/shelf to maintain grouping
-    func addStackToShelf(_ stack: ItemStack) {
-        // Check for duplicates
-        let existingURLs = Set(shelfStacks.flatMap { $0.items.map { $0.url } })
-        let newItems = stack.items.filter { !existingURLs.contains($0.url) }
-        
-        guard !newItems.isEmpty else { return }
-        
-        // Create new stack with filtered items (preserving stack identity)
-        var newStack = stack
-        newStack.items = newItems
-        shelfStacks.append(newStack)
-        HapticFeedback.drop()
-    }
-    
-    /// Removes an item from the basket (from any stack)
+    /// Removes an item from the basket
     func removeBasketItem(_ item: DroppedItem) {
         item.cleanupIfTemporary()
         
         basketPowerFolders.removeAll { $0.id == item.id }
-        
-        for i in basketStacks.indices.reversed() {
-            basketStacks[i].removeItem(withId: item.id)
-            if basketStacks[i].isEmpty {
-                basketStacks.remove(at: i)
-            }
-        }
+        basketItemsList.removeAll { $0.id == item.id }
         
         selectedBasketItems.remove(item.id)
         cleanupTempFoldersIfEmpty()
@@ -936,38 +709,24 @@ final class DroppyState {
     /// Removes an item from the basket WITHOUT cleanup (for transfers to shelf)
     func removeBasketItemForTransfer(_ item: DroppedItem) {
         basketPowerFolders.removeAll { $0.id == item.id }
-        
-        for i in basketStacks.indices.reversed() {
-            basketStacks[i].removeItem(withId: item.id)
-            if basketStacks[i].isEmpty {
-                basketStacks.remove(at: i)
-            }
-        }
-        
+        basketItemsList.removeAll { $0.id == item.id }
         selectedBasketItems.remove(item.id)
     }
     
     /// Removes an item from the shelf WITHOUT cleanup (for transfers to basket)
     func removeItemForTransfer(_ item: DroppedItem) {
         shelfPowerFolders.removeAll { $0.id == item.id }
-        
-        for i in shelfStacks.indices.reversed() {
-            shelfStacks[i].removeItem(withId: item.id)
-            if shelfStacks[i].isEmpty {
-                shelfStacks.remove(at: i)
-            }
-        }
-        
+        shelfItems.removeAll { $0.id == item.id }
         selectedItems.remove(item.id)
     }
     
     /// Clears all items from the basket (preserves pinned folders)
     func clearBasket() {
-        // Cleanup and remove all stacks
-        for stack in basketStacks {
-            stack.cleanupTemporaryFiles()
+        // Cleanup regular items
+        for item in basketItemsList {
+            item.cleanupIfTemporary()
         }
-        basketStacks.removeAll()
+        basketItemsList.removeAll()
         
         // Only remove unpinned power folders - pinned folders stay
         let unpinnedFolders = basketPowerFolders.filter { !$0.isPinned }
@@ -989,107 +748,17 @@ final class DroppyState {
             }
         }
         
-        // Move stacks (merge all items into a single new stack)
-        var allItems: [DroppedItem] = []
-        for stack in basketStacks {
-            allItems.append(contentsOf: stack.items)
-        }
-        if !allItems.isEmpty {
-            shelfStacks.append(ItemStack(items: allItems))
+        // Move regular items
+        for item in basketItemsList {
+            if !shelfItems.contains(where: { $0.url == item.url }) {
+                shelfItems.append(item)
+            }
         }
         
         // Clear basket without cleanup
-        basketStacks.removeAll()
+        basketItemsList.removeAll()
         basketPowerFolders.removeAll()
         selectedBasketItems.removeAll()
-    }
-    
-    /// Removes a basket stack by ID
-    func removeBasketStack(_ stackId: UUID) {
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].cleanupTemporaryFiles()
-            for item in basketStacks[index].items {
-                selectedBasketItems.remove(item.id)
-            }
-            basketStacks.remove(at: index)
-            cleanupTempFoldersIfEmpty()
-            HapticFeedback.delete()
-        }
-    }
-    
-    /// Selects all items in a basket stack
-    func selectAllInBasketStack(_ stackId: UUID) {
-        if let stack = basketStacks.first(where: { $0.id == stackId }) {
-            selectedBasketItems.formUnion(stack.itemIds)
-        }
-    }
-    
-    /// Toggles expansion state of a basket stack
-    func toggleBasketStackExpansion(_ stackId: UUID) {
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].isExpanded.toggle()
-        }
-    }
-    
-    /// Collapses a basket stack (explicit collapse for UI button)
-    func collapseBasketStack(_ stackId: UUID) {
-        if let index = basketStacks.firstIndex(where: { $0.id == stackId }) {
-            basketStacks[index].isExpanded = false
-        }
-    }
-    
-    /// Creates a new stack from selected basket items (manual stacking)
-    /// Requires at least 2 items selected
-    /// Returns true if stack was created successfully
-    @discardableResult
-    func createStackFromSelectedBasketItems() -> Bool {
-        // Need at least 2 items to create a stack
-        guard selectedBasketItems.count >= 2 else { return false }
-        
-        // Collect all selected items from across all stacks
-        var itemsToStack: [DroppedItem] = []
-        var stackIndicesToRemove: [Int] = []
-        
-        for (index, stack) in basketStacks.enumerated() {
-            let selectedFromStack = stack.items.filter { selectedBasketItems.contains($0.id) }
-            if !selectedFromStack.isEmpty {
-                itemsToStack.append(contentsOf: selectedFromStack)
-                
-                // Check if we're taking ALL items from this stack
-                if selectedFromStack.count == stack.items.count {
-                    stackIndicesToRemove.append(index)
-                }
-            }
-        }
-        
-        guard itemsToStack.count >= 2 else { return false }
-        
-        // Remove items from their original stacks
-        for itemId in selectedBasketItems {
-            for i in basketStacks.indices {
-                basketStacks[i].items.removeAll { $0.id == itemId }
-            }
-        }
-        
-        // Remove now-empty stacks (in reverse order to maintain indices)
-        for index in stackIndicesToRemove.sorted().reversed() {
-            if basketStacks[index].isEmpty {
-                basketStacks.remove(at: index)
-            }
-        }
-        
-        // Also clean up any other empty stacks
-        basketStacks.removeAll { $0.isEmpty }
-        
-        // Create the new stack with all selected items
-        let newStack = ItemStack(items: itemsToStack)
-        basketStacks.append(newStack)
-        
-        // Clear selection
-        selectedBasketItems.removeAll()
-        
-        HapticFeedback.drop()
-        return true
     }
     
     // MARK: - Selection (Shelf)
@@ -1150,47 +819,7 @@ final class DroppyState {
     /// Deselects all items
     func deselectAll() {
         selectedItems.removeAll()
-        selectedStacks.removeAll()
         lastSelectionAnchor = nil
-    }
-    
-    // MARK: - Selection (Stacks)
-    
-    /// Selects a single stack (clears other stack selections)
-    func selectStack(_ stack: ItemStack) {
-        selectedStacks = [stack.id]
-        // Also select all items within the stack
-        selectedItems.formUnion(stack.itemIds)
-    }
-    
-    /// Toggles selection of a stack (for Cmd+Click)
-    func toggleStackSelection(_ stack: ItemStack) {
-        if selectedStacks.contains(stack.id) {
-            selectedStacks.remove(stack.id)
-            selectedItems.subtract(stack.itemIds)
-        } else {
-            selectedStacks.insert(stack.id)
-            selectedItems.formUnion(stack.itemIds)
-        }
-    }
-    
-    /// Checks if a stack is selected
-    func isStackSelected(_ stack: ItemStack) -> Bool {
-        selectedStacks.contains(stack.id)
-    }
-    
-    /// Selects all stacks
-    func selectAllStacks() {
-        selectedStacks = Set(shelfStacks.map { $0.id })
-        // Also select all items within all stacks
-        for stack in shelfStacks {
-            selectedItems.formUnion(stack.itemIds)
-        }
-    }
-    
-    /// Deselects all stacks
-    func deselectAllStacks() {
-        selectedStacks.removeAll()
     }
     
     // MARK: - Selection (Basket)
@@ -1238,41 +867,7 @@ final class DroppyState {
     /// Deselects all basket items
     func deselectAllBasket() {
         selectedBasketItems.removeAll()
-        selectedBasketStacks.removeAll()
         lastBasketSelectionAnchor = nil
-    }
-    
-    /// Selected basket stacks (by stack ID)
-    var selectedBasketStacks: Set<UUID> = []
-    
-    /// Selects all basket stacks
-    func selectAllBasketStacks() {
-        selectedBasketStacks = Set(basketStacks.map { $0.id })
-        // Also select all items within all stacks
-        for stack in basketStacks {
-            selectedBasketItems.formUnion(stack.itemIds)
-        }
-    }
-    
-    /// Deselects all basket stacks
-    func deselectAllBasketStacks() {
-        selectedBasketStacks.removeAll()
-    }
-    
-    /// Checks if a basket stack is selected
-    func isBasketStackSelected(_ stack: ItemStack) -> Bool {
-        selectedBasketStacks.contains(stack.id)
-    }
-    
-    /// Toggles basket stack selection
-    func toggleBasketStackSelection(_ stack: ItemStack) {
-        if selectedBasketStacks.contains(stack.id) {
-            selectedBasketStacks.remove(stack.id)
-            selectedBasketItems.subtract(stack.itemIds)
-        } else {
-            selectedBasketStacks.insert(stack.id)
-            selectedBasketItems.formUnion(stack.itemIds)
-        }
     }
     
     // MARK: - Clipboard

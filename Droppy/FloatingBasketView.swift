@@ -166,7 +166,6 @@ struct FloatingBasketView: View {
             // Hidden button for Cmd+A select all
             Button("") {
                 state.selectAllBasket()
-                state.selectAllBasketStacks()
             }
             .keyboardShortcut("a", modifiers: .command)
             .opacity(0)
@@ -237,17 +236,6 @@ struct FloatingBasketView: View {
             }
         }
         .contextMenu {
-            // Create Stack option - only enabled when 2+ items selected
-            if state.selectedBasketItems.count >= 2 {
-                Button {
-                    state.createStackFromSelectedBasketItems()
-                } label: {
-                    Label("Create Stack", systemImage: "square.stack.3d.up.fill")
-                }
-                
-                Divider()
-            }
-            
             Button {
                 closeBasket()
             } label: {
@@ -518,7 +506,7 @@ struct FloatingBasketView: View {
             
             // Items - grid or list view
             if isListView {
-                basketItemsList
+                basketListView
             } else {
                 basketItemsGrid
             }
@@ -789,58 +777,20 @@ struct FloatingBasketView: View {
                                 state.basketPowerFolders.removeAll { $0.id == folder.id }
                             }
                         }
-                        .transition(.stackDrop)
+                        .transition(.scale.combined(with: .opacity))
                     }
                     
-                    // Stacks - render based on expansion state
-                    ForEach(state.basketStacks) { stack in
-                        if stack.isExpanded {
-                            // Collapse button as first item in expanded stack
-                            StackCollapseButton(itemCount: stack.count) {
-                                withAnimation(ItemStack.collapseAnimation) {
-                                    state.collapseBasketStack(stack.id)
-                                }
+                    // Regular items - flat display (no stacks)
+                    ForEach(state.basketItemsList) { item in
+                        BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
+                            withAnimation(DroppyAnimation.state) {
+                                state.removeBasketItem(item)
                             }
-                            .transition(.stackExpand(index: 0))
-                            
-                            // Expanded: show all items individually
-                            ForEach(stack.items) { item in
-                                BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
-                                    withAnimation(DroppyAnimation.state) {
-                                        state.removeBasketItem(item)
-                                    }
-                                }
-                                .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
-                            }
-                        } else if stack.isSingleItem, let item = stack.coverItem {
-                            // Single item - render as normal
-                            BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
-                                withAnimation(DroppyAnimation.state) {
-                                    state.removeBasketItem(item)
-                                }
-                            }
-                            .transition(.stackDrop)
-                        } else {
-                            // Multi-item collapsed stack
-                            StackedItemView(
-                                stack: stack,
-                                state: state,
-                                onExpand: {
-                                    withAnimation(ItemStack.expandAnimation) {
-                                        state.toggleBasketStackExpansion(stack.id)
-                                    }
-                                },
-                                onRemove: {
-                                    withAnimation(DroppyAnimation.state) {
-                                        state.removeBasketStack(stack.id)
-                                    }
-                                }
-                            )
-                            .transition(.stackDrop)
                         }
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .animation(DroppyAnimation.bouncy, value: state.basketStacks.count)
+                .animation(DroppyAnimation.bouncy, value: state.basketItemsList.count)
                 .animation(DroppyAnimation.bouncy, value: state.basketPowerFolders.count)
             }
             .padding(.horizontal, horizontalPadding)
@@ -849,7 +799,7 @@ struct FloatingBasketView: View {
     }
     
     /// List view for basket items - uses same BasketItemView with list layout for full feature parity
-    private var basketItemsList: some View {
+    private var basketListView: some View {
         ScrollView {
             LazyVStack(spacing: 4) {
                 // Power Folders first
@@ -867,60 +817,19 @@ struct FloatingBasketView: View {
                     )
                 }
                 
-                // Stacks - render based on expansion state
-                ForEach(state.basketStacks) { stack in
-                    if stack.isExpanded {
-                        // List-styled collapse button
-                        StackCollapseListRow(itemCount: stack.count) {
-                            withAnimation(ItemStack.collapseAnimation) {
-                                state.collapseBasketStack(stack.id)
+                // Regular items - flat display (no stacks)
+                ForEach(state.basketItemsList) { item in
+                    BasketItemView(
+                        item: item,
+                        state: state,
+                        renamingItemId: $renamingItemId,
+                        onRemove: {
+                            withAnimation(DroppyAnimation.state) {
+                                state.removeBasketItem(item)
                             }
-                        }
-                        
-                        // Expanded: show all items individually in list mode
-                        ForEach(stack.items) { item in
-                            BasketItemView(
-                                item: item,
-                                state: state,
-                                renamingItemId: $renamingItemId,
-                                onRemove: {
-                                    withAnimation(DroppyAnimation.state) {
-                                        state.removeBasketItem(item)
-                                    }
-                                },
-                                layoutMode: .list
-                            )
-                        }
-                    } else if stack.isSingleItem, let item = stack.coverItem {
-                        // Single item - render as normal
-                        BasketItemView(
-                            item: item,
-                            state: state,
-                            renamingItemId: $renamingItemId,
-                            onRemove: {
-                                withAnimation(DroppyAnimation.state) {
-                                    state.removeBasketItem(item)
-                                }
-                            },
-                            layoutMode: .list
-                        )
-                    } else {
-                        // Multi-item collapsed stack - show as tappable row
-                        StackListRow(
-                            stack: stack,
-                            state: state,
-                            onExpand: {
-                                withAnimation(ItemStack.expandAnimation) {
-                                    state.toggleBasketStackExpansion(stack.id)
-                                }
-                            },
-                            onRemove: {
-                                withAnimation(DroppyAnimation.state) {
-                                    state.removeBasketStack(stack.id)
-                                }
-                            }
-                        )
-                    }
+                        },
+                        layoutMode: .list
+                    )
                 }
             }
             .padding(.horizontal, horizontalPadding)
@@ -929,47 +838,23 @@ struct FloatingBasketView: View {
         }
         // Note: Drop destination handled at container level (mainBasketContainer)
     }
-
     
     private func moveToShelf() {
-        // STACK PRESERVATION: Transfer entire stacks as stacks, not individual items
-        // This ensures that items grouped as a stack in the basket remain stacked on the shelf
-        
-        // Determine which stacks to move
-        var stacksToMove: [ItemStack] = []
+        // Transfer items from basket to shelf (flat, no stacks)
+        var itemsToMove: [DroppedItem] = []
         var powerFoldersToMove: [DroppedItem] = []
         
-        if state.selectedBasketItems.isEmpty && state.selectedBasketStacks.isEmpty {
-            // No selection - move ALL stacks and power folders
-            stacksToMove = state.basketStacks
+        if state.selectedBasketItems.isEmpty {
+            // No selection - move ALL items and power folders
+            itemsToMove = state.basketItemsList
             powerFoldersToMove = state.basketPowerFolders
         } else {
-            // Move selected stacks (entire stacks that are selected)
-            for stack in state.basketStacks {
-                if state.selectedBasketStacks.contains(stack.id) {
-                    // Entire stack is selected
-                    stacksToMove.append(stack)
-                } else {
-                    // Check if any items in this stack are individually selected
-                    let selectedItemsInStack = stack.items.filter { state.selectedBasketItems.contains($0.id) }
-                    if !selectedItemsInStack.isEmpty {
-                        // Create a new stack with just the selected items
-                        if selectedItemsInStack.count == stack.items.count {
-                            // All items selected - move the whole stack
-                            stacksToMove.append(stack)
-                        } else {
-                            // Only some items selected - create partial stack
-                            stacksToMove.append(ItemStack(items: selectedItemsInStack))
-                        }
-                    }
-                }
-            }
-            
-            // Move selected power folders
+            // Move selected items
+            itemsToMove = state.basketItemsList.filter { state.selectedBasketItems.contains($0.id) }
             powerFoldersToMove = state.basketPowerFolders.filter { state.selectedBasketItems.contains($0.id) }
         }
         
-        // Transfer power folders to shelf (distinct, never stacked)
+        // Transfer power folders to shelf (distinct, never grouped)
         for folder in powerFoldersToMove {
             // Avoid duplicates
             guard !state.shelfPowerFolders.contains(where: { $0.url == folder.url }) else { continue }
@@ -977,30 +862,20 @@ struct FloatingBasketView: View {
             state.basketPowerFolders.removeAll { $0.id == folder.id }
         }
         
-        // Transfer stacks to shelf as complete stacks
-        let existingShelfURLs = Set(state.shelfStacks.flatMap { $0.items.map { $0.url } })
+        // Transfer items to shelf
+        let existingShelfURLs = Set(state.shelfItems.map { $0.url })
         
-        for stack in stacksToMove {
-            // Filter out any items that already exist on shelf
-            let newItems = stack.items.filter { !existingShelfURLs.contains($0.url) }
-            guard !newItems.isEmpty else { continue }
-            
-            // Create the new shelf stack preserving the stack structure
-            var newStack = ItemStack(items: newItems)
-            newStack.forceStackAppearance = stack.forceStackAppearance
-            state.shelfStacks.append(newStack)
-            
-            // Remove transferred items from basket
-            for item in newItems {
-                state.removeBasketItemForTransfer(item)
-            }
+        for item in itemsToMove {
+            // Avoid duplicates
+            guard !existingShelfURLs.contains(item.url) else { continue }
+            state.shelfItems.append(item)
+            state.removeBasketItemForTransfer(item)
         }
         
         state.deselectAllBasket()
-        state.selectedBasketStacks.removeAll()
         
         // PREMIUM: Haptic confirms items moved to shelf
-        if !stacksToMove.isEmpty || !powerFoldersToMove.isEmpty {
+        if !itemsToMove.isEmpty || !powerFoldersToMove.isEmpty {
             HapticFeedback.drop()
         }
         
@@ -1010,7 +885,7 @@ struct FloatingBasketView: View {
         // 2. Use the screen where the BASKET WINDOW is located (most reliable)
         // 3. Use the screen where the mouse is currently located
         // 4. Fall back to main screen only as last resort
-        if !stacksToMove.isEmpty || !powerFoldersToMove.isEmpty {
+        if !itemsToMove.isEmpty || !powerFoldersToMove.isEmpty {
             let targetDisplayID: CGDirectDisplayID
             
             if let currentExpandedDisplayID = state.expandedDisplayID {
@@ -1099,8 +974,6 @@ struct FloatingBasketView: View {
         }
     }
 }
-
-
 
 
 // MARK: - Rename Text Field with Auto-Select and Animated Dotted Border
@@ -1231,212 +1104,4 @@ private struct AutoSelectTextField: NSViewRepresentable {
     }
 }
 
-// MARK: - Stack List Row
 
-/// Compact list row for collapsed stacks - tap to expand
-struct StackListRow: View {
-    let stack: ItemStack
-    let state: DroppyState
-    let onExpand: () -> Void
-    let onRemove: () -> Void
-    
-    @State private var isHovering = false
-    @State private var isDropTargeted = false
-    @State private var thumbnail: NSImage?
-    
-    var body: some View {
-        DraggableArea(
-            items: {
-                // Drag all items in the stack
-                stack.items.map { $0.url as NSURL }
-            },
-            onTap: { _ in
-                onExpand()
-            },
-            onRightClick: {
-                // Right-click does nothing special
-            },
-            onDragComplete: nil,
-            selectionSignature: stack.id.hashValue
-        ) {
-            HStack(spacing: 12) {
-                // Stack icon with count badge
-                ZStack(alignment: .bottomTrailing) {
-                    Group {
-                        if let thumb = thumbnail {
-                            Image(nsImage: thumb)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } else {
-                            Circle()
-                                .fill(Color.white.opacity(0.08))
-                                .overlay(
-                                    Image(systemName: "square.stack.3d.up.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.white.opacity(0.5))
-                                )
-                        }
-                    }
-                    .frame(width: 36, height: 36)
-                    .clipShape(Circle())
-                    
-                    // Count badge
-                    Text("\(stack.count)")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(Color.blue))
-                        .offset(x: 4, y: 4)
-                }
-                
-                // Stack info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(stack.count) Items")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.9))
-                    
-                    Text("Tap to expand · Drag to export")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                
-                Spacer()
-                
-                // Stack indicator
-                Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(isDropTargeted ? Color.blue.opacity(0.4) : Color.white.opacity(isHovering ? 0.18 : 0.12))
-            )
-            .overlay(
-                // Blue border when drop targeted
-                Capsule()
-                    .stroke(Color.blue, lineWidth: isDropTargeted ? 2 : 0)
-            )
-            .scaleEffect(isDropTargeted ? 1.05 : (isHovering ? 1.02 : 1.0))
-        }
-        .dropDestination(for: URL.self) { urls, location in
-            // Add dropped files to this stack
-            for url in urls {
-                let newItem = DroppedItem(url: url)
-                withAnimation(DroppyAnimation.bouncy) {
-                    state.addItemToStack(newItem, stackId: stack.id)
-                }
-            }
-            HapticFeedback.drop()
-            return true
-        } isTargeted: { targeted in
-            withAnimation(DroppyAnimation.bouncy) {
-                isDropTargeted = targeted
-            }
-        }
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .animation(DroppyAnimation.hoverBouncy, value: isHovering)
-        .animation(DroppyAnimation.bouncy, value: isDropTargeted)
-        .contextMenu {
-            Button {
-                onExpand()
-            } label: {
-                Label("Expand Stack", systemImage: "rectangle.expand.vertical")
-            }
-            
-            Divider()
-            
-            Button(role: .destructive) {
-                onRemove()
-            } label: {
-                Label("Remove Stack", systemImage: "trash")
-            }
-        }
-        .onAppear {
-            loadThumbnail()
-        }
-    }
-    
-    private func loadThumbnail() {
-        guard let coverItem = stack.coverItem else { return }
-        Task {
-            let size = CGSize(width: 72, height: 72)
-            if let thumb = await coverItem.generateThumbnail(size: size) {
-                await MainActor.run {
-                    self.thumbnail = thumb
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Stack Collapse List Row
-
-/// List-styled collapse button to match the capsule row design
-struct StackCollapseListRow: View {
-    let itemCount: Int
-    let onCollapse: () -> Void
-    
-    @State private var isHovering = false
-    
-    var body: some View {
-        Button(action: {
-            HapticFeedback.pop()
-            onCollapse()
-        }) {
-            HStack(spacing: 12) {
-                // Collapse icon in glass circle
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                    
-                    Circle()
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.8))
-                }
-                .frame(width: 36, height: 36)
-                
-                // Info
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Collapse Stack")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.9))
-                    
-                    Text("\(itemCount) items")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                
-                Spacer()
-                
-                // Collapse indicator
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(isHovering ? 0.15 : 0.08), lineWidth: 1)
-            )
-            .scaleEffect(isHovering ? 1.02 : 1.0)
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .animation(DroppyAnimation.hoverBouncy, value: isHovering)
-    }
-}

@@ -251,6 +251,7 @@ struct BasketItemView: View {
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(isSelected ? .white : .white.opacity(0.9))
                                     .lineLimit(1)
+                                    .truncationMode(.tail)
                             }
                             
                             // Status text or file size (use white text on blue selection)
@@ -284,8 +285,9 @@ struct BasketItemView: View {
                                     .foregroundStyle(.white.opacity(0.5))
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        Spacer()
+                        Spacer(minLength: 8)
                         
                         // File extension or folder badge
                         if item.isDirectory {
@@ -304,6 +306,7 @@ struct BasketItemView: View {
                                 .background(Capsule().fill(Color.white.opacity(0.1)))
                         }
                     }
+                    .frame(maxWidth: .infinity)  // Prevent horizontal expansion - matches ClipboardItemRow
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
@@ -726,16 +729,6 @@ struct BasketItemView: View {
             }
         }
         
-        Divider()
-        
-        // Create Stack option - only when 2+ items selected
-        if state.selectedBasketItems.count >= 2 && state.selectedBasketItems.contains(item.id) {
-            Button {
-                state.createStackFromSelectedBasketItems()
-            } label: {
-                Label("Create Stack (\(state.selectedBasketItems.count))", systemImage: "square.stack.3d.up.fill")
-            }
-        }
         
         // Hide delete button for pinned folders - must unpin first
         if !item.isPinned {

@@ -65,13 +65,24 @@ class AudioSpectrum: NSView {
             barLayer.frame = CGRect(x: xPosition, y: 0, width: barWidth, height: totalHeight)
             barLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             barLayer.position = CGPoint(x: xPosition + barWidth / 2, y: totalHeight / 2)
-            barLayer.backgroundColor = currentColor.cgColor
             barLayer.allowsGroupOpacity = false
             barLayer.masksToBounds = true
             
             // PREMIUM: Fully rounded pill-shaped bars
             // cornerRadius = full barWidth for maximum rounded ends
             barLayer.cornerRadius = barWidth
+            
+            // PREMIUM: Vertical gradient from full opacity (bottom) to lighter (top)
+            let gradientLayer = CAGradientLayer()
+            gradientLayer.frame = CGRect(x: 0, y: 0, width: barWidth, height: totalHeight)
+            gradientLayer.colors = [
+                currentColor.withAlphaComponent(0.5).cgColor,  // Top: lighter
+                currentColor.withAlphaComponent(1.0).cgColor   // Bottom: full opacity
+            ]
+            gradientLayer.startPoint = CGPoint(x: 0.5, y: 0)
+            gradientLayer.endPoint = CGPoint(x: 0.5, y: 1)
+            gradientLayer.cornerRadius = barWidth
+            barLayer.addSublayer(gradientLayer)
             
             barLayers.append(barLayer)
             barScales.append(0.35)
@@ -209,8 +220,13 @@ class AudioSpectrum: NSView {
         guard currentColor != color else { return }
         currentColor = color
         for barLayer in barLayers {
-            barLayer.fillColor = color.cgColor
-            barLayer.backgroundColor = color.cgColor
+            // Update gradient sublayer colors
+            if let gradientLayer = barLayer.sublayers?.first as? CAGradientLayer {
+                gradientLayer.colors = [
+                    color.withAlphaComponent(0.5).cgColor,  // Top: lighter
+                    color.withAlphaComponent(1.0).cgColor   // Bottom: full opacity
+                ]
+            }
         }
     }
     

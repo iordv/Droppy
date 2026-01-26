@@ -413,7 +413,7 @@ struct NotchShelfView: View {
         
         // SHELF: DYNAMIC height (grows with files up to max 3 rows)
         // Beyond 3 rows, ScrollView handles the overflow
-        // Use shelfDisplaySlotCount for correct row count (collapsed stacks = 1 slot)
+        // Use shelfDisplaySlotCount for correct row count
         let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
         let cappedRowCount = min(rowCount, 3)  // Max 3 rows visible, scroll for rest
         let baseHeight = max(1, cappedRowCount) * 110 // 110 per row, no header
@@ -621,8 +621,8 @@ struct NotchShelfView: View {
                 // This prevents multiple screens from racing to expand when items are added
                 
                 // Auto-collapse when shelf becomes TRULY empty
-                // Check both slot count AND actual arrays to avoid false positives during item moves
-                let isTrulyEmpty = state.shelfStacks.isEmpty && state.shelfPowerFolders.isEmpty
+                // Check both slot count AND actual array to avoid false positives during item moves
+                let isTrulyEmpty = state.shelfItems.isEmpty && state.shelfPowerFolders.isEmpty
                 if newCount == 0 && state.isExpanded && isTrulyEmpty {
                     withAnimation(DroppyAnimation.expandClose) {
                         state.expandedDisplayID = nil
@@ -757,7 +757,6 @@ struct NotchShelfView: View {
                 Button("") {
                     if state.isExpanded {
                         state.selectAll()
-                        state.selectAllStacks()
                     }
                 }
                 .keyboardShortcut("a", modifiers: .command)
@@ -1866,7 +1865,7 @@ struct NotchShelfView: View {
                 let columns = Array(repeating: GridItem(.fixed(64), spacing: 8), count: 5)
                 
                 LazyVGrid(columns: columns, spacing: 8) {
-                    // Power Folders first (always distinct, never stacked)
+                    // Power Folders first
                     ForEach(state.shelfPowerFolders) { folder in
                         NotchItemView(
                             item: folder,
@@ -1878,65 +1877,22 @@ struct NotchShelfView: View {
                                 }
                             }
                         )
-                        .transition(.stackDrop)
+                        .transition(.scale.combined(with: .opacity))
                     }
                     
-                    // Stacks - render based on expansion state
-                    ForEach(state.shelfStacks) { stack in
-                        if stack.isExpanded {
-                            // Collapse button as first item in expanded stack
-                            StackCollapseButton(itemCount: stack.count) {
-                                withAnimation(ItemStack.collapseAnimation) {
-                                    state.collapseStack(stack.id)
+                    // Regular items - flat display (no stacks)
+                    ForEach(state.shelfItems) { item in
+                        NotchItemView(
+                            item: item,
+                            state: state,
+                            renamingItemId: $renamingItemId,
+                            onRemove: {
+                                withAnimation(DroppyAnimation.state) {
+                                    state.removeItem(item)
                                 }
                             }
-                            .transition(.stackExpand(index: 0))
-                            
-                            // Expanded: show all items individually
-                            ForEach(stack.items) { item in
-                                NotchItemView(
-                                    item: item,
-                                    state: state,
-                                    renamingItemId: $renamingItemId,
-                                    onRemove: {
-                                        withAnimation(DroppyAnimation.state) {
-                                            state.removeItem(item)
-                                        }
-                                    }
-                                )
-                                .transition(.stackExpand(index: (stack.items.firstIndex(where: { $0.id == item.id }) ?? 0) + 1))
-                            }
-                        } else if stack.isSingleItem, let item = stack.coverItem {
-                            // Single item - render as normal
-                            NotchItemView(
-                                item: item,
-                                state: state,
-                                renamingItemId: $renamingItemId,
-                                onRemove: {
-                                    withAnimation(DroppyAnimation.state) {
-                                        state.removeItem(item)
-                                    }
-                                }
-                            )
-                            .transition(.stackDrop)
-                        } else {
-                            // Multi-item collapsed stack
-                            StackedItemView(
-                                stack: stack,
-                                state: state,
-                                onExpand: {
-                                    withAnimation(ItemStack.expandAnimation) {
-                                        state.expandStack(stack.id)
-                                    }
-                                },
-                                onRemove: {
-                                    withAnimation(DroppyAnimation.state) {
-                                        state.removeStack(stack.id)
-                                    }
-                                }
-                            )
-                            .transition(.stackDrop)
-                        }
+                        )
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
                 .padding(.horizontal, 8)

@@ -260,6 +260,7 @@ struct QuickshareItemRow: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 
                 HStack(spacing: 4) {
                     // Show item count for multi-file zips
@@ -274,17 +275,21 @@ struct QuickshareItemRow: View {
                 }
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
-            Spacer()
+            Spacer(minLength: 8)
             
             // URL preview on the right
             Text(item.shortURL)
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 100, alignment: .trailing)
         }
+        .frame(maxWidth: .infinity)  // Prevent horizontal expansion - matches ClipboardItemRow
     }
     
     private var thumbnailView: some View {
