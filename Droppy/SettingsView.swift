@@ -1128,7 +1128,7 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
                         case .spotify:
                             SpotifyAuthManager.shared.startAuthentication()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare, .aiAgentMonitor:
                             break // No action needed - these have their own configuration UI
                         }
                     }

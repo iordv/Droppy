@@ -22,7 +22,9 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     case terminalNotch
     case menuBarManager
     case quickshare
-    
+    case aiAgentMonitor
+
+
     /// URL-safe ID for deep links
     case finderServices  // Alias for finder
     

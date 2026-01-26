@@ -226,9 +226,10 @@ struct ExtensionInfoView: View {
         case .terminalNotch: return "Configure"
         case .menuBarManager: return "Configure"
         case .quickshare: return "Manage"
+        case .aiAgentMonitor: return "Configure"
         }
     }
-    
+
     private var actionText: String {
         switch extensionType {
         case .aiBackgroundRemoval: return "Install"
@@ -242,9 +243,10 @@ struct ExtensionInfoView: View {
         case .terminalNotch: return "Configure"
         case .menuBarManager: return "Configure"
         case .quickshare: return "Manage Uploads"
+        case .aiAgentMonitor: return "Configure"
         }
     }
-    
+
     private var actionIcon: String {
         switch extensionType {
         case .aiBackgroundRemoval: return "arrow.down.circle.fill"
@@ -258,6 +260,7 @@ struct ExtensionInfoView: View {
         case .terminalNotch: return "terminal"
         case .menuBarManager: return "menubar.rectangle"
         case .quickshare: return "tray.full"
+        case .aiAgentMonitor: return "gauge"
         }
     }
 }
@@ -269,5 +272,4 @@ struct ExtensionInfoView: View {
         print("Action")
     }
 }
-
 
