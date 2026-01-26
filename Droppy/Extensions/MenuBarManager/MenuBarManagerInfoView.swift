@@ -298,6 +298,12 @@ struct MenuBarManagerInfoView: View {
                 }
                 .padding(.vertical, 8)
             } else {
+                // Explanation
+                Text("Mark items as Hidden to see them in the IceBar when collapsed. To actually hide icons, hold ⌘ and drag them to the LEFT of the chevron.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 4)
+                
                 VStack(spacing: 0) {
                     ForEach(manager.discoveredItems, id: \.id) { item in
                         MenuBarItemRow(item: item, manager: manager)

@@ -366,6 +366,8 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Section Management
     
     /// Assign an item to a section
+    /// Note: This controls which items appear in the IceBar and UI organization.
+    /// Actual menu bar hiding still requires ⌘+dragging items to the left of the divider.
     func setItemSection(_ itemID: String, section: MenuBarSection) {
         itemAssignments[itemID] = section
         MenuBarItem.saveAssignments(itemAssignments)
@@ -377,6 +379,18 @@ final class MenuBarManager: ObservableObject {
         
         objectWillChange.send()
         print("[MenuBarManager] Set item \(itemID) to section \(section)")
+        
+        // If user marks item as hidden, collapse to hide items (if not already)
+        // and show the IceBar so they can see the effect
+        if section == .hidden || section == .alwaysHidden {
+            if isExpanded {
+                toggleExpanded() // Collapse to hide
+            }
+            // Brief delay then show IceBar
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.showIceBar()
+            }
+        }
     }
     
     /// Get items for a specific section
