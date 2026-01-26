@@ -49,6 +49,15 @@ class AIAgentMonitorManager: ObservableObject {
         }
     }
 
+    @Published var glowEnhanced: Bool {
+        didSet {
+            UserDefaults.standard.set(glowEnhanced, forKey: "aiAgentMonitor.glowEnhanced")
+        }
+    }
+
+    /// Temporary test mode to preview the border effect
+    @Published var isTestMode: Bool = false
+
     @Published var otlpPort: UInt16 {
         didSet {
             UserDefaults.standard.set(Int(otlpPort), forKey: "aiAgentMonitor.otlpPort")
@@ -70,6 +79,7 @@ class AIAgentMonitorManager: ObservableObject {
         self.isEnabled = UserDefaults.standard.bool(forKey: "aiAgentMonitor.enabled")
         self.borderEnabled = UserDefaults.standard.object(forKey: "aiAgentMonitor.borderEnabled") as? Bool ?? true
         self.borderPulsing = UserDefaults.standard.object(forKey: "aiAgentMonitor.borderPulsing") as? Bool ?? true
+        self.glowEnhanced = UserDefaults.standard.object(forKey: "aiAgentMonitor.glowEnhanced") as? Bool ?? true
         self.otlpPort = UInt16(UserDefaults.standard.integer(forKey: "aiAgentMonitor.otlpPort"))
         if self.otlpPort == 0 {
             self.otlpPort = 4318 // Default OTLP port
@@ -229,7 +239,19 @@ class AIAgentMonitorManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "aiAgentMonitor.enabled")
         UserDefaults.standard.removeObject(forKey: "aiAgentMonitor.borderEnabled")
         UserDefaults.standard.removeObject(forKey: "aiAgentMonitor.borderPulsing")
+        UserDefaults.standard.removeObject(forKey: "aiAgentMonitor.glowEnhanced")
         UserDefaults.standard.removeObject(forKey: "aiAgentMonitor.otlpPort")
         UserDefaults.standard.removeObject(forKey: "aiAgentMonitorTracked")
+    }
+
+    // MARK: - Test Mode
+
+    /// Trigger test mode to preview the border effect
+    func testBorder() {
+        isTestMode = true
+        // Auto-disable after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.isTestMode = false
+        }
     }
 }

@@ -210,6 +210,24 @@ struct AIAgentMonitorInfoView: View {
                     .toggleStyle(.switch)
                     .disabled(!manager.isEnabled || !manager.borderEnabled)
 
+                Toggle("Enhanced glow effect", isOn: $manager.glowEnhanced)
+                    .toggleStyle(.switch)
+                    .disabled(!manager.isEnabled || !manager.borderEnabled)
+
+                // Test button
+                HStack {
+                    Text("Preview border effect")
+                    Spacer()
+                    Button {
+                        manager.testBorder()
+                    } label: {
+                        Label(manager.isTestMode ? "Testing..." : "Test", systemImage: "eye")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(!manager.isEnabled || !manager.borderEnabled || manager.isTestMode)
+                }
+
                 Divider()
 
                 // Port setting

@@ -1587,17 +1587,19 @@ struct NotchShelfView: View {
         ZStack {
             // Dynamic Island: Fully rounded glow border
             DynamicIslandOutlineShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
-                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: 2.5)
-                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: 8)
+                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
+                .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
                 .opacity(isDynamicIslandMode ? 1 : 0)
 
             // Notch mode: U-shaped glow border
             NotchOutlineShape(bottomRadius: isExpandedOnThisScreen ? 40 : 16)
-                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: 2.5)
-                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: 8)
+                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
+                .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
                 .opacity(isDynamicIslandMode ? 0 : 1)
         }
-        .opacity(aiAgentMonitor.isActive && aiAgentMonitor.borderEnabled ? 1 : 0)
+        .opacity((aiAgentMonitor.isActive || aiAgentMonitor.isTestMode) && aiAgentMonitor.borderEnabled ? 1 : 0)
         .animation(DroppyAnimation.state, value: aiAgentMonitor.isActive)
         .onAppear {
             if aiAgentMonitor.borderPulsing {
@@ -1612,6 +1614,17 @@ struct NotchShelfView: View {
                     aiAgentGlowIntensity = 0.9
                 }
             } else {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    aiAgentGlowIntensity = 0.4
+                }
+            }
+        }
+        .onChange(of: aiAgentMonitor.isTestMode) { _, isTesting in
+            if isTesting && aiAgentMonitor.borderPulsing {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    aiAgentGlowIntensity = 0.9
+                }
+            } else if !aiAgentMonitor.isActive {
                 withAnimation(.easeOut(duration: 0.3)) {
                     aiAgentGlowIntensity = 0.4
                 }
