@@ -59,6 +59,12 @@ final class MenuBarManager: ObservableObject {
     /// Item store for Droppy Bar
     private let droppyBarItemStore = DroppyBarItemStore()
     
+    /// Cover panel that hides selected menu bar items
+    private var coverPanel: MenuBarCoverPanel?
+    
+    /// Combine cancellables for subscriptions
+    private var cancellables = Set<AnyCancellable>()
+    
 
     // MARK: - Constants
     
@@ -124,6 +130,12 @@ final class MenuBarManager: ObservableObject {
         // Create both status items
         createStatusItems()
         
+        // Create cover panel for hiding selected items
+        setupCoverPanel()
+        
+        // Subscribe to item store changes to auto-hide selected items
+        setupItemStoreSubscription()
+        
         // Restore previous expansion state, or default to expanded (showing all icons)
         if UserDefaults.standard.object(forKey: expandedKey) != nil {
             isExpanded = UserDefaults.standard.bool(forKey: expandedKey)
@@ -131,6 +143,9 @@ final class MenuBarManager: ObservableObject {
             isExpanded = true
         }
         applyExpansionState()
+        
+        // Apply cover for any already-selected items
+        updateCoverForSelectedItems()
         
         print("[MenuBarManager] Enabled, expanded: \(isExpanded)")
     }
@@ -142,7 +157,11 @@ final class MenuBarManager: ObservableObject {
         isEnabled = false
         UserDefaults.standard.set(false, forKey: enabledKey)
         
-
+        // Clean up cover panel
+        coverPanel?.stopAutoUpdate()
+        coverPanel?.clearCover()
+        coverPanel = nil
+        cancellables.removeAll()
         
         // Show all items before removing
         if !isExpanded {
@@ -418,6 +437,60 @@ final class MenuBarManager: ObservableObject {
             hideDroppyBar()
         } else {
             showDroppyBar()
+        }
+    }
+    
+    // MARK: - Cover Panel (Hide Selected Items)
+    
+    /// Set up the cover panel
+    private func setupCoverPanel() {
+        coverPanel = MenuBarCoverPanel()
+        coverPanel?.startAutoUpdate()
+        print("[MenuBarManager] Cover panel created")
+    }
+    
+    /// Subscribe to item store changes to auto-hide selected items
+    private func setupItemStoreSubscription() {
+        droppyBarItemStore.$items
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateCoverForSelectedItems()
+            }
+            .store(in: &cancellables)
+        print("[MenuBarManager] Subscribed to item store changes")
+    }
+    
+    /// Update the cover panel to hide currently selected items
+    func updateCoverForSelectedItems() {
+        guard isEnabled else { return }
+        
+        // Get owner names of items that should be hidden (selected in Droppy Bar config)
+        let selectedOwnerNames = droppyBarItemStore.enabledOwnerNames
+        
+        guard !selectedOwnerNames.isEmpty else {
+            coverPanel?.clearCover()
+            return
+        }
+        
+        // Get current menu bar items
+        let allItems = MenuBarItem.getMenuBarItems()
+        
+        // Find the items that match our selected owners
+        let itemsToHide = allItems.filter { selectedOwnerNames.contains($0.ownerName) }
+        
+        // Deduplicate by owner
+        var seen = Set<String>()
+        let uniqueItemsToHide = itemsToHide.filter { item in
+            if seen.contains(item.ownerName) { return false }
+            seen.insert(item.ownerName)
+            return true
+        }
+        
+        if !uniqueItemsToHide.isEmpty {
+            print("[MenuBarManager] Hiding \(uniqueItemsToHide.count) items: \(uniqueItemsToHide.map { $0.ownerName })")
+            coverPanel?.updateCover(for: uniqueItemsToHide)
+        } else {
+            coverPanel?.clearCover()
         }
     }
     
