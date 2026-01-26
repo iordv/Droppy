@@ -132,9 +132,9 @@ struct StackedItemView: View {
                 HapticFeedback.pop()
             }
         }
-        .contextMenu {
-            contextMenuContent
-        }
+        // .contextMenu {
+        //     contextMenuContent
+        // }
     }
     
     // MARK: - Stacked Card
