@@ -500,6 +500,12 @@ final class NotchWindowController: NSObject, ObservableObject {
             let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
             if isInNotchZone {
+                // Check if Notification HUD is visible - if so, don't intercept click
+                // Let it pass through to the SwiftUI view to open the app
+                if HUDManager.shared.isNotificationHUDVisible {
+                    return
+                }
+
                 // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
                 let now = Date()
                 guard now.timeIntervalSince(self.lastNotchClickTime) > self.clickDebounceInterval else { return }
@@ -674,6 +680,12 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
                 if isInNotchZone {
+                    // Check if Notification HUD is visible - if so, don't intercept click
+                    // Let it pass through to the SwiftUI view to open the app
+                    if HUDManager.shared.isNotificationHUDVisible {
+                        return event
+                    }
+
                     // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
                     let now = Date()
                     guard now.timeIntervalSince(self.lastNotchClickTime) > self.clickDebounceInterval else { return event }

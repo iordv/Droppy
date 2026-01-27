@@ -28,6 +28,7 @@ struct NotchShelfView: View {
     @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
     @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD = PreferenceDefault.enableLockScreenHUD
     @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
+    @AppStorage(AppPreferenceKey.notificationHUDInstalled) private var notificationHUDInstalled = PreferenceDefault.notificationHUDInstalled
     @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault.showMediaPlayer
     @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
     @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
@@ -56,6 +57,9 @@ struct NotchShelfView: View {
     @ObservedObject private var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
+    @ObservedObject private var notificationHUDManager = NotificationHUDManager.shared
+    @ObservedObject private var siriNotchManager = SiriNotchManager.shared
+    @AppStorage(AppPreferenceKey.siriNotchInstalled) private var siriNotchInstalled = PreferenceDefault.siriNotchInstalled
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
     @State private var hudWorkItem: DispatchWorkItem?
@@ -245,6 +249,14 @@ struct NotchShelfView: View {
         return notchWidth + (mediaWingWidth * 2)
     }
     private let hudHeight: CGFloat = 73
+
+    /// Notification HUD - wider for app icon + title/body
+    private var notificationHudWidth: CGFloat {
+        if isDynamicIslandMode {
+            return 280  // Wider for notification content
+        }
+        return notchWidth + (volumeWingWidth * 2)  // Use volume wing width for more space
+    }
     
     /// Whether media player HUD should be shown
     private var shouldShowMediaHUD: Bool {
@@ -294,6 +306,8 @@ struct NotchShelfView: View {
             return batteryHudWidth  // Caps Lock HUD uses same width as battery HUD
         } else if HUDManager.shared.isDNDHUDVisible && enableDNDHUD {
             return batteryHudWidth  // Focus/DND HUD uses same width as battery HUD
+        } else if HUDManager.shared.isNotificationHUDVisible && notificationHUDInstalled {
+            return notificationHudWidth  // Notification HUD uses wider width for content
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && isHoveringOnThisScreen {
@@ -327,6 +341,18 @@ struct NotchShelfView: View {
             return notchHeight  // Caps Lock HUD just uses notch height (no slider)
         } else if HUDManager.shared.isDNDHUDVisible && enableDNDHUD {
             return notchHeight  // Focus/DND HUD just uses notch height (no slider)
+        } else if HUDManager.shared.isNotificationHUDVisible && notificationHUDInstalled {
+            // Notification HUD: Calculate dynamic height based on content
+            // Fixes "too huge" issue by fitting snugly to text
+            let note = notificationHUDManager.currentNotification
+            let hasBody = note?.body?.isEmpty == false
+            let hasSubtitle = note?.displaySubtitle != nil
+            
+            var extraHeight: CGFloat = 16
+            if hasSubtitle { extraHeight += 0 } // Subtitle usually inline or replaced
+            if hasBody { extraHeight += 26 }    // Body adds ~2 lines
+            
+            return notchHeight + extraHeight
         } else if shouldShowMediaHUD {
             // Dynamic Island stays fixed height - no vertical extension
             if isDynamicIslandMode {
@@ -666,6 +692,10 @@ struct NotchShelfView: View {
                 guard enableDNDHUD, !isExpandedOnThisScreen else { return }
                 triggerDNDHUD()
             }
+            .onChange(of: notificationHUDManager.lastChangeAt) { _, _ in
+                guard notificationHUDInstalled, !isExpandedOnThisScreen else { return }
+                triggerNotificationHUD()
+            }
     }
     
     private var shelfContentWithMediaObservers: some View {
@@ -823,6 +853,11 @@ struct NotchShelfView: View {
     private func triggerDNDHUD() {
         // Use centralized HUDManager for queue-based display
         HUDManager.shared.show(.dnd, duration: dndManager.visibleDuration)
+    }
+
+    private func triggerNotificationHUD() {
+        // Use centralized HUDManager for queue-based display
+        HUDManager.shared.show(.notification, duration: notificationHUDManager.visibleDuration)
     }
     
     private func startMediaFadeTimer() {
@@ -1024,6 +1059,31 @@ struct NotchShelfView: View {
             .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
             .zIndex(7)
         }
+
+        // Notification HUD - uses centralized HUDManager
+        if HUDManager.shared.isNotificationHUDVisible && notificationHUDInstalled && !hudIsVisible && !isExpandedOnThisScreen {
+            NotificationHUDView(
+                manager: notificationHUDManager,
+                hudWidth: notificationHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: notificationHudWidth) // Allow dynamic height
+            .padding(.top, isDynamicIslandMode ? dynamicIslandTopMargin : 0) // Align with Dynamic Island
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
+            .zIndex(8)
+        }
+
+        // Siri HUD - uses centralized HUDManager
+        if HUDManager.shared.isSiriHUDVisible && siriNotchInstalled && !hudIsVisible && !isExpandedOnThisScreen {
+            SiriNotchView(
+                manager: siriNotchManager,
+                hudWidth: notificationHudWidth,  // Same width as notification HUD
+                targetScreen: targetScreen
+            )
+            .frame(width: notificationHudWidth, height: notchHeight)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
+            .zIndex(9)
+        }
     }
     
     // MARK: - Media Player HUD
@@ -1163,8 +1223,8 @@ struct NotchShelfView: View {
         // - Horizontal: ±20px expansion for fast cursor movements (both modes)
         // - Vertical: EXACT height matching the visual - NO downward expansion
         // This ensures we don't block Safari URL bars, Outlook search fields, etc.
-        // CRITICAL: Never expand when volume/brightness HUD is visible (prevents position shift)
-        let isActive = enableNotchShelf && !hudIsVisible && (isExpandedOnThisScreen || isHoveringOnThisScreen || dragMonitor.isDragging || state.isDropTargeted)
+        // CRITICAL: Never expand when volume/brightness HUD OR Notification HUD is visible (prevents position shift & click stealing)
+        let isActive = enableNotchShelf && !hudIsVisible && !HUDManager.shared.isNotificationHUDVisible && (isExpandedOnThisScreen || isHoveringOnThisScreen || dragMonitor.isDragging || state.isDropTargeted)
         
         // Both modes: Horizontal expansion when active, but height is ALWAYS exact
         let dropAreaWidth: CGFloat = isActive ? (currentNotchWidth + 40) : currentNotchWidth
