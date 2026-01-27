@@ -9,6 +9,7 @@ import SwiftUI
 
 struct QuickshareInfoView: View {
     @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showInMenuBar = PreferenceDefault.showQuickshareInMenuBar
+    @AppStorage(AppPreferenceKey.showQuickshareInSidebar) private var showInSidebar = PreferenceDefault.showQuickshareInSidebar
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
     
@@ -180,35 +181,69 @@ struct QuickshareInfoView: View {
     }
     
     private var settingsSection: some View {
-        HStack {
-            HStack(spacing: 12) {
-                Image(systemName: "menubar.rectangle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Show in Menu Bar")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.primary)
-                    Text("Show Quickshare submenu in Droppy menu")
-                        .font(.caption)
+        VStack(spacing: 8) {
+            // Menu bar toggle
+            HStack {
+                HStack(spacing: 12) {
+                    Image(systemName: "menubar.rectangle")
+                        .font(.system(size: 16))
                         .foregroundStyle(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show in Menu Bar")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+                        Text("Show Quickshare submenu in Droppy menu")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                 
+                Spacer()
+                
+                Toggle("", isOn: $showInMenuBar)
+                    .toggleStyle(SwitchToggleStyle(tint: .cyan))
+                    .labelsHidden()
             }
-             
-            Spacer()
+            .padding(12)
+            .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
             
-            Toggle("", isOn: $showInMenuBar)
-                .toggleStyle(SwitchToggleStyle(tint: .cyan))
-                .labelsHidden()
+            // Settings sidebar toggle
+            HStack {
+                HStack(spacing: 12) {
+                    Image(systemName: "sidebar.left")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show in Settings Sidebar")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+                        Text("Quick access to file management from Settings")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                 
+                Spacer()
+                
+                Toggle("", isOn: $showInSidebar)
+                    .toggleStyle(SwitchToggleStyle(tint: .cyan))
+                    .labelsHidden()
+            }
+            .padding(12)
+            .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
-        .padding(12)
-        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
     }
     
     private var managerSection: some View {

@@ -18,7 +18,8 @@ enum OnboardingPage: Int, CaseIterable {
     case basket
     case clipboard
     case media
-    case extras
+    case lockScreen
+    case extensions
     case ready
 }
 
@@ -42,12 +43,13 @@ struct OnboardingView: View {
     @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
     @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
     
-    // Extras
-    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
-    @AppStorage(AppPreferenceKey.smartExportEnabled) private var enableSmartExport = PreferenceDefault.smartExportEnabled
+    // Lock Screen
+    @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD = PreferenceDefault.enableLockScreenHUD
+    @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
     
     // Appearance
     @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle = PreferenceDefault.useDynamicIslandStyle
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     @State private var currentPage: OnboardingPage = .welcome
     @State private var isNextHovering = false
@@ -82,7 +84,13 @@ struct OnboardingView: View {
                 .frame(height: 70)
         }
         .frame(width: 700, height: 580)
-        .background(Color.black)
+        .background {
+            if useTransparentBackground {
+                AnyView(Rectangle().fill(.ultraThinMaterial))
+            } else {
+                AnyView(Color.black)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -237,7 +245,8 @@ struct OnboardingView: View {
         case .basket: return "Floating Basket"
         case .clipboard: return "Clipboard Manager"
         case .media: return "Media & HUDs"
-        case .extras: return "Power Features"
+        case .lockScreen: return "Lock Screen Widgets"
+        case .extensions: return "Extensions"
         case .ready: return "You're All Set!"
         }
     }
@@ -249,7 +258,8 @@ struct OnboardingView: View {
         case .basket: return "A drop zone that appears wherever you need it"
         case .clipboard: return "Your complete clipboard history at your fingertips"
         case .media: return "Beautiful notifications for music, volume, and more"
-        case .extras: return "Advanced features to supercharge your workflow"
+        case .lockScreen: return "Show your notch and media controls on the lock screen"
+        case .extensions: return "Extend Droppy with powerful modules"
         case .ready: return "Droppy is ready to make your Mac more productive"
         }
     }
@@ -276,8 +286,13 @@ struct OnboardingView: View {
                 enableAirPodsHUD: $enableAirPodsHUD,
                 enableDNDHUD: $enableDNDHUD
             )
-        case .extras:
-            ExtrasContent(enablePowerFolders: $enablePowerFolders, enableSmartExport: $enableSmartExport)
+        case .lockScreen:
+            LockScreenContent(
+                enableLockScreenHUD: $enableLockScreenHUD,
+                enableLockScreenMediaWidget: $enableLockScreenMediaWidget
+            )
+        case .extensions:
+            ExtensionsContent()
         case .ready:
             ReadyContent()
         }
@@ -535,7 +550,7 @@ private struct ClipboardContent: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(Color.cyan.opacity(0.12))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .foregroundStyle(.cyan)
             
             Text("Access everything you've copied. Search instantly,\nextract text from images, and pin your favorites.")
@@ -569,8 +584,6 @@ private struct MediaContent: View {
     
     var body: some View {
         VStack(spacing: 14) {
-            OnboardingMediaPreview()
-            
             // HUD toggles - 7 HUDs in organized grid
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
@@ -654,9 +667,9 @@ private struct HUDToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background(isHovering && available ? Color.white.opacity(0.06) : Color.white.opacity(0.04))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isOn && available ? color.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
             )
         }
@@ -752,60 +765,152 @@ private struct OnboardingMediaPreview: View {
     }
 }
 
-// MARK: - Page 6: Extras
+// MARK: - Page 6: Lock Screen Widgets
 
-private struct ExtrasContent: View {
-    @Binding var enablePowerFolders: Bool
-    @Binding var enableSmartExport: Bool
+private struct LockScreenContent: View {
+    @Binding var enableLockScreenHUD: Bool
+    @Binding var enableLockScreenMediaWidget: Bool
     
     var body: some View {
-        VStack(spacing: 14) {
-            // Power Folders
-            VStack(spacing: 6) {
-                OnboardingToggle(icon: "folder.fill.badge.gear", title: "Power Folders", color: .orange, isOn: $enablePowerFolders)
-                
-                Text("Pin folders to the shelf and drop files directly into them")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+        VStack(spacing: 20) {
+            // Lock Screen HUD toggle with premium icon
+            VStack(spacing: 8) {
+                HStack(spacing: 14) {
+                    LockScreenHUDIcon()
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Lock and Unlock Animation")
+                            .font(.system(size: 14, weight: .medium))
+                        Text("Show animation when screen locks and unlocks")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        enableLockScreenHUD.toggle()
+                    } label: {
+                        Image(systemName: enableLockScreenHUD ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundStyle(enableLockScreenHUD ? .green : .secondary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.white.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(enableLockScreenHUD ? Color.purple.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                )
             }
-            .frame(width: 400)
+            .frame(width: 420)
             
-            // Smart Export
-            VStack(spacing: 6) {
-                OnboardingToggle(icon: "square.and.arrow.down.fill", title: "Smart Export", color: .pink, isOn: $enableSmartExport)
-                
-                Text("Auto-save processed files and reveal in Finder")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+            // Now Playing widget toggle with premium icon
+            VStack(spacing: 8) {
+                HStack(spacing: 14) {
+                    NowPlayingIcon()
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("Now Playing")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("new")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.droppyAccent))
+                        }
+                        Text("Show notch & music controls on the lock screen")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        enableLockScreenMediaWidget.toggle()
+                    } label: {
+                        Image(systemName: enableLockScreenMediaWidget ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundStyle(enableLockScreenMediaWidget ? .green : .secondary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.white.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(enableLockScreenMediaWidget ? Color.green.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                )
             }
-            .frame(width: 400)
+            .frame(width: 420)
             
-            // Extensions showcase with REAL icons from registry
-            VStack(spacing: 12) {
-                Text("Plus Extensions")
-                    .font(.system(size: 13, weight: .semibold))
+            Text("These features work best with a physical notch display")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+}
+
+// MARK: - Page 7: Extensions
+
+private struct ExtensionsContent: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            // Extensions showcase
+            VStack(spacing: 16) {
+                Text("Powerful Extensions")
+                    .font(.system(size: 15, weight: .semibold))
                 
-                HStack(spacing: 16) {
+                // Top row
+                HStack(spacing: 20) {
                     OnboardingExtensionIcon(definition: VoiceTranscribeExtension.self, name: "Transcribe")
                     OnboardingExtensionIcon(definition: AIBackgroundRemovalExtension.self, name: "AI Removal")
                     OnboardingExtensionIcon(definition: TermiNotchExtension.self, name: "Terminal")
+                }
+                
+                // Bottom row
+                HStack(spacing: 20) {
                     OnboardingExtensionIcon(definition: SpotifyExtension.self, name: "Spotify")
                     OnboardingExtensionIcon(definition: VideoTargetSizeExtension.self, name: "Compress")
                     OnboardingExtensionIcon(definition: ElementCaptureExtension.self, name: "Capture")
                 }
                 
-                Text("Settings → Extensions")
+                Text("And many more...")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .padding(.horizontal, 32)
             .background(Color.white.opacity(0.025))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(0.05), lineWidth: 1)
             )
+            
+            // Info card
+            VStack(spacing: 6) {
+                Image(systemName: "puzzlepiece.extension.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.blue)
+                
+                Text("Enable extensions in Settings → Extensions")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 20)
+            .background(Color.blue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
@@ -817,29 +922,29 @@ private struct OnboardingExtensionIcon<T: ExtensionDefinition>: View {
     let name: String
     
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 6) {
             CachedAsyncImage(url: definition.iconURL) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(definition.iconPlaceholderColor.opacity(0.15))
                     .overlay(
                         Image(systemName: definition.iconPlaceholder)
-                            .font(.system(size: 17))
+                            .font(.system(size: 20))
                             .foregroundStyle(definition.iconPlaceholderColor)
                     )
             }
-            .frame(width: 40, height: 40)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             
             Text(name)
-                .font(.system(size: 9))
+                .font(.system(size: 10))
                 .foregroundStyle(.secondary)
         }
     }
 }
 
-// MARK: - Page 7: Ready
+// MARK: - Page 8: Ready
 
 private struct ReadyContent: View {
     @State private var showCheckmark = false
@@ -1010,7 +1115,7 @@ private struct StyleButton: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(Color.white.opacity(0.03))
                         .frame(width: 90, height: 55)
                     
@@ -1019,13 +1124,13 @@ private struct StyleButton: View {
                             .fill(Color.black)
                             .frame(width: 48, height: 14)
                     } else {
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(Color.black)
                             .frame(width: 40, height: 12)
                     }
                 }
                 .overlay(
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(isSelected ? Color.blue : Color.white.opacity(0.1), lineWidth: isSelected ? 2 : 1)
                 )
                 .scaleEffect(hovering ? 1.03 : 1.0)

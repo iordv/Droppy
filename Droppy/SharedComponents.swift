@@ -49,7 +49,7 @@ struct AnimatedHUDToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -74,9 +74,9 @@ struct AnimatedHUDToggle: View {
             .frame(width: fixedWidth)
             .frame(maxWidth: fixedWidth == nil ? .infinity : nil)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
@@ -121,7 +121,7 @@ struct AnimatedHUDToggleWithSubtitle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -150,9 +150,9 @@ struct AnimatedHUDToggleWithSubtitle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
@@ -204,7 +204,7 @@ struct VolumeAndBrightnessToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isEnabled ? AdaptiveColors.subtleBorderAuto : AdaptiveColors.buttonBackgroundAuto)
                     
                     ZStack {
@@ -241,9 +241,9 @@ struct VolumeAndBrightnessToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isEnabled ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
@@ -295,7 +295,7 @@ struct DisplayModeButton<Icon: View>: View {
             HStack(spacing: 12) {
                 // Icon preview area
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isSelected ? Color.blue.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     
                     icon
@@ -325,16 +325,16 @@ struct DisplayModeButton<Icon: View>: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isSelected ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
         }
         .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
-        .contentShape(Capsule())
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .onHover { hovering in
             isHovering = hovering
         }
@@ -369,7 +369,7 @@ struct AnimatedSubSettingToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -398,9 +398,9 @@ struct AnimatedSubSettingToggle: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)

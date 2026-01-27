@@ -27,7 +27,7 @@ struct OnboardingToggle: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isOn ? color.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .medium))
@@ -50,9 +50,9 @@ struct OnboardingToggle: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background((isOn ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
@@ -101,7 +101,7 @@ struct OnboardingDisplayModeButton<Icon: View>: View {
         } label: {
             HStack(spacing: 12) {
                 ZStack {
-                    Capsule()
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(isSelected ? Color.blue.opacity(0.2) : AdaptiveColors.buttonBackgroundAuto)
                     
                     icon
@@ -123,9 +123,9 @@ struct OnboardingDisplayModeButton<Icon: View>: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background((isSelected ? AdaptiveColors.buttonBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
-            .clipShape(Capsule())
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)

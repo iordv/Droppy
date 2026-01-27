@@ -86,7 +86,7 @@ struct FinderServicesSetupView: View {
                 .foregroundStyle(.primary)
                 .frame(width: 22, height: 22)
                 .background(Color.blue.opacity(0.6))
-                .clipShape(Circle())
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             
             Text(text)
                 .font(.callout)
@@ -211,7 +211,7 @@ struct FinderServicesSetupSheetView: View {
                 .foregroundStyle(.primary)
                 .frame(width: 22, height: 22)
                 .background(Color.blue.opacity(0.6))
-                .clipShape(Circle())
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             
             Text(text)
                 .font(.callout)

@@ -3,7 +3,7 @@ import ServiceManagement
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
-    @State private var selectedTab: String? = "Features"
+    @State private var selectedTab: SettingsTab = .general
     @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault.showInMenuBar
     @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar = PreferenceDefault.showQuickshareInMenuBar
     @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault.startAtLogin
@@ -38,6 +38,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD = PreferenceDefault.enableLockScreenHUD
     @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
     @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
+    @AppStorage(AppPreferenceKey.hideNotchMediaHUDWithLockScreen) private var hideNotchMediaHUDWithLockScreen = PreferenceDefault.hideNotchMediaHUDWithLockScreen
     @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault.showMediaPlayer
     @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
     @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
@@ -94,61 +95,31 @@ struct SettingsView: View {
     var body: some View {
         ZStack {
             NavigationSplitView {
-                VStack(spacing: 6) {
-                    sidebarButton(title: "Shelf & Basket", icon: "star.fill", tag: "Features")
-                    sidebarButton(title: "Clipboard", icon: "clipboard.fill", tag: "Clipboard")
-                    sidebarButton(title: "HUDs", icon: "dial.medium.fill", tag: "HUDs")
-                    sidebarButton(title: "Extensions", icon: "puzzlepiece.extension.fill", tag: "Extensions")
-                    sidebarButton(title: "About", icon: "info.circle.fill", tag: "About")
-                    
-                    Spacer()
-                    
-                    // Support button - same style as navigation buttons
-                    Link(destination: URL(string: "https://buymeacoffee.com/droppy")!) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "cup.and.saucer.fill")
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 20)
-                            Text("Support")
-                                .fontWeight(.medium)
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
-                    
-                    // Update button - same style as navigation buttons
-                    Button {
-                        UpdateChecker.shared.checkAndNotify()
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(width: 20)
-                            Text("Update")
-                                .fontWeight(.medium)
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(DroppySidebarButtonStyle(isSelected: false))
-                    
-
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-                .frame(minWidth: 200)
-                .background(Color.clear) 
+                SettingsSidebar(selectedTab: $selectedTab)
+                    .background(Color.clear)
             } detail: {
                 ZStack(alignment: .top) {
                     Form {
-                        if selectedTab == "Features" {
-                            featuresSettings
-                        } else if selectedTab == "Clipboard" {
+                        switch selectedTab {
+                        case .general:
+                            generalSettings
+                        case .shelf:
+                            shelfSettings
+                        case .basket:
+                            basketOnlySettings
+                        case .clipboard:
                             clipboardSettings
-                        } else if selectedTab == "HUDs" {
+                        case .huds:
                             hudSettings
-                        } else if selectedTab == "Extensions" {
+                        case .lockScreen:
+                            lockScreenSettings
+                        case .extensions:
                             integrationsSettings
-                        } else if selectedTab == "About" {
+                        case .quickshare:
+                            quickshareSettings
+                        case .accessibility:
+                            accessibilitySettings
+                        case .about:
                             aboutSettings
                         }
                     }
@@ -197,6 +168,8 @@ struct SettingsView: View {
         .onTapGesture {
             isHistoryLimitEditing = false
         }
+        // Apply blue accent color for toggles
+        .tint(.droppyAccent)
         // Apply transparent material or solid black
         .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
         // CRITICAL: Always use dark color scheme to ensure text is readable
@@ -207,9 +180,14 @@ struct SettingsView: View {
         .id(useTransparentBackground)
         // Handle deep links to open specific extensions
         .onAppear {
+            // Check if there's a pending tab to open (e.g., from menu bar "Manage Uploads")
+            if let pendingTab = SettingsWindowController.shared.pendingTabToOpen {
+                selectedTab = pendingTab
+                SettingsWindowController.shared.clearPendingTab()
+            }
             // Check if there's a pending extension from a deep link
-            if let pending = SettingsWindowController.shared.pendingExtensionToOpen {
-                selectedTab = "Extensions"
+            else if let pending = SettingsWindowController.shared.pendingExtensionToOpen {
+                selectedTab = .extensions
                 SettingsWindowController.shared.clearPendingExtension()
                 // Delay to allow card views to fully initialize before presenting sheet
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -219,7 +197,7 @@ struct SettingsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openExtensionFromDeepLink)) { notification in
             // Always navigate to Extensions tab
-            selectedTab = "Extensions"
+            selectedTab = .extensions
             // If a specific extension type was provided, open its sheet
             if let extensionType = notification.object as? ExtensionType {
                 // Small delay to allow tab switch animation
@@ -229,32 +207,554 @@ struct SettingsView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSmartExportSettings)) { _ in
-            // Navigate to Features tab where Smart Export is located
-            selectedTab = "Features"
+            // Navigate to Shelf tab where Smart Export is located
+            selectedTab = .shelf
         }
-    }
-    
-    // MARK: - Sidebar Button Helper
-    
-    private func sidebarButton(title: String, icon: String, tag: String) -> some View {
-        Button {
-            selectedTab = tag
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(width: 20)
-                Text(title)
-                    .fontWeight(.medium)
-                Spacer()
-            }
-        }
-        .buttonStyle(DroppySidebarButtonStyle(isSelected: selectedTab == tag))
     }
     
     // MARK: - Sections
     
-    // MARK: Features Tab (Shelf + Basket + Shared)
+    // MARK: General Tab (Startup, Menu Bar, Core Settings)
+    private var generalSettings: some View {
+        Group {
+            // MARK: Startup
+            Section {
+                Toggle(isOn: Binding(
+                    get: { showInMenuBar },
+                    set: { newValue in
+                        if newValue {
+                            showInMenuBar = true
+                        } else {
+                            showMenuBarHiddenWarning = true
+                        }
+                    }
+                )) {
+                    VStack(alignment: .leading) {
+                        Text("Menu Bar Icon")
+                        Text("Display Droppy icon in the menu bar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .sheet(isPresented: $showMenuBarHiddenWarning) {
+                    MenuBarHiddenSheet(
+                        isPresented: $showMenuBarHiddenWarning,
+                        onConfirm: {
+                            showInMenuBar = false
+                        }
+                    )
+                }
+                
+                Toggle(isOn: Binding(
+                    get: { startAtLogin },
+                    set: { newValue in
+                        startAtLogin = newValue
+                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
+                    }
+                )) {
+                    VStack(alignment: .leading) {
+                        Text("Launch at Login")
+                        Text("Start Droppy automatically when you log in")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Startup")
+            }
+            
+            // MARK: Appearance
+            Section {
+                Toggle(isOn: $useTransparentBackground) {
+                    VStack(alignment: .leading) {
+                        Text("Transparent Background")
+                        Text("Use glass effect for windows")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Appearance")
+            }
+            
+            // MARK: Display Mode (Non-notch displays only)
+            if !hasPhysicalNotch {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Display Mode")
+                            .font(.headline)
+                        
+                        Text("Choose how Droppy appears at the top of your screen")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            DisplayModeButton(
+                                title: "Notch",
+                                isSelected: !useDynamicIslandStyle,
+                                icon: {
+                                    UShape()
+                                        .fill(!useDynamicIslandStyle ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .frame(width: 60, height: 18)
+                                }
+                            ) {
+                                useDynamicIslandStyle = false
+                            }
+                            
+                            DisplayModeButton(
+                                title: "Dynamic Island",
+                                isSelected: useDynamicIslandStyle,
+                                icon: {
+                                    Capsule()
+                                        .fill(useDynamicIslandStyle ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .frame(width: 50, height: 16)
+                                }
+                            ) {
+                                useDynamicIslandStyle = true
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("Display Mode")
+                }
+            }
+            
+            // MARK: External Displays
+            Section {
+                HStack(spacing: 8) {
+                    ExternalDisplayInfoButton()
+                    Toggle(isOn: $hideNotchOnExternalDisplays) {
+                        VStack(alignment: .leading) {
+                            Text("Hide on External Displays")
+                            Text("Disable notch shelf on external monitors")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                if !hideNotchOnExternalDisplays {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("External Display Style")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            DisplayModeButton(
+                                title: "Notch",
+                                isSelected: !externalDisplayUseDynamicIsland,
+                                icon: {
+                                    UShape()
+                                        .fill(!externalDisplayUseDynamicIsland ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .frame(width: 60, height: 18)
+                                }
+                            ) {
+                                externalDisplayUseDynamicIsland = false
+                            }
+                            
+                            DisplayModeButton(
+                                title: "Dynamic Island",
+                                isSelected: externalDisplayUseDynamicIsland,
+                                icon: {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(externalDisplayUseDynamicIsland ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .frame(width: 50, height: 16)
+                                }
+                            ) {
+                                externalDisplayUseDynamicIsland = true
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+            } header: {
+                Text("External Displays")
+            }
+            
+            // MARK: Shared Features
+            Section {
+                HStack(spacing: 8) {
+                    AutoCleanInfoButton()
+                    Toggle(isOn: $enableAutoClean) {
+                        VStack(alignment: .leading) {
+                            Text("Auto-Remove")
+                            Text("Clear items when dragged out of Droppy")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                HStack(spacing: 8) {
+                    PowerFoldersInfoButton()
+                    Toggle(isOn: $enablePowerFolders) {
+                        VStack(alignment: .leading) {
+                            Text("Power Folders")
+                            Text("Pin folders and drop files directly into them")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                SmartExportSettingsRow()
+                
+                TrackedFoldersSettingsRow()
+                
+                HStack(spacing: 8) {
+                    AlwaysCopyInfoButton()
+                    Toggle(isOn: $alwaysCopyOnDrag) {
+                        VStack(alignment: .leading) {
+                            HStack(alignment: .center, spacing: 6) {
+                                Text("Protect Originals")
+                                Text("advanced")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.white.opacity(0.08)))
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                            }
+                            Text("Always copy, never move files")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .onChange(of: alwaysCopyOnDrag) { _, newValue in
+                        if !newValue {
+                            showProtectOriginalsWarning = true
+                        }
+                    }
+                }
+                .sheet(isPresented: $showProtectOriginalsWarning) {
+                    ProtectOriginalsWarningSheet(alwaysCopyOnDrag: $alwaysCopyOnDrag)
+                }
+            } header: {
+                Text("Shared Features")
+            } footer: {
+                Text("These features apply to both Notch Shelf and Floating Basket.")
+            }
+        }
+    }
+    
+    // MARK: Shelf Tab (Dedicated Shelf Settings)
+    private var shelfSettings: some View {
+        Group {
+            // MARK: Notch Shelf
+            Section {
+                HStack(spacing: 8) {
+                    NotchShelfInfoButton()
+                    Toggle(isOn: $enableNotchShelf) {
+                        VStack(alignment: .leading) {
+                            Text("Notch Shelf")
+                            Text("Drop zone at the top of your screen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .onChange(of: enableNotchShelf) { oldValue, newValue in
+                    if newValue {
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        if !enableHUDReplacement && !showMediaPlayer {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
+                
+                if enableNotchShelf {
+                    NotchShelfPreview()
+                }
+            } header: {
+                Text("Notch Shelf")
+            }
+            
+            // MARK: Shelf Behavior
+            if enableNotchShelf {
+                Section {
+                    Toggle(isOn: $autoCollapseShelf) {
+                        VStack(alignment: .leading) {
+                            Text("Auto-Collapse")
+                            Text("Shrink shelf when mouse leaves")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    if autoCollapseShelf {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Collapse Delay")
+                                Spacer()
+                                Text(String(format: "%.2fs", autoCollapseDelay))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
+                        }
+                    }
+                    
+                    Toggle(isOn: $autoExpandShelf) {
+                        VStack(alignment: .leading) {
+                            Text("Auto-Expand")
+                            Text("Expand shelf when hovering over notch")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    if autoExpandShelf {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Expand Delay")
+                                Spacer()
+                                Text(String(format: "%.2fs", autoExpandDelay))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $autoExpandDelay, in: 0.1...2.0, step: 0.05)
+                        }
+                    }
+                } header: {
+                    Text("Behavior")
+                }
+            }
+        }
+    }
+    
+    // MARK: Basket-Only Tab (Floating Basket Settings)
+    private var basketOnlySettings: some View {
+        Group {
+            Section {
+                HStack(spacing: 8) {
+                    BasketGestureInfoButton()
+                    Toggle(isOn: $enableFloatingBasket) {
+                        VStack(alignment: .leading) {
+                            Text("Floating Basket")
+                            Text(instantBasketOnDrag 
+                                ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files." 
+                                : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .onChange(of: enableFloatingBasket) { oldValue, newValue in
+                    if !newValue {
+                        FloatingBasketWindowController.shared.hideBasket()
+                    }
+                }
+                
+                if enableFloatingBasket {
+                    FloatingBasketPreview()
+                }
+            } header: {
+                Text("Floating Basket")
+            }
+            
+            if enableFloatingBasket {
+                // MARK: Appearance Settings
+                Section {
+                    HStack(spacing: 8) {
+                        InstantAppearInfoButton()
+                        Toggle(isOn: $instantBasketOnDrag) {
+                            VStack(alignment: .leading) {
+                                Text("Instant Appear")
+                                Text("Show basket immediately when dragging files")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    
+                    if instantBasketOnDrag {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Delay")
+                                Spacer()
+                                Text(instantBasketDelay < 0.2 ? "Instant" : String(format: "%.1fs", instantBasketDelay))
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                            Slider(value: $instantBasketDelay, in: 0.15...3.0, step: 0.1)
+                        }
+                        .padding(.leading, 28)
+                    }
+                } header: {
+                    Text("Appearance")
+                }
+                
+                // MARK: Auto-Hide Settings
+                Section {
+                    HStack(spacing: 8) {
+                        PeekModeInfoButton()
+                        Toggle(isOn: $enableBasketAutoHide) {
+                            VStack(alignment: .leading) {
+                                Text("Auto-Hide with Peek")
+                                Text("Basket slides to edge when cursor leaves, hover to reveal")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    
+                    if enableBasketAutoHide {
+                        Picker(selection: $basketAutoHideEdge) {
+                            Text("Left Edge").tag("left")
+                            Text("Right Edge").tag("right")
+                            Text("Bottom Edge").tag("bottom")
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text("Hide Edge")
+                                Text("Which edge the basket slides to")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        
+                        PeekPreview(edge: basketAutoHideEdge)
+                    }
+                } header: {
+                    Text("Auto-Hide")
+                }
+            }
+        }
+    }
+    
+    // MARK: Lock Screen Tab (Extracted from HUDs)
+    private var lockScreenSettings: some View {
+        Group {
+            // MARK: Lock Screen HUD
+            Section {
+                HStack(spacing: 12) {
+                    LockScreenHUDIcon()
+                    
+                    Toggle(isOn: $enableLockScreenHUD) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lock and Unlock Animation")
+                            Text("Show animation when screen locks and unlocks")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .onChange(of: enableLockScreenHUD) { _, newValue in
+                    if newValue {
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
+            } header: {
+                Text("Lock and Unlock Animation")
+            }
+            
+            // MARK: Now Playing Widget
+            Section {
+                HStack(spacing: 12) {
+                    NowPlayingIcon()
+                    
+                    Toggle(isOn: $enableLockScreenMediaWidget) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text("Now Playing")
+                                Text("new")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.droppyAccent))
+                            }
+                            Text("Show notch & music controls on the lock screen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .onChange(of: enableLockScreenMediaWidget) { _, newValue in
+                    if newValue {
+                        LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
+                        NotchWindowController.shared.delegateToLockScreen()
+                    }
+                }
+                
+                if enableLockScreenMediaWidget {
+                    Toggle(isOn: $hideNotchMediaHUDWithLockScreen) {
+                        VStack(alignment: .leading) {
+                            Text("Hide Small Media HUD")
+                            Text("Hide the notch/island media indicator when lock screen Now Playing is active")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.leading, 52)
+                }
+            } header: {
+                Text("Now Playing")
+            }
+        }
+    }
+    
+    // MARK: Accessibility Tab (Extracted from various places)
+    private var accessibilitySettings: some View {
+        Group {
+            Section {
+                Toggle(isOn: $showClipboardButton) {
+                    VStack(alignment: .leading) {
+                        Text("Clipboard in Menu")
+                        Text("Adds \"Open Clipboard\" to right-click menu on notch/island")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                
+                Toggle(isOn: $hideNotchFromScreenshots) {
+                    VStack(alignment: .leading) {
+                        Text("Hide from Screenshots")
+                        Text("Exclude the notch area from screenshots and screen recordings")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: hideNotchFromScreenshots) { _, newValue in
+                    NotchWindowController.shared.updateScreenshotVisibility()
+                }
+                
+                Toggle(isOn: $enableRightClickHide) {
+                    VStack(alignment: .leading) {
+                        Text("Right-Click to Hide")
+                        Text("Show 'Hide Notch/Island' option in right-click menu")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Interface")
+            }
+            
+            Section {
+                Toggle(isOn: $enableHapticFeedback) {
+                    VStack(alignment: .leading) {
+                        Text("Haptic Feedback")
+                        Text("Play haptic patterns when dropping files or performing actions")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Feedback")
+            } footer: {
+                Text("Haptic feedback requires a Force Touch trackpad.")
+            }
+        }
+    }
+    
+    // MARK: Features Tab (Shelf + Basket + Shared) - LEGACY, kept for reference
     private var featuresSettings: some View {
         Group {
             // MARK: Notch Shelf Section
@@ -337,7 +837,7 @@ struct SettingsView: View {
                                 title: "Dynamic Island",
                                 isSelected: externalDisplayUseDynamicIsland,
                                 icon: {
-                                    Capsule()
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
                                         .frame(width: 50, height: 16)
                                 }
@@ -911,10 +1411,8 @@ struct SettingsView: View {
                 } else {
                     // macOS 14 - feature not available
                     HStack(spacing: 12) {
-                        Image(systemName: "music.note.tv")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 40, height: 40)
+                        NowPlayingIcon()
+                            .opacity(0.5)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Now Playing")
@@ -1035,31 +1533,8 @@ struct SettingsView: View {
                 Text("Audio")
             }
             
-            // MARK: Screen State
+            // MARK: Screen State (Focus Mode only - Lock Screen moved to dedicated tab)
             Section {
-                // Lock Screen
-                HStack(spacing: 12) {
-                    LockScreenHUDIcon()
-                    
-                    Toggle(isOn: $enableLockScreenHUD) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Lock Screen")
-                            Text("Show lock animation")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .onChange(of: enableLockScreenHUD) { _, newValue in
-                    if newValue {
-                        NotchWindowController.shared.setupNotchWindow()
-                    } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
-                    }
-                }
-                
                 // Focus Mode
                 HStack(spacing: 12) {
                     FocusModeHUDIcon()
@@ -1104,63 +1579,7 @@ struct SettingsView: View {
                     .padding(.leading, 52)
                 }
             } header: {
-                Text("Screen State")
-            }
-            
-            // MARK: Lock Screen Media Widget
-            Section {
-                HStack(spacing: 12) {
-                    Image(systemName: "music.note.tv")
-                        .font(.system(size: 24))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.purple, .blue],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 40, height: 40)
-                    
-                    Toggle(isOn: $enableLockScreenMediaWidget) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text("Lock Screen Media")
-                                Text("new")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.blue))
-                            }
-                            Text("Show notch & music controls on the lock screen")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .onChange(of: enableLockScreenMediaWidget) { _, newValue in
-                    if newValue {
-                        // Initialize the manager when enabled
-                        LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
-                        // Delegate the notch window to SkyLight for lock screen visibility
-                        NotchWindowController.shared.delegateToLockScreen()
-                    }
-                }
-                
-                // Note about private API
-                if enableLockScreenMediaWidget {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundStyle(.blue)
-                            .font(.system(size: 14))
-                        Text("Uses advanced system APIs for lock screen access")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.leading, 52)
-                }
-            } header: {
-                Text("Lock Screen")
+                Text("Focus")
             }
         }
     }
@@ -1207,6 +1626,10 @@ struct SettingsView: View {
             }
     }
 
+    
+    private var quickshareSettings: some View {
+        QuickshareSettingsContent()
+    }
     
     private var appearanceSettings: some View {
         Group {
@@ -1257,7 +1680,7 @@ struct SettingsView: View {
                                 title: "Dynamic Island",
                                 isSelected: externalDisplayUseDynamicIsland,
                                 icon: {
-                                    Capsule()
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
                                         .frame(width: 50, height: 16)
                                 }
@@ -1433,55 +1856,6 @@ struct SettingsView: View {
     
     private var aboutSettings: some View {
         Group {
-            // MARK: Startup (merged from Features tab)
-            Section {
-                Toggle(isOn: Binding(
-                    get: { showInMenuBar },
-                    set: { newValue in
-                        if newValue {
-                            // Enabling - just set it
-                            showInMenuBar = true
-                        } else {
-                            // Disabling - show warning first, then set
-                            showMenuBarHiddenWarning = true
-                        }
-                    }
-                )) {
-                    VStack(alignment: .leading) {
-                        Text("Menu Bar Icon")
-                        Text("Display Droppy icon in the menu bar")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .sheet(isPresented: $showMenuBarHiddenWarning) {
-                    MenuBarHiddenSheet(
-                        isPresented: $showMenuBarHiddenWarning,
-                        onConfirm: {
-                            // Use main actor to ensure UI update happens
-                            showInMenuBar = false
-                        }
-                    )
-                }
-                
-                Toggle(isOn: Binding(
-                    get: { startAtLogin },
-                    set: { newValue in
-                        startAtLogin = newValue
-                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
-                    }
-                )) {
-                    VStack(alignment: .leading) {
-                        Text("Launch at Login")
-                        Text("Start Droppy automatically when you log in")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Startup")
-            }
-            
             // MARK: About
             Section {
                 HStack(spacing: 14) {
@@ -2245,10 +2619,8 @@ struct SwipeGestureInfoButton: View {
             }
             .popover(isPresented: $showPopover, arrowEdge: .leading) {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "hand.draw.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.pink)
+                    HStack(spacing: 10) {
+                        PremiumSettingsIcon(icon: "hand.draw.fill", baseHue: 0.95, size: 32, iconSize: 16)
                         Text("Swipe Gesture")
                             .font(.headline)
                     }
@@ -3044,7 +3416,7 @@ struct FullDiskAccessSheet: View {
                 .foregroundStyle(.blue)
                 .frame(width: 22, height: 22)
                 .background(Color.blue.opacity(0.15))
-                .clipShape(Circle())
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             
             Text(text)
                 .font(.system(size: 12))

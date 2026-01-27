@@ -251,7 +251,7 @@ struct QuickshareItemRow: View {
     
     private var rowContent: some View {
         HStack(spacing: 10) {
-            // Thumbnail preview - circular like ClipboardItemRow
+            // Thumbnail preview - squircle like ClipboardItemRow
             thumbnailView
             
             // Title and metadata
@@ -296,29 +296,29 @@ struct QuickshareItemRow: View {
         ZStack {
             // Stacked appearance for multi-file zips
             if item.itemCount > 1 {
-                // Back cards (offset to show stacking) - circular
-                Circle()
+                // Back cards (offset to show stacking) - squircle
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.white.opacity(0.05))
                     .frame(width: 28, height: 28)
                     .offset(x: 3, y: -3)
                 
-                Circle()
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.white.opacity(0.08))
                     .frame(width: 28, height: 28)
                     .offset(x: 1.5, y: -1.5)
             }
             
-            // Main thumbnail - circular like clipboard
+            // Main thumbnail - squircle like clipboard
             if let thumbnail = item.thumbnail {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             } else {
-                // Fallback to system icon - circular
+                // Fallback to system icon - squircle
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 32, height: 32)
                     
@@ -332,7 +332,7 @@ struct QuickshareItemRow: View {
     }
     
     private var rowBackground: some View {
-        Capsule()
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(isCopied
                   ? Color.green.opacity(isHovering ? 0.4 : 0.3)
                   : Color.white.opacity(isHovering ? 0.18 : 0.12))

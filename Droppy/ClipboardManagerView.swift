@@ -1048,9 +1048,9 @@ struct FlaggedGridItemView: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
-                // Icon/Thumbnail - circular like ClipboardItemRow
+                // Icon/Thumbnail - squircle like ClipboardItemRow
                 ZStack {
-                    Circle()
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(Color.white.opacity(0.1))
                         .frame(width: 32, height: 32)
                     
@@ -1082,7 +1082,7 @@ struct FlaggedGridItemView: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                Capsule()
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(isSelected 
                           ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
                           : Color.red.opacity(isHovering ? 0.22 : 0.15))
@@ -1146,7 +1146,7 @@ struct ClipboardItemRow: View {
         HStack(spacing: 10) {
             // Icon/Thumbnail - smaller and shows real image for images
             ZStack {
-                Circle()
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 32, height: 32)
                 
@@ -1156,7 +1156,7 @@ struct ClipboardItemRow: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 32, height: 32)
-                        .clipShape(Circle())
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 } else {
                     Image(systemName: iconName(for: item.type))
                         .foregroundStyle(.white)
@@ -1220,7 +1220,7 @@ struct ClipboardItemRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            Capsule()
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(isSelected 
                       ? Color.blue.opacity(isHovering ? 1.0 : 0.8) 
                       : item.isFlagged

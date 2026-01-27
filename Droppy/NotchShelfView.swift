@@ -44,6 +44,8 @@ struct NotchShelfView: View {
     @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
     @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone = PreferenceDefault.enableShelfAirDropZone
     @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
+    @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
+    @AppStorage(AppPreferenceKey.hideNotchMediaHUDWithLockScreen) private var hideNotchMediaHUDWithLockScreen = PreferenceDefault.hideNotchMediaHUDWithLockScreen
     
     // HUD State - Use @ObservedObject for singletons (they manage their own lifecycle)
     @ObservedObject private var volumeManager = VolumeManager.shared
@@ -309,6 +311,12 @@ struct NotchShelfView: View {
     private var shouldShowMediaHUD: Bool {
         // Media features require macOS 15.0+
         guard musicManager.isMediaAvailable else { return false }
+        
+        // Hide small media HUD when lock screen media widget is active
+        // This prevents double-display of media controls on the lock screen
+        if hideNotchMediaHUDWithLockScreen && enableLockScreenMediaWidget && !lockScreenManager.isUnlocked {
+            return false
+        }
         
         // FORCED MODE: Show if user swiped to show media, regardless of playback state
         // (as long as there's a track to show)

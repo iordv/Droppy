@@ -3,6 +3,108 @@ import SwiftUI
 // MARK: - Settings Preview Components
 // Extracted from SettingsView.swift for faster incremental builds
 
+// MARK: - Premium Settings Icon
+
+/// Reusable premium circular icon with gradient and 3D lighting effect
+/// Used throughout Settings for a consistent, polished look
+struct PremiumSettingsIcon: View {
+    let icon: String
+    let primaryColor: Color
+    let secondaryColor: Color
+    var size: CGFloat = 40
+    var iconSize: CGFloat = 20
+    
+    init(icon: String, baseHue: Double, size: CGFloat = 40, iconSize: CGFloat = 20) {
+        self.icon = icon
+        self.size = size
+        self.iconSize = iconSize
+        // Slightly brighter/lighter at top
+        self.primaryColor = Color(hue: baseHue, saturation: 0.60, brightness: 0.95)
+        // Slightly darker/more saturated at bottom
+        self.secondaryColor = Color(hue: baseHue, saturation: 0.80, brightness: 0.70)
+    }
+    
+    init(icon: String, primaryColor: Color, secondaryColor: Color, size: CGFloat = 40, iconSize: CGFloat = 20) {
+        self.icon = icon
+        self.primaryColor = primaryColor
+        self.secondaryColor = secondaryColor
+        self.size = size
+        self.iconSize = iconSize
+    }
+    
+    var body: some View {
+        ZStack {
+            // Gradient background
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [primaryColor, secondaryColor],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: size, height: size)
+            
+            // Subtle inner highlight at top for 3D effect
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: size, height: size)
+            
+            // Icon with subtle shadow
+            Image(systemName: icon)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+    }
+}
+
+/// Now Playing premium icon (pink play button style - squircle)
+struct NowPlayingIcon: View {
+    var size: CGFloat = 40
+    
+    var body: some View {
+        ZStack {
+            // Pink gradient background (squircle)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hue: 0.97, saturation: 0.50, brightness: 0.98), // Light pink
+                            Color(hue: 0.95, saturation: 0.65, brightness: 0.85)  // Deeper pink
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: size, height: size)
+            
+            // Subtle inner highlight
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.30), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: size, height: size)
+            
+            // Play icon
+            Image(systemName: "play.fill")
+                .font(.system(size: size * 0.45, weight: .semibold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+    }
+}
+
 struct FeaturePreviewGIF: View {
     let url: String
     
@@ -429,7 +531,7 @@ private struct ClipboardMockGridItem: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(
-            Capsule()
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.red.opacity(0.15))
         )
     }
@@ -445,9 +547,9 @@ private struct ClipboardMockRow: View {
     
     var body: some View {
         HStack(spacing: 8) {
-            // Icon in circle - matches real 32x32 circle
+            // Icon in squircle - matches real 32x32 squircle
             ZStack {
-                Circle()
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color.white.opacity(0.1))
                     .frame(width: 24, height: 24)
                 
@@ -480,7 +582,7 @@ private struct ClipboardMockRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(
-            Capsule()
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(isSelected
                       ? Color.blue.opacity(0.8)
                       : Color.white.opacity(0.12))
@@ -899,7 +1001,7 @@ struct FloatingBasketPreview: View {
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(width: buttonSize, height: buttonSize)
                         .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
+                        .clipShape(RoundedRectangle(cornerRadius: buttonSize / 4, style: .continuous))
                     
                     Spacer()
                     
@@ -991,7 +1093,6 @@ struct PeekPreview: View {
     let edge: String
     
     @State private var isPeeking = false
-    @State private var dashPhase: CGFloat = 0
     
     private let containerWidth: CGFloat = 280
     private let containerHeight: CGFloat = 100
@@ -1037,9 +1138,6 @@ struct PeekPreview: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 startAnimationCycle()
             }
-            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-                dashPhase -= 280
-            }
         }
         .onChange(of: edge) { _, _ in
             isPeeking = false
@@ -1053,22 +1151,9 @@ struct PeekPreview: View {
     
     private var miniBasket: some View {
         ZStack {
-            // Background with animated dashed border
+            // Background - new solid basket design (no more dashed border)
             RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous)
-                .fill(Color.black)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12 * miniBasketScale, style: .continuous)
-                        .stroke(
-                            Color.white.opacity(0.2),
-                            style: StrokeStyle(
-                                lineWidth: 1.5 * miniBasketScale,
-                                lineCap: .round,
-                                dash: [6 * miniBasketScale, 8 * miniBasketScale],
-                                dashPhase: dashPhase * miniBasketScale
-                            )
-                        )
-                        .padding(10 * miniBasketScale)
-                )
+                .fill(Color.black.opacity(0.85))
             
             // Content - matching real basket layout
             VStack(spacing: 6 * miniBasketScale) {
@@ -1411,7 +1496,7 @@ enum ExtensionCategory: String, CaseIterable, Identifiable {
 }
 
 // MARK: - Compact Animated HUD Icons (for Settings Rows)
-// 40x40 animated icons matching the official HUD styles
+// 40x40 premium circular gradient icons matching the sidebar style
 
 /// Compact animated volume/brightness icon for settings rows - morphs between both
 struct VolumeHUDIcon: View {
@@ -1421,25 +1506,50 @@ struct VolumeHUDIcon: View {
         showBrightness ? "sun.max.fill" : "speaker.wave.3.fill"
     }
     
-    private var color: Color {
-        showBrightness ? .yellow : .white
+    // Yellow/amber hue for brightness, blue for volume
+    private var primaryColor: Color {
+        showBrightness ? Color(hue: 0.12, saturation: 0.60, brightness: 0.98) : Color(hue: 0.58, saturation: 0.55, brightness: 0.95)
+    }
+    
+    private var secondaryColor: Color {
+        showBrightness ? Color(hue: 0.10, saturation: 0.80, brightness: 0.85) : Color(hue: 0.60, saturation: 0.70, brightness: 0.75)
     }
     
     var body: some View {
-        Image(systemName: icon)
-            .font(.system(size: 20, weight: .medium))
-            .foregroundStyle(color)
-            .contentTransition(.symbolEffect(.replace.byLayer))
-            .frame(width: 40, height: 40)
-            .background(color.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                    withAnimation(DroppyAnimation.transition) {
-                        showBrightness.toggle()
-                    }
+        ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [primaryColor, secondaryColor],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .contentTransition(.symbolEffect(.replace.byLayer))
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                withAnimation(DroppyAnimation.transition) {
+                    showBrightness.toggle()
                 }
             }
+        }
     }
 }
 
@@ -1448,18 +1558,42 @@ struct BatteryHUDIcon: View {
     @State private var isCharging = true
     
     var body: some View {
-        Image(systemName: isCharging ? "battery.100.bolt" : "battery.75")
-            .font(.system(size: 22, weight: .medium))
-            .foregroundStyle(.green)
-            .symbolEffect(.pulse, options: .repeating, isActive: isCharging)
-            .frame(width: 40, height: 40)
-            .background(Color.green.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                    withAnimation { isCharging.toggle() }
-                }
+        ZStack {
+            // Green gradient
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hue: 0.38, saturation: 0.55, brightness: 0.90),
+                            Color(hue: 0.36, saturation: 0.75, brightness: 0.65)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: isCharging ? "battery.100.bolt" : "battery.75")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .symbolEffect(.pulse, options: .repeating, isActive: isCharging)
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                withAnimation { isCharging.toggle() }
             }
+        }
     }
 }
 
@@ -1468,19 +1602,46 @@ struct CapsLockHUDIcon: View {
     @State private var isOn = true
     
     var body: some View {
-        Image(systemName: isOn ? "capslock.fill" : "capslock")
-            .font(.system(size: 20, weight: .medium))
-            .foregroundStyle(isOn ? .green : .white.opacity(0.5))  // GREEN matches real HUD
-            .contentTransition(.symbolEffect(.replace))
-            .symbolEffect(.pulse, options: .repeating, isActive: isOn)
-            .frame(width: 40, height: 40)
-            .background(Color.green.opacity(isOn ? 0.1 : 0.05))  // GREEN matches real HUD
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                    withAnimation(DroppyAnimation.transition) { isOn.toggle() }
-                }
+        ZStack {
+            // Green gradient when on, gray when off
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: isOn ? [
+                            Color(hue: 0.38, saturation: 0.55, brightness: 0.90),
+                            Color(hue: 0.36, saturation: 0.75, brightness: 0.65)
+                        ] : [
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.50),
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.35)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: isOn ? "capslock.fill" : "capslock")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.pulse, options: .repeating, isActive: isOn)
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                withAnimation(DroppyAnimation.transition) { isOn.toggle() }
             }
+        }
     }
 }
 
@@ -1488,25 +1649,35 @@ struct CapsLockHUDIcon: View {
 struct AirPodsHUDIcon: View {
     var body: some View {
         ZStack {
-            // Subtle inner glow
-            Image(systemName: "airpodspro")
-                .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(
+            // White/gray gradient
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
                     LinearGradient(
-                        colors: [.white, .white.opacity(0.7)],
+                        colors: [
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.95),
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.70)
+                        ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
-                .shadow(color: .white.opacity(0.3), radius: 2, y: -1)  // Top highlight
-                .shadow(color: .black.opacity(0.4), radius: 3, y: 2)   // Bottom shadow for depth
+                .frame(width: 40, height: 40)
+            
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.35), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: "airpodspro")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color(white: 0.2))
+                .shadow(color: .white.opacity(0.5), radius: 0.5, x: 0, y: -0.5)
         }
-        .frame(width: 40, height: 40)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.white.opacity(0.1))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -1515,18 +1686,42 @@ struct LockScreenHUDIcon: View {
     @State private var isLocked = true
     
     var body: some View {
-        Image(systemName: isLocked ? "lock.fill" : "lock.open.fill")
-            .font(.system(size: 20, weight: .medium))
-            .foregroundStyle(.white)  // WHITE matches real HUD
-            .contentTransition(.symbolEffect(.replace))
-            .frame(width: 40, height: 40)
-            .background(Color.white.opacity(0.1))  // WHITE matches real HUD
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
-                    withAnimation(DroppyAnimation.transition) { isLocked.toggle() }
-                }
+        ZStack {
+            // Gray/silver gradient
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.70),
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.45)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: isLocked ? "lock.fill" : "lock.open.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .contentTransition(.symbolEffect(.replace))
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+                withAnimation(DroppyAnimation.transition) { isLocked.toggle() }
             }
+        }
     }
 }
 
@@ -1534,46 +1729,53 @@ struct LockScreenHUDIcon: View {
 struct FocusModeHUDIcon: View {
     @State private var isOn = true
     
-    private var color: Color {
-        isOn ? Color(red: 0.55, green: 0.35, blue: 0.95) : .white.opacity(0.5)
-    }
-    
-    var body: some View {
-        Image(systemName: isOn ? "moon.fill" : "moon")
-            .font(.system(size: 20, weight: .medium))
-            .foregroundStyle(color)
-            .contentTransition(.symbolEffect(.replace))
-            .symbolEffect(.pulse, options: .repeating, isActive: isOn)
-            .frame(width: 40, height: 40)
-            .background(color.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .onAppear {
-                Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                    withAnimation(DroppyAnimation.transition) { isOn.toggle() }
-                }
-            }
-    }
-}
-
-/// Compact animated media player icon for settings rows
-struct MediaPlayerHUDIcon: View {
-    @State private var isPlaying = true
-    
     var body: some View {
         ZStack {
-            // Album art gradient
-            RoundedRectangle(cornerRadius: 6)
-                .fill(LinearGradient(colors: [.purple, .pink], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 26, height: 26)
+            // Purple gradient when on, gray when off
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: isOn ? [
+                            Color(hue: 0.75, saturation: 0.50, brightness: 0.95),
+                            Color(hue: 0.78, saturation: 0.70, brightness: 0.70)
+                        ] : [
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.50),
+                            Color(hue: 0.0, saturation: 0.0, brightness: 0.35)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 40, height: 40)
             
-            // Music note
-            Image(systemName: "music.note")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.25), Color.clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: isOn ? "moon.fill" : "moon")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.pulse, options: .repeating, isActive: isOn)
+                .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
         }
-        .frame(width: 40, height: 40)
-        .background(Color.purple.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                withAnimation(DroppyAnimation.transition) { isOn.toggle() }
+            }
+        }
     }
 }
 
+/// Compact animated media player icon for settings rows - uses NowPlayingIcon style
+struct MediaPlayerHUDIcon: View {
+    var body: some View {
+        NowPlayingIcon(size: 40)
+    }
+}

@@ -18,8 +18,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         showSettings(openingExtension: nil)
     }
     
+    /// Shows the settings window and navigates to a specific tab
+    /// - Parameter tab: The settings tab to open
+    func showSettings(tab: SettingsTab) {
+        pendingTabToOpen = tab
+        showSettings(openingExtension: nil)
+    }
+    
     /// Extension type to open when settings loads (cleared after use)
     private(set) var pendingExtensionToOpen: ExtensionType?
+    
+    /// Tab to open when settings loads (cleared after use)
+    private(set) var pendingTabToOpen: SettingsTab?
     
     /// Shows the settings window with optional extension sheet
     /// - Parameter extensionType: If provided, will navigate to Extensions and open this extension's info sheet
@@ -143,6 +153,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     /// Clears the pending extension (called after SettingsView consumes it)
     func clearPendingExtension() {
         pendingExtensionToOpen = nil
+    }
+    
+    /// Clears the pending tab (called after SettingsView consumes it)
+    func clearPendingTab() {
+        pendingTabToOpen = nil
     }
     
     // MARK: - NSWindowDelegate

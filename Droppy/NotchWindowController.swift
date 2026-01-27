@@ -875,7 +875,16 @@ final class NotchWindowController: NSObject, ObservableObject {
                 // CRITICAL FIX: First check if cursor is actually ON this screen
                 // This prevents the "activation lane" bug where the cursor coordinates
                 // incorrectly match another screen's top edge
-                guard screen.frame.contains(nsMouseLocation) else { continue }
+                // NOTE: Use a tolerant check because NSRect.contains() excludes the boundary:
+                // When cursor is at absolute top edge (y == maxY), frame.contains() returns false.
+                // We add a small tolerance to catch edge positions.
+                let extendedFrame = NSRect(
+                    x: screen.frame.origin.x,
+                    y: screen.frame.origin.y,
+                    width: screen.frame.width,
+                    height: screen.frame.height + 5  // +5px to include absolute top edge
+                )
+                guard extendedFrame.contains(nsMouseLocation) else { continue }
                 
                 // Check if cursor is at the top of THIS specific screen
                 let screenTop = screen.frame.maxY
@@ -1088,8 +1097,17 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Returns nil if no window exists for that screen
     private func findWindowForMouseLocation(_ mouseLocation: NSPoint) -> (window: NotchWindow, screen: NSScreen)? {
         // Find which screen contains the mouse
+        // NOTE: Use tolerant frame check because NSRect.contains() excludes the boundary.
+        // When cursor is at absolute top edge (y == maxY), frame.contains() returns false.
         for screen in NSScreen.screens {
-            if screen.frame.contains(mouseLocation) {
+            // Create extended frame to catch cursor at screen edges
+            let extendedFrame = NSRect(
+                x: screen.frame.origin.x,
+                y: screen.frame.origin.y,
+                width: screen.frame.width,
+                height: screen.frame.height + 5  // +5px to include absolute top edge
+            )
+            if extendedFrame.contains(mouseLocation) {
                 // Check if we have a window for this screen
                 if let window = notchWindows[screen.displayID] {
                     return (window, screen)
@@ -1909,7 +1927,16 @@ class NotchWindow: NSPanel {
 
         // MULTI-MONITOR SUPPORT: Verify mouse is on this window's screen
         // This is now a simple validation since events are already routed to correct window
-        guard let targetScreen = notchScreen, targetScreen.frame.contains(mouseLocation) else {
+        // NOTE: Use tolerant frame check because NSRect.contains() excludes the boundary.
+        // When cursor is at absolute top edge (y == maxY), frame.contains() returns false.
+        guard let targetScreen = notchScreen else { return }
+        let extendedScreenFrame = NSRect(
+            x: targetScreen.frame.origin.x,
+            y: targetScreen.frame.origin.y,
+            width: targetScreen.frame.width,
+            height: targetScreen.frame.height + 5  // +5px to include absolute top edge
+        )
+        guard extendedScreenFrame.contains(mouseLocation) else {
             // DEBUG: Log when guard fails - UNCONDITIONAL for 5 seconds after unlock!
             let timeSinceUnlock = Date().timeIntervalSince(DragMonitor.unlockTime)
             let isVerbose = timeSinceUnlock < 5.0 && timeSinceUnlock > 0

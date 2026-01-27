@@ -48,6 +48,7 @@ enum AppPreferenceKey {
     
     // MARK: - Lock Screen Media Widget
     static let enableLockScreenMediaWidget = "enableLockScreenMediaWidget"
+    static let hideNotchMediaHUDWithLockScreen = "hideNotchMediaHUDWithLockScreen"  // Sub-option: hide small media HUD when lock screen media is active
     
     // MARK: - Shelf Behavior
     static let autoCollapseShelf = "autoCollapseShelf"
@@ -87,6 +88,7 @@ enum AppPreferenceKey {
     // MARK: - System
     static let showInMenuBar = "showInMenuBar"
     static let showQuickshareInMenuBar = "showQuickshareInMenuBar"
+    static let showQuickshareInSidebar = "showQuickshareInSidebar"
     static let startAtLogin = "startAtLogin"
     static let hasCompletedOnboarding = "hasCompletedOnboarding"
     static let didMigrateShelfAirDropDefault = "didMigrateShelfAirDropDefault"
@@ -153,6 +155,7 @@ enum PreferenceDefault {
     
     // MARK: - Lock Screen Media Widget
     static let enableLockScreenMediaWidget = false  // Uses private APIs, opt-in
+    static let hideNotchMediaHUDWithLockScreen = false  // When lock screen media is showing, hide small notch/island media HUD
     
     // MARK: - Shelf Behavior
     static let autoCollapseShelf = true
@@ -192,6 +195,7 @@ enum PreferenceDefault {
     // MARK: - System
     static let showInMenuBar = true
     static let showQuickshareInMenuBar = true
+    static let showQuickshareInSidebar = true  // On by default, can be turned off
     static let startAtLogin = false
     static let hasCompletedOnboarding = false
     static let enableFinderServices = true

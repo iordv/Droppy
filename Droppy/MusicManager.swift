@@ -248,6 +248,7 @@ final class MusicManager: ObservableObject {
             isMediaAvailable = true
             loadMediaRemoteForCommands()
             startAdapterProcess()
+            setupSleepWakeObservers()
             
             // Fetch full metadata after a short delay to solve cold start issue
             // (when app opens while media is already playing, initial stream may miss duration)
@@ -258,6 +259,53 @@ final class MusicManager: ObservableObject {
             // Media features unavailable on macOS 14.x
             isMediaAvailable = false
             print("MusicManager: Media features disabled (requires macOS 15.0+)")
+        }
+    }
+    
+    // MARK: - Sleep/Wake Handling
+    
+    /// Set up observers for sleep/wake events to restart the adapter process
+    /// FIX: Prevents frozen media HUD after Mac wakes from sleep
+    private func setupSleepWakeObservers() {
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        
+        // Restart adapter when screen wakes to ensure fresh data stream
+        workspaceCenter.addObserver(
+            self,
+            selector: #selector(handleScreenWake),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
+        
+        // Also restart when session becomes active (after lock screen)
+        workspaceCenter.addObserver(
+            self,
+            selector: #selector(handleScreenWake),
+            name: NSWorkspace.sessionDidBecomeActiveNotification,
+            object: nil
+        )
+        
+        print("MusicManager: Sleep/wake observers registered")
+    }
+    
+    /// Called when screen wakes from sleep - restart the adapter to prevent frozen HUD
+    @objc private func handleScreenWake() {
+        print("MusicManager: Screen woke - restarting adapter process to refresh media stream...")
+        restartAdapterProcess()
+    }
+    
+    /// Restart the MediaRemoteAdapter subprocess
+    private func restartAdapterProcess() {
+        stopAdapterProcess()
+        
+        // Brief delay to ensure clean shutdown before restart
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.startAdapterProcess()
+            
+            // Fetch fresh metadata after restart
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.fetchFullNowPlayingInfo()
+            }
         }
     }
     

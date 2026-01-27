@@ -168,7 +168,7 @@ struct BasketItemView: View {
                 if layoutMode == .list {
                     // List row layout
                     HStack(spacing: 12) {
-                        // Circular thumbnail with activity overlay
+                        // Squircle thumbnail with activity overlay
                         ZStack {
                             Group {
                                 if let thumb = thumbnail {
@@ -178,7 +178,7 @@ struct BasketItemView: View {
                                         .aspectRatio(contentMode: .fill)
                                 } else {
                                     // Native macOS icon (folders, zip, dmg, etc.) - matches grid view
-                                    Circle()
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                                         .fill(Color.white.opacity(0.08))
                                         .overlay(
                                             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
@@ -189,11 +189,11 @@ struct BasketItemView: View {
                                 }
                             }
                             .frame(width: 36, height: 36)
-                            .clipShape(Circle())
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                             
                             // Activity indicator overlay
                             if isConverting || isCompressing || isRemovingBackground || isExtractingText || isCreatingZIP {
-                                Circle()
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(.ultraThinMaterial)
                                     .frame(width: 36, height: 36)
                                     .overlay(
@@ -205,7 +205,7 @@ struct BasketItemView: View {
                             
                             // Poof overlay
                             if isPoofing {
-                                Circle()
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
                                     .fill(Color.green.opacity(0.8))
                                     .frame(width: 36, height: 36)
                                     .overlay(
@@ -310,7 +310,7 @@ struct BasketItemView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(isSelected 
                                   ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
                                   : Color.white.opacity(isHovering ? 0.18 : 0.12))

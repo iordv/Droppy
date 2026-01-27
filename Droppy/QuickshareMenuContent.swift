@@ -13,6 +13,9 @@ struct QuickshareMenuContent: View {
     @Bindable private var manager = QuickshareManager.shared
     @State private var copiedItemId: UUID? = nil
     
+    /// When enabled, "Manage Uploads" opens Settings to Quickshare tab instead of standalone window
+    @AppStorage(AppPreferenceKey.showQuickshareInSidebar) private var showQuickshareInSidebar = PreferenceDefault.showQuickshareInSidebar
+    
     var body: some View {
         Button {
             DroppyQuickshare.share(urls: getClipboardURLs())
@@ -58,7 +61,13 @@ struct QuickshareMenuContent: View {
         }
         
         Button {
-            QuickshareManagerWindowController.show()
+            if showQuickshareInSidebar {
+                // Open Settings to Quickshare tab
+                SettingsWindowController.shared.showSettings(tab: .quickshare)
+            } else {
+                // Open standalone manager window
+                QuickshareManagerWindowController.show()
+            }
         } label: {
             Label("Manage Uploads...", systemImage: "list.bullet")
         }
