@@ -31,9 +31,23 @@ enum AgentSource: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .unknown: return "questionmark.circle"
-        case .claudeCode: return "brain"
+        case .claudeCode: return "sparkle"
         case .codex: return "chevron.left.forwardslash.chevron.right"
         case .openCode: return "terminal"
+        }
+    }
+
+    var usesCustomIcon: Bool {
+        switch self {
+        case .claudeCode: return true
+        default: return false
+        }
+    }
+
+    var customIconName: String? {
+        switch self {
+        case .claudeCode: return "claude-logo"
+        default: return nil
         }
     }
 

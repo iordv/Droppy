@@ -24,6 +24,39 @@ class AIAgentMonitorManager: ObservableObject {
     @Published private(set) var tokenCount: Int = 0
     @Published private(set) var sessionTokens: Int = 0
 
+    // MARK: - Metrics
+
+    @Published private(set) var sessionCost: Double = 0.0
+    @Published private(set) var inputTokens: Int = 0
+    @Published private(set) var outputTokens: Int = 0
+    @Published private(set) var cacheReadTokens: Int = 0
+    @Published private(set) var cacheCreationTokens: Int = 0
+    @Published private(set) var activeTimeSeconds: Int = 0
+    @Published private(set) var linesAdded: Int = 0
+    @Published private(set) var linesRemoved: Int = 0
+
+    // MARK: - Computed Properties
+
+    var totalTokens: Int {
+        inputTokens + outputTokens
+    }
+
+    var formattedCost: String {
+        if sessionCost < 0.01 {
+            return String(format: "$%.4f", sessionCost)
+        }
+        return String(format: "$%.2f", sessionCost)
+    }
+
+    var formattedActiveTime: String {
+        let minutes = activeTimeSeconds / 60
+        let seconds = activeTimeSeconds % 60
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        }
+        return "\(seconds)s"
+    }
+
     // MARK: - Settings
 
     @Published var isEnabled: Bool {
@@ -172,6 +205,11 @@ class AIAgentMonitorManager: ObservableObject {
             sessionTokens += tokens
         }
 
+        // Parse metrics from OTLP format
+        if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+            parseMetrics(from: json)
+        }
+
         // Reset activity timer
         resetActivityTimer()
 
@@ -208,6 +246,96 @@ class AIAgentMonitorManager: ObservableObject {
         return nil
     }
 
+    // MARK: - OTLP Metrics Parsing
+
+    private func parseMetrics(from json: [String: Any]) {
+        // Check for resourceMetrics (metrics format)
+        if let resourceMetrics = json["resourceMetrics"] as? [[String: Any]] {
+            for resourceMetric in resourceMetrics {
+                if let scopeMetrics = resourceMetric["scopeMetrics"] as? [[String: Any]] {
+                    for scopeMetric in scopeMetrics {
+                        if let metrics = scopeMetric["metrics"] as? [[String: Any]] {
+                            for metric in metrics {
+                                processMetric(metric)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func processMetric(_ metric: [String: Any]) {
+        guard let name = metric["name"] as? String else { return }
+
+        // Get value from sum or gauge dataPoints
+        var value: Double = 0
+        var attributes: [String: String] = [:]
+
+        if let sum = metric["sum"] as? [String: Any],
+           let dataPoints = sum["dataPoints"] as? [[String: Any]],
+           let firstPoint = dataPoints.first {
+            if let doubleValue = firstPoint["asDouble"] as? Double {
+                value = doubleValue
+            } else if let intValue = firstPoint["asInt"] as? String {
+                value = Double(intValue) ?? 0
+            }
+            // Parse attributes
+            if let attrs = firstPoint["attributes"] as? [[String: Any]] {
+                for attr in attrs {
+                    if let key = attr["key"] as? String,
+                       let val = attr["value"] as? [String: Any],
+                       let stringVal = val["stringValue"] as? String {
+                        attributes[key] = stringVal
+                    }
+                }
+            }
+        } else if let gauge = metric["gauge"] as? [String: Any],
+                  let dataPoints = gauge["dataPoints"] as? [[String: Any]],
+                  let firstPoint = dataPoints.first {
+            if let doubleValue = firstPoint["asDouble"] as? Double {
+                value = doubleValue
+            } else if let intValue = firstPoint["asInt"] as? String {
+                value = Double(intValue) ?? 0
+            }
+            // Parse attributes
+            if let attrs = firstPoint["attributes"] as? [[String: Any]] {
+                for attr in attrs {
+                    if let key = attr["key"] as? String,
+                       let val = attr["value"] as? [String: Any],
+                       let stringVal = val["stringValue"] as? String {
+                        attributes[key] = stringVal
+                    }
+                }
+            }
+        }
+
+        switch name {
+        case "claude_code.cost.usage":
+            self.sessionCost += value
+        case "claude_code.token.usage":
+            let type = attributes["type"] ?? ""
+            switch type {
+            case "input": self.inputTokens += Int(value)
+            case "output": self.outputTokens += Int(value)
+            case "cacheRead": self.cacheReadTokens += Int(value)
+            case "cacheCreation": self.cacheCreationTokens += Int(value)
+            default: break
+            }
+        case "claude_code.active_time.total":
+            self.activeTimeSeconds = Int(value)
+        case "claude_code.lines_of_code.count":
+            let type = attributes["type"] ?? ""
+            if type == "added" {
+                self.linesAdded += Int(value)
+            } else if type == "removed" {
+                self.linesRemoved += Int(value)
+            }
+        default:
+            break
+        }
+    }
+
     // MARK: - Activity Timer
 
     private func resetActivityTimer() {
@@ -230,6 +358,14 @@ class AIAgentMonitorManager: ObservableObject {
 
     func resetSession() {
         sessionTokens = 0
+        sessionCost = 0.0
+        inputTokens = 0
+        outputTokens = 0
+        cacheReadTokens = 0
+        cacheCreationTokens = 0
+        activeTimeSeconds = 0
+        linesAdded = 0
+        linesRemoved = 0
     }
 
     // MARK: - Cleanup

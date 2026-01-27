@@ -1588,6 +1588,7 @@ struct NotchShelfView: View {
             // Dynamic Island: Fully rounded glow border
             DynamicIslandOutlineShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
                 .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .padding(1.5)
                 .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
                 .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
                 .opacity(isDynamicIslandMode ? 1 : 0)
@@ -1595,6 +1596,7 @@ struct NotchShelfView: View {
             // Notch mode: U-shaped glow border
             NotchOutlineShape(bottomRadius: isExpandedOnThisScreen ? 40 : 16)
                 .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .padding(1.5)
                 .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
                 .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
                 .opacity(isDynamicIslandMode ? 0 : 1)

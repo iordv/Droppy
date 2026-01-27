@@ -56,10 +56,11 @@ struct AIAgentMonitorInfoView: View {
 
     private var headerSection: some View {
         HStack(spacing: 16) {
-            // Icon
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 40))
-                .foregroundStyle(.orange)
+            // Icon - use Claude logo
+            Image("claude-logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
                 .frame(width: 80, height: 80)
                 .background(Color.orange.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -267,7 +268,7 @@ struct AIAgentMonitorInfoView: View {
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                FeatureCard(icon: "brain", title: "Claude Code", description: "Orange indicator", color: .orange)
+                FeatureCard(icon: "sparkle", title: "Claude Code", description: "Orange indicator", color: .orange)
                 FeatureCard(icon: "chevron.left.forwardslash.chevron.right", title: "Codex", description: "Blue indicator", color: .blue)
                 FeatureCard(icon: "terminal", title: "OpenCode", description: "Green indicator", color: .green)
                 FeatureCard(icon: "number", title: "Token Tracking", description: "Real-time count", color: .purple)

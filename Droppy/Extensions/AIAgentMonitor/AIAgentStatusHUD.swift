@@ -33,19 +33,28 @@ struct AIAgentHUDView: View {
                 let symmetricPadding = layout.symmetricPadding(for: iconSize)
 
                 HStack {
-                    // Agent icon with pulsing animation
-                    Image(systemName: manager.currentSource.icon)
-                        .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundStyle(layout.adjustedColor(manager.currentSource.borderColor))
-                        .scaleEffect(isPulsing ? 1.1 : 1.0)
-                        .frame(width: 20, height: iconSize, alignment: .leading)
+                    // Agent icon - use custom image for Claude
+                    if manager.currentSource.usesCustomIcon, let imageName = manager.currentSource.customIconName {
+                        Image(imageName)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: iconSize, height: iconSize)
+                            .scaleEffect(isPulsing ? 1.1 : 1.0)
+                    } else {
+                        Image(systemName: manager.currentSource.icon)
+                            .font(.system(size: iconSize, weight: .semibold))
+                            .foregroundStyle(layout.adjustedColor(manager.currentSource.borderColor))
+                            .scaleEffect(isPulsing ? 1.1 : 1.0)
+                            .frame(width: iconSize, height: iconSize)
+                    }
 
                     Spacer()
 
-                    // Agent name (short)
-                    Text(shortName)
+                    // Show current tool or agent name
+                    Text(manager.currentToolCall ?? shortName)
                         .font(.system(size: layout.labelFontSize, weight: .semibold))
                         .foregroundStyle(layout.adjustedColor(manager.currentSource.borderColor))
+                        .lineLimit(1)
                 }
                 .padding(.horizontal, symmetricPadding)
                 .frame(height: layout.notchHeight)
@@ -56,13 +65,21 @@ struct AIAgentHUDView: View {
                 let wingWidth = layout.wingWidth(for: hudWidth)
 
                 HStack(spacing: 0) {
-                    // Left wing: Agent icon near left edge
+                    // Left wing: Agent icon
                     HStack {
-                        Image(systemName: manager.currentSource.icon)
-                            .font(.system(size: iconSize, weight: .semibold))
-                            .foregroundStyle(manager.currentSource.borderColor)
-                            .scaleEffect(isPulsing ? 1.1 : 1.0)
-                            .frame(width: iconSize, height: iconSize, alignment: .leading)
+                        if manager.currentSource.usesCustomIcon, let imageName = manager.currentSource.customIconName {
+                            Image(imageName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: iconSize, height: iconSize)
+                                .scaleEffect(isPulsing ? 1.1 : 1.0)
+                        } else {
+                            Image(systemName: manager.currentSource.icon)
+                                .font(.system(size: iconSize, weight: .semibold))
+                                .foregroundStyle(manager.currentSource.borderColor)
+                                .scaleEffect(isPulsing ? 1.1 : 1.0)
+                                .frame(width: iconSize, height: iconSize)
+                        }
                         Spacer(minLength: 0)
                     }
                     .padding(.leading, symmetricPadding)
@@ -72,12 +89,13 @@ struct AIAgentHUDView: View {
                     Spacer()
                         .frame(width: layout.notchWidth)
 
-                    // Right wing: Agent name near right edge
+                    // Right wing: Tool name or agent name
                     HStack {
                         Spacer(minLength: 0)
-                        Text(shortName)
+                        Text(manager.currentToolCall ?? shortName)
                             .font(.system(size: layout.labelFontSize, weight: .semibold))
                             .foregroundStyle(manager.currentSource.borderColor)
+                            .lineLimit(1)
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -103,6 +121,7 @@ struct AIAgentHUDView: View {
         case .unknown: return "Agent"
         }
     }
+
 }
 
 // MARK: - Original Status HUD (for expanded view)
@@ -303,49 +322,69 @@ struct AIAgentShelfStatusView: View {
     @State private var isPulsing = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Agent icon with pulsing animation
-            ZStack {
-                Circle()
-                    .fill(manager.currentSource.borderColor.opacity(0.2))
-                    .frame(width: 36, height: 36)
-                    .scaleEffect(isPulsing ? 1.15 : 1.0)
+        VStack(alignment: .leading, spacing: 12) {
+            // Header row: Agent info
+            HStack(spacing: 12) {
+                // Agent icon with pulsing animation
+                ZStack {
+                    Circle()
+                        .fill(manager.currentSource.borderColor.opacity(0.2))
+                        .frame(width: 36, height: 36)
+                        .scaleEffect(isPulsing ? 1.15 : 1.0)
 
-                Image(systemName: manager.currentSource.icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(manager.currentSource.borderColor)
-            }
+                    if manager.currentSource.usesCustomIcon, let imageName = manager.currentSource.customIconName {
+                        Image(imageName)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                    } else {
+                        Image(systemName: manager.currentSource.icon)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(manager.currentSource.borderColor)
+                    }
+                }
 
-            VStack(alignment: .leading, spacing: 2) {
-                // Agent name
-                Text(manager.currentSource.displayName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(manager.currentSource.displayName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
 
-                // Status or tool call
-                if let toolCall = manager.currentToolCall {
-                    Text(toolCall)
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .lineLimit(1)
-                } else {
-                    Text("Working...")
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.6))
+                    if let toolCall = manager.currentToolCall {
+                        Text(toolCall)
+                            .font(.system(size: 11, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .lineLimit(1)
+                    } else {
+                        Text("Working...")
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                }
+
+                Spacer()
+
+                // Cost (prominent)
+                if manager.sessionCost > 0 {
+                    Text(manager.formattedCost)
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
                 }
             }
 
-            Spacer()
+            // Metrics row
+            HStack(spacing: 16) {
+                // Tokens
+                MetricPill(icon: "number", value: formatTokens(manager.totalTokens), label: "tokens", color: .blue)
 
-            // Session tokens
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(formatTokenCount(manager.sessionTokens))
-                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white)
+                // Time
+                if manager.activeTimeSeconds > 0 {
+                    MetricPill(icon: "clock", value: manager.formattedActiveTime, label: "active", color: .purple)
+                }
 
-                Text("session tokens")
-                    .font(.system(size: 9, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.5))
+                // Lines
+                if manager.linesAdded > 0 || manager.linesRemoved > 0 {
+                    MetricPill(icon: "text.line.first.and.arrowtriangle.forward", value: "+\(manager.linesAdded)/-\(manager.linesRemoved)", label: "lines", color: .green)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -369,13 +408,37 @@ struct AIAgentShelfStatusView: View {
         }
     }
 
-    private func formatTokenCount(_ count: Int) -> String {
+    private func formatTokens(_ count: Int) -> String {
         if count >= 1_000_000 {
             return String(format: "%.1fM", Double(count) / 1_000_000)
         } else if count >= 1_000 {
             return String(format: "%.1fK", Double(count) / 1_000)
         }
         return "\(count)"
+    }
+}
+
+// MARK: - Metric Pill Helper View
+
+private struct MetricPill: View {
+    let icon: String
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.2))
+        .clipShape(Capsule())
     }
 }
 
