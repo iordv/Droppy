@@ -94,6 +94,8 @@ struct DisableExtensionButton: View {
             return "This will remove the menu bar separator and restore all hidden icons. You can enable it again later."
         case .quickshare:
             return "Droppy Quickshare is a core extension and cannot be disabled."
+        case .aiAgentMonitor:
+            return "This will stop the OTLP server and disable agent monitoring. You can enable it again later."
         }
     }
     

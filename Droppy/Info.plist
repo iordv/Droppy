@@ -46,11 +46,5 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Droppy needs to communicate with this app to export items when you drag them to the shelf or basket.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Droppy uses Bluetooth to detect when your AirPods connect and display a notification.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Voice Transcribe needs access to your microphone to record audio for transcription.</string>
 </dict>
 </plist>

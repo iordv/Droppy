@@ -23,7 +23,8 @@ struct ExtensionsShopView: View {
     private var isVoiceTranscribeInstalled: Bool { VoiceTranscribeManager.shared.isModelDownloaded }
     private var isTerminalNotchInstalled: Bool { TerminalNotchManager.shared.isInstalled }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
-    
+    private var isAIAgentMonitorInstalled: Bool { UserDefaults.standard.bool(forKey: "aiAgentMonitorTracked") }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -425,6 +426,22 @@ struct ExtensionsShopView: View {
                 AnyView(QuickshareInfoView(
                     installCount: extensionCounts["quickshare"],
                     rating: extensionRatings["quickshare"]
+                ))
+            },
+            // AI Agent Monitor
+            ExtensionListItem(
+                id: "aiAgentMonitor",
+                iconURL: "",  // Will use placeholder
+                title: "AI Agent Monitor",
+                subtitle: "Track Claude Code & Codex usage",
+                category: .ai,
+                isInstalled: isAIAgentMonitorInstalled,
+                analyticsKey: "aiAgentMonitor",
+                extensionType: .aiAgentMonitor
+            ) {
+                AnyView(AIAgentMonitorInfoView(
+                    installCount: extensionCounts["aiAgentMonitor"],
+                    rating: extensionRatings["aiAgentMonitor"]
                 ))
             }
         ]

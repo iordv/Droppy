@@ -56,6 +56,7 @@ struct NotchShelfView: View {
     @ObservedObject private var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
+    @ObservedObject private var aiAgentMonitor = AIAgentMonitorManager.shared
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
     @State private var hudWorkItem: DispatchWorkItem?
@@ -339,6 +340,8 @@ struct NotchShelfView: View {
             return batteryHudWidth  // Caps Lock HUD uses same width as battery HUD
         } else if HUDManager.shared.isDNDHUDVisible && enableDNDHUD {
             return batteryHudWidth  // Focus/DND HUD uses same width as battery HUD
+        } else if aiAgentMonitor.isActive && aiAgentMonitor.isEnabled {
+            return batteryHudWidth  // AI Agent HUD uses same width as battery HUD
         } else if shouldShowMediaHUD {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && isHoveringOnThisScreen {
@@ -1052,8 +1055,22 @@ struct NotchShelfView: View {
             .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
             .zIndex(7)
         }
+
+        // AI Agent HUD - shows when an AI coding agent is active
+        if aiAgentMonitor.isActive && aiAgentMonitor.isEnabled && !hudIsVisible && !isExpandedOnThisScreen {
+            AIAgentHUDView(
+                manager: aiAgentMonitor,
+                hudWidth: batteryHudWidth,
+                targetScreen: targetScreen
+            )
+            .frame(width: batteryHudWidth, height: notchHeight)
+            // Instantly hide when expanding to prevent position artifacts during transition
+            .opacity(isExpandedOnThisScreen ? 0 : 1)
+            .transition(.scale(scale: 0.8).combined(with: .opacity).animation(DroppyAnimation.notchState))
+            .zIndex(8)
+        }
     }
-    
+
     // MARK: - Media Player HUD
     
     /// Media player mini HUD
@@ -1523,6 +1540,7 @@ struct NotchShelfView: View {
         // Note: Idle indicator removed - island is now completely invisible when idle
         // Only appears on hover, drag, or when HUDs/media are active
         .overlay(morphingOutline)
+        .overlay(aiAgentBorderOverlay)
         // PREMIUM: Single unified .smooth(duration: 0.35) for ALL expand/collapse transitions
         .animation(.smooth(duration: 0.35), value: state.isExpanded)
         .animation(.smooth(duration: 0.35), value: mediaHUDIsHovered)
@@ -1558,6 +1576,62 @@ struct NotchShelfView: View {
     /// Hover feedback is provided by scale/parallax effects instead
     private var morphingOutline: some View {
         EmptyView()
+    }
+
+    // MARK: - AI Agent Border Overlay
+
+    /// Glowing border when AI coding agent is active
+    @State private var aiAgentGlowIntensity: CGFloat = 0.4
+
+    private var aiAgentBorderOverlay: some View {
+        ZStack {
+            // Dynamic Island: Fully rounded glow border
+            DynamicIslandOutlineShape(cornerRadius: isExpandedOnThisScreen ? 40 : 50)
+                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .padding(1.5)
+                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
+                .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
+                .opacity(isDynamicIslandMode ? 1 : 0)
+
+            // Notch mode: U-shaped glow border
+            NotchOutlineShape(bottomRadius: isExpandedOnThisScreen ? 40 : 16)
+                .stroke(aiAgentMonitor.currentSource.borderColor, lineWidth: aiAgentMonitor.glowEnhanced ? 3 : 2.5)
+                .padding(1.5)
+                .shadow(color: aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity), radius: aiAgentMonitor.glowEnhanced ? 12 : 8)
+                .shadow(color: aiAgentMonitor.glowEnhanced ? aiAgentMonitor.currentSource.borderColor.opacity(aiAgentGlowIntensity * 0.5) : .clear, radius: 20)
+                .opacity(isDynamicIslandMode ? 0 : 1)
+        }
+        .opacity((aiAgentMonitor.isActive || aiAgentMonitor.isTestMode) && aiAgentMonitor.borderEnabled ? 1 : 0)
+        .animation(DroppyAnimation.state, value: aiAgentMonitor.isActive)
+        .onAppear {
+            if aiAgentMonitor.borderPulsing {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    aiAgentGlowIntensity = 0.9
+                }
+            }
+        }
+        .onChange(of: aiAgentMonitor.isActive) { _, isActive in
+            if isActive && aiAgentMonitor.borderPulsing {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    aiAgentGlowIntensity = 0.9
+                }
+            } else {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    aiAgentGlowIntensity = 0.4
+                }
+            }
+        }
+        .onChange(of: aiAgentMonitor.isTestMode) { _, isTesting in
+            if isTesting && aiAgentMonitor.borderPulsing {
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    aiAgentGlowIntensity = 0.9
+                }
+            } else if !aiAgentMonitor.isActive {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    aiAgentGlowIntensity = 0.4
+                }
+            }
+        }
     }
 
     // MARK: - Drop Zone
@@ -1750,12 +1824,27 @@ struct NotchShelfView: View {
                         // Scale transition matching basket pattern for polished appearance
                         .notchTransition()
             }
-            
+
+            // AI Agent Status overlay - shows at top when agent is active
+            // Hide when media player is visible to avoid overlap
+            let isMediaPlayerVisible = showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && !state.isShelfAirDropZoneTargeted &&
+                (musicManager.isMediaHUDForced || ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty))
+
+            if aiAgentMonitor.isActive && aiAgentMonitor.isEnabled && !isMediaPlayerVisible && state.items.isEmpty {
+                VStack {
+                    AIAgentShelfStatusView(manager: aiAgentMonitor)
+                        .padding(.horizontal, 16)
+                        .padding(.top, isDynamicIslandMode ? 16 : notchHeight + 8)
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
         }
         // NOTE: .drawingGroup() removed - breaks NSViewRepresentable views like AudioSpectrumView
         // which cannot be rasterized into Metal textures (Issue #81 partial rollback)
         // PREMIUM: Smooth animation for view switching (swipe between shelf/media)
+        .animation(.smooth(duration: 0.35), value: aiAgentMonitor.isActive)
         .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDForced)
         .animation(.smooth(duration: 0.35), value: musicManager.isMediaHUDHidden)
         .onHover { isHovering in

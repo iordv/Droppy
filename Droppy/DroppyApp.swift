@@ -27,9 +27,12 @@ struct DroppyApp: App {
 struct DroppyMenuContent: View {
     // Track shortcut changes via notification
     @State private var shortcutRefreshId = UUID()
-    
+
     // Observe NotchWindowController for hide state
     @ObservedObject private var notchController = NotchWindowController.shared
+
+    // Initialize AI Agent Monitor manager (starts OTLP server if enabled)
+    @ObservedObject private var aiAgentMonitor = AIAgentMonitorManager.shared
     
     // Check if shelf is enabled (to conditionally show hide/show option)
     @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault.enableNotchShelf
