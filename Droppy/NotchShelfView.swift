@@ -160,12 +160,9 @@ struct NotchShelfView: View {
             return topInset > 0 ? topInset : NotchLayoutConstants.physicalNotchHeight
         }
         
-        // For external displays in notch mode: constrain to menu bar height
-        // Menu bar height = difference between full frame and visible frame at the top
-        let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
-        // Use 24pt as default if menu bar is auto-hidden, but never exceed actual menu bar
-        let maxHeight = menuBarHeight > 0 ? menuBarHeight : 24
-        return min(32, maxHeight)
+        // External displays use Dynamic Island height for consistent sizing
+        // The visual notch shape is purely cosmetic - layouts use same dimensions as DI mode
+        return NotchLayoutConstants.dynamicIslandHeight
     }
     
     /// Whether we're in Dynamic Island mode (no physical notch + setting enabled, or force test)
