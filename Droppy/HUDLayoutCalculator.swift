@@ -32,8 +32,12 @@ struct HUDLayoutCalculator {
             return height > 0 ? height : NotchLayoutConstants.physicalNotchHeight
         }
         
-        // External displays use Dynamic Island height for consistent HUD sizing
-        // The visual notch shape is purely cosmetic - content always uses DI dimensions
+        // For external displays using Notch style, use the physical notch height
+        if !screen.isBuiltIn && !isDynamicIslandMode {
+            return NotchLayoutConstants.physicalNotchHeight
+        }
+        
+        // Fallback for screens without notch - use Dynamic Island height
         return NotchLayoutConstants.dynamicIslandHeight
     }
     
@@ -50,8 +54,12 @@ struct HUDLayoutCalculator {
             return NotchLayoutConstants.physicalNotchWidth
         }
         
-        // External displays have no physical notch - use 0 for full HUD width
-        // The visual notch shape is handled separately from content layout
+        // For external displays using Notch style, use the physical notch width
+        if !screen.isBuiltIn && !isDynamicIslandMode {
+            return NotchLayoutConstants.physicalNotchWidth
+        }
+        
+        // No notch for Dynamic Island mode
         return 0
     }
     

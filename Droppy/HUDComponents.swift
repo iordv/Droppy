@@ -211,7 +211,7 @@ struct MediaHUDView: View {
 
     
     /// Whether we're in Dynamic Island mode (screen-aware for multi-monitor)
-    /// For HUD LAYOUT purposes: external displays always use compact layout (no physical notch)
+    /// For HUD LAYOUT purposes: respects user preference for external displays
     private var isDynamicIslandMode: Bool {
         let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first
         // CRITICAL: Return false (notch mode) when screen is unavailable to prevent layout jumps
@@ -220,10 +220,10 @@ struct MediaHUDView: View {
         let hasNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
         
-        // External displays never have physical notches, so always use compact HUD layout
-        // The externalDisplayUseDynamicIsland setting only affects the visual shape, not HUD content layout
+        // External displays: respect the externalDisplayUseDynamicIsland setting
+        // This ensures HUD content layout matches the visual notch/DI frame
         if !screen.isBuiltIn {
-            return true
+            return (UserDefaults.standard.object(forKey: AppPreferenceKey.externalDisplayUseDynamicIsland) as? Bool) ?? true
         }
         
         // For built-in display, use main Dynamic Island setting
