@@ -1,62 +1,108 @@
-import SwiftUI
 import ServiceManagement
+import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
-    @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault.showInMenuBar
-    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar = PreferenceDefault.showQuickshareInMenuBar
-    @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault.startAtLogin
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
-    @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault.enableNotchShelf
-    @AppStorage(AppPreferenceKey.enableFloatingBasket) private var enableFloatingBasket = PreferenceDefault.enableFloatingBasket
-    @AppStorage(AppPreferenceKey.enableBasketAutoHide) private var enableBasketAutoHide = PreferenceDefault.enableBasketAutoHide
-    @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
-    @AppStorage(AppPreferenceKey.alwaysCopyOnDrag) private var alwaysCopyOnDrag = PreferenceDefault.alwaysCopyOnDrag
-    @AppStorage(AppPreferenceKey.enableAirDropZone) private var enableAirDropZone = PreferenceDefault.enableAirDropZone
-    @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone = PreferenceDefault.enableShelfAirDropZone
-    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
-    @AppStorage(AppPreferenceKey.enableQuickActions) private var enableQuickActions = PreferenceDefault.enableQuickActions
-    @AppStorage(AppPreferenceKey.basketAutoHideEdge) private var basketAutoHideEdge = PreferenceDefault.basketAutoHideEdge
-    @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag = PreferenceDefault.instantBasketOnDrag
-    @AppStorage(AppPreferenceKey.instantBasketDelay) private var instantBasketDelay = PreferenceDefault.instantBasketDelay
-    @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton = PreferenceDefault.showClipboardButton
-    @AppStorage(AppPreferenceKey.showOpenShelfIndicator) private var showOpenShelfIndicator = PreferenceDefault.showOpenShelfIndicator
-    @AppStorage(AppPreferenceKey.hideNotchOnExternalDisplays) private var hideNotchOnExternalDisplays = PreferenceDefault.hideNotchOnExternalDisplays
-    @AppStorage(AppPreferenceKey.hideNotchFromScreenshots) private var hideNotchFromScreenshots = PreferenceDefault.hideNotchFromScreenshots
-    @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
-    @AppStorage(AppPreferenceKey.enableHapticFeedback) private var enableHapticFeedback = PreferenceDefault.enableHapticFeedback
-    @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle = PreferenceDefault.useDynamicIslandStyle
-    @AppStorage(AppPreferenceKey.useDynamicIslandTransparent) private var useDynamicIslandTransparent = PreferenceDefault.useDynamicIslandTransparent
-    @AppStorage(AppPreferenceKey.externalDisplayUseDynamicIsland) private var externalDisplayUseDynamicIsland = PreferenceDefault.externalDisplayUseDynamicIsland
-    
+    @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault
+        .showInMenuBar
+    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar =
+        PreferenceDefault.showQuickshareInMenuBar
+    @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault
+        .startAtLogin
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault
+        .enableNotchShelf
+    @AppStorage(AppPreferenceKey.enableFloatingBasket) private var enableFloatingBasket =
+        PreferenceDefault.enableFloatingBasket
+    @AppStorage(AppPreferenceKey.enableBasketAutoHide) private var enableBasketAutoHide =
+        PreferenceDefault.enableBasketAutoHide
+    @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault
+        .enableAutoClean
+    @AppStorage(AppPreferenceKey.alwaysCopyOnDrag) private var alwaysCopyOnDrag = PreferenceDefault
+        .alwaysCopyOnDrag
+    @AppStorage(AppPreferenceKey.enableAirDropZone) private var enableAirDropZone =
+        PreferenceDefault.enableAirDropZone
+    @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone =
+        PreferenceDefault.enableShelfAirDropZone
+    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders =
+        PreferenceDefault.enablePowerFolders
+    @AppStorage(AppPreferenceKey.enableQuickActions) private var enableQuickActions =
+        PreferenceDefault.enableQuickActions
+    @AppStorage(AppPreferenceKey.basketAutoHideEdge) private var basketAutoHideEdge =
+        PreferenceDefault.basketAutoHideEdge
+    @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag =
+        PreferenceDefault.instantBasketOnDrag
+    @AppStorage(AppPreferenceKey.instantBasketDelay) private var instantBasketDelay =
+        PreferenceDefault.instantBasketDelay
+    @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton =
+        PreferenceDefault.showClipboardButton
+    @AppStorage(AppPreferenceKey.showOpenShelfIndicator) private var showOpenShelfIndicator =
+        PreferenceDefault.showOpenShelfIndicator
+    @AppStorage(AppPreferenceKey.hideNotchOnExternalDisplays) private
+        var hideNotchOnExternalDisplays = PreferenceDefault.hideNotchOnExternalDisplays
+    @AppStorage(AppPreferenceKey.hideNotchFromScreenshots) private var hideNotchFromScreenshots =
+        PreferenceDefault.hideNotchFromScreenshots
+    @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide =
+        PreferenceDefault.enableRightClickHide
+    @AppStorage(AppPreferenceKey.enableHapticFeedback) private var enableHapticFeedback =
+        PreferenceDefault.enableHapticFeedback
+    @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle =
+        PreferenceDefault.useDynamicIslandStyle
+    @AppStorage(AppPreferenceKey.useDynamicIslandTransparent) private
+        var useDynamicIslandTransparent = PreferenceDefault.useDynamicIslandTransparent
+    @AppStorage(AppPreferenceKey.externalDisplayUseDynamicIsland) private
+        var externalDisplayUseDynamicIsland = PreferenceDefault.externalDisplayUseDynamicIsland
+
     // HUD and Media Player settings
-    @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDReplacement = PreferenceDefault.enableHUDReplacement
-    @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault.enableBatteryHUD
-    @AppStorage(AppPreferenceKey.enableCapsLockHUD) private var enableCapsLockHUD = PreferenceDefault.enableCapsLockHUD
-    @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
-    @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD = PreferenceDefault.enableLockScreenHUD
-    @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
-    @AppStorage(AppPreferenceKey.enableUpdateHUD) private var enableUpdateHUD = PreferenceDefault.enableUpdateHUD
-    @AppStorage(AppPreferenceKey.notificationHUDInstalled) private var isNotificationHUDInstalled = PreferenceDefault.notificationHUDInstalled
-    @AppStorage(AppPreferenceKey.notificationHUDEnabled) private var enableNotificationHUD = PreferenceDefault.notificationHUDEnabled
-    @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
-    @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault.showMediaPlayer
-    @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
-    @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
-    @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer = PreferenceDefault.enableRealAudioVisualizer
-    @AppStorage(AppPreferenceKey.autoShrinkShelf) private var autoShrinkShelf = PreferenceDefault.autoShrinkShelf  // Legacy
-    @AppStorage(AppPreferenceKey.autoShrinkDelay) private var autoShrinkDelay = PreferenceDefault.autoShrinkDelay  // Legacy
-    @AppStorage(AppPreferenceKey.autoCollapseDelay) private var autoCollapseDelay = PreferenceDefault.autoCollapseDelay
-    @AppStorage(AppPreferenceKey.autoCollapseShelf) private var autoCollapseShelf = PreferenceDefault.autoCollapseShelf
-    @AppStorage(AppPreferenceKey.autoExpandShelf) private var autoExpandShelf = PreferenceDefault.autoExpandShelf
-    @AppStorage(AppPreferenceKey.autoExpandDelay) private var autoExpandDelay = PreferenceDefault.autoExpandDelay
-    @AppStorage(AppPreferenceKey.autoHideOnFullscreen) private var autoHideOnFullscreen = PreferenceDefault.autoHideOnFullscreen
-    @AppStorage(AppPreferenceKey.hideMediaOnlyOnFullscreen) private var hideMediaOnlyOnFullscreen = PreferenceDefault.hideMediaOnlyOnFullscreen
-    @AppStorage(AppPreferenceKey.enableFinderServices) private var enableFinderServices = PreferenceDefault.enableFinderServices
+    @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDReplacement =
+        PreferenceDefault.enableHUDReplacement
+    @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault
+        .enableBatteryHUD
+    @AppStorage(AppPreferenceKey.enableCapsLockHUD) private var enableCapsLockHUD =
+        PreferenceDefault.enableCapsLockHUD
+    @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault
+        .enableAirPodsHUD
+    @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD =
+        PreferenceDefault.enableLockScreenHUD
+    @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault
+        .enableDNDHUD
+    @AppStorage(AppPreferenceKey.enableUpdateHUD) private var enableUpdateHUD = PreferenceDefault
+        .enableUpdateHUD
+    @AppStorage(AppPreferenceKey.notificationHUDInstalled) private var isNotificationHUDInstalled =
+        PreferenceDefault.notificationHUDInstalled
+    @AppStorage(AppPreferenceKey.notificationHUDEnabled) private var enableNotificationHUD =
+        PreferenceDefault.notificationHUDEnabled
+    @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private
+        var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
+    @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault
+        .showMediaPlayer
+    @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault
+        .autoFadeMediaHUD
+    @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges =
+        PreferenceDefault.debounceMediaChanges
+    @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer =
+        PreferenceDefault.enableRealAudioVisualizer
+    @AppStorage(AppPreferenceKey.autoShrinkShelf) private var autoShrinkShelf = PreferenceDefault
+        .autoShrinkShelf  // Legacy
+    @AppStorage(AppPreferenceKey.autoShrinkDelay) private var autoShrinkDelay = PreferenceDefault
+        .autoShrinkDelay  // Legacy
+    @AppStorage(AppPreferenceKey.autoCollapseDelay) private var autoCollapseDelay =
+        PreferenceDefault.autoCollapseDelay
+    @AppStorage(AppPreferenceKey.autoCollapseShelf) private var autoCollapseShelf =
+        PreferenceDefault.autoCollapseShelf
+    @AppStorage(AppPreferenceKey.autoExpandShelf) private var autoExpandShelf = PreferenceDefault
+        .autoExpandShelf
+    @AppStorage(AppPreferenceKey.autoExpandDelay) private var autoExpandDelay = PreferenceDefault
+        .autoExpandDelay
+    @AppStorage(AppPreferenceKey.autoHideOnFullscreen) private var autoHideOnFullscreen =
+        PreferenceDefault.autoHideOnFullscreen
+    @AppStorage(AppPreferenceKey.hideMediaOnlyOnFullscreen) private var hideMediaOnlyOnFullscreen =
+        PreferenceDefault.hideMediaOnlyOnFullscreen
+    @AppStorage(AppPreferenceKey.enableFinderServices) private var enableFinderServices =
+        PreferenceDefault.enableFinderServices
 
-
-    
     @State private var dashPhase: CGFloat = 0
     @State private var isHistoryLimitEditing: Bool = false
     @State private var isUpdateHovering = false
@@ -66,7 +112,7 @@ struct SettingsView: View {
     @State private var showStabilizeMediaWarning = false  // Warning when enabling Stabilize Media
     @State private var showAutoFocusSearchWarning = false  // Warning when enabling Auto-Focus Search
     @State private var showQuickActionsWarning = false  // Warning when enabling Quick Actions
-    
+
     // Hover states for special buttons
     @State private var isCoffeeHovering = false
     @State private var isIntroHovering = false
@@ -74,10 +120,10 @@ struct SettingsView: View {
     @State private var showHardResetConfirmation = false
     @State private var hardResetIncludeClipboard = false
     @State private var scrollOffset: CGFloat = 0
-    
+
     /// Extension to open from deep link (e.g., droppy://extension/ai-bg)
     @State private var deepLinkedExtension: ExtensionType?
-    
+
     /// Detects if the BUILT-IN display has a physical notch
     /// Uses builtInWithNotch or isBuiltIn check - NOT main screen (which could be external)
     private var hasPhysicalNotch: Bool {
@@ -93,7 +139,7 @@ struct SettingsView: View {
         }
         return false
     }
-    
+
     var body: some View {
         ZStack {
             NavigationSplitView {
@@ -142,22 +188,28 @@ struct SettingsView: View {
                     .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                         scrollOffset = value
                     }
-                    
+
                     // Beautiful gradient fade - only shows when scrolling
                     VStack(spacing: 0) {
                         LinearGradient(
                             stops: [
-                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 1), location: 0),
-                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 0.95), location: 0.3),
-                                .init(color: Color.black.opacity(useTransparentBackground ? 0 : 0.7), location: 0.6),
-                                .init(color: Color.clear, location: 1.0)
+                                .init(
+                                    color: Color.black.opacity(useTransparentBackground ? 0 : 1),
+                                    location: 0),
+                                .init(
+                                    color: Color.black.opacity(useTransparentBackground ? 0 : 0.95),
+                                    location: 0.3),
+                                .init(
+                                    color: Color.black.opacity(useTransparentBackground ? 0 : 0.7),
+                                    location: 0.6),
+                                .init(color: Color.clear, location: 1.0),
                             ],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                         .frame(height: 60)
                         .allowsHitTesting(false)
-                        
+
                         Spacer()
                     }
                     .ignoresSafeArea()
@@ -173,7 +225,10 @@ struct SettingsView: View {
         // Apply blue accent color for toggles
         .tint(.droppyAccent)
         // Apply transparent material or solid black
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         // CRITICAL: Always use dark color scheme to ensure text is readable
         // In both solid black and transparent material modes, we need light text
         .preferredColorScheme(.dark)
@@ -197,7 +252,8 @@ struct SettingsView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openExtensionFromDeepLink)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: .openExtensionFromDeepLink)) {
+            notification in
             // Always navigate to Extensions tab
             selectedTab = .extensions
             // If a specific extension type was provided, open its sheet
@@ -213,24 +269,26 @@ struct SettingsView: View {
             selectedTab = .general
         }
     }
-    
+
     // MARK: - Sections
-    
+
     // MARK: General Tab (Startup, Menu Bar, Core Settings)
     private var generalSettings: some View {
         Group {
             // MARK: Startup
             Section {
-                Toggle(isOn: Binding(
-                    get: { showInMenuBar },
-                    set: { newValue in
-                        if newValue {
-                            showInMenuBar = true
-                        } else {
-                            showMenuBarHiddenWarning = true
+                Toggle(
+                    isOn: Binding(
+                        get: { showInMenuBar },
+                        set: { newValue in
+                            if newValue {
+                                showInMenuBar = true
+                            } else {
+                                showMenuBarHiddenWarning = true
+                            }
                         }
-                    }
-                )) {
+                    )
+                ) {
                     VStack(alignment: .leading) {
                         Text("Menu Bar Icon")
                         Text("Display Droppy icon in the menu bar")
@@ -246,14 +304,16 @@ struct SettingsView: View {
                         }
                     )
                 }
-                
-                Toggle(isOn: Binding(
-                    get: { startAtLogin },
-                    set: { newValue in
-                        startAtLogin = newValue
-                        LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
-                    }
-                )) {
+
+                Toggle(
+                    isOn: Binding(
+                        get: { startAtLogin },
+                        set: { newValue in
+                            startAtLogin = newValue
+                            LaunchAtLoginManager.setLaunchAtLogin(enabled: newValue)
+                        }
+                    )
+                ) {
                     VStack(alignment: .leading) {
                         Text("Launch at Login")
                         Text("Start Droppy automatically when you log in")
@@ -264,7 +324,7 @@ struct SettingsView: View {
             } header: {
                 Text("Startup")
             }
-            
+
             // MARK: Appearance
             Section {
                 Toggle(isOn: $useTransparentBackground) {
@@ -278,37 +338,43 @@ struct SettingsView: View {
             } header: {
                 Text("Appearance")
             }
-            
+
             // MARK: Display Mode (Non-notch displays only)
             if !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Display Mode")
                             .font(.headline)
-                        
+
                         Text("Choose how Droppy appears at the top of your screen")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        
+
                         HStack(spacing: 12) {
                             DisplayModeButton(
                                 title: "Notch",
                                 isSelected: !useDynamicIslandStyle,
                                 icon: {
                                     UShape()
-                                        .fill(!useDynamicIslandStyle ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .fill(
+                                            !useDynamicIslandStyle
+                                                ? Color.droppyAccent : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 useDynamicIslandStyle = false
                             }
-                            
+
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: useDynamicIslandStyle,
                                 icon: {
                                     Capsule()
-                                        .fill(useDynamicIslandStyle ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .fill(
+                                            useDynamicIslandStyle
+                                                ? Color.droppyAccent : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
@@ -321,7 +387,7 @@ struct SettingsView: View {
                     Text("Display Mode")
                 }
             }
-            
+
             // MARK: External Displays
             Section {
                 HStack(spacing: 8) {
@@ -335,32 +401,38 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 if !hideNotchOnExternalDisplays {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("External Display Style")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         HStack(spacing: 12) {
                             DisplayModeButton(
                                 title: "Notch",
                                 isSelected: !externalDisplayUseDynamicIsland,
                                 icon: {
                                     UShape()
-                                        .fill(!externalDisplayUseDynamicIsland ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .fill(
+                                            !externalDisplayUseDynamicIsland
+                                                ? Color.droppyAccent : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 externalDisplayUseDynamicIsland = false
                             }
-                            
+
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: externalDisplayUseDynamicIsland,
                                 icon: {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(externalDisplayUseDynamicIsland ? Color.droppyAccent : Color.white.opacity(0.5))
+                                        .fill(
+                                            externalDisplayUseDynamicIsland
+                                                ? Color.droppyAccent : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
@@ -373,7 +445,7 @@ struct SettingsView: View {
             } header: {
                 Text("External Displays")
             }
-            
+
             // MARK: Shared Features
             Section {
                 HStack(spacing: 8) {
@@ -387,7 +459,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 HStack(spacing: 8) {
                     PowerFoldersInfoButton()
                     Toggle(isOn: $enablePowerFolders) {
@@ -399,11 +471,11 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 SmartExportSettingsRow()
-                
+
                 TrackedFoldersSettingsRow()
-                
+
                 HStack(spacing: 8) {
                     AlwaysCopyInfoButton()
                     Toggle(isOn: $alwaysCopyOnDrag) {
@@ -416,7 +488,8 @@ struct SettingsView: View {
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(Color.white.opacity(0.08)))
-                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                    .overlay(
+                                        Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
                             }
                             Text("Always copy, never move files")
                                 .font(.caption)
@@ -439,7 +512,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: Shelf Tab (Dedicated Shelf Settings)
     private var shelfSettings: some View {
         Group {
@@ -465,14 +538,14 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 if enableNotchShelf {
                     NotchShelfPreview()
                 }
             } header: {
                 Text("Notch Shelf")
             }
-            
+
             // MARK: Shelf Behavior
             if enableNotchShelf {
                 Section {
@@ -484,7 +557,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     if autoCollapseShelf {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
@@ -497,7 +570,7 @@ struct SettingsView: View {
                             Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
                         }
                     }
-                    
+
                     Toggle(isOn: $autoExpandShelf) {
                         VStack(alignment: .leading) {
                             Text("Auto-Expand")
@@ -506,7 +579,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     if autoExpandShelf {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
@@ -525,7 +598,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: Basket-Only Tab (Floating Basket Settings)
     private var basketOnlySettings: some View {
         Group {
@@ -535,11 +608,13 @@ struct SettingsView: View {
                     Toggle(isOn: $enableFloatingBasket) {
                         VStack(alignment: .leading) {
                             Text("Floating Basket")
-                            Text(instantBasketOnDrag 
-                                ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files." 
-                                : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text(
+                                instantBasketOnDrag
+                                    ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files."
+                                    : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files."
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -548,14 +623,14 @@ struct SettingsView: View {
                         FloatingBasketWindowController.shared.hideBasket()
                     }
                 }
-                
+
                 if enableFloatingBasket {
                     FloatingBasketPreview()
                 }
             } header: {
                 Text("Floating Basket")
             }
-            
+
             if enableFloatingBasket {
                 // MARK: Appearance Settings
                 Section {
@@ -570,15 +645,18 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     if instantBasketOnDrag {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("Delay")
                                 Spacer()
-                                Text(instantBasketDelay < 0.2 ? "Instant" : String(format: "%.1fs", instantBasketDelay))
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                                Text(
+                                    instantBasketDelay < 0.2
+                                        ? "Instant" : String(format: "%.1fs", instantBasketDelay)
+                                )
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                             }
                             Slider(value: $instantBasketDelay, in: 0.15...3.0, step: 0.1)
                         }
@@ -587,7 +665,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Appearance")
                 }
-                
+
                 // MARK: Auto-Hide Settings
                 Section {
                     HStack(spacing: 8) {
@@ -601,7 +679,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     if enableBasketAutoHide {
                         Picker(selection: $basketAutoHideEdge) {
                             Text("Left Edge").tag("left")
@@ -616,7 +694,7 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.menu)
-                        
+
                         PeekPreview(edge: basketAutoHideEdge)
                     }
                 } header: {
@@ -625,7 +703,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: Lock Screen Tab (Extracted from HUDs)
     private var lockScreenSettings: some View {
         Group {
@@ -633,7 +711,7 @@ struct SettingsView: View {
             Section {
                 HStack(spacing: 12) {
                     LockScreenHUDIcon()
-                    
+
                     Toggle(isOn: $enableLockScreenHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Lock and Unlock Animation")
@@ -647,7 +725,9 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer
+                            && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD
+                        {
                             NotchWindowController.shared.closeWindow()
                         }
                     }
@@ -655,12 +735,12 @@ struct SettingsView: View {
             } header: {
                 Text("Lock and Unlock Animation")
             }
-            
+
             // MARK: Now Playing Widget
             Section {
                 HStack(spacing: 12) {
                     NowPlayingIcon()
-                    
+
                     Toggle(isOn: $enableLockScreenMediaWidget) {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
@@ -680,18 +760,18 @@ struct SettingsView: View {
                 }
                 .onChange(of: enableLockScreenMediaWidget) { _, newValue in
                     if newValue {
-                        LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
+                        LockScreenMediaPanelManager.shared.configure(
+                            musicManager: MusicManager.shared)
                         NotchWindowController.shared.delegateToLockScreen()
                     }
                 }
-                
 
             } header: {
                 Text("Now Playing")
             }
         }
     }
-    
+
     // MARK: Accessibility Tab (Extracted from various places)
     private var accessibilitySettings: some View {
         Group {
@@ -704,7 +784,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 Toggle(isOn: $hideNotchFromScreenshots) {
                     VStack(alignment: .leading) {
                         Text("Hide from Screenshots")
@@ -716,7 +796,7 @@ struct SettingsView: View {
                 .onChange(of: hideNotchFromScreenshots) { _, newValue in
                     NotchWindowController.shared.updateScreenshotVisibility()
                 }
-                
+
                 Toggle(isOn: $enableRightClickHide) {
                     VStack(alignment: .leading) {
                         Text("Right-Click to Hide")
@@ -728,7 +808,7 @@ struct SettingsView: View {
             } header: {
                 Text("Interface")
             }
-            
+
             Section {
                 Toggle(isOn: $enableHapticFeedback) {
                     VStack(alignment: .leading) {
@@ -745,7 +825,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: Features Tab (Shelf + Basket + Shared) - LEGACY, kept for reference
     private var featuresSettings: some View {
         Group {
@@ -773,14 +853,14 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 if enableNotchShelf {
                     NotchShelfPreview()
                 }
             } header: {
                 Text("Notch Shelf")
             }
-            
+
             // MARK: Display Style
             // Visual Style settings (from Appearance)
             Section {
@@ -792,7 +872,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 HStack(spacing: 8) {
                     ExternalDisplayInfoButton()
                     Toggle(isOn: $hideNotchOnExternalDisplays) {
@@ -804,33 +884,39 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Show external display mode picker when not hidden
                 if !hideNotchOnExternalDisplays {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("External Display Style")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         HStack(spacing: 12) {
                             DisplayModeButton(
                                 title: "Notch",
                                 isSelected: !externalDisplayUseDynamicIsland,
                                 icon: {
                                     UShape()
-                                        .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            !externalDisplayUseDynamicIsland
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 externalDisplayUseDynamicIsland = false
                             }
-                            
+
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: externalDisplayUseDynamicIsland,
                                 icon: {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            externalDisplayUseDynamicIsland
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
@@ -843,18 +929,18 @@ struct SettingsView: View {
             } header: {
                 Text("Display")
             }
-            
+
             // MARK: Display Mode (Non-notch displays only)
             if !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Display Mode")
                             .font(.headline)
-                        
+
                         Text("Choose how Droppy appears at the top of your screen")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        
+
                         // Mode picker with visual icons
                         HStack(spacing: 12) {
                             DisplayModeButton(
@@ -862,19 +948,25 @@ struct SettingsView: View {
                                 isSelected: !useDynamicIslandStyle,
                                 icon: {
                                     UShape()
-                                        .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            !useDynamicIslandStyle
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 useDynamicIslandStyle = false
                             }
-                            
+
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: useDynamicIslandStyle,
                                 icon: {
                                     Capsule()
-                                        .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            useDynamicIslandStyle
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
@@ -887,7 +979,7 @@ struct SettingsView: View {
                     Text("Display Mode")
                 }
             }
-            
+
             // MARK: Shelf Behavior
             Section {
                 // Auto-Collapse toggle with delay slider
@@ -899,7 +991,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 if autoCollapseShelf {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -912,7 +1004,7 @@ struct SettingsView: View {
                         Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
-                
+
                 // Auto-Expand can be toggled, with delay slider
                 Toggle(isOn: $autoExpandShelf) {
                     VStack(alignment: .leading) {
@@ -922,7 +1014,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 if autoExpandShelf {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -938,7 +1030,7 @@ struct SettingsView: View {
             } header: {
                 Text("Shelf Behavior")
             }
-            
+
             // MARK: Shared Features
             Section {
                 // Auto-Clean (affects Droppy UI only)
@@ -953,7 +1045,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Power Folders (affects both shelf and basket)
                 HStack(spacing: 8) {
                     PowerFoldersInfoButton()
@@ -966,13 +1058,13 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Smart Export (auto-save processed files)
                 SmartExportSettingsRow()
-                
+
                 // Tracked Folders (watch folders for new files) - Advanced setting
                 TrackedFoldersSettingsRow()
-                
+
                 // Always Copy (affects actual files on disk) - Advanced setting (at bottom)
                 HStack(spacing: 8) {
                     AlwaysCopyInfoButton()
@@ -986,7 +1078,8 @@ struct SettingsView: View {
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(Color.white.opacity(0.08)))
-                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                    .overlay(
+                                        Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
                             }
                             Text("Always copy, never move files")
                                 .font(.caption)
@@ -1008,15 +1101,15 @@ struct SettingsView: View {
             } footer: {
                 Text("These features apply to both Notch Shelf and Floating Basket.")
             }
-            
+
             // MARK: Floating Basket Section
             basketSections
-            
+
             // MARK: Accessibility
             indicatorsSettings
         }
     }
-    
+
     // Helper view for Basket sections (included in Features tab)
     @ViewBuilder
     private var basketSections: some View {
@@ -1026,11 +1119,13 @@ struct SettingsView: View {
                 Toggle(isOn: $enableFloatingBasket) {
                     VStack(alignment: .leading) {
                         Text("Floating Basket")
-                        Text(instantBasketOnDrag 
-                            ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files." 
-                            : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text(
+                            instantBasketOnDrag
+                                ? "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files."
+                                : "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -1039,14 +1134,14 @@ struct SettingsView: View {
                     FloatingBasketWindowController.shared.hideBasket()
                 }
             }
-            
+
             if enableFloatingBasket {
                 FloatingBasketPreview()
             }
         } header: {
             Text("Floating Basket")
         }
-        
+
         if enableFloatingBasket {
             // MARK: Appearance Settings
             Section {
@@ -1062,16 +1157,19 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Delay slider (only when instant appear is enabled)
                 if instantBasketOnDrag {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text("Delay")
                             Spacer()
-                            Text(instantBasketDelay < 0.2 ? "Instant" : String(format: "%.1fs", instantBasketDelay))
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                            Text(
+                                instantBasketDelay < 0.2
+                                    ? "Instant" : String(format: "%.1fs", instantBasketDelay)
+                            )
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                         }
                         Slider(value: $instantBasketDelay, in: 0.15...3.0, step: 0.1)
                     }
@@ -1080,7 +1178,7 @@ struct SettingsView: View {
             } header: {
                 Text("Basket Appearance")
             }
-            
+
             // MARK: Auto-Hide Settings
             Section {
                 HStack(spacing: 8) {
@@ -1094,7 +1192,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 if enableBasketAutoHide {
                     Picker(selection: $basketAutoHideEdge) {
                         Text("Left Edge").tag("left")
@@ -1109,13 +1207,13 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    
+
                     PeekPreview(edge: basketAutoHideEdge)
                 }
             } header: {
                 Text("Auto-Hide")
             }
-            
+
             // MARK: Basket Advanced
             Section {
                 HStack(spacing: 8) {
@@ -1130,7 +1228,8 @@ struct SettingsView: View {
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(Color.white.opacity(0.08)))
-                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                    .overlay(
+                                        Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
                             }
                             Text("Select all and drop to Finder folder")
                                 .font(.caption)
@@ -1151,7 +1250,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: Basket Tab (kept for reference but not used in sidebar)
     private var basketSettings: some View {
         Group {
@@ -1162,11 +1261,13 @@ struct SettingsView: View {
                     Toggle(isOn: $enableFloatingBasket) {
                         VStack(alignment: .leading) {
                             Text("Floating Basket")
-                            Text(instantBasketOnDrag 
-                                ? "Appears instantly when dragging files anywhere" 
-                                : "Appears when you jiggle files anywhere on screen")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text(
+                                instantBasketOnDrag
+                                    ? "Appears instantly when dragging files anywhere"
+                                    : "Appears when you jiggle files anywhere on screen"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -1175,14 +1276,14 @@ struct SettingsView: View {
                         FloatingBasketWindowController.shared.hideBasket()
                     }
                 }
-                
+
                 if enableFloatingBasket {
                     FloatingBasketPreview()
                 }
             } header: {
                 Text("Floating Basket")
             }
-            
+
             if enableFloatingBasket {
                 // MARK: Appearance Settings
                 Section {
@@ -1198,16 +1299,19 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     // Delay slider (only when instant appear is enabled)
                     if instantBasketOnDrag {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("Delay")
                                 Spacer()
-                                Text(instantBasketDelay < 0.2 ? "Instant" : String(format: "%.1fs", instantBasketDelay))
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                                Text(
+                                    instantBasketDelay < 0.2
+                                        ? "Instant" : String(format: "%.1fs", instantBasketDelay)
+                                )
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                             }
                             Slider(value: $instantBasketDelay, in: 0.15...3.0, step: 0.1)
                         }
@@ -1216,7 +1320,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Appearance")
                 }
-                
+
                 // MARK: Auto-Hide Settings
                 Section {
                     // Auto-hide with peek toggle
@@ -1231,7 +1335,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     // Edge picker (only when auto-hide is enabled)
                     if enableBasketAutoHide {
                         Picker(selection: $basketAutoHideEdge) {
@@ -1247,14 +1351,14 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.menu)
-                        
+
                         // Animated peek preview
                         PeekPreview(edge: basketAutoHideEdge)
                     }
                 } header: {
                     Text("Auto-Hide")
                 }
-                
+
                 // MARK: Advanced
                 Section {
                     // Quick Actions (advanced feature - at bottom)
@@ -1270,7 +1374,9 @@ struct SettingsView: View {
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(Capsule().fill(Color.white.opacity(0.08)))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                        .overlay(
+                                            Capsule().stroke(
+                                                Color.white.opacity(0.12), lineWidth: 1))
                                 }
                                 Text("Select all and drop to Finder folder")
                                     .font(.caption)
@@ -1293,7 +1399,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: HUDs Tab
     private var hudSettings: some View {
         Group {
@@ -1303,7 +1409,7 @@ struct SettingsView: View {
                 if #available(macOS 15.0, *) {
                     HStack(spacing: 12) {
                         MediaPlayerHUDIcon()
-                        
+
                         Toggle(isOn: $showMediaPlayer) {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 8) {
@@ -1325,7 +1431,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    
+
                     if showMediaPlayer {
                         Toggle(isOn: $autoFadeMediaHUD) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1335,7 +1441,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        
+
                         Toggle(isOn: $autoHideOnFullscreen) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Hide in Fullscreen")
@@ -1344,7 +1450,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        
+
                         // Sub-option: Hide media only (keep volume/brightness HUDs visible)
                         if autoHideOnFullscreen {
                             Toggle(isOn: $hideMediaOnlyOnFullscreen) {
@@ -1357,7 +1463,7 @@ struct SettingsView: View {
                             }
                             .padding(.leading, 20)
                         }
-                        
+
                         Toggle(isOn: $enableRealAudioVisualizer) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Real Audio Visualizer")
@@ -1373,7 +1479,7 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        
+
                         Toggle(isOn: $debounceMediaChanges) {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
@@ -1384,7 +1490,9 @@ struct SettingsView: View {
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(Capsule().fill(Color.white.opacity(0.08)))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                        .overlay(
+                                            Capsule().stroke(
+                                                Color.white.opacity(0.12), lineWidth: 1))
                                 }
                                 Text("Prevent flickering from rapid song changes")
                                     .font(.caption)
@@ -1405,7 +1513,7 @@ struct SettingsView: View {
                     HStack(spacing: 12) {
                         NowPlayingIcon()
                             .opacity(0.5)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Now Playing")
                                 .foregroundStyle(.secondary)
@@ -1418,13 +1526,13 @@ struct SettingsView: View {
             } header: {
                 Text("Media")
             }
-            
+
             // MARK: System HUDs
             Section {
                 // Volume & Brightness
                 HStack(spacing: 12) {
                     VolumeHUDIcon()
-                    
+
                     Toggle(isOn: $enableHUDReplacement) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Volume & Brightness")
@@ -1445,11 +1553,11 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Battery
                 HStack(spacing: 12) {
                     BatteryHUDIcon()
-                    
+
                     Toggle(isOn: $enableBatteryHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Battery Status")
@@ -1468,11 +1576,11 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Caps Lock
                 HStack(spacing: 12) {
                     CapsLockHUDIcon()
-                    
+
                     Toggle(isOn: $enableCapsLockHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Caps Lock")
@@ -1486,16 +1594,18 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer
+                            && !enableBatteryHUD
+                        {
                             NotchWindowController.shared.closeWindow()
                         }
                     }
                 }
-                
+
                 // Droppy Updates
                 HStack(spacing: 12) {
                     UpdateHUDIcon()
-                    
+
                     Toggle(isOn: $enableUpdateHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Droppy Updates")
@@ -1509,16 +1619,19 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer
+                            && !enableBatteryHUD && !enableCapsLockHUD
+                        {
                             NotchWindowController.shared.closeWindow()
                         }
                     }
                 }
-                
+
                 // Notify me! (Notification HUD Extension)
                 HStack(spacing: 12) {
-                    NotificationHUDIcon(isEnabled: isNotificationHUDInstalled && enableNotificationHUD)
-                    
+                    NotificationHUDIcon(
+                        isEnabled: isNotificationHUDInstalled && enableNotificationHUD)
+
                     if isNotificationHUDInstalled {
                         // Extension is enabled - show toggle
                         Toggle(isOn: $enableNotificationHUD) {
@@ -1544,13 +1657,13 @@ struct SettingsView: View {
             } header: {
                 Text("System")
             }
-            
+
             // MARK: Peripherals
             Section {
                 // AirPods & Headphones
                 HStack(spacing: 12) {
                     AirPodsHUDIcon()
-                    
+
                     Toggle(isOn: $enableAirPodsHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("AirPods & Headphones")
@@ -1566,7 +1679,9 @@ struct SettingsView: View {
                         AirPodsManager.shared.startMonitoring()
                     } else {
                         AirPodsManager.shared.stopMonitoring()
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer
+                            && !enableBatteryHUD && !enableCapsLockHUD
+                        {
                             NotchWindowController.shared.closeWindow()
                         }
                     }
@@ -1574,13 +1689,13 @@ struct SettingsView: View {
             } header: {
                 Text("Audio")
             }
-            
+
             // MARK: Screen State (Focus Mode only - Lock Screen moved to dedicated tab)
             Section {
                 // Focus Mode
                 HStack(spacing: 12) {
                     FocusModeHUDIcon()
-                    
+
                     Toggle(isOn: $enableDNDHUD) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Focus Mode")
@@ -1597,7 +1712,10 @@ struct SettingsView: View {
                             showDNDAccessAlert = true
                         }
                     } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD && !enableLockScreenHUD {
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer
+                            && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD
+                            && !enableLockScreenHUD
+                        {
                             NotchWindowController.shared.closeWindow()
                         }
                     }
@@ -1608,7 +1726,7 @@ struct SettingsView: View {
                         isPresented: $showDNDAccessAlert
                     )
                 }
-                
+
                 if !DNDManager.shared.hasAccess && enableDNDHUD {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
@@ -1631,7 +1749,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     private var integrationsSettings: some View {
         ExtensionsShopView()
             .sheet(item: $deepLinkedExtension) { extensionType in
@@ -1643,7 +1761,8 @@ struct SettingsView: View {
                     WindowSnapInfoView(installCount: nil, rating: nil)
                 } else if extensionType == .elementCapture {
                     // Element Capture has its own detailed configuration view
-                    ElementCaptureInfoView(currentShortcut: .constant(nil), installCount: nil, rating: nil)
+                    ElementCaptureInfoView(
+                        currentShortcut: .constant(nil), installCount: nil, rating: nil)
                 } else if extensionType == .voiceTranscribe {
                     // Voice Transcribe has its own detailed configuration view
                     VoiceTranscribeInfoView(installCount: nil, rating: nil)
@@ -1659,28 +1778,34 @@ struct SettingsView: View {
                         // Handle action based on type
                         switch extensionType {
                         case .alfred:
-                            if let workflowPath = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
+                            if let workflowPath = Bundle.main.path(
+                                forResource: "Droppy", ofType: "alfredworkflow")
+                            {
                                 NSWorkspace.shared.open(URL(fileURLWithPath: workflowPath))
                             }
                         case .finder, .finderServices:
-                            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings")!)
+                            NSWorkspace.shared.open(
+                                URL(
+                                    string: "x-apple.systempreferences:com.apple.Keyboard-Settings")!
+                            )
                         case .spotify:
                             SpotifyAuthManager.shared.startAuthentication()
                         case .appleMusic:
                             AppleMusicController.shared.refreshState()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare, .notificationHUD:
-                            break // No action needed - these have their own configuration UI
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe,
+                            .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare,
+                            .notificationHUD:
+                            break  // No action needed - these have their own configuration UI
                         }
                     }
                 }
             }
     }
 
-    
     private var quickshareSettings: some View {
         QuickshareSettingsContent()
     }
-    
+
     private var appearanceSettings: some View {
         Group {
             // MARK: Visual Style
@@ -1693,7 +1818,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 HStack(spacing: 8) {
                     ExternalDisplayInfoButton()
                     Toggle(isOn: $hideNotchOnExternalDisplays) {
@@ -1705,40 +1830,46 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Show external display mode picker when not hidden
                 if !hideNotchOnExternalDisplays {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("External Display Style")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         HStack(spacing: 12) {
                             DisplayModeButton(
                                 title: "Notch",
                                 isSelected: !externalDisplayUseDynamicIsland,
                                 icon: {
                                     UShape()
-                                        .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            !externalDisplayUseDynamicIsland
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 externalDisplayUseDynamicIsland = false
                             }
-                            
+
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: externalDisplayUseDynamicIsland,
                                 icon: {
                                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            externalDisplayUseDynamicIsland
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
                                 externalDisplayUseDynamicIsland = true
                             }
                         }
-                        
+
                         // Note: Transparency for DI is controlled by the main "Transparent Background" toggle
                     }
                     .padding(.top, 4)
@@ -1746,7 +1877,7 @@ struct SettingsView: View {
             } header: {
                 Text("Visual Style")
             }
-            
+
             // MARK: Display Mode (Non-notch displays only)
             // MacBooks WITH a physical notch MUST use notch mode - no choice
             // Only non-notch Macs (iMacs, Mac minis, older MacBooks) can choose
@@ -1755,11 +1886,11 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Display Mode")
                             .font(.headline)
-                        
+
                         Text("Choose how Droppy appears at the top of your screen")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        
+
                         // Mode picker with visual icons
                         HStack(spacing: 12) {
                             // Notch Mode option
@@ -1768,27 +1899,33 @@ struct SettingsView: View {
                                 isSelected: !useDynamicIslandStyle,
                                 icon: {
                                     UShape()
-                                        .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            !useDynamicIslandStyle
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 60, height: 18)
                                 }
                             ) {
                                 useDynamicIslandStyle = false
                             }
-                            
+
                             // Dynamic Island Mode option
                             DisplayModeButton(
                                 title: "Dynamic Island",
                                 isSelected: useDynamicIslandStyle,
                                 icon: {
                                     Capsule()
-                                        .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                        .fill(
+                                            useDynamicIslandStyle
+                                                ? Color.blue : Color.white.opacity(0.5)
+                                        )
                                         .frame(width: 50, height: 16)
                                 }
                             ) {
                                 useDynamicIslandStyle = true
                             }
                         }
-                        
+
                         // Note: Transparency is controlled by the main "Transparent Background" toggle
                         // No separate toggle needed here - it applies globally to all DI views
                     }
@@ -1797,7 +1934,7 @@ struct SettingsView: View {
                     Text("Display Mode")
                 }
             }
-            
+
             // MARK: Shelf Behavior
             Section {
                 // Auto-Collapse toggle with delay slider
@@ -1809,7 +1946,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 if autoCollapseShelf {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -1822,7 +1959,7 @@ struct SettingsView: View {
                         Slider(value: $autoCollapseDelay, in: 0.1...2.0, step: 0.05)
                     }
                 }
-                
+
                 // Auto-Expand can be toggled, with delay slider
                 Toggle(isOn: $autoExpandShelf) {
                     VStack(alignment: .leading) {
@@ -1832,7 +1969,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 if autoExpandShelf {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -1848,12 +1985,12 @@ struct SettingsView: View {
             } header: {
                 Text("Shelf Behavior")
             }
-            
+
             // MARK: Indicators (merged from Accessibility tab)
             indicatorsSettings
         }
     }
-    
+
     private var indicatorsSettings: some View {
         Group {
             Section {
@@ -1865,7 +2002,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 Toggle(isOn: $hideNotchFromScreenshots) {
                     VStack(alignment: .leading) {
                         Text("Hide from Screenshots")
@@ -1878,7 +2015,7 @@ struct SettingsView: View {
                     // Apply the setting to the notch window
                     NotchWindowController.shared.updateScreenshotVisibility()
                 }
-                
+
                 Toggle(isOn: $enableRightClickHide) {
                     VStack(alignment: .leading) {
                         Text("Right-Click to Hide")
@@ -1887,7 +2024,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 Toggle(isOn: $enableHapticFeedback) {
                     VStack(alignment: .leading) {
                         Text("Haptic Feedback")
@@ -1903,7 +2040,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     private var aboutSettings: some View {
         Group {
             // MARK: About
@@ -1918,7 +2055,7 @@ struct SettingsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Droppy")
                             .font(.system(size: 20, weight: .semibold))
@@ -1932,13 +2069,13 @@ struct SettingsView: View {
                                 .foregroundStyle(.tertiary)
                         }
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.vertical, 4)
-                
+
                 LabeledContent("Developer", value: "Jordy Spruit")
-                
+
                 HStack {
                     Text("Introduction")
                     Spacer()
@@ -1956,7 +2093,7 @@ struct SettingsView: View {
             } header: {
                 Text("About")
             }
-            
+
             // MARK: Links
             Section {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -1965,19 +2102,19 @@ struct SettingsView: View {
                         icon: "globe",
                         url: "https://getdroppy.app"
                     )
-                    
+
                     LinkButton(
                         title: "GitHub",
                         icon: "chevron.left.forwardslash.chevron.right",
                         url: "https://github.com/iordv/Droppy"
                     )
-                    
+
                     LinkButton(
                         title: "Discord",
                         icon: "bubble.left.and.bubble.right.fill",
                         url: "https://discord.gg/uxqynmJb"
                     )
-                    
+
                     LinkButton(
                         title: "Support",
                         icon: "cup.and.heat.waves.fill",
@@ -1987,13 +2124,15 @@ struct SettingsView: View {
             } header: {
                 Text("Links")
             }
-            
+
             // MARK: Support
             Section {
-                Text("I'm Jordy, a solo developer building Droppy because I believe essential tools should be free. If you enjoy using it, a coffee would mean the world ❤️")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                
+                Text(
+                    "I'm Jordy, a solo developer building Droppy because I believe essential tools should be free. If you enjoy using it, a coffee would mean the world ❤️"
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
                 Link(destination: URL(string: "https://buymeacoffee.com/droppy")!) {
                     HStack {
                         Label("Buy me a coffee", systemImage: "cup.and.saucer.fill")
@@ -2006,7 +2145,7 @@ struct SettingsView: View {
             } header: {
                 Text("Support")
             }
-            
+
             // MARK: Reset
             Section {
                 Toggle(isOn: $hardResetIncludeClipboard) {
@@ -2017,7 +2156,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 HStack {
                     VStack(alignment: .leading) {
                         Text("Hard Reset")
@@ -2025,9 +2164,9 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     Spacer()
-                    
+
                     Button(role: .destructive) {
                         showHardResetConfirmation = true
                     } label: {
@@ -2046,9 +2185,11 @@ struct SettingsView: View {
                     performHardReset()
                 }
             } message: {
-                Text(hardResetIncludeClipboard
-                    ? "This will reset ALL settings and clear clipboard history. Droppy will restart."
-                    : "This will reset ALL settings (clipboard history will be preserved). Droppy will restart.")
+                Text(
+                    hardResetIncludeClipboard
+                        ? "This will reset ALL settings and clear clipboard history. Droppy will restart."
+                        : "This will reset ALL settings (clipboard history will be preserved). Droppy will restart."
+                )
             }
         }
         .onAppear {
@@ -2059,26 +2200,26 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     @State private var downloadCount: Int?
-    
+
     // MARK: - Hard Reset
-    
+
     /// Performs a complete reset of all Droppy settings
     /// This is designed to be 100% reliable - clears EVERYTHING
     private func performHardReset() {
         print("[HardReset] Starting complete reset...")
-        
+
         // Get the bundle identifier
         guard let bundleID = Bundle.main.bundleIdentifier else {
             print("[HardReset] ERROR: Failed to get bundle identifier")
             return
         }
-        
+
         // STEP 1: Backup clipboard data if user wants to preserve it
         var clipboardBackup: [String: Any] = [:]
         var clipboardFileBackup: URL?
-        
+
         if !hardResetIncludeClipboard {
             // Backup clipboard history from UserDefaults
             if let defaults = UserDefaults.standard.persistentDomain(forName: bundleID) {
@@ -2092,48 +2233,52 @@ struct SettingsView: View {
                     }
                 }
             }
-            
+
             // Backup clipboard persistence file if it exists
-            let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            let paths = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask)
             let clipboardFile = paths[0].appendingPathComponent("Droppy/clipboard.json")
             if FileManager.default.fileExists(atPath: clipboardFile.path) {
-                let tempBackup = FileManager.default.temporaryDirectory.appendingPathComponent("clipboard_backup.json")
+                let tempBackup = FileManager.default.temporaryDirectory.appendingPathComponent(
+                    "clipboard_backup.json")
                 try? FileManager.default.copyItem(at: clipboardFile, to: tempBackup)
                 clipboardFileBackup = tempBackup
             }
-            
+
             print("[HardReset] Backed up clipboard data (\(clipboardBackup.count) keys)")
         }
-        
+
         // STEP 2: Clear ALL UserDefaults for this app
         UserDefaults.standard.removePersistentDomain(forName: bundleID)
         UserDefaults.standard.synchronize()
         print("[HardReset] Cleared UserDefaults")
-        
+
         // STEP 3: Clear NSStatusItem position cache (system-level)
         // These are stored with prefix "NSStatusItem Preferred Position"
         let statusItemKeys = [
             "NSStatusItem Preferred Position DroppyMenuBarToggle",
             "NSStatusItem Preferred Position DroppyMenuBarDivider",
-            "NSStatusItem Preferred Position DroppyStatusItem"
+            "NSStatusItem Preferred Position DroppyStatusItem",
         ]
         for key in statusItemKeys {
             UserDefaults.standard.removeObject(forKey: key)
         }
         UserDefaults.standard.synchronize()
         print("[HardReset] Cleared status item positions")
-        
+
         // STEP 4: Clear Application Support folder
         let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
         let appSupportDir = paths[0].appendingPathComponent("Droppy", isDirectory: true)
-        
+
         if hardResetIncludeClipboard {
             // Delete entire Droppy folder
             try? FileManager.default.removeItem(at: appSupportDir)
             print("[HardReset] Deleted entire Application Support/Droppy folder")
         } else {
             // Delete everything EXCEPT clipboard files
-            if let contents = try? FileManager.default.contentsOfDirectory(at: appSupportDir, includingPropertiesForKeys: nil) {
+            if let contents = try? FileManager.default.contentsOfDirectory(
+                at: appSupportDir, includingPropertiesForKeys: nil)
+            {
                 for item in contents {
                     let filename = item.lastPathComponent.lowercased()
                     // Keep clipboard-related files
@@ -2149,7 +2294,7 @@ struct SettingsView: View {
             }
             print("[HardReset] Deleted Application Support contents (preserved clipboard)")
         }
-        
+
         // STEP 5: Restore clipboard if preserved
         if !hardResetIncludeClipboard {
             // Restore UserDefaults clipboard keys
@@ -2157,26 +2302,29 @@ struct SettingsView: View {
                 UserDefaults.standard.set(value, forKey: key)
             }
             UserDefaults.standard.synchronize()
-            
+
             // Restore clipboard file if backed up
             if let backupURL = clipboardFileBackup {
                 let clipboardFile = appSupportDir.appendingPathComponent("clipboard.json")
-                try? FileManager.default.createDirectory(at: appSupportDir, withIntermediateDirectories: true)
+                try? FileManager.default.createDirectory(
+                    at: appSupportDir, withIntermediateDirectories: true)
                 try? FileManager.default.moveItem(at: backupURL, to: clipboardFile)
             }
-            
+
             print("[HardReset] Restored clipboard data")
         }
-        
+
         // STEP 6: Clear Caches
-        if let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        if let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+            .first
+        {
             let droppyCaches = cachesDir.appendingPathComponent(bundleID, isDirectory: true)
             try? FileManager.default.removeItem(at: droppyCaches)
             print("[HardReset] Cleared caches")
         }
-        
+
         print("[HardReset] ✅ Reset complete - restarting app...")
-        
+
         // STEP 7: Restart app
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             // Relaunch the app using the bundle path
@@ -2186,56 +2334,65 @@ struct SettingsView: View {
             task.launchPath = "/usr/bin/open"
             task.arguments = [appPath]
             task.launch()
-            
+
             // Quit current instance
             NSApp.terminate(nil)
         }
     }
-    
+
     // MARK: - Clipboard
-    @AppStorage(AppPreferenceKey.showClipboardInMenuBar) private var showClipboardInMenuBar = PreferenceDefault.showClipboardInMenuBar
-    @AppStorage(AppPreferenceKey.enableClipboard) private var enableClipboard = PreferenceDefault.enableClipboard
-    @AppStorage(AppPreferenceKey.clipboardHistoryLimit) private var clipboardHistoryLimit = PreferenceDefault.clipboardHistoryLimit
-    @AppStorage(AppPreferenceKey.clipboardAutoFocusSearch) private var autoFocusSearch = PreferenceDefault.clipboardAutoFocusSearch
+    @AppStorage(AppPreferenceKey.showClipboardInMenuBar) private var showClipboardInMenuBar =
+        PreferenceDefault.showClipboardInMenuBar
+    @AppStorage(AppPreferenceKey.enableClipboard) private var enableClipboard = PreferenceDefault
+        .enableClipboard
+    @AppStorage(AppPreferenceKey.clipboardHistoryLimit) private var clipboardHistoryLimit =
+        PreferenceDefault.clipboardHistoryLimit
+    @AppStorage(AppPreferenceKey.clipboardAutoFocusSearch) private var autoFocusSearch =
+        PreferenceDefault.clipboardAutoFocusSearch
     @State private var currentShortcut: SavedShortcut?
     @State private var showAppPicker: Bool = false
     @ObservedObject private var clipboardManager = ClipboardManager.shared
-    
+
     // Custom Persistence for struct
     private func loadShortcut() {
         if let data = UserDefaults.standard.data(forKey: "clipboardShortcut"),
-           let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data)
+        {
             currentShortcut = decoded
         } else {
             // Default: Shift + Cmd + Space (49)
-            currentShortcut = SavedShortcut(keyCode: 49, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+            currentShortcut = SavedShortcut(
+                keyCode: 49, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
         }
     }
-    
+
     private func saveShortcut(_ shortcut: SavedShortcut?) {
         if let s = shortcut, let encoded = try? JSONEncoder().encode(s) {
             UserDefaults.standard.set(encoded, forKey: "clipboardShortcut")
             // Update active monitor
             if enableClipboard {
-                 ClipboardWindowController.shared.startMonitoringShortcut()
+                ClipboardWindowController.shared.startMonitoringShortcut()
             }
         }
     }
-    
+
     // MARK: - Copy+Favorite Shortcut (Issue #43)
-    @AppStorage(AppPreferenceKey.clipboardCopyFavoriteEnabled) private var copyFavoriteEnabled = PreferenceDefault.clipboardCopyFavoriteEnabled
+    @AppStorage(AppPreferenceKey.clipboardCopyFavoriteEnabled) private var copyFavoriteEnabled =
+        PreferenceDefault.clipboardCopyFavoriteEnabled
     @State private var copyFavoriteShortcut: SavedShortcut?
-    
+
     private func loadCopyFavoriteShortcut() {
         if let data = UserDefaults.standard.data(forKey: "clipboardCopyFavoriteShortcut"),
-           let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data)
+        {
             copyFavoriteShortcut = decoded
         } else {
             // Default: Cmd+Shift+C
-            copyFavoriteShortcut = SavedShortcut(keyCode: 8, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
+            copyFavoriteShortcut = SavedShortcut(
+                keyCode: 8, modifiers: NSEvent.ModifierFlags([.command, .shift]).rawValue)
         }
     }
-    
+
     private func saveCopyFavoriteShortcut(_ shortcut: SavedShortcut?) {
         if let s = shortcut, let encoded = try? JSONEncoder().encode(s) {
             UserDefaults.standard.set(encoded, forKey: "clipboardCopyFavoriteShortcut")
@@ -2245,7 +2402,7 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     private var clipboardSettings: some View {
         Section {
             HStack(spacing: 8) {
@@ -2259,7 +2416,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            
+
             Toggle(isOn: $showClipboardInMenuBar) {
                 VStack(alignment: .leading) {
                     Text("Show in Menu Bar")
@@ -2278,7 +2435,7 @@ struct SettingsView: View {
                         PermissionManager.shared.requestAccessibility()
                         print("Prompting for Accessibility permissions")
                     }
-                    
+
                     ClipboardManager.shared.startMonitoring()
                     ClipboardWindowController.shared.startMonitoringShortcut()
                 } else {
@@ -2287,22 +2444,23 @@ struct SettingsView: View {
                     ClipboardWindowController.shared.close()
                 }
             }
-            
+
             if enableClipboard {
                 ClipboardPreview()
-                
+
                 HStack {
                     Text("Global Shortcut")
                     Spacer()
-                    KeyShortcutRecorder(shortcut: Binding(
-                        get: { currentShortcut },
-                        set: { newVal in
-                            currentShortcut = newVal
-                            saveShortcut(newVal)
-                        }
-                    ))
+                    KeyShortcutRecorder(
+                        shortcut: Binding(
+                            get: { currentShortcut },
+                            set: { newVal in
+                                currentShortcut = newVal
+                                saveShortcut(newVal)
+                            }
+                        ))
                 }
-                
+
                 VStack(spacing: 10) {
                     HStack {
                         Text("History Limit")
@@ -2310,17 +2468,19 @@ struct SettingsView: View {
                         Text("\(clipboardHistoryLimit) items")
                             .foregroundStyle(.secondary)
                     }
-                    
-                    Slider(value: Binding(
-                        get: { Double(clipboardHistoryLimit) },
-                        set: { clipboardHistoryLimit = Int($0) }
-                    ), in: 10...200, step: 10)
+
+                    Slider(
+                        value: Binding(
+                            get: { Double(clipboardHistoryLimit) },
+                            set: { clipboardHistoryLimit = Int($0) }
+                        ), in: 10...200, step: 10
+                    )
                     .accentColor(.cyan)
                 }
                 .onChange(of: clipboardHistoryLimit) { _, _ in
                     ClipboardManager.shared.enforceHistoryLimit()
                 }
-                
+
                 // Skip passwords toggle
                 Toggle(isOn: $clipboardManager.skipConcealedContent) {
                     VStack(alignment: .leading) {
@@ -2330,7 +2490,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 // Copy+Favorite Shortcut (Issue #43)
                 Toggle(isOn: $copyFavoriteEnabled) {
                     VStack(alignment: .leading) {
@@ -2347,21 +2507,22 @@ struct SettingsView: View {
                         ClipboardWindowController.shared.stopCopyFavoriteShortcut()
                     }
                 }
-                
+
                 if copyFavoriteEnabled {
                     HStack {
                         Text("Shortcut")
                         Spacer()
-                        KeyShortcutRecorder(shortcut: Binding(
-                            get: { copyFavoriteShortcut },
-                            set: { newVal in
-                                copyFavoriteShortcut = newVal
-                                saveCopyFavoriteShortcut(newVal)
-                            }
-                        ))
+                        KeyShortcutRecorder(
+                            shortcut: Binding(
+                                get: { copyFavoriteShortcut },
+                                set: { newVal in
+                                    copyFavoriteShortcut = newVal
+                                    saveCopyFavoriteShortcut(newVal)
+                                }
+                            ))
                     }
                 }
-                
+
                 // Auto-focus search toggle (advanced - at bottom)
                 Toggle(isOn: $autoFocusSearch) {
                     VStack(alignment: .leading) {
@@ -2389,21 +2550,23 @@ struct SettingsView: View {
                 .sheet(isPresented: $showAutoFocusSearchWarning) {
                     AutoFocusSearchInfoSheet(autoFocusSearch: $autoFocusSearch)
                 }
-                
+
                 // MARK: - Excluded Apps Section
                 excludedAppsSection
             }
         } header: {
             Text("Clipboard")
         } footer: {
-            Text("Requires Accessibility permissions to paste. Shortcuts may conflict with other apps.")
+            Text(
+                "Requires Accessibility permissions to paste. Shortcuts may conflict with other apps."
+            )
         }
         .onAppear {
             loadShortcut()
             loadCopyFavoriteShortcut()
         }
     }
-    
+
     // MARK: - Excluded Apps Section
     private var excludedAppsSection: some View {
         Section {
@@ -2411,7 +2574,9 @@ struct SettingsView: View {
             ForEach(Array(clipboardManager.excludedApps).sorted(), id: \.self) { bundleID in
                 HStack(spacing: 12) {
                     // App icon
-                    if let appPath = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                    if let appPath = NSWorkspace.shared.urlForApplication(
+                        withBundleIdentifier: bundleID)
+                    {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: appPath.path))
                             .resizable()
                             .frame(width: 24, height: 24)
@@ -2422,7 +2587,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
                     }
-                    
+
                     // App name
                     VStack(alignment: .leading) {
                         Text(appName(for: bundleID))
@@ -2431,9 +2596,9 @@ struct SettingsView: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
-                    
+
                     Spacer()
-                    
+
                     // Remove button
                     Button {
                         withAnimation(DroppyAnimation.state) {
@@ -2448,7 +2613,7 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
             }
-            
+
             // Add app button
             Button {
                 showAppPicker = true
@@ -2465,19 +2630,21 @@ struct SettingsView: View {
         } header: {
             Text("Excluded Apps")
         } footer: {
-            Text("Clipboard entries from these apps won't be recorded. Useful for password managers.")
+            Text(
+                "Clipboard entries from these apps won't be recorded. Useful for password managers."
+            )
         }
     }
-    
+
     // MARK: - App Picker View
     private var appPickerView: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Select App to Exclude")
                 .font(.headline)
                 .padding()
-            
+
             Divider()
-            
+
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(runningApps, id: \.bundleIdentifier) { app in
@@ -2494,9 +2661,10 @@ struct SettingsView: View {
                                     Image(nsImage: icon)
                                         .resizable()
                                         .frame(width: 28, height: 28)
-                                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                        .clipShape(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 }
-                                
+
                                 VStack(alignment: .leading) {
                                     Text(app.localizedName ?? "Unknown")
                                         .font(.body)
@@ -2507,11 +2675,12 @@ struct SettingsView: View {
                                             .foregroundStyle(.tertiary)
                                     }
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 if let bundleID = app.bundleIdentifier,
-                                   clipboardManager.isAppExcluded(bundleID) {
+                                    clipboardManager.isAppExcluded(bundleID)
+                                {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.green)
                                 }
@@ -2520,7 +2689,10 @@ struct SettingsView: View {
                             .padding(.vertical, 8)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(DroppySelectableButtonStyle(isSelected: clipboardManager.isAppExcluded(app.bundleIdentifier ?? "")))
+                        .buttonStyle(
+                            DroppySelectableButtonStyle(
+                                isSelected: clipboardManager.isAppExcluded(
+                                    app.bundleIdentifier ?? "")))
                     }
                 }
                 .padding(.vertical, 8)
@@ -2529,14 +2701,16 @@ struct SettingsView: View {
         }
         .background(.ultraThinMaterial)
     }
-    
+
     // MARK: - Helper Properties
     private var runningApps: [NSRunningApplication] {
         NSWorkspace.shared.runningApplications
-            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil && $0.icon != nil }
+            .filter {
+                $0.activationPolicy == .regular && $0.bundleIdentifier != nil && $0.icon != nil
+            }
             .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
     }
-    
+
     private func appName(for bundleID: String) -> String {
         if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
             return FileManager.default.displayName(atPath: appURL.path)
@@ -2568,7 +2742,7 @@ struct LaunchAtLoginManager {
 struct AutoSelectNumberField: NSViewRepresentable {
     @Binding var value: Int
     @Binding var isEditing: Bool
-    
+
     func makeNSView(context: Context) -> ClickSelectingTextField {
         let textField = ClickSelectingTextField()
         textField.delegate = context.coordinator
@@ -2580,44 +2754,44 @@ struct AutoSelectNumberField: NSViewRepresentable {
         textField.alignment = .center
         textField.focusRingType = .none
         textField.stringValue = String(value)
-        
+
         // Route focus changes to the coordinator
         textField.onFocusChange = { [weak coordinator = context.coordinator] isFocused in
             coordinator?.didChangeFocus(isFocused)
         }
-        
+
         return textField
     }
-    
+
     func updateNSView(_ nsView: ClickSelectingTextField, context: Context) {
         // Critical: Update parent reference so Coorindator has the latest Binding
         context.coordinator.parent = self
-        
+
         if !isEditing && nsView.stringValue != String(value) {
             nsView.stringValue = String(value)
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: AutoSelectNumberField
-        
+
         init(_ parent: AutoSelectNumberField) {
             self.parent = parent
         }
-        
+
         func didChangeFocus(_ isFocused: Bool) {
             // Update immediately to ensure UI is responsive
             self.parent.isEditing = isFocused
         }
-        
+
         func controlTextDidBeginEditing(_ obj: Notification) {
-             didChangeFocus(true)
+            didChangeFocus(true)
         }
-        
+
         func controlTextDidEndEditing(_ obj: Notification) {
             // Use async here to allow value validation logic to complete
             DispatchQueue.main.async {
@@ -2631,8 +2805,10 @@ struct AutoSelectNumberField: NSViewRepresentable {
                 }
             }
         }
-        
-        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+
+        func control(
+            _ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector
+        ) -> Bool {
             if commandSelector == #selector(NSResponder.insertNewline(_:)) {
                 if let textField = control as? NSTextField {
                     textField.window?.makeFirstResponder(nil)
@@ -2647,7 +2823,7 @@ struct AutoSelectNumberField: NSViewRepresentable {
 class ClickSelectingTextField: NSTextField {
     // Callback to notify parent of focus changes immediately
     var onFocusChange: ((Bool) -> Void)?
-    
+
     override func becomeFirstResponder() -> Bool {
         let success = super.becomeFirstResponder()
         if success {
@@ -2657,7 +2833,7 @@ class ClickSelectingTextField: NSTextField {
         }
         return success
     }
-    
+
     override func resignFirstResponder() -> Bool {
         let success = super.resignFirstResponder()
         if success {
@@ -2665,16 +2841,16 @@ class ClickSelectingTextField: NSTextField {
         }
         return success
     }
-    
+
     override func mouseDown(with event: NSEvent) {
         // Ensure standard click processing happens
         super.mouseDown(with: event)
-        
+
         // Then force selection
         if let textEditor = self.currentEditor() {
             textEditor.selectAll(nil)
         }
-        
+
         // And notify focus
         onFocusChange?(true)
     }
@@ -2685,7 +2861,7 @@ class ClickSelectingTextField: NSTextField {
 /// Info button that shows a popover explaining the swipe gesture for media/shelf switching
 struct SwipeGestureInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2698,15 +2874,18 @@ struct SwipeGestureInfoButton: View {
             .popover(isPresented: $showPopover, arrowEdge: .leading) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
-                        PremiumSettingsIcon(icon: "hand.draw.fill", baseHue: 0.95, size: 32, iconSize: 16)
+                        PremiumSettingsIcon(
+                            icon: "hand.draw.fill", baseHue: 0.95, size: 32, iconSize: 16)
                         Text("Swipe Gesture")
                             .font(.headline)
                     }
-                    
-                    Text("Swipe left or right on the notch to switch between Media Controls and the File Shelf.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Swipe left or right on the notch to switch between Media Controls and the File Shelf."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Swipe left → Media Controls", systemImage: "music.note")
                         Label("Swipe right → File Shelf", systemImage: "tray.and.arrow.down.fill")
@@ -2726,9 +2905,10 @@ struct SwipeGestureInfoButton: View {
 
 /// Info button explaining right-click to hide and show
 struct NotchShelfInfoButton: View {
-    @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
+    @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide =
+        PreferenceDefault.enableRightClickHide
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2747,14 +2927,16 @@ struct NotchShelfInfoButton: View {
                         Text("Notch Shelf")
                             .font(.headline)
                     }
-                    
+
                     Text("A file shelf that lives in your Mac's notch or as a Dynamic Island.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
                         if enableRightClickHide {
-                            Label("Right-click to hide the notch/island", systemImage: "cursorarrow.click.2")
+                            Label(
+                                "Right-click to hide the notch/island",
+                                systemImage: "cursorarrow.click.2")
                             Label("Right-click the area again to show", systemImage: "eye")
                         }
                         Label("Or use the menu bar icon", systemImage: "menubar.arrow.up.rectangle")
@@ -2775,7 +2957,7 @@ struct NotchShelfInfoButton: View {
 /// Info button explaining the jiggle gesture to summon basket
 struct BasketGestureInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2794,14 +2976,16 @@ struct BasketGestureInfoButton: View {
                         Text("Summon Basket")
                             .font(.headline)
                     }
-                    
+
                     Text("Shake files side-to-side while dragging to summon the floating basket.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Works with any file you're dragging", systemImage: "doc.fill")
-                        Label("Basket appears after 2-3 quick shakes", systemImage: "arrow.left.arrow.right")
+                        Label(
+                            "Basket appears after 2-3 quick shakes",
+                            systemImage: "arrow.left.arrow.right")
                         Label("Drop files into the basket", systemImage: "tray.and.arrow.down")
                     }
                     .font(.caption)
@@ -2819,7 +3003,7 @@ struct BasketGestureInfoButton: View {
 /// Info button explaining auto-hide with peek behavior
 struct PeekModeInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2838,11 +3022,13 @@ struct PeekModeInfoButton: View {
                         Text("Peek Mode")
                             .font(.headline)
                     }
-                    
-                    Text("Basket slides to the screen edge when idle and peeks out so you can hover to reveal it.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Basket slides to the screen edge when idle and peeks out so you can hover to reveal it."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Slides to edge when not in use", systemImage: "arrow.right.to.line")
                         Label("Hover the edge to reveal basket", systemImage: "cursorarrow.rays")
@@ -2863,7 +3049,7 @@ struct PeekModeInfoButton: View {
 /// Info button explaining instant basket appear on drag
 struct InstantAppearInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2882,13 +3068,14 @@ struct InstantAppearInfoButton: View {
                         Text("Instant Appear")
                             .font(.headline)
                     }
-                    
+
                     Text("Basket appears immediately when you start dragging a file.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("No delay when dragging starts", systemImage: "hand.point.up.left.fill")
+                        Label(
+                            "No delay when dragging starts", systemImage: "hand.point.up.left.fill")
                         Label("Basket is ready right away", systemImage: "basket.fill")
                         Label("Great for quick file staging", systemImage: "bolt")
                     }
@@ -2907,7 +3094,7 @@ struct InstantAppearInfoButton: View {
 /// Info button explaining the AirDrop drop zone
 struct AirDropZoneInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2926,15 +3113,19 @@ struct AirDropZoneInfoButton: View {
                         Text("AirDrop Zone")
                             .font(.headline)
                     }
-                    
-                    Text("Drop files on the right side of shelf/basket to instantly open the AirDrop picker.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Drop files on the right side of shelf/basket to instantly open the AirDrop picker."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Drop on the right edge", systemImage: "arrow.right.circle")
                         Label("Opens system AirDrop picker", systemImage: "person.2.wave.2")
-                        Label("Select a nearby device to send", systemImage: "iphone.and.arrow.right.outward")
+                        Label(
+                            "Select a nearby device to send",
+                            systemImage: "iphone.and.arrow.right.outward")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -2951,7 +3142,7 @@ struct AirDropZoneInfoButton: View {
 /// Info button explaining the Clear After Drop feature
 struct AutoCleanInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -2970,11 +3161,13 @@ struct AutoCleanInfoButton: View {
                         Text("Auto-Remove")
                             .font(.headline)
                     }
-                    
-                    Text("Automatically removes items from shelf/basket after you drop them somewhere.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Automatically removes items from shelf/basket after you drop them somewhere."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Clears item from shelf/basket", systemImage: "xmark.circle")
                         Label("Original file is NOT deleted", systemImage: "doc.text")
@@ -2995,7 +3188,7 @@ struct AutoCleanInfoButton: View {
 /// Info button explaining the Protect Originals feature
 struct AlwaysCopyInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3014,15 +3207,19 @@ struct AlwaysCopyInfoButton: View {
                         Text("Protect Originals")
                             .font(.headline)
                     }
-                    
-                    Text("When enabled, files are always copied instead of moved, keeping originals safe.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "When enabled, files are always copied instead of moved, keeping originals safe."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Files are copied, never moved", systemImage: "doc.on.doc")
                         Label("Original stays at source location", systemImage: "lock.shield")
-                        Label("When disabled: same disk = may move", systemImage: "exclamationmark.triangle")
+                        Label(
+                            "When disabled: same disk = may move",
+                            systemImage: "exclamationmark.triangle")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -3039,32 +3236,33 @@ struct AlwaysCopyInfoButton: View {
 /// Warning sheet shown when user disables Protect Originals
 struct ProtectOriginalsWarningSheet: View {
     @Binding var alwaysCopyOnDrag: Bool
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringConfirm = false
     @State private var isHoveringCancel = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: false)
-                
+
                 Text("Disable File Protection?")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 Text("When you disable this setting:")
                     .font(.callout.weight(.medium))
-                
+
                 // Card with explanation items
                 VStack(spacing: 0) {
                     // Warning item
@@ -3084,7 +3282,7 @@ struct ProtectOriginalsWarningSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "doc.on.doc")
@@ -3109,10 +3307,10 @@ struct ProtectOriginalsWarningSheet: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Buttons (secondary left, Spacer, primary right)
             HStack(spacing: 8) {
                 // Disable Anyway (secondary - left)
@@ -3122,9 +3320,9 @@ struct ProtectOriginalsWarningSheet: View {
                     Text("Disable Anyway")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // Keep Protection (primary - right)
                 Button {
                     alwaysCopyOnDrag = true
@@ -3138,7 +3336,10 @@ struct ProtectOriginalsWarningSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -3148,32 +3349,33 @@ struct ProtectOriginalsWarningSheet: View {
 /// Info sheet shown when user enables Stabilize Media (advanced feature)
 struct StabilizeMediaInfoSheet: View {
     @Binding var debounceMediaChanges: Bool
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringDisable = false
     @State private var isHoveringKeep = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: true)
-                
+
                 Text("Stabilize Media Enabled")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 Text("What this does:")
                     .font(.callout.weight(.medium))
-                
+
                 // Card with explanation items
                 VStack(spacing: 0) {
                     // Info item 1
@@ -3193,7 +3395,7 @@ struct StabilizeMediaInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 2
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "sparkles")
@@ -3211,7 +3413,7 @@ struct StabilizeMediaInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 3
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
@@ -3236,10 +3438,10 @@ struct StabilizeMediaInfoSheet: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Buttons (secondary left, Spacer, primary right)
             HStack(spacing: 8) {
                 // Disable (secondary - left)
@@ -3250,9 +3452,9 @@ struct StabilizeMediaInfoSheet: View {
                     Text("Disable")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // Keep Enabled (primary - right)
                 Button {
                     dismiss()
@@ -3265,7 +3467,10 @@ struct StabilizeMediaInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -3275,32 +3480,33 @@ struct StabilizeMediaInfoSheet: View {
 /// Info sheet shown when user enables Auto-Focus Search (advanced feature)
 struct AutoFocusSearchInfoSheet: View {
     @Binding var autoFocusSearch: Bool
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringDisable = false
     @State private var isHoveringKeep = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: true)
-                
+
                 Text("Auto-Focus Search Enabled")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 Text("What this does:")
                     .font(.callout.weight(.medium))
-                
+
                 // Card with explanation items
                 VStack(spacing: 0) {
                     // Info item 1
@@ -3320,7 +3526,7 @@ struct AutoFocusSearchInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 2
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "keyboard")
@@ -3338,7 +3544,7 @@ struct AutoFocusSearchInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 3
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "exclamationmark.triangle")
@@ -3363,10 +3569,10 @@ struct AutoFocusSearchInfoSheet: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Buttons (secondary left, Spacer, primary right)
             HStack(spacing: 8) {
                 // Disable (secondary - left)
@@ -3377,9 +3583,9 @@ struct AutoFocusSearchInfoSheet: View {
                     Text("Disable")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // Keep Enabled (primary - right)
                 Button {
                     dismiss()
@@ -3392,7 +3598,10 @@ struct AutoFocusSearchInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -3403,31 +3612,32 @@ struct AutoFocusSearchInfoSheet: View {
 struct FullDiskAccessSheet: View {
     @Binding var enableDNDHUD: Bool
     @Binding var isPresented: Bool
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @State private var isHoveringOpen = false
     @State private var isHoveringGranted = false
     @State private var isHoveringCancel = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: false)
-                
+
                 Text("Full Disk Access Required")
                     .font(.title2.bold())
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 Text("To detect Focus mode changes:")
                     .font(.callout.weight(.medium))
-                
+
                 // Steps card
                 VStack(spacing: 0) {
                     stepRow(number: "1", text: "Click \"Open Settings\"", isFirst: true)
@@ -3443,10 +3653,10 @@ struct FullDiskAccessSheet: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Buttons
             HStack(spacing: 8) {
                 // Cancel (secondary - left)
@@ -3457,9 +3667,9 @@ struct FullDiskAccessSheet: View {
                     Text("Cancel")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // I've Granted Access
                 Button {
                     DNDManager.shared.recheckAccess()
@@ -3468,10 +3678,13 @@ struct FullDiskAccessSheet: View {
                     Text("I've Granted Access")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 // Open Settings (primary - right)
                 Button {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") {
+                    if let url = URL(
+                        string:
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+                    ) {
                         NSWorkspace.shared.open(url)
                     }
                 } label: {
@@ -3483,11 +3696,16 @@ struct FullDiskAccessSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
-    
-    private func stepRow(number: String, text: String, isFirst: Bool = false, isLast: Bool = false) -> some View {
+
+    private func stepRow(number: String, text: String, isFirst: Bool = false, isLast: Bool = false)
+        -> some View
+    {
         HStack(alignment: .center, spacing: 12) {
             Text(number)
                 .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -3495,7 +3713,7 @@ struct FullDiskAccessSheet: View {
                 .frame(width: 22, height: 22)
                 .background(Color.blue.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            
+
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.primary.opacity(0.85))
@@ -3518,25 +3736,26 @@ struct FullDiskAccessSheet: View {
 struct MenuBarHiddenSheet: View {
     @Binding var isPresented: Bool
     var onConfirm: () -> Void
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @State private var isHoveringHide = false
     @State private var isHoveringCancel = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: false)
-                
+
                 Text("Hide Menu Bar Icon?")
                     .font(.title2.bold())
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 // Info card
@@ -3564,10 +3783,10 @@ struct MenuBarHiddenSheet: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Buttons
             HStack(spacing: 8) {
                 // Cancel (secondary - left)
@@ -3577,9 +3796,9 @@ struct MenuBarHiddenSheet: View {
                     Text("Cancel")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // Hide Icon (primary - right)
                 Button {
                     isPresented = false
@@ -3596,7 +3815,10 @@ struct MenuBarHiddenSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -3604,7 +3826,7 @@ struct MenuBarHiddenSheet: View {
 // MARK: - Power Folders Info Button
 struct PowerFoldersInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3623,14 +3845,18 @@ struct PowerFoldersInfoButton: View {
                         Text("Power Folders")
                             .font(.headline)
                     }
-                    
-                    Text("Drop folders onto Droppy to pin them. Pinned folders stay accessible and you can drop files directly into them.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Drop folders onto Droppy to pin them. Pinned folders stay accessible and you can drop files directly into them."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Pin folders to keep them accessible", systemImage: "pin.fill")
-                        Label("Drop files directly into pinned folders", systemImage: "arrow.right.doc.on.clipboard")
+                        Label(
+                            "Drop files directly into pinned folders",
+                            systemImage: "arrow.right.doc.on.clipboard")
                         Label("Hover to preview folder contents", systemImage: "eye")
                     }
                     .font(.caption)
@@ -3649,7 +3875,7 @@ struct PowerFoldersInfoButton: View {
 struct ClipboardShortcutInfoButton: View {
     var shortcut: SavedShortcut?
     @State private var showPopover = false
-    
+
     /// Parse shortcut into display string
     private var shortcutString: String {
         guard let s = shortcut else { return "⌘⇧Space" }
@@ -3662,7 +3888,7 @@ struct ClipboardShortcutInfoButton: View {
         parts.append(KeyCodeHelper.string(for: UInt16(s.keyCode)))
         return parts.joined()
     }
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3681,11 +3907,11 @@ struct ClipboardShortcutInfoButton: View {
                         Text("Clipboard Tips")
                             .font(.headline)
                     }
-                    
+
                     Text("Press \(shortcutString) to quickly access your clipboard history.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Shortcut opens clipboard panel", systemImage: "keyboard")
                         Label("Click to paste any item", systemImage: "doc.on.doc")
@@ -3706,7 +3932,7 @@ struct KeyCapView: View {
     let key: String
     var color: Color = .white
     var isWide: Bool = false
-    
+
     var body: some View {
         Text(key)
             .font(.system(size: isWide ? 11 : 14, weight: .semibold, design: .rounded))
@@ -3715,7 +3941,11 @@ struct KeyCapView: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(LinearGradient(colors: [color.opacity(0.2), color.opacity(0.1)], startPoint: .top, endPoint: .bottom))
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.2), color.opacity(0.1)], startPoint: .top,
+                            endPoint: .bottom)
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .stroke(color.opacity(0.3), lineWidth: 1)
@@ -3730,7 +3960,7 @@ struct KeyCapView: View {
 /// Info button explaining external display behavior
 struct ExternalDisplayInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3749,13 +3979,17 @@ struct ExternalDisplayInfoButton: View {
                         Text("External Display")
                             .font(.headline)
                     }
-                    
-                    Text("Configure how Droppy appears on external monitors that don't have a notch.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
+
+                    Text(
+                        "Configure how Droppy appears on external monitors that don't have a notch."
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("Choose Notch or Dynamic Island style", systemImage: "rectangle.topthird.inset.filled")
+                        Label(
+                            "Choose Notch or Dynamic Island style",
+                            systemImage: "rectangle.topthird.inset.filled")
                         Label("Or hide Droppy on external displays", systemImage: "eye.slash")
                         Label("Works independently for each display", systemImage: "display.2")
                     }
@@ -3773,7 +4007,7 @@ struct ExternalDisplayInfoButton: View {
 
 struct QuickActionsInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3792,14 +4026,18 @@ struct QuickActionsInfoButton: View {
                         Text("Quick Actions")
                             .font(.headline)
                     }
-                    
+
                     Text("Adds Select All and Add All buttons for faster batch operations.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("Select All selects all items at once", systemImage: "checkmark.circle.fill")
-                        Label("Add All copies items to Finder folder", systemImage: "plus.circle.fill")
+                        Label(
+                            "Select All selects all items at once",
+                            systemImage: "checkmark.circle.fill")
+                        Label(
+                            "Add All copies items to Finder folder", systemImage: "plus.circle.fill"
+                        )
                         Label("Great for managing many files", systemImage: "doc.on.doc")
                     }
                     .font(.caption)
@@ -3817,32 +4055,33 @@ struct QuickActionsInfoButton: View {
 /// Info sheet shown when user enables Quick Actions (advanced feature)
 struct QuickActionsInfoSheet: View {
     @Binding var enableQuickActions: Bool
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
+        PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringDisable = false
     @State private var isHoveringKeep = false
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
                 NotchFace(size: 60, isExcited: true)
-                
+
                 Text("Quick Actions Enabled")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
             }
             .padding(.top, 28)
             .padding(.bottom, 20)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Content
             VStack(alignment: .center, spacing: 16) {
                 Text("What this does:")
                     .font(.callout.weight(.medium))
-                
+
                 // Card with explanation items
                 VStack(spacing: 0) {
                     // Info item 1 - Select All
@@ -3862,16 +4101,18 @@ struct QuickActionsInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 2 - Add All
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "plus.circle.fill")
                             .foregroundStyle(.green)
                             .font(.system(size: 14))
                             .frame(width: 22)
-                        Text("When all selected, button becomes \"Add All\" to copy files to the frontmost Finder folder")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.primary.opacity(0.85))
+                        Text(
+                            "When all selected, button becomes \"Add All\" to copy files to the frontmost Finder folder"
+                        )
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary.opacity(0.85))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -3880,7 +4121,7 @@ struct QuickActionsInfoSheet: View {
                     .overlay(alignment: .bottom) {
                         Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
                     }
-                    
+
                     // Info item 3 - Deselect
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "hand.tap.fill")
@@ -3903,10 +4144,10 @@ struct QuickActionsInfoSheet: View {
                 )
             }
             .padding(24)
-            
+
             Divider()
                 .padding(.horizontal, 24)
-            
+
             // Footer with buttons
             HStack {
                 // Disable (secondary - left)
@@ -3917,9 +4158,9 @@ struct QuickActionsInfoSheet: View {
                     Text("Disable")
                 }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
+
                 Spacer()
-                
+
                 // Keep Enabled (primary - right)
                 Button {
                     dismiss()
@@ -3932,7 +4173,10 @@ struct QuickActionsInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
@@ -3942,7 +4186,7 @@ struct QuickActionsInfoSheet: View {
 /// Info button for Tracked Folders feature
 struct TrackedFoldersInfoButton: View {
     @State private var showPopover = false
-    
+
     var body: some View {
         Image(systemName: "info.circle")
             .font(.system(size: 16))
@@ -3961,14 +4205,16 @@ struct TrackedFoldersInfoButton: View {
                         Text("Tracked Folders")
                             .font(.headline)
                     }
-                    
+
                     Text("Monitor folders for new files and automatically add them to Droppy.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    
+
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Watch Downloads, Desktop, or any folder", systemImage: "folder")
-                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.right.circle")
+                        Label(
+                            "New files trigger shelf or basket automatically",
+                            systemImage: "arrow.right.circle")
                         Label("Choose destination per folder", systemImage: "tray.2")
                     }
                     .font(.caption)
@@ -3983,11 +4229,12 @@ struct TrackedFoldersInfoButton: View {
 
 /// Settings row for Tracked Folders feature
 struct TrackedFoldersSettingsRow: View {
-    @AppStorage(AppPreferenceKey.enableTrackedFolders) private var enableTrackedFolders = PreferenceDefault.enableTrackedFolders
+    @AppStorage(AppPreferenceKey.enableTrackedFolders) private var enableTrackedFolders =
+        PreferenceDefault.enableTrackedFolders
     @StateObject private var manager = TrackedFoldersManager.shared
     @State private var showFolderPicker = false
     @State private var newFolderDestination: TrackedFolderDestination = .basket
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Main toggle
@@ -4018,7 +4265,7 @@ struct TrackedFoldersSettingsRow: View {
                     manager.stopMonitoring()
                 }
             }
-            
+
             // Folder list (when enabled)
             if enableTrackedFolders {
                 VStack(alignment: .leading, spacing: 8) {
@@ -4026,7 +4273,7 @@ struct TrackedFoldersSettingsRow: View {
                     ForEach(manager.watchedFolders) { folder in
                         WatchedFolderRow(folder: folder, manager: manager)
                     }
-                    
+
                     // Add folder button
                     HStack(spacing: 8) {
                         Button {
@@ -4038,9 +4285,9 @@ struct TrackedFoldersSettingsRow: View {
                             }
                         }
                         .buttonStyle(DroppyPillButtonStyle(size: .small))
-                        
+
                         Spacer()
-                        
+
                         // Destination picker for new folder
                         Picker("Add to", selection: $newFolderDestination) {
                             ForEach(TrackedFolderDestination.allCases, id: \.self) { dest in
@@ -4073,14 +4320,14 @@ struct WatchedFolderRow: View {
     let folder: WatchedFolder
     let manager: TrackedFoldersManager
     @State private var isHovering = false
-    
+
     var body: some View {
         HStack(spacing: 10) {
             // Folder icon
             Image(systemName: "folder.fill")
                 .font(.system(size: 16))
                 .foregroundStyle(.blue.opacity(0.8))
-            
+
             // Folder name and path
             VStack(alignment: .leading, spacing: 2) {
                 Text(folder.displayName)
@@ -4092,14 +4339,17 @@ struct WatchedFolderRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            
+
             Spacer()
-            
+
             // Destination picker
-            Picker("", selection: Binding(
-                get: { folder.destination },
-                set: { manager.updateDestination(for: folder.id, to: $0) }
-            )) {
+            Picker(
+                "",
+                selection: Binding(
+                    get: { folder.destination },
+                    set: { manager.updateDestination(for: folder.id, to: $0) }
+                )
+            ) {
                 ForEach(TrackedFolderDestination.allCases, id: \.self) { dest in
                     Label(dest.displayName, systemImage: dest.icon)
                         .tag(dest)
@@ -4107,7 +4357,7 @@ struct WatchedFolderRow: View {
             }
             .pickerStyle(.menu)
             .frame(width: 140)
-            
+
             // Remove button
             Button {
                 manager.removeFolder(folder.id)

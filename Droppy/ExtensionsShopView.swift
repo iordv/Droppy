@@ -8,8 +8,8 @@ struct ExtensionsShopView: View {
     @Namespace private var categoryAnimation
     @State private var extensionCounts: [String: Int] = [:]
     @State private var extensionRatings: [String: AnalyticsService.ExtensionRating] = [:]
-    @State private var refreshTrigger = UUID() // Force view refresh
-    
+    @State private var refreshTrigger = UUID()  // Force view refresh
+
     // MARK: - Installed State Checks
     private var isAIInstalled: Bool { AIInstallManager.shared.isInstalled }
     private var isAlfredInstalled: Bool { UserDefaults.standard.bool(forKey: "alfredTracked") }
@@ -24,14 +24,16 @@ struct ExtensionsShopView: View {
     private var isVoiceTranscribeInstalled: Bool { VoiceTranscribeManager.shared.isModelDownloaded }
     private var isTerminalNotchInstalled: Bool { TerminalNotchManager.shared.isInstalled }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
-    private var isNotificationHUDInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled) }
-    
+    private var isNotificationHUDInstalled: Bool {
+        UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 // Featured Hero Section
                 featuredSection
-                
+
                 // Extensions List (includes header, filters, and list)
                 extensionsList
             }
@@ -42,7 +44,7 @@ struct ExtensionsShopView: View {
             Task {
                 async let countsTask = AnalyticsService.shared.fetchExtensionCounts()
                 async let ratingsTask = AnalyticsService.shared.fetchExtensionRatings()
-                
+
                 if let counts = try? await countsTask {
                     extensionCounts = counts
                 }
@@ -55,9 +57,9 @@ struct ExtensionsShopView: View {
             refreshTrigger = UUID()
         }
     }
-    
+
     // MARK: - Featured Hero Section
-    
+
     private var featuredSection: some View {
         VStack(spacing: 12) {
             // Section header
@@ -66,15 +68,15 @@ struct ExtensionsShopView: View {
                     Image(systemName: "puzzlepiece.extension.fill")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.cyan)
-                    
+
                     Text("Featured Extensions")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
                 }
-                
+
                 Spacer()
             }
-            
+
             // Row 1: AI Background Removal + Voice Transcribe
             HStack(spacing: 12) {
                 FeaturedExtensionCardCompact(
@@ -91,13 +93,14 @@ struct ExtensionsShopView: View {
                         rating: extensionRatings["aiBackgroundRemoval"]
                     )
                 }
-                
+
                 FeaturedExtensionCardCompact(
                     category: "",
                     title: "Voice Transcribe",
                     subtitle: "Speech to text",
                     iconURL: "https://getdroppy.app/assets/icons/voice-transcribe.jpg",
-                    screenshotURL: "https://getdroppy.app/assets/images/voice-transcribe-screenshot.png",
+                    screenshotURL:
+                        "https://getdroppy.app/assets/images/voice-transcribe-screenshot.png",
                     accentColor: .cyan,
                     isInstalled: isVoiceTranscribeInstalled
                 ) {
@@ -107,7 +110,7 @@ struct ExtensionsShopView: View {
                     )
                 }
             }
-            
+
             // Full-width hero: Quickshare (NEW)
             FeaturedExtensionCardWide(
                 title: "Droppy Quickshare",
@@ -124,7 +127,7 @@ struct ExtensionsShopView: View {
                     rating: extensionRatings["quickshare"]
                 )
             }
-            
+
             // Row 2: Notify me! + Termi-Notch
             HStack(spacing: 12) {
                 FeaturedExtensionCardCompact(
@@ -132,7 +135,8 @@ struct ExtensionsShopView: View {
                     title: "Notify me!",
                     subtitle: "Show notifications",
                     iconURL: "https://getdroppy.app/assets/icons/notification-hud.png",
-                    screenshotURL: "https://getdroppy.app/assets/images/notification-hud-screenshot.png",
+                    screenshotURL:
+                        "https://getdroppy.app/assets/images/notification-hud-screenshot.png",
                     accentColor: .purple,
                     isInstalled: isNotificationHUDInstalled,
                     isNew: true,
@@ -140,13 +144,14 @@ struct ExtensionsShopView: View {
                 ) {
                     NotificationHUDInfoView()
                 }
-                
+
                 FeaturedExtensionCardCompact(
                     category: "",
                     title: "Termi-Notch",
                     subtitle: "Quick terminal",
                     iconURL: "https://getdroppy.app/assets/icons/termi-notch.jpg",
-                    screenshotURL: "https://getdroppy.app/assets/images/terminal-notch-screenshot.png",
+                    screenshotURL:
+                        "https://getdroppy.app/assets/images/terminal-notch-screenshot.png",
                     accentColor: .green,
                     isInstalled: isTerminalNotchInstalled
                 ) {
@@ -157,11 +162,11 @@ struct ExtensionsShopView: View {
                 }
             }
         }
-        .padding(4) // Allow room for hover scale animation
+        .padding(4)  // Allow room for hover scale animation
     }
-    
+
     // MARK: - Category Swiper
-    
+
     private var categorySwiperHeader: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
@@ -187,9 +192,9 @@ struct ExtensionsShopView: View {
             .padding(.vertical, 4)
         }
     }
-    
+
     // MARK: - Extensions List
-    
+
     private var extensionsList: some View {
         VStack(spacing: 12) {
             // Section header
@@ -198,23 +203,23 @@ struct ExtensionsShopView: View {
                     Image(systemName: "square.grid.2x2.fill")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.7))
-                    
+
                     Text("All Extensions")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
                 }
-                
+
                 Spacer()
             }
-            
+
             // Category filter pills
             categorySwiperHeader
-            
+
             // Extensions list
             VStack(spacing: 0) {
                 // Filter extensions based on selected category
                 let extensions = filteredExtensions
-                
+
                 ForEach(Array(extensions.enumerated()), id: \.1.id) { index, ext in
                     CompactExtensionRow(
                         iconURL: ext.iconURL,
@@ -226,7 +231,7 @@ struct ExtensionsShopView: View {
                     ) {
                         ext.detailView()
                     }
-                    
+
                     if index < extensions.count - 1 {
                         Divider()
                             .padding(.leading, 60)
@@ -241,9 +246,9 @@ struct ExtensionsShopView: View {
             )
         }
     }
-    
+
     // MARK: - Filtered Extensions
-    
+
     private var filteredExtensions: [ExtensionListItem] {
         let allExtensions: [ExtensionListItem] = [
             // AI Extensions
@@ -257,10 +262,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "aiBackgroundRemoval",
                 extensionType: .aiBackgroundRemoval
             ) {
-                AnyView(AIInstallView(
-                    installCount: extensionCounts["aiBackgroundRemoval"],
-                    rating: extensionRatings["aiBackgroundRemoval"]
-                ))
+                AnyView(
+                    AIInstallView(
+                        installCount: extensionCounts["aiBackgroundRemoval"],
+                        rating: extensionRatings["aiBackgroundRemoval"]
+                    ))
             },
             ExtensionListItem(
                 id: "voiceTranscribe",
@@ -272,10 +278,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "voiceTranscribe",
                 extensionType: .voiceTranscribe
             ) {
-                AnyView(VoiceTranscribeInfoView(
-                    installCount: extensionCounts["voiceTranscribe"],
-                    rating: extensionRatings["voiceTranscribe"]
-                ))
+                AnyView(
+                    VoiceTranscribeInfoView(
+                        installCount: extensionCounts["voiceTranscribe"],
+                        rating: extensionRatings["voiceTranscribe"]
+                    ))
             },
             // Media Extensions
             ExtensionListItem(
@@ -288,10 +295,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "ffmpegVideoCompression",
                 extensionType: .ffmpegVideoCompression
             ) {
-                AnyView(FFmpegInstallView(
-                    installCount: extensionCounts["ffmpegVideoCompression"],
-                    rating: extensionRatings["ffmpegVideoCompression"]
-                ))
+                AnyView(
+                    FFmpegInstallView(
+                        installCount: extensionCounts["ffmpegVideoCompression"],
+                        rating: extensionRatings["ffmpegVideoCompression"]
+                    ))
             },
             // Productivity Extensions
             ExtensionListItem(
@@ -304,16 +312,19 @@ struct ExtensionsShopView: View {
                 analyticsKey: "alfred",
                 extensionType: .alfred
             ) {
-                AnyView(ExtensionInfoView(
-                    extensionType: .alfred,
-                    onAction: {
-                        if let path = Bundle.main.path(forResource: "Droppy", ofType: "alfredworkflow") {
-                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
-                        }
-                    },
-                    installCount: extensionCounts["alfred"],
-                    rating: extensionRatings["alfred"]
-                ))
+                AnyView(
+                    ExtensionInfoView(
+                        extensionType: .alfred,
+                        onAction: {
+                            if let path = Bundle.main.path(
+                                forResource: "Droppy", ofType: "alfredworkflow")
+                            {
+                                NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                            }
+                        },
+                        installCount: extensionCounts["alfred"],
+                        rating: extensionRatings["alfred"]
+                    ))
             },
             ExtensionListItem(
                 id: "elementCapture",
@@ -325,10 +336,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "elementCapture",
                 extensionType: .elementCapture
             ) {
-                AnyView(ElementCaptureInfoViewWrapper(
-                    installCount: extensionCounts["elementCapture"],
-                    rating: extensionRatings["elementCapture"]
-                ))
+                AnyView(
+                    ElementCaptureInfoViewWrapper(
+                        installCount: extensionCounts["elementCapture"],
+                        rating: extensionRatings["elementCapture"]
+                    ))
             },
             ExtensionListItem(
                 id: "finder",
@@ -340,17 +352,21 @@ struct ExtensionsShopView: View {
                 analyticsKey: "finder",
                 extensionType: .finder
             ) {
-                AnyView(ExtensionInfoView(
-                    extensionType: .finder,
-                    onAction: {
-                        // Open System Settings → Privacy & Security → Extensions → Finder Extensions
-                        if let url = URL(string: "x-apple.systempreferences:com.apple.ExtensionsPreferences?Finder") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    },
-                    installCount: extensionCounts["finder"],
-                    rating: extensionRatings["finder"]
-                ))
+                AnyView(
+                    ExtensionInfoView(
+                        extensionType: .finder,
+                        onAction: {
+                            // Open System Settings → Privacy & Security → Extensions → Finder Extensions
+                            if let url = URL(
+                                string:
+                                    "x-apple.systempreferences:com.apple.ExtensionsPreferences?Finder"
+                            ) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        },
+                        installCount: extensionCounts["finder"],
+                        rating: extensionRatings["finder"]
+                    ))
             },
             ExtensionListItem(
                 id: "spotify",
@@ -362,16 +378,17 @@ struct ExtensionsShopView: View {
                 analyticsKey: "spotify",
                 extensionType: .spotify
             ) {
-                AnyView(ExtensionInfoView(
-                    extensionType: .spotify,
-                    onAction: {
-                        if let url = URL(string: "spotify://") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    },
-                    installCount: extensionCounts["spotify"],
-                    rating: extensionRatings["spotify"]
-                ))
+                AnyView(
+                    ExtensionInfoView(
+                        extensionType: .spotify,
+                        onAction: {
+                            if let url = URL(string: "spotify://") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        },
+                        installCount: extensionCounts["spotify"],
+                        rating: extensionRatings["spotify"]
+                    ))
             },
             ExtensionListItem(
                 id: "appleMusic",
@@ -383,18 +400,19 @@ struct ExtensionsShopView: View {
                 analyticsKey: "appleMusic",
                 extensionType: .appleMusic
             ) {
-                AnyView(ExtensionInfoView(
-                    extensionType: .appleMusic,
-                    onAction: {
-                        // Open Apple Music app (similar to Spotify pattern)
-                        if let url = URL(string: "music://") {
-                            NSWorkspace.shared.open(url)
-                        }
-                        AppleMusicController.shared.refreshState()
-                    },
-                    installCount: extensionCounts["appleMusic"],
-                    rating: extensionRatings["appleMusic"]
-                ))
+                AnyView(
+                    ExtensionInfoView(
+                        extensionType: .appleMusic,
+                        onAction: {
+                            // Open Apple Music app (similar to Spotify pattern)
+                            if let url = URL(string: "music://") {
+                                NSWorkspace.shared.open(url)
+                            }
+                            AppleMusicController.shared.refreshState()
+                        },
+                        installCount: extensionCounts["appleMusic"],
+                        rating: extensionRatings["appleMusic"]
+                    ))
             },
             ExtensionListItem(
                 id: "windowSnap",
@@ -406,10 +424,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "windowSnap",
                 extensionType: .windowSnap
             ) {
-                AnyView(WindowSnapInfoView(
-                    installCount: extensionCounts["windowSnap"],
-                    rating: extensionRatings["windowSnap"]
-                ))
+                AnyView(
+                    WindowSnapInfoView(
+                        installCount: extensionCounts["windowSnap"],
+                        rating: extensionRatings["windowSnap"]
+                    ))
             },
             ExtensionListItem(
                 id: "terminalNotch",
@@ -421,10 +440,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "terminalNotch",
                 extensionType: .terminalNotch
             ) {
-                AnyView(TerminalNotchInfoView(
-                    installCount: extensionCounts["terminalNotch"],
-                    rating: extensionRatings["terminalNotch"]
-                ))
+                AnyView(
+                    TerminalNotchInfoView(
+                        installCount: extensionCounts["terminalNotch"],
+                        rating: extensionRatings["terminalNotch"]
+                    ))
             },
             ExtensionListItem(
                 id: "menuBarManager",
@@ -436,10 +456,11 @@ struct ExtensionsShopView: View {
                 analyticsKey: "menuBarManager",
                 extensionType: .menuBarManager
             ) {
-                AnyView(MenuBarManagerInfoView(
-                    installCount: extensionCounts["menuBarManager"],
-                    rating: extensionRatings["menuBarManager"]
-                ))
+                AnyView(
+                    MenuBarManagerInfoView(
+                        installCount: extensionCounts["menuBarManager"],
+                        rating: extensionRatings["menuBarManager"]
+                    ))
             },
             ExtensionListItem(
                 id: "quickshare",
@@ -447,14 +468,15 @@ struct ExtensionsShopView: View {
                 title: "Droppy Quickshare",
                 subtitle: "Share files via 0x0.st",
                 category: .productivity,
-                isInstalled: true, // Always installed (core)
+                isInstalled: true,  // Always installed (core)
                 analyticsKey: "quickshare",
                 extensionType: .quickshare
             ) {
-                AnyView(QuickshareInfoView(
-                    installCount: extensionCounts["quickshare"],
-                    rating: extensionRatings["quickshare"]
-                ))
+                AnyView(
+                    QuickshareInfoView(
+                        installCount: extensionCounts["quickshare"],
+                        rating: extensionRatings["quickshare"]
+                    ))
             },
             ExtensionListItem(
                 id: "notificationHUD",
@@ -468,23 +490,32 @@ struct ExtensionsShopView: View {
                 isCommunity: true
             ) {
                 AnyView(NotificationHUDInfoView())
-            }
+            },
         ]
-        
+
         // nil = show all, otherwise filter by category
         guard let category = selectedCategory else {
-            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted {
+                $0.title < $1.title
+            }
         }
-        
+
         switch category {
         case .all:
-            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted {
+                $0.title < $1.title
+            }
         case .installed:
-            return allExtensions.filter { $0.isInstalled && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.filter { $0.isInstalled && !$0.extensionType.isRemoved }.sorted {
+                $0.title < $1.title
+            }
         case .disabled:
-            return allExtensions.filter { $0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.filter { $0.extensionType.isRemoved }.sorted {
+                $0.title < $1.title
+            }
         default:
-            return allExtensions.filter { $0.category == category && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.filter { $0.category == category && !$0.extensionType.isRemoved }
+                .sorted { $0.title < $1.title }
         }
     }
 }
@@ -516,10 +547,10 @@ struct FeaturedExtensionCard<DetailView: View>: View {
     let isInstalled: Bool
     var installCount: Int?
     let detailView: () -> DetailView
-    
+
     @State private var showSheet = false
     @State private var isHovering = false
-    
+
     var body: some View {
         Button {
             showSheet = true
@@ -527,16 +558,20 @@ struct FeaturedExtensionCard<DetailView: View>: View {
             ZStack(alignment: .leading) {
                 // Screenshot background on right side with fade
                 if let screenshotURLString = screenshotURL,
-                   let url = URL(string: screenshotURLString) {
+                    let url = URL(string: screenshotURLString)
+                {
                     GeometryReader { geometry in
                         HStack(spacing: 0) {
                             Spacer()
-                            
+
                             CachedAsyncImage(url: url) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height)
+                                    .frame(
+                                        width: geometry.size.width * 0.6,
+                                        height: geometry.size.height
+                                    )
                                     .clipped()
                             } placeholder: {
                                 Color.clear
@@ -544,43 +579,43 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                         }
                     }
                     .opacity(0.25)  // Very dark/faded
-                    
+
                     // Gradient fade from left to blend the screenshot
                     LinearGradient(
                         stops: [
                             .init(color: Color.black, location: 0.0),
                             .init(color: Color.black, location: 0.4),
                             .init(color: Color.black.opacity(0.8), location: 0.6),
-                            .init(color: Color.clear, location: 1.0)
+                            .init(color: Color.clear, location: 1.0),
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 }
-                
+
                 // Content overlay
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
                         // Category label (only show if not empty)
                         if !category.isEmpty {
-                            Text(category)
+                            Text(LocalizedStringKey(category))
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(accentColor.opacity(0.9))
                                 .tracking(0.5)
                         }
-                        
+
                         // Title
-                        Text(title)
+                        Text(LocalizedStringKey(title))
                             .font(.system(size: 22, weight: .bold))
                             .foregroundStyle(.white)
-                        
+
                         // Subtitle
-                        Text(subtitle)
+                        Text(LocalizedStringKey(subtitle))
                             .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.7))
-                        
+
                         Spacer()
-                        
+
                         // Get/Open Button
                         HStack(spacing: 12) {
                             Text(isInstalled ? "Open" : "Get")
@@ -596,7 +631,7 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                                         .stroke(Color.white.opacity(0.1), lineWidth: 1)
                                 )
-                            
+
                             if let count = installCount, count > 0 {
                                 HStack(spacing: 3) {
                                     Image(systemName: "arrow.down.circle.fill")
@@ -608,9 +643,9 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                             }
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     // Icon
                     CachedAsyncImage(url: URL(string: iconURL)) { image in
                         image
@@ -646,7 +681,6 @@ struct FeaturedExtensionCard<DetailView: View>: View {
     }
 }
 
-
 // MARK: - Featured Extension Card (Wide)
 
 struct FeaturedExtensionCardWide<DetailView: View>: View {
@@ -659,10 +693,10 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
     let features: [String]
     var isNew: Bool = false
     let detailView: () -> DetailView
-    
+
     @State private var showSheet = false
     @State private var isHovering = false
-    
+
     var body: some View {
         Button {
             showSheet = true
@@ -670,16 +704,20 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
             ZStack(alignment: .leading) {
                 // Screenshot background on right side with fade
                 if let screenshotURLString = screenshotURL,
-                   let url = URL(string: screenshotURLString) {
+                    let url = URL(string: screenshotURLString)
+                {
                     GeometryReader { geometry in
                         HStack(spacing: 0) {
                             Spacer()
-                            
+
                             CachedAsyncImage(url: url) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width * 0.6, height: geometry.size.height)
+                                    .frame(
+                                        width: geometry.size.width * 0.6,
+                                        height: geometry.size.height
+                                    )
                                     .clipped()
                             } placeholder: {
                                 Color.clear
@@ -687,20 +725,20 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                         }
                     }
                     .opacity(0.25)
-                    
+
                     // Gradient fade from left
                     LinearGradient(
                         stops: [
                             .init(color: Color.black, location: 0.0),
                             .init(color: Color.black, location: 0.4),
                             .init(color: Color.black.opacity(0.8), location: 0.6),
-                            .init(color: Color.clear, location: 1.0)
+                            .init(color: Color.clear, location: 1.0),
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 }
-                
+
                 // Content overlay
                 HStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 10) {
@@ -709,7 +747,7 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                             Text(title)
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(.white)
-                            
+
                             if isNew {
                                 Text("New")
                                     .font(.system(size: 9, weight: .medium))
@@ -719,16 +757,16 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                                     .background(Capsule().fill(Color.cyan.opacity(0.15)))
                             }
                         }
-                        
+
                         // Subtitle
-                        Text(subtitle)
+                        Text(LocalizedStringKey(subtitle))
                             .font(.system(size: 13))
                             .foregroundStyle(.white.opacity(0.7))
-                        
+
                         // Feature badges
                         HStack(spacing: 8) {
                             ForEach(features, id: \.self) { feature in
-                                Text(feature)
+                                Text(LocalizedStringKey(feature))
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundStyle(.white.opacity(0.8))
                                     .padding(.horizontal, 10)
@@ -744,9 +782,9 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                             }
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     // Icon
                     CachedAsyncImage(url: URL(string: iconURL)) { image in
                         image
@@ -782,7 +820,6 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
     }
 }
 
-
 // MARK: - Featured Extension Card (Compact)
 
 struct FeaturedExtensionCardCompact<DetailView: View>: View {
@@ -796,10 +833,10 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
     var isNew: Bool = false
     var isCommunity: Bool = false
     let detailView: () -> DetailView
-    
+
     @State private var showSheet = false
     @State private var isHovering = false
-    
+
     var body: some View {
         Button {
             showSheet = true
@@ -807,16 +844,20 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
             ZStack(alignment: .leading) {
                 // Screenshot background on right side with fade
                 if let screenshotURLString = screenshotURL,
-                   let url = URL(string: screenshotURLString) {
+                    let url = URL(string: screenshotURLString)
+                {
                     GeometryReader { geometry in
                         HStack(spacing: 0) {
                             Spacer()
-                            
+
                             CachedAsyncImage(url: url) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
-                                    .frame(width: geometry.size.width * 0.7, height: geometry.size.height)
+                                    .frame(
+                                        width: geometry.size.width * 0.7,
+                                        height: geometry.size.height
+                                    )
                                     .clipped()
                             } placeholder: {
                                 Color.clear
@@ -824,26 +865,26 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                         }
                     }
                     .opacity(0.2)  // Very dark/faded
-                    
+
                     // Gradient fade from left
                     LinearGradient(
                         stops: [
                             .init(color: Color.black, location: 0.0),
                             .init(color: Color.black, location: 0.35),
                             .init(color: Color.black.opacity(0.7), location: 0.55),
-                            .init(color: Color.clear, location: 1.0)
+                            .init(color: Color.clear, location: 1.0),
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                 }
-                
+
                 // Content overlay
                 VStack(alignment: .leading, spacing: 8) {
                     // Icon row (top right)
                     HStack {
                         Spacer()
-                        
+
                         CachedAsyncImage(url: URL(string: iconURL)) { image in
                             image
                                 .resizable()
@@ -855,16 +896,16 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                     }
-                    
+
                     Spacer()
-                    
+
                     // Title with optional badges
                     HStack(spacing: 5) {
                         Text(title)
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
-                        
+
                         if isNew {
                             Text("New")
                                 .font(.system(size: 9, weight: .medium))
@@ -873,7 +914,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Color.cyan.opacity(0.15)))
                         }
-                        
+
                         if isCommunity {
                             HStack(spacing: 3) {
                                 Image(systemName: "person.2.fill")
@@ -887,20 +928,20 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                             .background(Capsule().fill(Color.purple.opacity(0.15)))
                         }
                     }
-                    
+
                     // Subtitle
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.6))
                         .lineLimit(1)
                 }
                 .padding(14)
-                
+
                 // Category ribbon badge in top-left corner (only for non-community categories)
                 if !category.isEmpty && category != "COMMUNITY" {
                     VStack {
                         HStack {
-                            Text(category)
+                            Text(LocalizedStringKey(category))
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
@@ -947,10 +988,10 @@ struct CompactExtensionRow<DetailView: View>: View {
     var installCount: Int?
     var isCommunity: Bool = false
     let detailView: () -> DetailView
-    
+
     @State private var showSheet = false
     @State private var isHovering = false
-    
+
     var body: some View {
         Button {
             showSheet = true
@@ -967,14 +1008,14 @@ struct CompactExtensionRow<DetailView: View>: View {
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                
+
                 // Title + Subtitle
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(title)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
-                        
+
                         if isCommunity {
                             HStack(spacing: 3) {
                                 Image(systemName: "person.2.fill")
@@ -988,14 +1029,14 @@ struct CompactExtensionRow<DetailView: View>: View {
                             .background(Capsule().fill(Color.purple.opacity(0.15)))
                         }
                     }
-                    
+
                     Text(subtitle)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 // Get/Open Button
                 Text(isInstalled ? "Open" : "Get")
                     .font(.system(size: 13, weight: .medium))
@@ -1035,15 +1076,15 @@ struct CategoryPillButton: View {
     let isSelected: Bool
     let namespace: Namespace.ID
     let action: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: category.icon)
                     .font(.system(size: 12, weight: .semibold))
-                Text(category.rawValue)
+                Text(LocalizedStringKey(category.rawValue))
                     .font(.system(size: 13, weight: .medium))
             }
             .foregroundStyle(isSelected ? .white : .secondary)
@@ -1056,12 +1097,17 @@ struct CategoryPillButton: View {
                         .matchedGeometryEffect(id: "SelectedCategory", in: namespace)
                 } else {
                     Capsule()
-                        .fill(isHovering ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto)
+                        .fill(
+                            isHovering
+                                ? AdaptiveColors.hoverBackgroundAuto
+                                : AdaptiveColors.buttonBackgroundAuto)
                 }
             }
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(
+                        isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08),
+                        lineWidth: 1)
             )
         }
         .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
@@ -1078,7 +1124,7 @@ struct CategoryPillButton: View {
 struct ExtensionCardStyle: ViewModifier {
     let accentColor: Color
     @State private var isHovering = false
-    
+
     private var borderColor: Color {
         if isHovering {
             return accentColor.opacity(0.7)
@@ -1086,7 +1132,7 @@ struct ExtensionCardStyle: ViewModifier {
             return Color.white.opacity(0.1)
         }
     }
-    
+
     func body(content: Content) -> some View {
         content
             .padding(16)
@@ -1112,7 +1158,7 @@ extension View {
 
 struct AIExtensionCardStyle: ViewModifier {
     @State private var isHovering = false
-    
+
     func body(content: Content) -> some View {
         content
             .padding(16)
@@ -1122,11 +1168,12 @@ struct AIExtensionCardStyle: ViewModifier {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
                         isHovering
-                            ? AnyShapeStyle(LinearGradient(
-                                colors: [.purple.opacity(0.8), .pink.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [.purple.opacity(0.8), .pink.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
                             : AnyShapeStyle(Color.white.opacity(0.1)),
                         lineWidth: 1
                     )
@@ -1149,7 +1196,7 @@ extension View {
 
 struct AIExtensionIcon: View {
     var size: CGFloat = 44
-    
+
     var body: some View {
         ZStack {
             if let appIcon = NSApp.applicationIconImage {
@@ -1157,17 +1204,17 @@ struct AIExtensionIcon: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             }
-            
+
             LinearGradient(
                 colors: [
                     Color.purple.opacity(0.2),
                     Color.pink.opacity(0.15),
-                    Color.clear
+                    Color.clear,
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            
+
             VStack {
                 HStack {
                     Spacer()
@@ -1204,20 +1251,22 @@ struct AIExtensionIcon: View {
 struct AIBackgroundRemovalSettingsRow: View {
     @ObservedObject private var manager = AIInstallManager.shared
     @State private var showInstallSheet = false
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
-                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) { image in
+                CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) {
+                    image in
                     image.resizable().aspectRatio(contentMode: .fill)
                 } placeholder: {
-                    Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
+                    Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(
+                        .blue)
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                
+
                 Spacer()
-                
+
                 Text("AI")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -1225,21 +1274,21 @@ struct AIBackgroundRemovalSettingsRow: View {
                     .padding(.vertical, 4)
                     .background(Capsule().fill(Color.white.opacity(0.1)))
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("Background Removal")
                     .font(.headline)
                     .foregroundStyle(.primary)
-                
+
                 Text("Remove backgrounds from images using AI. Works offline.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            
+
             Spacer(minLength: 8)
-            
+
             if manager.isInstalled {
                 HStack(spacing: 4) {
                     Circle().fill(Color.green).frame(width: 6, height: 6)
@@ -1274,15 +1323,16 @@ struct BackgroundRemovalSettingsRow: View {
 struct ElementCaptureInfoViewWrapper: View {
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
-    
+
     @State private var currentShortcut: SavedShortcut? = {
         if let data = UserDefaults.standard.data(forKey: "elementCaptureShortcut"),
-           let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data)
+        {
             return shortcut
         }
         return nil
     }()
-    
+
     var body: some View {
         ElementCaptureInfoView(
             currentShortcut: $currentShortcut,
