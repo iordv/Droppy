@@ -15,6 +15,7 @@ struct ExtensionsShopView: View {
     private var isAlfredInstalled: Bool { UserDefaults.standard.bool(forKey: "alfredTracked") }
     private var isFinderInstalled: Bool { UserDefaults.standard.bool(forKey: "finderTracked") }
     private var isSpotifyInstalled: Bool { UserDefaults.standard.bool(forKey: "spotifyTracked") }
+    private var isAppleMusicInstalled: Bool { !ExtensionType.appleMusic.isRemoved }
     private var isElementCaptureInstalled: Bool {
         UserDefaults.standard.data(forKey: "elementCaptureShortcut") != nil
     }
@@ -366,6 +367,25 @@ struct ExtensionsShopView: View {
                     },
                     installCount: extensionCounts["spotify"],
                     rating: extensionRatings["spotify"]
+                ))
+            },
+            ExtensionListItem(
+                id: "appleMusic",
+                iconURL: "https://getdroppy.app/assets/icons/apple-music.png",
+                title: "Apple Music",
+                subtitle: "Native music controls",
+                category: .media,
+                isInstalled: isAppleMusicInstalled,
+                analyticsKey: "appleMusic",
+                extensionType: .appleMusic
+            ) {
+                AnyView(ExtensionInfoView(
+                    extensionType: .appleMusic,
+                    onAction: {
+                        AppleMusicController.shared.refreshState()
+                    },
+                    installCount: extensionCounts["appleMusic"],
+                    rating: extensionRatings["appleMusic"]
                 ))
             },
             ExtensionListItem(
