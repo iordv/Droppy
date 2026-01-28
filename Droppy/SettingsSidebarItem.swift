@@ -24,7 +24,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     
     var id: String { rawValue }
     
-    var title: String { rawValue }
+    var titleKey: LocalizedStringKey { LocalizedStringKey(rawValue) }
     
     var icon: String {
         switch self {
@@ -83,7 +83,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     }
     
     /// Section header this tab belongs to (nil for items without section header above them)
-    var sectionHeader: String? {
+    var sectionHeaderKey: LocalizedStringKey? {
         switch self {
         case .general: return nil
         case .shelf: return "Features"
@@ -109,7 +109,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
 /// Gray section header text for sidebar groupings
 struct SettingsSectionHeader: View {
-    let title: String
+    let title: LocalizedStringKey
     
     var body: some View {
         Text(title)
@@ -141,7 +141,7 @@ struct SettingsSidebarItem: View {
                 iconBadge
                 
                 // Title
-                Text(tab.title)
+                Text(tab.titleKey)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? .white : Color.white.opacity(0.85))
                 
@@ -226,7 +226,7 @@ struct SettingsSidebar: View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(visibleTabs) { tab in
                 // Section header if this tab starts a new section
-                if let header = tab.sectionHeader {
+                if let header = tab.sectionHeaderKey {
                     SettingsSectionHeader(title: header)
                 }
                 

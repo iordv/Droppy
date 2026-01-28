@@ -2,31 +2,84 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
-
-    },
-    " " : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : ""
+          }
+        }
+      }
     },
     "–" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "–"
+          }
+        }
+      }
     },
     "..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "..."
+          }
+        }
+      }
     },
     "\"Select All\" button selects all files in the basket" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "\"Select All\" button selects all files in the basket"
+          }
+        }
+      }
     },
     "(%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "(%lld)"
+          }
+        }
+      }
     },
     "**Click** terminal icon in expanded shelf" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "**Click** terminal icon in expanded shelf"
+          }
+        }
+      }
     },
     "%lld" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld"
+          }
+        }
+      }
     },
     "%lld files" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld files"
+          }
+        }
+      }
     },
     "%lld item%@" : {
       "localizations" : {
@@ -40,6 +93,12 @@
     },
     "%lld items" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld items"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -49,7 +108,14 @@
       }
     },
     "%lld Items" : {
+      "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld Items"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -59,13 +125,37 @@
       }
     },
     "%lld items selected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld items selected"
+          }
+        }
+      }
+    },
+    "%lld users" : {
 
     },
     "%lld%%" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld%%"
+          }
+        }
+      }
     },
     "•" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "•"
+          }
+        }
+      }
     },
     "+" : {
       "localizations" : {
@@ -77,17 +167,37 @@
         }
       }
     },
-    "+%lld more" : {
+    "+%lld" : {
 
     },
     "$" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "$"
+          }
+        }
+      }
     },
     "2 Files" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "2 Files"
+          }
+        }
+      }
     },
     "3 items" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "3 items"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -107,10 +217,24 @@
       }
     },
     "85%" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "85%"
+          }
+        }
+      }
     },
-    "A divider will appear in your menu bar. Click it to show/hide icons to its left." : {
-
+    "A dot indicator will appear in your menu bar. Click it to show/hide icons to its left." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A dot indicator will appear in your menu bar. Click it to show/hide icons to its left."
+          }
+        }
+      }
     },
     "A file shelf that lives in your Mac's notch or as a Dynamic Island." : {
       "localizations" : {
@@ -129,7 +253,14 @@
       }
     },
     "A floating drop zone appears instantly when you drag.\nPerfect when your notch is on a different screen." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A floating drop zone appears instantly when you drag.\nPerfect when your notch is on a different screen."
+          }
+        }
+      }
     },
     "About" : {
       "localizations" : {
@@ -147,8 +278,35 @@
         }
       }
     },
-    "Access everything you've copied. Search instantly,\nextract text from images, and pin your favorites." : {
-
+    "About Quickshare" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "About Quickshare"
+          }
+        }
+      }
+    },
+    "Access clipboard history from the menu bar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Access clipboard history from the menu bar"
+          }
+        }
+      }
+    },
+    "Access everything you've copied.\nSearch, extract text from images, and pin favorites." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Access everything you've copied.\nSearch, extract text from images, and pin favorites."
+          }
+        }
+      }
     },
     "Accessibility" : {
       "localizations" : {
@@ -157,17 +315,44 @@
             "state" : "translated",
             "value" : "Accessibility"
           }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용성"
+          }
         }
       }
     },
     "Accessibility Needed" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Accessibility Needed"
+          }
+        }
+      }
     },
     "Accessing Termi-Notch" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Accessing Termi-Notch"
+          }
+        }
+      }
     },
     "Add All" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add All"
+          }
+        }
+      }
     },
     "Add All copies items to Finder folder" : {
       "localizations" : {
@@ -216,7 +401,14 @@
       }
     },
     "Adds \"Open Clipboard\" to right-click menu on notch/island" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Adds \"Open Clipboard\" to right-click menu on notch/island"
+          }
+        }
+      }
     },
     "Adds a short delay before showing media changes" : {
       "localizations" : {
@@ -265,16 +457,44 @@
       }
     },
     "After installing Homebrew, click 'Install FFmpeg' below." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "After installing Homebrew, click 'Install FFmpeg' below."
+          }
+        }
+      }
     },
     "AI" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "AI"
+          }
+        }
+      }
     },
     "AI Background Removal" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "AI Background Removal"
+          }
+        }
+      }
     },
     "AirDrop" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "AirDrop"
+          }
+        }
+      }
     },
     "AirDrop Zone" : {
       "localizations" : {
@@ -303,10 +523,23 @@
       }
     },
     "Alfred Workflow" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Alfred Workflow"
+          }
+        }
+      }
     },
     "All Extensions" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "All Extensions"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -332,7 +565,14 @@
       }
     },
     "Also visible in **media HUD**" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Also visible in **media HUD**"
+          }
+        }
+      }
     },
     "Always copy, never move files" : {
       "localizations" : {
@@ -346,6 +586,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "파일 이동 대신 항상 복사합니다"
+          }
+        }
+      }
+    },
+    "And many more..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "And many more..."
           }
         }
       }
@@ -433,7 +683,14 @@
       }
     },
     "Auto (Medium)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto (Medium)"
+          }
+        }
+      }
     },
     "Auto-Collapse" : {
       "localizations" : {
@@ -452,7 +709,14 @@
       }
     },
     "Auto-detect recommended" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto-detect recommended"
+          }
+        }
+      }
     },
     "Auto-Expand" : {
       "localizations" : {
@@ -549,15 +813,37 @@
       }
     },
     "Auto-save compressed files" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto-save compressed files"
+          }
+        }
+      }
     },
     "Auto-Save Compressed Files" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto-Save Compressed Files"
+          }
+        }
+      }
     },
     "Auto-save converted files" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto-save converted files"
+          }
+        }
+      }
     },
     "Auto-save processed files and reveal in Finder" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -568,7 +854,14 @@
       }
     },
     "Auto-save processed files to designated folders" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Auto-save processed files to designated folders"
+          }
+        }
+      }
     },
     "Automatically focuses the search bar when clipboard opens" : {
       "localizations" : {
@@ -597,16 +890,44 @@
       }
     },
     "Automatically save processed files to designated folders" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatically save processed files to designated folders"
+          }
+        }
+      }
     },
     "Automatically save processed files to designated folders." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatically save processed files to designated folders."
+          }
+        }
+      }
     },
     "Automatically saves compressed files to a designated folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatically saves compressed files to a designated folder"
+          }
+        }
+      }
     },
     "Automatically saves converted files to a designated folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatically saves converted files to a designated folder"
+          }
+        }
+      }
     },
     "Back" : {
       "localizations" : {
@@ -619,7 +940,14 @@
       }
     },
     "Background Removal" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Background Removal"
+          }
+        }
+      }
     },
     "Basket Advanced" : {
       "localizations" : {
@@ -708,10 +1036,34 @@
       }
     },
     "Be the first to rate this extension!" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Be the first to rate this extension!"
+          }
+        }
+      }
     },
     "Beautiful HUDs appear in your notch\ninstead of the default macOS overlays" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Beautiful HUDs appear in your notch\ninstead of the default macOS overlays"
+          }
+        }
+      }
+    },
+    "Behavior" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Behavior"
+          }
+        }
+      }
     },
     "Bottom Edge" : {
       "localizations" : {
@@ -749,6 +1101,16 @@
         }
       }
     },
+    "by" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "by"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "en" : {
@@ -776,16 +1138,53 @@
       }
     },
     "Capture any screen element instantly" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Capture any screen element instantly"
+          }
+        }
+      }
     },
     "Capture specific screen elements and copy them to clipboard or add to Droppy." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Capture specific screen elements and copy them to clipboard or add to Droppy."
+          }
+        }
+      }
+    },
+    "Captured Apps" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Captured Apps"
+          }
+        }
+      }
     },
     "Center" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Center"
+          }
+        }
+      }
     },
     "Check for Updates..." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Check for Updates..."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -805,10 +1204,24 @@
       }
     },
     "Choose destination per type" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose destination per type"
+          }
+        }
+      }
     },
     "Choose Folder..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose Folder..."
+          }
+        }
+      }
     },
     "Choose how Droppy appears at the top of your screen" : {
       "localizations" : {
@@ -843,10 +1256,34 @@
       }
     },
     "Clean up your menu bar" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clean up your menu bar"
+          }
+        }
+      }
     },
     "Clear Basket" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear Basket"
+          }
+        }
+      }
+    },
+    "Clear History" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear History"
+          }
+        }
+      }
     },
     "Clear items when dragged out of Droppy" : {
       "localizations" : {
@@ -859,10 +1296,24 @@
       }
     },
     "Clear Shelf" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear Shelf"
+          }
+        }
+      }
     },
     "Clear terminal output" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear terminal output"
+          }
+        }
+      }
     },
     "Clears item from shelf/basket" : {
       "localizations" : {
@@ -875,7 +1326,14 @@
       }
     },
     "Click" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Click"
+          }
+        }
+      }
     },
     "Click anywhere in the basket to deselect all" : {
       "localizations" : {
@@ -888,7 +1346,14 @@
       }
     },
     "Click to open link" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Click to open link"
+          }
+        }
+      }
     },
     "Click to paste any item" : {
       "localizations" : {
@@ -949,7 +1414,14 @@
       }
     },
     "Clipboard is empty" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clipboard is empty"
+          }
+        }
+      }
     },
     "Clipboard Manager" : {
       "localizations" : {
@@ -985,6 +1457,12 @@
     },
     "Close" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Close"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -992,9 +1470,6 @@
           }
         }
       }
-    },
-    "Collapse" : {
-
     },
     "Collapse Delay" : {
       "localizations" : {
@@ -1012,11 +1487,35 @@
         }
       }
     },
-    "Collapse Stack" : {
-
-    },
     "Collapse to quick mode" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Collapse to quick mode"
+          }
+        }
+      }
+    },
+    "Community" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Community"
+          }
+        }
+      }
+    },
+    "Community Extension" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Community Extension"
+          }
+        }
+      }
     },
     "Compress" : {
       "localizations" : {
@@ -1029,25 +1528,74 @@
       }
     },
     "Compress All (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compress All (%lld)"
+          }
+        }
+      }
     },
     "Compress File" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compress File"
+          }
+        }
+      }
     },
     "Compress videos to exact file sizes" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compress videos to exact file sizes"
+          }
+        }
+      }
     },
     "Compress videos to exact file sizes using FFmpeg." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compress videos to exact file sizes using FFmpeg."
+          }
+        }
+      }
     },
     "Compressing..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compressing..."
+          }
+        }
+      }
     },
     "Configure" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configure"
+          }
+        }
+      }
     },
-    "Configure export settings in Settings → Shared Features → Smart Export" : {
-
+    "Configure export settings in Settings → General → Smart Export" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configure export settings in Settings → General → Smart Export"
+          }
+        }
+      }
     },
     "Configure how Droppy appears on external monitors that don't have a notch." : {
       "localizations" : {
@@ -1066,19 +1614,54 @@
       }
     },
     "Configure separate destinations for each file type" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configure separate destinations for each file type"
+          }
+        }
+      }
     },
     "Configure Shortcuts..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configure Shortcuts..."
+          }
+        }
+      }
     },
     "Configure..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configure..."
+          }
+        }
+      }
     },
     "Configured" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Configured"
+          }
+        }
+      }
     },
     "Connected" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connected"
+          }
+        }
+      }
     },
     "Continue" : {
       "localizations" : {
@@ -1091,22 +1674,64 @@
       }
     },
     "Convert All (%lld)..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Convert All (%lld)..."
+          }
+        }
+      }
     },
     "Convert to..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Convert to..."
+          }
+        }
+      }
     },
     "Converting..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Converting..."
+          }
+        }
+      }
     },
     "Copied to Clipboard & Pasting..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copied to Clipboard & Pasting..."
+          }
+        }
+      }
     },
     "Copied!" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copied!"
+          }
+        }
+      }
     },
     "Copy" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy"
+          }
+        }
+      }
     },
     "Copy + Favorite Shortcut" : {
       "localizations" : {
@@ -1125,40 +1750,104 @@
       }
     },
     "Copy Again" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy Again"
+          }
+        }
+      }
     },
     "Copy All" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy All"
+          }
+        }
+      }
     },
     "Copy All (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy All (%lld)"
+          }
+        }
+      }
     },
     "Copy all to Finder folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy all to Finder folder"
+          }
+        }
+      }
     },
     "Copy File Paths" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy File Paths"
+          }
+        }
+      }
     },
     "Copy Link" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy Link"
+          }
+        }
+      }
     },
     "Copy to Clipboard" : {
-
-    },
-    "Create Stack" : {
-
-    },
-    "Create Stack (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy to Clipboard"
+          }
+        }
+      }
     },
     "Create ZIP" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Create ZIP"
+          }
+        }
+      }
     },
     "Creating ZIP..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Creating ZIP..."
+          }
+        }
+      }
     },
     "Current Size" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current Size"
+          }
+        }
+      }
     },
     "Delay" : {
       "localizations" : {
@@ -1177,13 +1866,33 @@
       }
     },
     "Delete" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete"
+          }
+        }
+      }
     },
     "Delete (Backspace)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete (Backspace)"
+          }
+        }
+      }
     },
     "Delete %lld Items" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete %lld Items"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1193,16 +1902,43 @@
       }
     },
     "Delete from Server" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete from Server"
+          }
+        }
+      }
     },
     "Delete from Server?" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Delete from Server?"
+          }
+        }
+      }
     },
     "Destination folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Destination folder"
+          }
+        }
+      }
     },
     "Developer" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Developer"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1279,6 +2015,9 @@
         }
       }
     },
+    "Display body text in the HUD" : {
+
+    },
     "Display Droppy icon in the menu bar" : {
       "localizations" : {
         "en" : {
@@ -1328,7 +2067,14 @@
       }
     },
     "Done" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Done"
+          }
+        }
+      }
     },
     "Double-tap text to rename & save" : {
       "localizations" : {
@@ -1347,10 +2093,23 @@
       }
     },
     "Download Model" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Download Model"
+          }
+        }
+      }
     },
     "Downloading %lld%%" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Downloading %lld%%"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1360,6 +2119,7 @@
       }
     },
     "Downloads" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1376,7 +2136,14 @@
       }
     },
     "Drag any file to your notch to store it temporarily.\nGrab it later and drop it anywhere you need." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Drag any file to your notch to store it temporarily.\nGrab it later and drop it anywhere you need."
+          }
+        }
+      }
     },
     "Dragging files to the same disk may **delete** the original file" : {
       "localizations" : {
@@ -1409,7 +2176,14 @@
       }
     },
     "Drop files here" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Drop files here"
+          }
+        }
+      }
     },
     "Drop files into the basket" : {
       "localizations" : {
@@ -1432,7 +2206,14 @@
       }
     },
     "Drop files or folders here" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Drop files or folders here"
+          }
+        }
+      }
     },
     "Drop folders onto Droppy to pin them. Pinned folders stay accessible and you can drop files directly into them." : {
       "localizations" : {
@@ -1482,6 +2263,12 @@
     },
     "Droppy is up to date!" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Droppy is up to date!"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1491,25 +2278,93 @@
       }
     },
     "Droppy needs permission to paste into other apps." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Droppy needs permission to paste into other apps."
+          }
+        }
+      }
     },
     "Droppy Quickshare" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Droppy Quickshare"
+          }
+        }
+      }
+    },
+    "Droppy Updates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Droppy Updates"
+          }
+        }
+      }
+    },
+    "Droppy will still capture and display notifications even when system banners are disabled." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Droppy will still capture and display notifications even when system banners are disabled."
+          }
+        }
+      }
     },
     "echo \"Hello, Droppy!\"" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "echo \"Hello, Droppy!\""
+          }
+        }
+      }
     },
     "Edit Content" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit Content"
+          }
+        }
+      }
     },
     "Element Capture" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Element Capture"
+          }
+        }
+      }
     },
     "Empty folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Empty folder"
+          }
+        }
+      }
     },
     "Enable" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1518,11 +2373,35 @@
         }
       }
     },
+    "Enable extensions in Settings → Extensions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable extensions in Settings → Extensions"
+          }
+        }
+      }
+    },
     "Enable Finder Services" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable Finder Services"
+          }
+        }
+      }
     },
     "Enable Menu Bar Manager to get started" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable Menu Bar Manager to get started"
+          }
+        }
+      }
     },
     "Enable Notch Shelf" : {
       "extractionState" : "manual",
@@ -1536,10 +2415,37 @@
       }
     },
     "Enable Smart Export" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable Smart Export"
+          }
+        }
+      }
+    },
+    "Enable under Extensions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enable under Extensions"
+          }
+        }
+      }
+    },
+    "Enable under HUD Settings" : {
 
     },
     "Enter command..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Enter command..."
+          }
+        }
+      }
     },
     "Exclude the notch area from screenshots and screen recordings" : {
       "localizations" : {
@@ -1566,9 +2472,6 @@
           }
         }
       }
-    },
-    "Expand" : {
-
     },
     "Expand Delay" : {
       "localizations" : {
@@ -1602,10 +2505,8 @@
         }
       }
     },
-    "Expand Stack" : {
-
-    },
     "Extensions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1653,20 +2554,65 @@
         }
       }
     },
+    "External Displays" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "External Displays"
+          }
+        }
+      }
+    },
     "Extra shuffle, repeat & replay controls in the media player." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extra shuffle, repeat & replay controls in the media player."
+          }
+        }
+      }
     },
     "Extract Text" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extract Text"
+          }
+        }
+      }
     },
     "Extracted Text" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extracted Text"
+          }
+        }
+      }
     },
     "Extracting text..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extracting text..."
+          }
+        }
+      }
     },
     "Extracting..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Extracting..."
+          }
+        }
+      }
     },
     "Fade out mini player after 5 seconds" : {
       "localizations" : {
@@ -1685,10 +2631,23 @@
       }
     },
     "Favorite" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Favorite"
+          }
+        }
+      }
     },
     "Featured Extensions" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Featured Extensions"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1697,8 +2656,35 @@
         }
       }
     },
+    "Features" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기능"
+          }
+        }
+      }
+    },
+    "Feedback" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Feedback"
+          }
+        }
+      }
+    },
     "Fetching preview..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fetching preview..."
+          }
+        }
+      }
     },
     "Files are copied, never moved" : {
       "localizations" : {
@@ -1710,11 +2696,35 @@
         }
       }
     },
+    "Files expire automatically (30-365 days based on size)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Files expire automatically (30-365 days based on size)"
+          }
+        }
+      }
+    },
     "Finder Services" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finder Services"
+          }
+        }
+      }
     },
     "Flag as Important" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Flag as Important"
+          }
+        }
+      }
     },
     "Floating Basket" : {
       "localizations" : {
@@ -1722,6 +2732,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Floating Basket"
+          }
+        }
+      }
+    },
+    "Focus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Focus"
           }
         }
       }
@@ -1743,16 +2763,54 @@
       }
     },
     "Focus Off" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Focus Off"
+          }
+        }
+      }
     },
     "Focus On" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Focus On"
+          }
+        }
+      }
     },
     "Folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Folder"
+          }
+        }
+      }
     },
     "FOLDER" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "FOLDER"
+          }
+        }
+      }
+    },
+    "Full Disk Access" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Full Disk Access"
+          }
+        }
+      }
     },
     "Full Disk Access Required" : {
       "localizations" : {
@@ -1764,8 +2822,31 @@
         }
       }
     },
+    "General" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "General"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일반"
+          }
+        }
+      }
+    },
     "Get" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Get"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1832,6 +2913,19 @@
         }
       }
     },
+    "Grant" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Grant"
+          }
+        }
+      }
+    },
+    "Granted" : {
+
+    },
     "Great for managing many files" : {
       "localizations" : {
         "en" : {
@@ -1858,6 +2952,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Haptic Feedback"
+          }
+        }
+      }
+    },
+    "Haptic feedback requires a Force Touch trackpad." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Haptic feedback requires a Force Touch trackpad."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "햅틱 피드백에는 Force Touch 트랙패드가 필요합니다."
           }
         }
       }
@@ -1895,7 +3005,14 @@
       }
     },
     "Hello, Droppy!" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hello, Droppy!"
+          }
+        }
+      }
     },
     "Hey there! 👋" : {
       "localizations" : {
@@ -1908,6 +3025,7 @@
       }
     },
     "Hi, I'm Jordy — a solo developer building Droppy because I believe essential tools should be free." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1924,7 +3042,14 @@
       }
     },
     "Hide %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide %@"
+          }
+        }
+      }
     },
     "Hide Edge" : {
       "localizations" : {
@@ -1957,7 +3082,14 @@
       }
     },
     "Hide Icons" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide Icons"
+          }
+        }
+      }
     },
     "Hide in Fullscreen" : {
       "localizations" : {
@@ -1985,6 +3117,16 @@
         }
       }
     },
+    "Hide Native Banners" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide Native Banners"
+          }
+        }
+      }
+    },
     "Hide on External Displays" : {
       "localizations" : {
         "en" : {
@@ -2002,10 +3144,24 @@
       }
     },
     "Hide unused menu bar icons and reveal them with a click." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide unused menu bar icons and reveal them with a click."
+          }
+        }
+      }
     },
     "Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized."
+          }
+        }
+      }
     },
     "Hide when fullscreen apps or videos are active" : {
       "localizations" : {
@@ -2056,16 +3212,44 @@
       }
     },
     "Homebrew Detected" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Homebrew Detected"
+          }
+        }
+      }
     },
     "Homebrew is a package manager for macOS. Install it first by running this command in Terminal:" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Homebrew is a package manager for macOS. Install it first by running this command in Terminal:"
+          }
+        }
+      }
     },
     "Homebrew is required. See above for installation command." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Homebrew is required. See above for installation command."
+          }
+        }
+      }
     },
     "Homebrew Required" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Homebrew Required"
+          }
+        }
+      }
     },
     "Hover the edge to reveal basket" : {
       "localizations" : {
@@ -2088,6 +3272,7 @@
       }
     },
     "HUDs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2098,6 +3283,7 @@
       }
     },
     "I don't sell this app, but if you enjoy using it, a coffee would mean the world to me ❤️" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2123,6 +3309,16 @@
         }
       }
     },
+    "I'm Jordy, a solo developer building Droppy because I believe essential tools should be free. If you enjoy using it, a coffee would mean the world ❤️" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I'm Jordy, a solo developer building Droppy because I believe essential tools should be free. If you enjoy using it, a coffee would mean the world ❤️"
+          }
+        }
+      }
+    },
     "I've Granted Access" : {
       "localizations" : {
         "en" : {
@@ -2134,10 +3330,24 @@
       }
     },
     "Image Link" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Image Link"
+          }
+        }
+      }
     },
     "Important" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Important"
+          }
+        }
+      }
     },
     "Include Clipboard" : {
       "localizations" : {
@@ -2156,19 +3366,53 @@
       }
     },
     "InSPyReNet - State of the Art Quality" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "InSPyReNet - State of the Art Quality"
+          }
+        }
+      }
     },
     "Install" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Install"
+          }
+        }
+      }
     },
     "Install FFmpeg" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Install FFmpeg"
+          }
+        }
+      }
     },
     "Install Now" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Install Now"
+          }
+        }
+      }
     },
     "Installed" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Installed"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2179,6 +3423,12 @@
     },
     "Installed & Ready" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Installed & Ready"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2189,6 +3439,12 @@
     },
     "Installed Models" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Installed Models"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2198,7 +3454,14 @@
       }
     },
     "Installing..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Installing..."
+          }
+        }
+      }
     },
     "Instant Appear" : {
       "localizations" : {
@@ -2206,6 +3469,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Instant Appear"
+          }
+        }
+      }
+    },
+    "Interface" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Interface"
           }
         }
       }
@@ -2247,19 +3520,54 @@
       }
     },
     "Keyboard Shortcut" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keyboard Shortcut"
+          }
+        }
+      }
     },
     "Keyboard Shortcuts" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keyboard Shortcuts"
+          }
+        }
+      }
     },
     "Keyboard-driven window management" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Keyboard-driven window management"
+          }
+        }
+      }
     },
     "Language" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Language"
+          }
+        }
+      }
     },
     "Later" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Later"
+          }
+        }
+      }
     },
     "Launch at Login" : {
       "localizations" : {
@@ -2288,18 +3596,67 @@
       }
     },
     "Left Half" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Left Half"
+          }
+        }
+      }
     },
     "Link copied to clipboard" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Link copied to clipboard"
+          }
+        }
+      }
+    },
+    "Links" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Links"
+          }
+        }
+      }
     },
     "Load Defaults" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Load Defaults"
+          }
+        }
+      }
     },
     "Loading model..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Loading model..."
+          }
+        }
+      }
+    },
+    "Lock and Unlock Animation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lock and Unlock Animation"
+          }
+        }
+      }
     },
     "Lock Screen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2316,13 +3673,33 @@
       }
     },
     "Locked" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Locked"
+          }
+        }
+      }
     },
     "Mail" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mail"
+          }
+        }
+      }
     },
     "Make sure Python 3 is installed on your Mac." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Make sure Python 3 is installed on your Mac."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2332,13 +3709,54 @@
       }
     },
     "Manage" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage"
+          }
+        }
+      }
     },
     "Manage Uploads..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Uploads..."
+          }
+        }
+      }
+    },
+    "Manage..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage..."
+          }
+        }
+      }
     },
     "Maximize" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Maximize"
+          }
+        }
+      }
+    },
+    "Maximum file size: 512 MB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Maximum file size: 512 MB"
+          }
+        }
+      }
     },
     "May slightly delay initial song/album art display" : {
       "localizations" : {
@@ -2351,7 +3769,14 @@
       }
     },
     "MB" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "MB"
+          }
+        }
+      }
     },
     "Media" : {
       "localizations" : {
@@ -2369,8 +3794,25 @@
         }
       }
     },
+    "Media Only" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Media Only"
+          }
+        }
+      }
+    },
     "Menu Bar" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Menu Bar"
+          }
+        }
+      }
     },
     "Menu Bar Icon" : {
       "localizations" : {
@@ -2389,16 +3831,44 @@
       }
     },
     "Menu Bar Manager" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Menu Bar Manager"
+          }
+        }
+      }
     },
     "Menu Bar Manager is active" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Menu Bar Manager is active"
+          }
+        }
+      }
     },
     "Messages" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Messages"
+          }
+        }
+      }
     },
     "Model" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Model"
+          }
+        }
+      }
     },
     "Monitor folders for new files and automatically add them to Droppy." : {
       "localizations" : {
@@ -2411,16 +3881,77 @@
       }
     },
     "More" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "More"
+          }
+        }
+      }
     },
     "Move to Basket" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move to Basket"
+          }
+        }
+      }
     },
     "Move to Shelf" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move to Shelf"
+          }
+        }
+      }
+    },
+    "Move to Shelf (%lld)" : {
 
     },
     "Move to..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move to..."
+          }
+        }
+      }
+    },
+    "Needed to read Focus Mode state from macOS system files" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Needed to read Focus Mode state from macOS system files"
+          }
+        }
+      }
+    },
+    "new" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "new"
+          }
+        }
+      }
+    },
+    "New" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "New"
+          }
+        }
+      }
     },
     "New files trigger shelf or basket automatically" : {
       "localizations" : {
@@ -2428,6 +3959,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New files trigger shelf or basket automatically"
+          }
+        }
+      }
+    },
+    "New message from John" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "New message from John"
           }
         }
       }
@@ -2443,22 +3984,74 @@
       }
     },
     "No release notes available." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No release notes available."
+          }
+        }
+      }
     },
     "No reviews yet" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No reviews yet"
+          }
+        }
+      }
+    },
+    "No shared files" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No shared files"
+          }
+        }
+      }
     },
     "No shared files yet" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No shared files yet"
+          }
+        }
+      }
     },
     "Not configured" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not configured"
+          }
+        }
+      }
     },
     "Not enabled" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not enabled"
+          }
+        }
+      }
     },
     "Not running" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not running"
+          }
+        }
+      }
     },
     "Notch Shelf" : {
       "localizations" : {
@@ -2472,6 +4065,19 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notch Shelf"
+          }
+        }
+      }
+    },
+    "Notifications will be captured" : {
+
+    },
+    "Notify me!" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Notify me!"
           }
         }
       }
@@ -2493,13 +4099,33 @@
       }
     },
     "Off" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Off"
+          }
+        }
+      }
     },
     "OFF" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "OFF"
+          }
+        }
+      }
     },
     "OK" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "OK"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2509,40 +4135,134 @@
       }
     },
     "On" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On"
+          }
+        }
+      }
     },
     "ON" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "ON"
+          }
+        }
+      }
     },
     "On-device speech-to-text transcription" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On-device speech-to-text transcription"
+          }
+        }
+      }
     },
     "One-click install" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "One-click install"
+          }
+        }
+      }
     },
     "One-time setup" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "One-time setup"
+          }
+        }
+      }
     },
     "One-time setup in System Settings" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "One-time setup in System Settings"
+          }
+        }
+      }
     },
     "Open" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open"
+          }
+        }
+      }
     },
     "Open Clipboard" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Clipboard"
+          }
+        }
+      }
+    },
+    "Open Folder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Folder"
+          }
+        }
+      }
     },
     "Open folder after saving" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open folder after saving"
+          }
+        }
+      }
     },
     "Open in Browser" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open in Browser"
+          }
+        }
+      }
     },
     "Open in Terminal.app" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open in Terminal.app"
+          }
+        }
+      }
     },
     "Open Link" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Link"
+          }
+        }
+      }
     },
     "Open search bar automatically when clipboard opens" : {
       "localizations" : {
@@ -2562,6 +4282,12 @@
     },
     "Open Settings" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Settings"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2571,13 +4297,34 @@
       }
     },
     "Open Shelf" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open Shelf"
+          }
+        }
+      }
     },
     "Open With..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open With..."
+          }
+        }
+      }
     },
     "Opened" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Opened"
+          }
+        }
+      }
     },
     "Opens system AirDrop picker" : {
       "localizations" : {
@@ -2590,7 +4337,14 @@
       }
     },
     "Optional feedback..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Optional feedback..."
+          }
+        }
+      }
     },
     "Or hide Droppy on external displays" : {
       "localizations" : {
@@ -2644,14 +4398,45 @@
         }
       }
     },
+    "Other" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기타"
+          }
+        }
+      }
+    },
     "Paste" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paste"
+          }
+        }
+      }
     },
     "Paste All" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paste All"
+          }
+        }
+      }
     },
     "Paste All (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paste All (%lld)"
+          }
+        }
+      }
     },
     "Peek Mode" : {
       "localizations" : {
@@ -2663,8 +4448,25 @@
         }
       }
     },
+    "Permission" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Permission"
+          }
+        }
+      }
+    },
     "Pin Folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pin Folder"
+          }
+        }
+      }
     },
     "Pin folders and drop files directly into them" : {
       "localizations" : {
@@ -2687,6 +4489,7 @@
       }
     },
     "Pin folders to the shelf and drop files directly into them" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2697,7 +4500,14 @@
       }
     },
     "Pinned Folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pinned Folder"
+          }
+        }
+      }
     },
     "Play haptic patterns when dropping files or performing actions" : {
       "localizations" : {
@@ -2710,6 +4520,7 @@
       }
     },
     "Plus Extensions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2735,11 +4546,44 @@
         }
       }
     },
+    "Powered by 0x0.st – anonymous file hosting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Powered by 0x0.st – anonymous file hosting"
+          }
+        }
+      }
+    },
     "Powered by WhisperKit AI" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Powered by WhisperKit AI"
+          }
+        }
+      }
+    },
+    "Powerful Extensions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Powerful Extensions"
+          }
+        }
+      }
     },
     "Press %@ to quickly access your clipboard history." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Press %@ to quickly access your clipboard history."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2750,6 +4594,12 @@
     },
     "Press Keys..." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Press Keys..."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2759,10 +4609,24 @@
       }
     },
     "Press the shortcut to toggle the terminal from anywhere" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Press the shortcut to toggle the terminal from anywhere"
+          }
+        }
+      }
     },
     "Press..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Press..."
+          }
+        }
+      }
     },
     "Prevent flickering from rapid song changes" : {
       "localizations" : {
@@ -2791,16 +4655,43 @@
       }
     },
     "Preview not available" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Preview not available"
+          }
+        }
+      }
     },
     "Processed files will be saved automatically" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Processed files will be saved automatically"
+          }
+        }
+      }
     },
     "Processing audio..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Processing audio..."
+          }
+        }
+      }
     },
     "Productivity" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Productivity"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2836,10 +4727,34 @@
       }
     },
     "Push files to Droppy via keyboard shortcuts." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Push files to Droppy via keyboard shortcuts."
+          }
+        }
+      }
     },
     "Quick access terminal in your notch" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quick access terminal in your notch"
+          }
+        }
+      }
+    },
+    "Quick access to file management from Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quick access to file management from Settings"
+          }
+        }
+      }
     },
     "Quick Actions" : {
       "localizations" : {
@@ -2862,7 +4777,14 @@
       }
     },
     "Quick Look" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quick Look"
+          }
+        }
+      }
     },
     "Quick Start Guide" : {
       "localizations" : {
@@ -2891,13 +4813,33 @@
       }
     },
     "Quickly upload and share files via 0x0.st" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quickly upload and share files via 0x0.st"
+          }
+        }
+      }
     },
     "Quickshare" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quickshare"
+          }
+        }
+      }
     },
     "Quit Droppy" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Quit Droppy"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2907,13 +4849,34 @@
       }
     },
     "Rate this extension" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rate this extension"
+          }
+        }
+      }
     },
     "Ready" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ready"
+          }
+        }
+      }
     },
     "Ready to install FFmpeg" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ready to install FFmpeg"
+          }
+        }
+      }
     },
     "Real Audio Visualizer" : {
       "localizations" : {
@@ -2932,16 +4895,43 @@
       }
     },
     "Recent Uploads" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recent Uploads"
+          }
+        }
+      }
     },
     "Record" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record"
+          }
+        }
+      }
     },
     "Record and transcribe audio instantly using local AI." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record and transcribe audio instantly using local AI."
+          }
+        }
+      }
     },
     "Record Shortcut" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record Shortcut"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2951,13 +4941,23 @@
       }
     },
     "Recording" : {
-
-    },
-    "Remove" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recording"
+          }
+        }
+      }
     },
     "Remove Background" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Background"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2968,6 +4968,12 @@
     },
     "Remove Background (%lld)" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Background (%lld)"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2978,6 +4984,12 @@
     },
     "Remove Background (Settings > Extensions)" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Background (Settings > Extensions)"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2988,6 +5000,12 @@
     },
     "Remove backgrounds from images using AI. Works offline." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove backgrounds from images using AI. Works offline."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2997,25 +5015,64 @@
       }
     },
     "Remove Flag" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Flag"
+          }
+        }
+      }
     },
     "Remove from Basket" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove from Basket"
+          }
+        }
+      }
     },
     "Remove from Shelf" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove from Shelf"
+          }
+        }
+      }
     },
     "Remove image backgrounds instantly with local AI." : {
-
-    },
-    "Remove Stack" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove image backgrounds instantly with local AI."
+          }
+        }
+      }
     },
     "Removing BG..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Removing BG..."
+          }
+        }
+      }
     },
     "Rename" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Rename"
+          }
+        }
+      }
     },
     "Replace system OSD" : {
       "localizations" : {
@@ -3032,6 +5089,12 @@
           }
         }
       }
+    },
+    "Required" : {
+
+    },
+    "Required to read notifications" : {
+
     },
     "Requires Accessibility permissions to paste. Shortcuts may conflict with other apps." : {
       "localizations" : {
@@ -3066,7 +5129,14 @@
       }
     },
     "Requires Homebrew" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Requires Homebrew"
+          }
+        }
+      }
     },
     "Requires macOS 15" : {
       "localizations" : {
@@ -3079,7 +5149,14 @@
       }
     },
     "Requires Powerpack" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Requires Powerpack"
+          }
+        }
+      }
     },
     "Reset" : {
       "localizations" : {
@@ -3098,6 +5175,7 @@
       }
     },
     "Reset all Droppy settings to defaults" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3109,6 +5187,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Droppy의 모든 설정을 기본값으로 재설정"
+          }
+        }
+      }
+    },
+    "Reset all settings to defaults" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reset all settings to defaults"
           }
         }
       }
@@ -3131,6 +5219,12 @@
     },
     "Reset Shortcut" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reset Shortcut"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3141,6 +5235,12 @@
     },
     "Reset Shortcuts" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reset Shortcuts"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3150,10 +5250,24 @@
       }
     },
     "Reveal in Finder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reveal in Finder"
+          }
+        }
+      }
     },
     "Reviews" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reviews"
+          }
+        }
+      }
     },
     "Right Edge" : {
       "localizations" : {
@@ -3166,10 +5280,24 @@
       }
     },
     "Right Half" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Right Half"
+          }
+        }
+      }
     },
     "Right-click files to add them via Services menu." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Right-click files to add them via Services menu."
+          }
+        }
+      }
     },
     "Right-click the area again to show" : {
       "localizations" : {
@@ -3181,8 +5309,15 @@
         }
       }
     },
-    "Right-click the chevron for more options" : {
-
+    "Right-click the dot for more options" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Right-click the dot for more options"
+          }
+        }
+      }
     },
     "Right-click the Notch or Dynamic Island to access Settings anytime" : {
       "localizations" : {
@@ -3215,30 +5350,87 @@
       }
     },
     "Running" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Running"
+          }
+        }
+      }
     },
     "Save" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save"
+          }
+        }
+      }
     },
     "Save All" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save All"
+          }
+        }
+      }
     },
     "Save All (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save All (%lld)"
+          }
+        }
+      }
     },
     "Save Audio" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save Audio"
+          }
+        }
+      }
     },
     "Save to" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save to"
+          }
+        }
+      }
     },
     "Save to Downloads" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save to Downloads"
+          }
+        }
+      }
     },
     "Screen" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screen"
+          }
+        }
+      }
     },
     "Screen State" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3255,19 +5447,54 @@
       }
     },
     "Screenshot" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screenshot"
+          }
+        }
+      }
     },
     "Screenshot any UI element by clicking on it." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screenshot any UI element by clicking on it."
+          }
+        }
+      }
     },
     "Search (⌘F)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Search (⌘F)"
+          }
+        }
+      }
     },
     "Search Files..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Search Files..."
+          }
+        }
+      }
     },
     "Search history..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Search history..."
+          }
+        }
+      }
     },
     "Select a nearby device to send" : {
       "localizations" : {
@@ -3280,13 +5507,24 @@
       }
     },
     "Select All" : {
-
-    },
-    "Select All (%lld)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select All"
+          }
+        }
+      }
     },
     "Select All (⌘A)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select All (⌘A)"
+          }
+        }
+      }
     },
     "Select all and drop to Finder folder" : {
       "localizations" : {
@@ -3309,7 +5547,14 @@
       }
     },
     "Select an item to preview" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select an item to preview"
+          }
+        }
+      }
     },
     "Select App to Exclude" : {
       "localizations" : {
@@ -3322,7 +5567,24 @@
       }
     },
     "Select File to Upload..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Select File to Upload..."
+          }
+        }
+      }
+    },
+    "Set each app's banner style to \"None\" in System Settings → Notifications" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Set each app's banner style to \"None\" in System Settings → Notifications"
+          }
+        }
+      }
     },
     "Settings" : {
       "localizations" : {
@@ -3341,6 +5603,7 @@
       }
     },
     "Settings → Extensions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3358,6 +5621,12 @@
     },
     "Settings..." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Settings..."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3367,7 +5636,14 @@
       }
     },
     "Setup Required" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Setup Required"
+          }
+        }
+      }
     },
     "Shake files side-to-side while dragging to summon the floating basket." : {
       "localizations" : {
@@ -3380,16 +5656,54 @@
       }
     },
     "Shake files to summon a floating drop zone anywhere.\nPerfect when your notch is on a different screen." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shake files to summon a floating drop zone anywhere.\nPerfect when your notch is on a different screen."
+          }
+        }
+      }
     },
     "Share" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share"
+          }
+        }
+      }
+    },
+    "Share files via the basket's Quickshare action" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share files via the basket's Quickshare action"
+          }
+        }
+      }
     },
     "Share screenshots, recordings, and files instantly with short, expiring links. No account required." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share screenshots, recordings, and files instantly with short, expiring links. No account required."
+          }
+        }
+      }
     },
     "Share..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share..."
+          }
+        }
+      }
     },
     "Shared Features" : {
       "localizations" : {
@@ -3408,10 +5722,34 @@
       }
     },
     "shared file%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "shared file%@"
+          }
+        }
+      }
+    },
+    "Shared Files" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shared Files"
+          }
+        }
+      }
     },
     "Shelf & Basket" : {
+      "extractionState" : "stale",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shelf & Basket"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3437,7 +5775,14 @@
       }
     },
     "Shelf is empty" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shelf is empty"
+          }
+        }
+      }
     },
     "Shortcut" : {
       "localizations" : {
@@ -3472,7 +5817,14 @@
       }
     },
     "Shortcuts" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shortcuts"
+          }
+        }
+      }
     },
     "Show 'Hide Notch/Island' option in right-click menu" : {
       "localizations" : {
@@ -3485,7 +5837,24 @@
       }
     },
     "Show %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show %@"
+          }
+        }
+      }
+    },
+    "Show animation when screen locks and unlocks" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show animation when screen locks and unlocks"
+          }
+        }
+      }
     },
     "Show basket immediately when dragging files" : {
       "localizations" : {
@@ -3520,13 +5889,44 @@
       }
     },
     "Show Icons" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show Icons"
+          }
+        }
+      }
     },
     "Show in Finder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Finder"
+          }
+        }
+      }
     },
     "Show in Menu Bar" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Menu Bar"
+          }
+        }
+      }
+    },
+    "Show in Settings Sidebar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Settings Sidebar"
+          }
+        }
+      }
     },
     "Show indicator" : {
       "localizations" : {
@@ -3545,6 +5945,7 @@
       }
     },
     "Show lock animation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3560,11 +5961,75 @@
         }
       }
     },
+    "Show notch & music controls on the lock screen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show notch & music controls on the lock screen"
+          }
+        }
+      }
+    },
+    "Show Notification Preview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show Notification Preview"
+          }
+        }
+      }
+    },
+    "Show notifications in the notch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show notifications in the notch"
+          }
+        }
+      }
+    },
+    "Show notifications in your notch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show notifications in your notch"
+          }
+        }
+      }
+    },
     "Show Quickshare submenu in Droppy menu" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show Quickshare submenu in Droppy menu"
+          }
+        }
+      }
     },
     "Show recording icon in menu bar" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show recording icon in menu bar"
+          }
+        }
+      }
+    },
+    "Show when a new version is available" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show when a new version is available"
+          }
+        }
+      }
     },
     "Show when charging" : {
       "localizations" : {
@@ -3667,13 +6132,34 @@
       }
     },
     "Smart Export Enabled" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Smart Export Enabled"
+          }
+        }
+      }
     },
     "Snap windows to halves, quarters, and thirds with keyboard shortcuts." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snap windows to halves, quarters, and thirds with keyboard shortcuts."
+          }
+        }
+      }
     },
     "Snap windows to halves, quarters, or thirds with keyboard shortcuts." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Snap windows to halves, quarters, or thirds with keyboard shortcuts."
+          }
+        }
+      }
     },
     "Space" : {
       "localizations" : {
@@ -3686,10 +6172,24 @@
       }
     },
     "Speech recognized from audio" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Speech recognized from audio"
+          }
+        }
+      }
     },
     "Spotify Integration" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Spotify Integration"
+          }
+        }
+      }
     },
     "Stabilize Media" : {
       "localizations" : {
@@ -3775,11 +6275,35 @@
         }
       }
     },
+    "Still show volume, brightness, and other HUDs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Still show volume, brightness, and other HUDs"
+          }
+        }
+      }
+    },
     "Stop Recording" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stop Recording"
+          }
+        }
+      }
     },
     "Submit" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Submit"
+          }
+        }
+      }
     },
     "Summon Basket" : {
       "localizations" : {
@@ -3808,6 +6332,7 @@
       }
     },
     "Support Development" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3903,17 +6428,55 @@
         }
       }
     },
-    "Tap to expand · Drag to export" : {
-
+    "System Integration" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "System Integration"
+          }
+        }
+      }
+    },
+    "System Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "System Settings"
+          }
+        }
+      }
     },
     "Target Size" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Target Size"
+          }
+        }
+      }
     },
     "Target Size..." : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Target Size..."
+          }
+        }
+      }
     },
     "Termi-Notch" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Termi-Notch"
+          }
+        }
+      }
     },
     "Terminal" : {
       "localizations" : {
@@ -3926,10 +6489,24 @@
       }
     },
     "Text recognized from image" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Text recognized from image"
+          }
+        }
+      }
     },
     "Thanks for your feedback!" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Thanks for your feedback!"
+          }
+        }
+      }
     },
     "The native productivity layer macOS is missing" : {
       "localizations" : {
@@ -3968,8 +6545,24 @@
         }
       }
     },
+    "These features work best with a physical notch display" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "These features work best with a physical notch display"
+          }
+        }
+      }
+    },
     "This will permanently delete \"%@\" from the 0x0.st server. The link will stop working." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This will permanently delete \"%@\" from the 0x0.st server. The link will stop working."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4021,13 +6614,34 @@
       }
     },
     "To Shelf" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "To Shelf"
+          }
+        }
+      }
     },
     "Toggle Favorite" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Toggle Favorite"
+          }
+        }
+      }
     },
     "Toggle Terminal (Ctrl + `)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Toggle Terminal (Ctrl + `)"
+          }
+        }
+      }
     },
     "Tracked Folders" : {
       "localizations" : {
@@ -4040,10 +6654,24 @@
       }
     },
     "Transcribing" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transcribing"
+          }
+        }
+      }
     },
     "Transcription" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transcription"
+          }
+        }
+      }
     },
     "Transparent Background" : {
       "localizations" : {
@@ -4078,13 +6706,34 @@
       }
     },
     "Unfavorite" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unfavorite"
+          }
+        }
+      }
     },
     "Unlocked" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unlocked"
+          }
+        }
+      }
     },
     "Unpin Folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unpin Folder"
+          }
+        }
+      }
     },
     "Update" : {
       "localizations" : {
@@ -4104,6 +6753,12 @@
     },
     "Update & Restart" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Update & Restart"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4114,6 +6769,12 @@
     },
     "Update Available" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Update Available"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4122,11 +6783,41 @@
         }
       }
     },
+    "Updates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Updates"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트"
+          }
+        }
+      }
+    },
     "Upload from Clipboard" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Upload from Clipboard"
+          }
+        }
+      }
     },
     "Use **shortcut** from anywhere" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Use **shortcut** from anywhere"
+          }
+        }
+      }
     },
     "Use glass effect for windows" : {
       "localizations" : {
@@ -4154,7 +6845,18 @@
         }
       }
     },
+    "Use this if settings become stuck or broken after an update." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Use this if settings become stuck or broken after an update."
+          }
+        }
+      }
+    },
     "Use this if settings become stuck or broken after an update. Extensions will need to be reinstalled." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4171,6 +6873,7 @@
       }
     },
     "Users" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4186,8 +6889,25 @@
         }
       }
     },
+    "Valetivivek" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Valetivivek"
+          }
+        }
+      }
+    },
     "Version %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %@"
+          }
+        }
+      }
     },
     "Version %@ is available. You are on %@." : {
       "localizations" : {
@@ -4200,7 +6920,14 @@
       }
     },
     "Video Target Size" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Video Target Size"
+          }
+        }
+      }
     },
     "Visual hints, quick-access buttons, and screenshot visibility." : {
       "localizations" : {
@@ -4240,6 +6967,12 @@
     },
     "Voice Transcribe" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Voice Transcribe"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4295,7 +7028,14 @@
       }
     },
     "Website" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Website"
+          }
+        }
+      }
     },
     "What this does:" : {
       "localizations" : {
@@ -4314,7 +7054,14 @@
       }
     },
     "When all selected, button becomes \"Add All\" to copy files to the frontmost Finder folder" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "When all selected, button becomes \"Add All\" to copy files to the frontmost Finder folder"
+          }
+        }
+      }
     },
     "When disabled: same disk = may move" : {
       "localizations" : {
@@ -4358,6 +7105,12 @@
     },
     "Window Snap" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Window Snap"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4394,6 +7147,12 @@
     },
     "You're running the latest version (%@)." : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You're running the latest version (%@)."
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -4403,7 +7162,14 @@
       }
     },
     "Your shareable link has been copied to clipboard" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your shareable link has been copied to clipboard"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
