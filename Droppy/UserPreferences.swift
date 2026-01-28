@@ -38,6 +38,10 @@ enum AppPreferenceKey {
     static let autoFadeMediaHUD = "autoFadeMediaHUD"
     static let debounceMediaChanges = "debounceMediaChanges"
     static let enableRealAudioVisualizer = "enableRealAudioVisualizer"
+
+    // MARK: - Media Source Filter
+    static let mediaSourceFilterEnabled = "mediaSourceFilterEnabled"
+    static let mediaSourceAllowedBundles = "mediaSourceAllowedBundles"  // JSON array of bundle identifiers
     
     // MARK: - HUD Settings
     static let enableBatteryHUD = "enableBatteryHUD"
@@ -151,6 +155,10 @@ enum PreferenceDefault {
     static let autoFadeMediaHUD = true
     static let debounceMediaChanges = false
     static let enableRealAudioVisualizer = false  // Opt-in: requires Screen Recording
+
+    // MARK: - Media Source Filter
+    static let mediaSourceFilterEnabled = false  // Off by default: show all media sources
+    static let mediaSourceAllowedBundles = "{}"  // Empty JSON dictionary: no filter applied
     
     // MARK: - HUD Settings
     static let enableBatteryHUD = true

@@ -127,10 +127,430 @@ final class MusicManager: ObservableObject {
     /// This allows users to swipe away from the media player to see the shelf
     @Published var isMediaHUDHidden: Bool = false
     
-    /// FIX #95: Flag to bypass HUD visibility safeguards (transition/debounce) 
+    /// FIX #95: Flag to bypass HUD visibility safeguards (transition/debounce)
     /// when forcing a source switch from Spotify fallback
     @Published var isMediaSourceForced: Bool = false
     private var sourceForceResetTimer: Timer?
+
+    // MARK: - Media Source Filter
+
+    /// Whether media source filtering is enabled
+    /// When enabled, only bundle identifiers in the allowed list will be shown
+    private var isMediaSourceFilterEnabled: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.mediaSourceFilterEnabled,
+            default: PreferenceDefault.mediaSourceFilterEnabled
+        )
+    }
+
+    /// Set of allowed bundle identifiers for media source filtering
+    /// Empty set means no filter (show all sources)
+    private var allowedMediaBundles: Set<String> {
+        let jsonString = UserDefaults.standard.preference(
+            AppPreferenceKey.mediaSourceAllowedBundles,
+            default: PreferenceDefault.mediaSourceAllowedBundles
+        )
+        guard let data = jsonString.data(using: .utf8) else { return [] }
+
+        // Try new format (dictionary: bundleId -> appName)
+        if let dict = try? JSONDecoder().decode([String: String].self, from: data) {
+            return Set(dict.keys)
+        }
+
+        // Fallback to old format (array of bundleIds)
+        if let array = try? JSONDecoder().decode([String].self, from: data) {
+            return Set(array)
+        }
+
+        return []
+    }
+
+    /// Check if a bundle identifier is allowed by the media source filter
+    /// Returns true if filter is disabled, or if the bundle is in the allowed list
+    private func isBundleAllowed(_ bundleId: String?) -> Bool {
+        guard isMediaSourceFilterEnabled else { return true }
+        guard let bundleId = bundleId else { return false }
+        let allowed = allowedMediaBundles
+        if allowed.isEmpty { return true }  // Empty list = no filter
+        return allowed.contains(bundleId)
+    }
+
+    /// Track previously detected media sources for settings UI
+    @Published private(set) var detectedMediaSources: [MediaSourceInfo] = []
+
+    /// Information about a detected media source
+    struct MediaSourceInfo: Identifiable, Hashable {
+        let id: String  // bundleIdentifier
+        let name: String
+        let bundleIdentifier: String
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(bundleIdentifier)
+        }
+
+        static func == (lhs: MediaSourceInfo, rhs: MediaSourceInfo) -> Bool {
+            lhs.bundleIdentifier == rhs.bundleIdentifier
+        }
+    }
+
+    /// Ensure the specified source's app is active before sending playback commands
+    /// This is used when filtering to ensure commands go to the displayed app, not the system's active source
+    private func ensureDisplayedSourceActive(forBundle displayedBundle: String, completion: @escaping () -> Void) {
+        // Check if the displayed source app is running
+        let isDisplayedAppRunning = NSRunningApplication.runningApplications(withBundleIdentifier: displayedBundle).first != nil
+
+        if !isDisplayedAppRunning {
+            // App is not running - launch it first, then send command
+            print("MusicManager: Launching filtered source app: \(displayedBundle)")
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: displayedBundle) {
+                NSWorkspace.shared.openApplication(at: appURL, configuration: .init()) { _, error in
+                    if let error = error {
+                        print("MusicManager: Failed to launch app: \(error)")
+                    }
+                    // Wait a moment for app to initialize, then send command
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        completion()
+                    }
+                }
+                return
+            }
+        }
+
+        // App is running, activate it to ensure it receives the command
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: displayedBundle).first {
+            app.activate()
+        }
+
+        // Small delay to ensure activation, then proceed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            completion()
+        }
+    }
+
+    /// WebCatalog YouTube Music bundle identifier
+    private static let youTubeMusicWebCatalogBundleId = "com.webcatalog.juli.youtube-music"
+
+    /// Send play/pause command directly to an app via AppleScript
+    /// This is more reliable than MediaRemote when the app is not the active Now Playing source
+    private func sendPlayPauseViaAppleScript(to bundleId: String) {
+        // Native apps with AppleScript support
+        if bundleId == SpotifyController.spotifyBundleId {
+            runAppleScriptAsync("tell application \"Spotify\" to playpause")
+            return
+        }
+        if bundleId == AppleMusicController.appleMusicBundleId {
+            runAppleScriptAsync("tell application \"Music\" to playpause")
+            return
+        }
+
+        // WebCatalog YouTube Music: activate and send space key
+        if bundleId == Self.youTubeMusicWebCatalogBundleId {
+            activateAppAndSendKey(appName: "YouTube Music", key: " ")
+            return
+        }
+
+        // Browser-based sources: find tab, activate, and send space key
+        if isBrowserBundle(bundleId) {
+            activateBrowserTabAndSendKey(bundleId: bundleId, key: " ") // Space for play/pause
+            return
+        }
+
+        // For other apps, fall back to MediaRemote
+        if let sendCommand = MRMediaRemoteSendCommandPtr {
+            sendCommand(MRCommand.togglePlayPause.rawValue, nil)
+        }
+    }
+
+    /// Activate an app by name and send a key
+    private func activateAppAndSendKey(appName: String, key: String) {
+        let script = """
+        tell application "\(appName)"
+            activate
+        end tell
+        delay 0.3
+        tell application "System Events"
+            keystroke "\(key)"
+        end tell
+        """
+        runAppleScriptAsync(script)
+    }
+
+    /// Check if a bundle identifier is a browser
+    private func isBrowserBundle(_ bundleId: String) -> Bool {
+        let browserBundles = [
+            "com.apple.Safari",
+            "com.google.Chrome",
+            "company.thebrowser.Browser", // Arc
+            "org.mozilla.firefox",
+            "com.brave.Browser",
+            "com.microsoft.edgemac",
+        ]
+        return browserBundles.contains(bundleId) || bundleId.lowercased().contains("browser")
+    }
+
+    /// Activate a browser tab matching the current song and send a key
+    private func activateBrowserTabAndSendKey(bundleId: String, key: String) {
+        let titleMatch = songTitle.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let artistMatch = artistName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+
+        var script: String
+
+        if bundleId == "com.apple.Safari" {
+            script = """
+            tell application "Safari"
+                activate
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if name of t contains "\(titleMatch)" or name of t contains "\(artistMatch)" then
+                            set current tab of w to t
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                keystroke "\(key)"
+                            end tell
+                            return "Found and played"
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            """
+        } else if bundleId == "company.thebrowser.Browser" {
+            // Arc browser
+            script = """
+            tell application "Arc"
+                activate
+                repeat with w in windows
+                    set tabIndex to 1
+                    repeat with t in tabs of w
+                        if title of t contains "\(titleMatch)" or title of t contains "\(artistMatch)" then
+                            tell w to set active tab index to tabIndex
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                keystroke "\(key)"
+                            end tell
+                            return "Found and played"
+                        end if
+                        set tabIndex to tabIndex + 1
+                    end repeat
+                end repeat
+            end tell
+            """
+        } else {
+            // Chrome and Chromium-based browsers
+            let appName = getAppName(from: bundleId) ?? "Google Chrome"
+            script = """
+            tell application "\(appName)"
+                activate
+                repeat with w in windows
+                    set tabIndex to 1
+                    repeat with t in tabs of w
+                        if title of t contains "\(titleMatch)" or title of t contains "\(artistMatch)" then
+                            set active tab index of w to tabIndex
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                keystroke "\(key)"
+                            end tell
+                            return "Found and played"
+                        end if
+                        set tabIndex to tabIndex + 1
+                    end repeat
+                end repeat
+            end tell
+            """
+        }
+
+        runAppleScriptAsync(script)
+    }
+
+    /// Run AppleScript asynchronously
+    private func runAppleScriptAsync(_ source: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            var error: NSDictionary?
+            if let appleScript = NSAppleScript(source: source) {
+                appleScript.executeAndReturnError(&error)
+                if let error = error {
+                    print("MusicManager: AppleScript error: \(error)")
+                }
+            }
+        }
+    }
+
+    /// Send next track command directly to an app via AppleScript
+    private func sendNextTrackViaAppleScript(to bundleId: String) {
+        // Native apps with AppleScript support
+        if bundleId == SpotifyController.spotifyBundleId {
+            runAppleScriptAsync("tell application \"Spotify\" to next track")
+            return
+        }
+        if bundleId == AppleMusicController.appleMusicBundleId {
+            runAppleScriptAsync("tell application \"Music\" to next track")
+            return
+        }
+
+        // WebCatalog YouTube Music: activate and send Shift+N
+        if bundleId == Self.youTubeMusicWebCatalogBundleId {
+            activateAppAndSendKeyCombo(appName: "YouTube Music", key: "n", modifiers: ["shift"])
+            return
+        }
+
+        // Browser-based sources: find tab, activate, and send Shift+N (YouTube Music shortcut)
+        if isBrowserBundle(bundleId) {
+            activateBrowserTabAndSendKeyCombo(bundleId: bundleId, key: "n", modifiers: ["shift"])
+            return
+        }
+
+        // For other apps, fall back to MediaRemote
+        if let sendCommand = MRMediaRemoteSendCommandPtr {
+            sendCommand(MRCommand.nextTrack.rawValue, nil)
+        }
+    }
+
+    /// Send previous track command directly to an app via AppleScript
+    private func sendPreviousTrackViaAppleScript(to bundleId: String) {
+        // Native apps with AppleScript support
+        if bundleId == SpotifyController.spotifyBundleId {
+            runAppleScriptAsync("tell application \"Spotify\" to previous track")
+            return
+        }
+        if bundleId == AppleMusicController.appleMusicBundleId {
+            runAppleScriptAsync("tell application \"Music\" to previous track")
+            return
+        }
+
+        // WebCatalog YouTube Music: activate and send Shift+P
+        if bundleId == Self.youTubeMusicWebCatalogBundleId {
+            activateAppAndSendKeyCombo(appName: "YouTube Music", key: "p", modifiers: ["shift"])
+            return
+        }
+
+        // Browser-based sources: find tab, activate, and send Shift+P (YouTube Music shortcut)
+        if isBrowserBundle(bundleId) {
+            activateBrowserTabAndSendKeyCombo(bundleId: bundleId, key: "p", modifiers: ["shift"])
+            return
+        }
+
+        // For other apps, fall back to MediaRemote
+        if let sendCommand = MRMediaRemoteSendCommandPtr {
+            sendCommand(MRCommand.previousTrack.rawValue, nil)
+        }
+    }
+
+    /// Activate an app by name and send a key combination
+    private func activateAppAndSendKeyCombo(appName: String, key: String, modifiers: [String]) {
+        let modifierStr = modifiers.map { "\($0) down" }.joined(separator: ", ")
+        let keystrokeCmd = modifierStr.isEmpty
+            ? "keystroke \"\(key)\""
+            : "keystroke \"\(key)\" using {\(modifierStr)}"
+
+        let script = """
+        tell application "\(appName)"
+            activate
+        end tell
+        delay 0.3
+        tell application "System Events"
+            \(keystrokeCmd)
+        end tell
+        """
+        runAppleScriptAsync(script)
+    }
+
+    /// Activate a browser tab and send a key combination
+    private func activateBrowserTabAndSendKeyCombo(bundleId: String, key: String, modifiers: [String]) {
+        let titleMatch = songTitle.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let artistMatch = artistName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+
+        // Build modifier string for AppleScript
+        let modifierStr = modifiers.map { "\($0) down" }.joined(separator: ", ")
+        let keystrokeCmd = modifierStr.isEmpty
+            ? "keystroke \"\(key)\""
+            : "keystroke \"\(key)\" using {\(modifierStr)}"
+
+        var script: String
+
+        if bundleId == "com.apple.Safari" {
+            script = """
+            tell application "Safari"
+                activate
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if name of t contains "\(titleMatch)" or name of t contains "\(artistMatch)" then
+                            set current tab of w to t
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                \(keystrokeCmd)
+                            end tell
+                            return "Found"
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            """
+        } else if bundleId == "company.thebrowser.Browser" {
+            script = """
+            tell application "Arc"
+                activate
+                repeat with w in windows
+                    set tabIndex to 1
+                    repeat with t in tabs of w
+                        if title of t contains "\(titleMatch)" or title of t contains "\(artistMatch)" then
+                            tell w to set active tab index to tabIndex
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                \(keystrokeCmd)
+                            end tell
+                            return "Found"
+                        end if
+                        set tabIndex to tabIndex + 1
+                    end repeat
+                end repeat
+            end tell
+            """
+        } else {
+            let appName = getAppName(from: bundleId) ?? "Google Chrome"
+            script = """
+            tell application "\(appName)"
+                activate
+                repeat with w in windows
+                    set tabIndex to 1
+                    repeat with t in tabs of w
+                        if title of t contains "\(titleMatch)" or title of t contains "\(artistMatch)" then
+                            set active tab index of w to tabIndex
+                            set index of w to 1
+                            delay 0.2
+                            tell application "System Events"
+                                \(keystrokeCmd)
+                            end tell
+                            return "Found"
+                        end if
+                        set tabIndex to tabIndex + 1
+                    end repeat
+                end repeat
+            end tell
+            """
+        }
+
+        runAppleScriptAsync(script)
+    }
+
+    /// Add a newly detected media source to the list (for settings UI)
+    private func recordDetectedSource(_ bundleId: String) {
+        guard !detectedMediaSources.contains(where: { $0.bundleIdentifier == bundleId }) else { return }
+
+        // Get app name from bundle identifier
+        var appName = bundleId
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            appName = appURL.deletingPathExtension().lastPathComponent
+        }
+
+        let sourceInfo = MediaSourceInfo(id: bundleId, name: appName, bundleIdentifier: bundleId)
+        DispatchQueue.main.async { [weak self] in
+            self?.detectedMediaSources.append(sourceInfo)
+        }
+    }
 
     // MARK: - Spotify Integration
     
@@ -282,7 +702,7 @@ final class MusicManager: ObservableObject {
     /// FIX: Prevents frozen media HUD after Mac wakes from sleep
     private func setupSleepWakeObservers() {
         let workspaceCenter = NSWorkspace.shared.notificationCenter
-        
+
         // Restart adapter when screen wakes to ensure fresh data stream
         workspaceCenter.addObserver(
             self,
@@ -290,7 +710,7 @@ final class MusicManager: ObservableObject {
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
-        
+
         // Also restart when session becomes active (after lock screen)
         workspaceCenter.addObserver(
             self,
@@ -298,8 +718,49 @@ final class MusicManager: ObservableObject {
             name: NSWorkspace.sessionDidBecomeActiveNotification,
             object: nil
         )
-        
+
+        // Monitor app termination to clear stale media display when filter is enabled
+        workspaceCenter.addObserver(
+            self,
+            selector: #selector(handleAppTermination(_:)),
+            name: NSWorkspace.didTerminateApplicationNotification,
+            object: nil
+        )
+
         print("MusicManager: Sleep/wake observers registered")
+    }
+
+    /// Called when an app terminates - clear media display if it was the filtered source
+    @objc private func handleAppTermination(_ notification: Notification) {
+        guard isMediaSourceFilterEnabled else { return }
+
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let terminatedBundleId = app.bundleIdentifier else {
+            return
+        }
+
+        // Check if the terminated app is our currently displayed source
+        if terminatedBundleId == bundleIdentifier {
+            print("MusicManager: Filtered source app terminated (\(terminatedBundleId)) - clearing display")
+            DispatchQueue.main.async { [weak self] in
+                self?.clearMediaDisplay()
+            }
+        }
+    }
+
+    /// Clear the media display (used when filtered source app terminates)
+    private func clearMediaDisplay() {
+        songTitle = ""
+        artistName = ""
+        albumName = ""
+        albumArt = NSImage()
+        isPlaying = false
+        songDuration = 0
+        elapsedTime = 0
+        playbackRate = 0
+        bundleIdentifier = nil
+        wasRecentlyPlaying = false
+        isMediaHUDForced = false
     }
     
     /// Called when screen wakes from sleep - restart the adapter to prevent frozen HUD
@@ -478,7 +939,19 @@ final class MusicManager: ObservableObject {
     @MainActor
     private func handleUpdate(_ update: NowPlayingUpdate) {
         let payload = update.payload
-        
+
+        // MARK: Media Source Filter
+        // Record detected source for settings UI (even if filtered)
+        if let bundleId = payload.launchableBundleIdentifier {
+            recordDetectedSource(bundleId)
+        }
+
+        // Check if this source is allowed by the filter
+        if !isBundleAllowed(payload.launchableBundleIdentifier) {
+            print("MusicManager: Skipping update from filtered source: \(payload.launchableBundleIdentifier ?? "unknown")")
+            return
+        }
+
         // Update metadata
         if let title = payload.title {
             // Reset timing values when song changes to prevent stale timestamps
@@ -638,35 +1111,58 @@ final class MusicManager: ObservableObject {
     }
     
     // MARK: - Public Control API
-    
+
     /// Toggle play/pause
     func togglePlay() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
-        sendCommand(MRCommand.togglePlayPause.rawValue, nil)
+        // When filter is enabled, use AppleScript for direct control of the displayed source
+        if isMediaSourceFilterEnabled, let displayedBundle = bundleIdentifier {
+            ensureDisplayedSourceActive(forBundle: displayedBundle) { [weak self] in
+                self?.sendPlayPauseViaAppleScript(to: displayedBundle)
+            }
+        } else {
+            guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
+            sendCommand(MRCommand.togglePlayPause.rawValue, nil)
+        }
     }
-    
+
     /// Skip to next track
     func nextTrack() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
         // Reset first to ensure consecutive same-direction skips trigger onChange
         lastSkipDirection = .none
         // Then set direction after brief delay to ensure SwiftUI observes the change
         DispatchQueue.main.async { [weak self] in
             self?.lastSkipDirection = .forward
         }
-        sendCommand(MRCommand.nextTrack.rawValue, nil)
+
+        // When filter is enabled, use AppleScript for direct control of the displayed source
+        if isMediaSourceFilterEnabled, let displayedBundle = bundleIdentifier {
+            ensureDisplayedSourceActive(forBundle: displayedBundle) { [weak self] in
+                self?.sendNextTrackViaAppleScript(to: displayedBundle)
+            }
+        } else {
+            guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
+            sendCommand(MRCommand.nextTrack.rawValue, nil)
+        }
     }
-    
+
     /// Skip to previous track
     func previousTrack() {
-        guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
         // Reset first to ensure consecutive same-direction skips trigger onChange
         lastSkipDirection = .none
         // Then set direction after brief delay to ensure SwiftUI observes the change
         DispatchQueue.main.async { [weak self] in
             self?.lastSkipDirection = .backward
         }
-        sendCommand(MRCommand.previousTrack.rawValue, nil)
+
+        // When filter is enabled, use AppleScript for direct control of the displayed source
+        if isMediaSourceFilterEnabled, let displayedBundle = bundleIdentifier {
+            ensureDisplayedSourceActive(forBundle: displayedBundle) { [weak self] in
+                self?.sendPreviousTrackViaAppleScript(to: displayedBundle)
+            }
+        } else {
+            guard let sendCommand = MRMediaRemoteSendCommandPtr else { return }
+            sendCommand(MRCommand.previousTrack.rawValue, nil)
+        }
     }
     
     /// Seek to specific time

@@ -45,6 +45,8 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
     @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
     @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer = PreferenceDefault.enableRealAudioVisualizer
+    @AppStorage(AppPreferenceKey.mediaSourceFilterEnabled) private var mediaSourceFilterEnabled = PreferenceDefault.mediaSourceFilterEnabled
+    @AppStorage(AppPreferenceKey.mediaSourceAllowedBundles) private var mediaSourceAllowedBundles = PreferenceDefault.mediaSourceAllowedBundles
     @AppStorage(AppPreferenceKey.autoShrinkShelf) private var autoShrinkShelf = PreferenceDefault.autoShrinkShelf  // Legacy
     @AppStorage(AppPreferenceKey.autoShrinkDelay) private var autoShrinkDelay = PreferenceDefault.autoShrinkDelay  // Legacy
     @AppStorage(AppPreferenceKey.autoCollapseDelay) private var autoCollapseDelay = PreferenceDefault.autoCollapseDelay
@@ -64,6 +66,7 @@ struct SettingsView: View {
     @State private var showMenuBarHiddenWarning = false  // Warning when hiding menu bar icon (Issue #57)
     @State private var showProtectOriginalsWarning = false  // Warning when disabling Protect Originals
     @State private var showStabilizeMediaWarning = false  // Warning when enabling Stabilize Media
+    @State private var showMediaSourceFilterSheet = false  // Media source filter configuration
     @State private var showAutoFocusSearchWarning = false  // Warning when enabling Auto-Focus Search
     @State private var showQuickActionsWarning = false  // Warning when enabling Quick Actions
     
@@ -93,7 +96,26 @@ struct SettingsView: View {
         }
         return false
     }
-    
+
+    /// Summary text for media source filter (shows count of allowed sources)
+    private var mediaSourceFilterSummary: String {
+        guard let data = mediaSourceAllowedBundles.data(using: .utf8) else {
+            return "No apps selected"
+        }
+
+        // Try new format (dictionary)
+        if let dict = try? JSONDecoder().decode([String: String].self, from: data), !dict.isEmpty {
+            return "\(dict.count) app\(dict.count == 1 ? "" : "s") selected"
+        }
+
+        // Fallback to old format (array)
+        if let array = try? JSONDecoder().decode([String].self, from: data), !array.isEmpty {
+            return "\(array.count) app\(array.count == 1 ? "" : "s") selected"
+        }
+
+        return "No apps selected"
+    }
+
     var body: some View {
         ZStack {
             NavigationSplitView {
@@ -1398,6 +1420,48 @@ struct SettingsView: View {
                         }
                         .sheet(isPresented: $showStabilizeMediaWarning) {
                             StabilizeMediaInfoSheet(debounceMediaChanges: $debounceMediaChanges)
+                        }
+
+                        // Media Source Filter
+                        Toggle(isOn: $mediaSourceFilterEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text("Filter Media Sources")
+                                    Text("advanced")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.7))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Color.white.opacity(0.08)))
+                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                }
+                                Text("Only show selected apps in media player")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if mediaSourceFilterEnabled {
+                            Button {
+                                showMediaSourceFilterSheet = true
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Configure Allowed Sources")
+                                        Text(mediaSourceFilterSummary)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 20)
+                            .sheet(isPresented: $showMediaSourceFilterSheet) {
+                                MediaSourceFilterSheet(allowedBundles: $mediaSourceAllowedBundles)
+                            }
                         }
                     }
                 } else {
@@ -4123,5 +4187,220 @@ struct WatchedFolderRow: View {
         .padding(.horizontal, 10)
         .background(Color.white.opacity(0.03))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+// MARK: - Media Source Filter Sheet
+
+/// Sheet for configuring which media sources are allowed
+struct MediaSourceFilterSheet: View {
+    @Binding var allowedBundles: String
+    @Environment(\.dismiss) private var dismiss
+
+    /// Parsed list of allowed apps (name and bundleId)
+    private var allowedApps: [(name: String, bundleId: String)] {
+        guard let data = allowedBundles.data(using: .utf8),
+              let dict = try? JSONDecoder().decode([String: String].self, from: data) else {
+            return []
+        }
+        return dict.map { (name: $0.value, bundleId: $0.key) }.sorted { $0.name < $1.name }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Media Source Filter")
+                    .font(.headline)
+                Spacer()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 16) {
+                // Description
+                Text("Only selected apps will show in the media player. Other apps will be ignored.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                // Add App Button
+                Button {
+                    selectAppFromFinder()
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                        Text("Add App...")
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 10)
+                    .background(Color.blue.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal)
+
+                // Selected Apps List
+                if allowedApps.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "app.badge.checkmark")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                        Text("No apps selected")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text("Click \"Add App...\" to select apps")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 4) {
+                            ForEach(allowedApps, id: \.bundleId) { app in
+                                SelectedAppRow(
+                                    name: app.name,
+                                    bundleId: app.bundleId,
+                                    onRemove: { removeApp(app.bundleId) }
+                                )
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+
+                Spacer()
+            }
+        }
+        .frame(width: 400, height: 450)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    /// Open Finder to select an app
+    private func selectAppFromFinder() {
+        let panel = NSOpenPanel()
+        panel.title = "Select App"
+        panel.message = "Choose an app to add to the media source filter"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.application]
+
+        // Set initial directory to Applications
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                addAppFromURL(url)
+            }
+        }
+    }
+
+    /// Add an app from its URL
+    private func addAppFromURL(_ url: URL) {
+        // Ensure it's an .app bundle
+        guard url.pathExtension == "app" else {
+            print("MediaSourceFilter: Not an app bundle: \(url.path)")
+            return
+        }
+
+        guard let bundle = Bundle(url: url),
+              let bundleId = bundle.bundleIdentifier else {
+            print("MediaSourceFilter: Could not get bundle identifier for \(url.path)")
+            return
+        }
+
+        let appName = url.deletingPathExtension().lastPathComponent
+
+        // Parse current dict
+        var dict: [String: String] = [:]
+        if let data = allowedBundles.data(using: .utf8),
+           let existing = try? JSONDecoder().decode([String: String].self, from: data) {
+            dict = existing
+        }
+
+        // Add new app
+        dict[bundleId] = appName
+
+        // Encode back
+        if let data = try? JSONEncoder().encode(dict),
+           let json = String(data: data, encoding: .utf8) {
+            allowedBundles = json
+        }
+    }
+
+    /// Remove an app from the list
+    private func removeApp(_ bundleId: String) {
+        var dict: [String: String] = [:]
+        if let data = allowedBundles.data(using: .utf8),
+           let existing = try? JSONDecoder().decode([String: String].self, from: data) {
+            dict = existing
+        }
+
+        dict.removeValue(forKey: bundleId)
+
+        if let data = try? JSONEncoder().encode(dict),
+           let json = String(data: data, encoding: .utf8) {
+            allowedBundles = json
+        }
+    }
+}
+
+/// Row for a selected app in the filter sheet
+private struct SelectedAppRow: View {
+    let name: String
+    let bundleId: String
+    let onRemove: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // App icon
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Image(systemName: "app.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+            }
+
+            // Name and bundle ID
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.body)
+                Text(bundleId)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Remove button
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isHovering ? .red : .secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onHover { isHovering = $0 }
     }
 }
