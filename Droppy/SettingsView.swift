@@ -3,58 +3,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
-    @State private var selectedTab: String? = "Features"
-    @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault
-        .showInMenuBar
-    @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar =
-        PreferenceDefault.showQuickshareInMenuBar
-    @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault
-        .startAtLogin
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground =
-        PreferenceDefault.useTransparentBackground
-    @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault
-        .enableNotchShelf
-    @AppStorage(AppPreferenceKey.enableFloatingBasket) private var enableFloatingBasket =
-        PreferenceDefault.enableFloatingBasket
-    @AppStorage(AppPreferenceKey.enableBasketAutoHide) private var enableBasketAutoHide =
-        PreferenceDefault.enableBasketAutoHide
-    @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault
-        .enableAutoClean
-    @AppStorage(AppPreferenceKey.alwaysCopyOnDrag) private var alwaysCopyOnDrag = PreferenceDefault
-        .alwaysCopyOnDrag
-    @AppStorage(AppPreferenceKey.enableAirDropZone) private var enableAirDropZone =
-        PreferenceDefault.enableAirDropZone
-    @AppStorage(AppPreferenceKey.enableShelfAirDropZone) private var enableShelfAirDropZone =
-        PreferenceDefault.enableShelfAirDropZone
-    @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders =
-        PreferenceDefault.enablePowerFolders
-    @AppStorage(AppPreferenceKey.enableQuickActions) private var enableQuickActions =
-        PreferenceDefault.enableQuickActions
-    @AppStorage(AppPreferenceKey.basketAutoHideEdge) private var basketAutoHideEdge =
-        PreferenceDefault.basketAutoHideEdge
-    @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag =
-        PreferenceDefault.instantBasketOnDrag
-    @AppStorage(AppPreferenceKey.instantBasketDelay) private var instantBasketDelay =
-        PreferenceDefault.instantBasketDelay
-    @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton =
-        PreferenceDefault.showClipboardButton
-    @AppStorage(AppPreferenceKey.showOpenShelfIndicator) private var showOpenShelfIndicator =
-        PreferenceDefault.showOpenShelfIndicator
-    @AppStorage(AppPreferenceKey.hideNotchOnExternalDisplays) private
-        var hideNotchOnExternalDisplays = PreferenceDefault.hideNotchOnExternalDisplays
-    @AppStorage(AppPreferenceKey.hideNotchFromScreenshots) private var hideNotchFromScreenshots =
-        PreferenceDefault.hideNotchFromScreenshots
-    @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide =
-        PreferenceDefault.enableRightClickHide
-    @AppStorage(AppPreferenceKey.enableHapticFeedback) private var enableHapticFeedback =
-        PreferenceDefault.enableHapticFeedback
-    @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle =
-        PreferenceDefault.useDynamicIslandStyle
-    @AppStorage(AppPreferenceKey.useDynamicIslandTransparent) private
-        var useDynamicIslandTransparent = PreferenceDefault.useDynamicIslandTransparent
-    @AppStorage(AppPreferenceKey.externalDisplayUseDynamicIsland) private
-        var externalDisplayUseDynamicIsland = PreferenceDefault.externalDisplayUseDynamicIsland
-
     @State private var selectedTab: SettingsTab = .general
     @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault
         .showInMenuBar
