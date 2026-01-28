@@ -5,59 +5,60 @@ import SwiftUI
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     /// Shared instance
     static let shared = SettingsWindowController()
-    
+
     /// The settings window
     private var window: NSWindow?
-    
+
     private override init() {
         super.init()
     }
-    
+
     /// Shows the settings window, creating it if necessary
     func showSettings() {
         showSettings(openingExtension: nil)
     }
-    
+
     /// Shows the settings window and navigates to a specific tab
     /// - Parameter tab: The settings tab to open
     func showSettings(tab: SettingsTab) {
         pendingTabToOpen = tab
         showSettings(openingExtension: nil)
     }
-    
+
     /// Extension type to open when settings loads (cleared after use)
     private(set) var pendingExtensionToOpen: ExtensionType?
-    
+
     /// Tab to open when settings loads (cleared after use)
     private(set) var pendingTabToOpen: SettingsTab?
-    
+
     /// Shows the settings window with optional extension sheet
     /// - Parameter extensionType: If provided, will navigate to Extensions and open this extension's info sheet
     func showSettings(openingExtension extensionType: ExtensionType?) {
         // Store the pending extension before potentially creating the window
         pendingExtensionToOpen = extensionType
-        
+
         // If window already exists, just bring it to front
         if let window = window {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
-            
+
             // Post notification so SettingsView can handle the extension
             if extensionType != nil {
-                NotificationCenter.default.post(name: .openExtensionFromDeepLink, object: extensionType)
+                NotificationCenter.default.post(
+                    name: .openExtensionFromDeepLink, object: extensionType)
             }
             return
         }
-        
+
         // Create the SwiftUI view
         let settingsView = SettingsView()
-            .preferredColorScheme(.dark) // Force dark mode always
+            .preferredColorScheme(.dark)  // Force dark mode always
         let hostingView = NSHostingView(rootView: settingsView)
-        
+
         // SettingsView uses macOS 26 Tahoe glass design
         let windowWidth: CGFloat = 850
         let windowHeight: CGFloat = 650
-        
+
         // Create the window
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
@@ -65,12 +66,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        
+
         newWindow.center()
-        newWindow.title = "Settings"
+        newWindow.title = String(localized: "Settings")
         newWindow.titlebarAppearsTransparent = true
         newWindow.titleVisibility = .visible
-        
+
         // Configure background and appearance
         // NOTE: Do NOT use isMovableByWindowBackground to avoid buttons triggering window drag
         newWindow.isMovableByWindowBackground = false
@@ -78,12 +79,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         newWindow.isOpaque = false
         newWindow.hasShadow = true
         newWindow.isReleasedWhenClosed = false
-        
+
         newWindow.delegate = self
         newWindow.contentView = hostingView
-        
+
         self.window = newWindow
-        
+
         // PREMIUM: Start scaled down and invisible for spring animation
         newWindow.alphaValue = 0
         if let contentView = newWindow.contentView {
@@ -91,7 +92,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0)
             contentView.layer?.opacity = 0
         }
-        
+
         // Bring to front and activate
         // Use slight delay to ensure NotchWindow's canBecomeKey has time to update
         // after detecting this window is visible
@@ -99,13 +100,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         DispatchQueue.main.async {
             NSApp.activate(ignoringOtherApps: true)
             newWindow.makeKeyAndOrderFront(nil)
-            
+
             // Post notification after window is ready
             if extensionType != nil {
-                NotificationCenter.default.post(name: .openExtensionFromDeepLink, object: extensionType)
+                NotificationCenter.default.post(
+                    name: .openExtensionFromDeepLink, object: extensionType)
             }
         }
-        
+
         // PREMIUM: CASpringAnimation for true spring physics with overshoot
         if let layer = newWindow.contentView?.layer {
             // Fade in (smooth like Quickshare)
@@ -118,7 +120,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             fadeAnim.isRemovedOnCompletion = false
             layer.add(fadeAnim, forKey: "fadeIn")
             layer.opacity = 1
-            
+
             // Scale with spring overshoot (smooth like Quickshare)
             let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
             scaleAnim.fromValue = 0.85
@@ -133,35 +135,35 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             layer.add(scaleAnim, forKey: "scaleSpring")
             layer.transform = CATransform3DIdentity
         }
-        
+
         // Fade window alpha (smooth like Quickshare)
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             newWindow.animator().alphaValue = 1.0
         })
-        
+
         // PREMIUM: Haptic confirms settings opened
         HapticFeedback.expand()
     }
-    
+
     /// Close the settings window
     func close() {
         window?.close()
     }
-    
+
     /// Clears the pending extension (called after SettingsView consumes it)
     func clearPendingExtension() {
         pendingExtensionToOpen = nil
     }
-    
+
     /// Clears the pending tab (called after SettingsView consumes it)
     func clearPendingTab() {
         pendingTabToOpen = nil
     }
-    
+
     // MARK: - NSWindowDelegate
-    
+
     func windowWillClose(_ notification: Notification) {
         window = nil
     }

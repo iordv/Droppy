@@ -294,6 +294,9 @@ struct SmartExportSettingsRow: View {
                         Text("Automatically save processed files to designated folders.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(nil)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                         
                         VStack(alignment: .leading, spacing: 6) {
                             Label("Auto-save compressed files", systemImage: "arrow.down.doc")
