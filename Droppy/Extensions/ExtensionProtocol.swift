@@ -24,6 +24,8 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     case quickshare
     case appleMusic
     case notificationHUD
+    case caffeine
+
     
     /// URL-safe ID for deep links
     case finderServices  // Alias for finder

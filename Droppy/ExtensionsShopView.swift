@@ -25,6 +25,8 @@ struct ExtensionsShopView: View {
     private var isTerminalNotchInstalled: Bool { TerminalNotchManager.shared.isInstalled }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
     private var isNotificationHUDInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled) }
+    private var isCaffeineInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled) }
+
     
     var body: some View {
         ScrollView {
@@ -468,7 +470,23 @@ struct ExtensionsShopView: View {
                 isCommunity: true
             ) {
                 AnyView(NotificationHUDInfoView())
-            }
+            },
+            ExtensionListItem(
+                id: "caffeine",
+                iconURL: "https://getdroppy.app/assets/icons/coffee-cup.png",
+                title: "Caffeine",
+                subtitle: "Keep your Mac awake",
+                category: .productivity,
+                isInstalled: isCaffeineInstalled,
+                analyticsKey: "caffeine",
+                extensionType: .caffeine
+            ) {
+                AnyView(CaffeineInfoView(
+                    installCount: extensionCounts["caffeine"],
+                    rating: extensionRatings["caffeine"]
+                ))
+            },
+
         ]
         
         // nil = show all, otherwise filter by category

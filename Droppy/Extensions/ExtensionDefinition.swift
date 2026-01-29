@@ -132,6 +132,8 @@ final class ExtensionRegistry {
         register(QuickshareExtension.self)
         register(AppleMusicExtension.self)
         register(NotificationHUDExtension.self)
+        register(CaffeineExtension.self)
+
     }
     
     /// Register an extension definition

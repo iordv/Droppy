@@ -228,6 +228,7 @@ struct ExtensionInfoView: View {
         case .menuBarManager: return "Configure"
         case .quickshare: return "Manage"
         case .notificationHUD: return "Configure"
+        case .caffeine: return "Configure"
         }
     }
     
@@ -246,6 +247,7 @@ struct ExtensionInfoView: View {
         case .menuBarManager: return "Configure"
         case .quickshare: return "Manage Uploads"
         case .notificationHUD: return "Configure"
+        case .caffeine: return "Configure"
         }
     }
     
@@ -264,6 +266,7 @@ struct ExtensionInfoView: View {
         case .menuBarManager: return "menubar.rectangle"
         case .quickshare: return "tray.full"
         case .notificationHUD: return "bell.badge"
+        case .caffeine: return "cup.and.saucer.fill"
         }
     }
 }

@@ -1673,7 +1673,7 @@ struct SettingsView: View {
                             SpotifyAuthManager.shared.startAuthentication()
                         case .appleMusic:
                             AppleMusicController.shared.refreshState()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare, .notificationHUD:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .menuBarManager, .quickshare, .notificationHUD, .caffeine:
                             break // No action needed - these have their own configuration UI
                         }
                     }

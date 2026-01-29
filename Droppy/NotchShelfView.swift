@@ -61,6 +61,7 @@ struct NotchShelfView: View {
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
+    @State private var showCaffeineView = false  // For Caffeine notch shelf view
     @State private var hudWorkItem: DispatchWorkItem?
     @State private var hudType: HUDContentType = .volume
     @State private var hudValue: CGFloat = 0
@@ -632,12 +633,59 @@ struct NotchShelfView: View {
     var body: some View {
         ZStack(alignment: .top) {
             shelfContent
+                .onChange(of: isExpandedOnThisScreen) { _, isExpanded in
+                    // RESET RULE: When shelf collapses, reset Caffeine view so next open shows default shelf
+                    if !isExpanded {
+                        showCaffeineView = false
+                    }
+                }
             
             // Floating buttons (Bottom Centered)
             // Terminal button: Shows when expanded AND terminal installed (regardless of sticky mode)
+            // Caffeine button: Shows when expanded AND caffeine installed
             // Close/Terminal-close button: In sticky mode OR when terminal is visible
-            if enableNotchShelf && isExpandedOnThisScreen && (terminalManager.isInstalled || !autoCollapseShelf) {
-                HStack(spacing: 12) {
+            let caffeineInstalled = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled)
+            if enableNotchShelf && isExpandedOnThisScreen && (terminalManager.isInstalled || caffeineInstalled || !autoCollapseShelf) {
+            HStack(spacing: 12) {
+                    // Caffeine button (if extension installed)
+                    if UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) {
+                        Button(action: {
+                            withAnimation(DroppyAnimation.notchState) {
+                                showCaffeineView.toggle()
+                                // If activating caffeine view, close terminal if open
+                                if showCaffeineView {
+                                    terminalManager.hide()
+                                }
+                            }
+                        }) {
+                            ZStack {
+                                // Filled circle when ACTIVE or OPEN (User Request: Fill instead of glow)
+                                let isHighlight = showCaffeineView || CaffeineManager.shared.isActive
+                                
+                                if isHighlight {
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .frame(width: 32, height: 32)
+                                } else {
+                                    Circle()
+                                        .fill(Color.black.opacity(0.6))
+                                        .frame(width: 32, height: 32)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                        )
+                                }
+                                
+                                Image(systemName: "cup.and.saucer.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(isHighlight ? .black : .white)
+                            }
+                        }
+                        .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                        .help(CaffeineManager.shared.isActive ? "Caffeine: \(CaffeineManager.shared.formattedRemaining)" : "Caffeine")
+                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    }
+                    
                     // Terminal button (if extension installed)
                     if terminalManager.isInstalled {
                         // Open in Terminal.app button (only when terminal is visible)
@@ -1235,6 +1283,40 @@ struct NotchShelfView: View {
             .transition(.premiumHUD.animation(DroppyAnimation.notchState))
             .zIndex(5.7)
         }
+        
+
+        
+        // Caffeine Hover Indicators (Strict UI Requirement)
+        // Shows only when:
+        // 1. Hovering (notchController.isHovering)
+        // 2. Caffeine is ACTIVE
+        // 3. Shelf is NOT expanded
+        // 4. No other HUD visible
+        if state.isMouseHovering && CaffeineManager.shared.isActive && !isExpandedOnThisScreen && !hudIsVisible {
+            // Center vertically in the notch bar (approx 16pt height for content)
+            let yOffset: CGFloat = (notchHeight - 16) / 2
+            
+            // Left: Cup Icon
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.orange)
+                // +26 pushes it INWARD from the left edge (safe from corner clipping)
+                .offset(x: -(notchWidth / 2) + 26, y: yOffset)
+                .transition(.opacity)
+                .zIndex(6)
+            
+            // Right: Timer Text
+            Text(CaffeineManager.shared.formattedRemaining)
+                .font(.system(size: CaffeineManager.shared.formattedRemaining == "∞" ? 22 : 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(.orange)
+                .offset(y: (CaffeineManager.shared.formattedRemaining == "∞" ? -4 : 0)) // Adjusted -4 to center larger symbol
+                // -26 pushes it INWARD from the right edge
+                .offset(x: (notchWidth / 2) - 26, y: yOffset)
+                .transition(.opacity)
+                .zIndex(6)
+        }
+        
+
     }
     
     // MARK: - Media Player HUD
@@ -1912,13 +1994,25 @@ struct NotchShelfView: View {
                     // PREMIUM: Scale(0.8, anchor: .top) + blur + opacity - ultra-smooth feel
                     .notchTransition()
             }
+            // CAFFEINE VIEW: Second priority
+            else if showCaffeineView {
+                CaffeineNotchView(
+                    manager: CaffeineManager.shared,
+                    isVisible: $showCaffeineView,
+                    notchHeight: contentLayoutNotchHeight,
+                    isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland
+                )
+                .frame(height: currentExpandedHeight, alignment: .top)
+                .id("caffeine-view")
+                .notchTransition()
+            }
             // Show drop zone when dragging over (takes priority)
             // ALSO show when hovering over AirDrop zone (isShelfAirDropZoneTargeted) to prevent snap-back to media
             else if (state.isDropTargeted || state.isShelfAirDropZoneTargeted) && state.items.isEmpty {
                 emptyShelfContent
                     .frame(height: currentExpandedHeight)
                     .notchTransition()
-                }
+            }
                 // MEDIA PLAYER VIEW: Show if:
                 // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused
                 // 2. Music is playing AND user hasn't hidden it (isMediaHUDHidden)

@@ -98,6 +98,8 @@ struct DisableExtensionButton: View {
             return "Droppy Quickshare is a core extension and cannot be disabled."
         case .notificationHUD:
             return "This will stop notification forwarding to your notch. You can enable it again later."
+        case .caffeine:
+            return "This will disable Caffeine and allow your Mac to sleep normally. You can enable it again later."
         }
     }
     
