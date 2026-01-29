@@ -1628,7 +1628,7 @@ struct SettingsView: View {
                 // Caffeine Extension
                 if isCaffeineInstalled {
                     HStack(spacing: 12) {
-                        HighAlertHUDIcon(isEnabled: enableCaffeine && CaffeineManager.shared.isActive)
+                        HighAlertHUDIcon(isEnabled: enableCaffeine)  // Orange when HUD toggle is enabled, like Termi-Notch
                         
                         // Extension is installed - show on/off toggle for HUD visibility
                         Toggle(isOn: $enableCaffeine) {
