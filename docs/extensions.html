@@ -8,19 +8,27 @@
     <meta name="description"
         content="Explore powerful extensions for Droppy. Spotify, Alfred, AI Background Removal, Voice Transcribe, and more.">
     <link rel="icon" type="image/png" href="assets/app-icon.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <style>
+        :root {
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --bg: #0a0a0a;
+            --bg-card: rgba(38, 38, 38, 0.92);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #fafafa;
+            --secondary: #a1a1aa;
+            --muted: #71717a;
+            --gray-100: #f4f4f5;
+            --gray-200: #e4e4e7;
+            --gray-800: #27272a;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
             user-select: none;
         }
 
@@ -29,182 +37,440 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #000;
-            color: #ddd;
-            line-height: 1.6;
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--primary);
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
+            padding-bottom: 100px;
+            transition: opacity 0.3s ease;
         }
 
-        .serif {
-            font-family: 'Playfair Display', Georgia, serif;
+        body.fade-in {
+            opacity: 0;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-left: 48px;
-            padding-right: 48px;
+        body.fade-out {
+            opacity: 0;
         }
 
-        header {
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        * {
+            scrollbar-width: none;
+        }
+
+        /* Floating Feature Cards - Exact match to homepage */
+        .card {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 22px;
+            min-width: 175px;
+            width: fit-content;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            cursor: grab;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+            touch-action: none;
+            z-index: 10;
+        }
+
+        .card.visible {
+            opacity: var(--op, 0.7);
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+
+        .card.dragging {
+            z-index: 200 !important;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            opacity: 1 !important;
+            transition: none;
+        }
+
+        .card:hover:not(.dragging) {
             z-index: 100;
-            padding: 20px 24px;
+        }
+
+        .card.main {
+            min-width: 200px;
+            padding: 18px 26px;
+            border-radius: 18px;
+        }
+
+        .card.main .card-title {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .card.main .card-sub {
+            font-size: 13px;
+        }
+
+        .card.main .checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 1.5px solid var(--muted);
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid #1a1a1a;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
         }
 
-        .header-brand {
+        .checkbox.checked {
+            background: var(--muted);
+            border-color: var(--muted);
+        }
+
+        .checkbox svg {
+            width: 11px;
+            height: 11px;
+            stroke: var(--bg);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: none;
+        }
+
+        .checkbox.checked svg {
+            display: block;
+        }
+
+        .card.main .checkbox svg {
+            width: 13px;
+            height: 13px;
+        }
+
+        .card-body {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: #fff;
+            flex-direction: column;
+            gap: 3px;
         }
 
-        .header-brand img {
-            width: 32px;
-            height: 32px;
+        .card-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--primary);
+            white-space: nowrap;
         }
 
-        .header-brand span {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 18px;
+        .card-sub {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--muted);
         }
 
-        .header-nav {
-            display: flex;
-            gap: 24px;
+        /* Card Positions - Left Edge (matches homepage) */
+        .l1 {
+            top: 10%;
+            left: -25px;
         }
 
-        .header-nav a {
-            font-size: 14px;
-            color: #888;
-            text-decoration: none;
-            transition: color 0.2s;
+        .l2 {
+            top: 20%;
+            left: -20px;
         }
 
-        .header-nav a:hover {
-            color: #fff;
+        .l3 {
+            top: 30%;
+            left: -25px;
+        }
+
+        .l4 {
+            top: 40%;
+            left: -20px;
+        }
+
+        .l5 {
+            top: 52%;
+            left: -25px;
+        }
+
+        .l6 {
+            top: 62%;
+            left: -20px;
+        }
+
+        .l7 {
+            top: 72%;
+            left: -25px;
+        }
+
+        .l8 {
+            top: 82%;
+            left: -20px;
+        }
+
+        /* Card Positions - Right Edge (matches homepage) */
+        .r1 {
+            top: 10%;
+            right: -25px;
+        }
+
+        .r2 {
+            top: 20%;
+            right: -20px;
+        }
+
+        .r3 {
+            top: 30%;
+            right: -25px;
+        }
+
+        .r4 {
+            top: 40%;
+            right: -20px;
+        }
+
+        .r5 {
+            top: 52%;
+            right: -25px;
+        }
+
+        .r6 {
+            top: 62%;
+            right: -20px;
+        }
+
+        .r7 {
+            top: 72%;
+            right: -25px;
+        }
+
+        .r8 {
+            top: 82%;
+            right: -20px;
+        }
+
+        @media (max-width: 1200px) {
+            .card {
+                display: none;
+            }
         }
 
         .page-hero {
-            padding: 160px 24px 80px;
+            padding: 4px 24px 60px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 40vh;
+            justify-content: center;
         }
 
-        .page-hero h1 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: clamp(42px, 7vw, 72px);
-            font-weight: 400;
-            color: #fff;
-            margin-bottom: 24px;
+        .page-hero img {
+            width: 130px;
+            height: 130px;
+            border-radius: 28px;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 80px rgba(147, 51, 234, 0.3));
+            animation: float 6s ease-in-out infinite;
         }
 
-        .page-hero h1 em {
-            font-style: italic;
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
         }
 
         .page-hero p {
             font-size: 16px;
-            color: #888;
-            max-width: 500px;
-            margin: 0 auto;
+            color: var(--secondary);
+            white-space: nowrap;
+            transition: transform 0.3s ease;
+        }
+
+        .search-morph-container:hover~p,
+        .search-morph-container.searching~p {
+            transform: translateY(12px);
+        }
+
+        /* Search bar morphing container */
+        .search-morph-container {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .search-morph-container h1 {
+            font-size: 36px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            color: var(--secondary);
+            margin-bottom: 12px;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .search-morph-container:hover h1,
+        .search-morph-container.searching h1 {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        .search-bar {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            width: 320px;
+            padding: 14px 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--primary);
+            font-family: var(--font-sans);
+            font-size: 16px;
+            font-weight: 500;
+            outline: none;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.2s;
+        }
+
+        .search-bar::placeholder {
+            color: var(--muted);
+        }
+
+        .search-morph-container:hover .search-bar,
+        .search-morph-container.searching .search-bar {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .search-bar:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Typing animation for placeholder */
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .typing-cursor {
+            animation: blink 1s infinite;
         }
 
         .category-filter {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
-            padding: 40px 24px;
+            padding: 25px 24px;
         }
 
         .category-btn {
             padding: 10px 20px;
-            background: transparent;
-            border: 1px solid #333;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border);
             border-radius: 999px;
-            color: #888;
+            color: var(--secondary);
+            font-family: var(--font-sans);
             font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
         }
 
         .category-btn:hover {
-            border-color: #555;
-            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--primary);
         }
 
         .category-btn.active {
-            background: #fff;
-            border-color: #fff;
-            color: #000;
+            background: var(--gray-100);
+            border-color: var(--gray-100);
+            color: var(--gray-800);
         }
 
         .extensions-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 24px;
-            padding: 40px 24px 120px;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+            padding: 20px 48px 100px;
+            max-width: 1300px;
             margin: 0 auto;
         }
 
         .extension-card {
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 24px;
-            padding: 32px;
-            transition: all 0.3s ease;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
             cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s;
         }
 
         .extension-card:hover {
-            border-color: #333;
-            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
         }
 
         .extension-header {
             display: flex;
             align-items: center;
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .extension-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
             object-fit: cover;
         }
 
         .extension-meta h3 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 20px;
-            font-weight: 400;
-            color: #fff;
-            margin-bottom: 4px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 2px;
         }
 
         .extension-meta span {
             font-size: 12px;
-            color: #666;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .extension-description {
             font-size: 14px;
-            color: #888;
-            line-height: 1.7;
+            color: var(--secondary);
+            line-height: 1.6;
             margin-bottom: 16px;
         }
 
@@ -213,7 +479,7 @@
             gap: 16px;
             margin-bottom: 16px;
             padding-bottom: 16px;
-            border-bottom: 1px solid #1a1a1a;
+            border-bottom: 1px solid var(--border);
         }
 
         .stat-item {
@@ -221,7 +487,7 @@
             align-items: center;
             gap: 6px;
             font-size: 12px;
-            color: #666;
+            color: var(--muted);
         }
 
         .stat-item svg {
@@ -231,7 +497,7 @@
         }
 
         .stat-item .stat-value {
-            color: #888;
+            color: var(--secondary);
             font-weight: 500;
         }
 
@@ -242,90 +508,87 @@
         }
 
         .extension-tag {
-            padding: 4px 10px;
-            background: #1a1a1a;
+            padding: 5px 12px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 999px;
             font-size: 11px;
-            color: #666;
+            color: var(--muted);
+            font-weight: 500;
         }
 
+        /* Modal */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 1000;
-            display: none;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: flex;
             justify-content: center;
             align-items: center;
             padding: 24px;
             overflow-y: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
         .modal-overlay.active {
-            display: flex;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .modal {
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 40px;
-            max-width: 600px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            max-width: 550px;
             width: 100%;
-            padding: 48px;
+            padding: 40px;
             position: relative;
-            animation: modalIn 0.3s ease-out;
-            max-height: 90vh;
+            max-height: 85vh;
             overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
         }
 
-        .modal::-webkit-scrollbar {
-            display: none;
-        }
-
-        @keyframes modalIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95) translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
+        .modal-overlay.active .modal {
+            transform: scale(1);
         }
 
         .modal-close {
             position: absolute;
-            top: 24px;
-            right: 24px;
+            top: 20px;
+            right: 20px;
             width: 32px;
             height: 32px;
-            background: #1a1a1a;
+            background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 50%;
-            color: #888;
+            color: var(--muted);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.15s;
         }
 
         .modal-close:hover {
-            background: #333;
-            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--primary);
         }
 
         .modal-header {
             display: flex;
             gap: 20px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .modal-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
         }
 
         .modal-header-info {
@@ -333,16 +596,17 @@
         }
 
         .modal h2 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 28px;
-            font-weight: 400;
-            color: #fff;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
             margin-bottom: 4px;
         }
 
         .modal-category {
-            font-size: 13px;
-            color: #666;
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             margin-bottom: 12px;
         }
 
@@ -356,39 +620,40 @@
             align-items: center;
             gap: 6px;
             font-size: 13px;
-            color: #888;
+            color: var(--secondary);
         }
 
         .modal-stat svg {
             width: 14px;
             height: 14px;
+            opacity: 0.6;
         }
 
         .modal-description {
             font-size: 15px;
-            color: #888;
-            line-height: 1.8;
+            color: var(--secondary);
+            line-height: 1.7;
             margin-bottom: 24px;
         }
 
         .modal-screenshot {
             width: 100%;
-            border-radius: 16px;
+            border-radius: 14px;
             margin-bottom: 24px;
-            border: 1px solid #1a1a1a;
+            border: 1px solid var(--border);
         }
 
         .modal-features {
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         }
 
         .modal-features h4 {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            color: #666;
+            color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            margin-bottom: 16px;
+            margin-bottom: 14px;
         }
 
         .modal-features ul {
@@ -397,12 +662,12 @@
 
         .modal-features li {
             font-size: 14px;
-            color: #888;
-            padding: 8px 0;
-            border-bottom: 1px solid #1a1a1a;
+            color: var(--secondary);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .modal-features li:last-child {
@@ -421,26 +686,32 @@
         }
 
         .modal-button {
+            flex: 1;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            flex: 1;
-            padding: 16px 24px;
-            background: #fff;
+            padding: 14px 24px;
+            background: var(--gray-100);
             border: none;
             border-radius: 999px;
-            color: #000;
+            color: var(--gray-800);
+            font-family: var(--font-sans);
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
             text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .modal-button svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
         }
 
         .modal-button:hover {
-            background: #ddd;
-            transform: scale(1.02);
+            background: var(--gray-200);
         }
 
         .modal-button.secondary {
@@ -452,133 +723,245 @@
             background: #2563eb;
         }
 
-        .floating-cta {
+        /* CTA Bar */
+        .cta-bar {
             position: fixed;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 100;
-        }
-
-        .cta-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 28px;
-            background: #1a1a1a;
-            border: 1px solid #333;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            padding: 6px;
+            background: rgba(23, 23, 23, 0.95);
+            border: 1px solid var(--border);
             border-radius: 999px;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 500;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(20px);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
-        .cta-button:hover {
-            background: #2a2a2a;
-            transform: translateY(-2px);
+        .cta-bar .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-radius: 999px;
+            color: var(--secondary);
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
         }
 
-        .cta-button svg {
-            width: 18px;
-            height: 18px;
+        .cta-bar .btn:hover {
+            color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        footer {
-            padding: 80px 0;
-            border-top: 1px solid #1a1a1a;
+        .cta-bar .btn svg {
+            width: 16px;
+            height: 16px;
         }
 
-        .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 48px;
-            max-width: 1200px;
-            margin: 0 auto;
+        .cta-bar .btn-main {
+            background: var(--gray-100);
+            color: var(--gray-800);
         }
 
-        .footer-brand {
+        .cta-bar .btn-main:hover {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .cta-bar .btn-donate {
+            background: #FFDD00;
+            color: #000;
+        }
+
+        .cta-bar .btn-donate:hover {
+            background: #e6c700;
+            color: #000;
+        }
+
+        /* Donation Modal */
+        .donate-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
-        .footer-brand img {
-            width: 32px;
-            height: 32px;
+        .donate-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .footer-brand span {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 18px;
-            color: #fff;
+        .donate-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
         }
 
-        .footer-links {
-            display: flex;
-            gap: 48px;
+        .donate-modal-overlay.active .donate-modal {
+            transform: scale(1);
         }
 
-        .footer-column h5 {
-            font-size: 12px;
+        .donate-modal-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .donate-modal h2 {
+            font-size: 24px;
             font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
+            color: var(--primary);
             margin-bottom: 16px;
         }
 
-        .footer-column a {
-            display: block;
-            font-size: 14px;
-            color: #888;
-            text-decoration: none;
+        .donate-modal p {
+            font-size: 15px;
+            color: var(--secondary);
+            line-height: 1.6;
             margin-bottom: 12px;
-            transition: color 0.2s;
         }
 
-        .footer-column a:hover {
-            color: #fff;
+        .donate-modal .highlight {
+            color: #ffd700;
+            font-weight: 600;
         }
 
-        .footer-bottom {
-            margin-top: 48px;
-            padding-top: 24px;
-            border-top: 1px solid #1a1a1a;
-            text-align: center;
-            font-size: 13px;
-            color: #555;
-            max-width: 1200px;
-            margin-left: auto;
-            margin-right: auto;
+        .donate-modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 28px;
         }
 
-        /* Hide all scrollbars */
-        ::-webkit-scrollbar {
-            display: none;
+        .donate-modal-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 18px 28px;
+            border-radius: 999px;
+            font-family: var(--font-sans);
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
         }
 
-        * {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .donate-modal-btn.primary {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
+            color: #000;
         }
 
-        @media (max-width: 640px) {
+        .donate-modal-btn.primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .donate-perks-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+
+        .donate-perk {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .donate-modal-btn.secondary {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .donate-modal-btn.secondary.ready {
+            cursor: pointer;
+            opacity: 1;
+        }
+
+        .donate-modal-btn.secondary.ready:hover {
+            color: var(--secondary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .donate-modal-btn.secondary .fill-bar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.08);
+            transition: width 5s linear;
+            pointer-events: none;
+        }
+
+        .donate-modal-btn.secondary.filling .fill-bar {
+            width: 100%;
+        }
+
+        .donate-modal-btn.secondary span {
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (max-width: 768px) {
             .extensions-grid {
                 grid-template-columns: 1fr;
+                padding: 20px 20px 100px;
             }
 
-            .header-nav {
-                display: none;
+            .page-hero h1 {
+                font-size: 28px;
             }
 
-            .modal-actions {
-                flex-direction: column;
+            .page-hero p {
+                white-space: normal;
+            }
+
+            .cta-bar .btn {
+                padding: 10px 14px;
+                font-size: 13px;
             }
         }
     </style>
@@ -586,26 +969,149 @@
 
 <body oncontextmenu="return false;">
 
-    <header>
-        <a href="index.html" class="header-brand">
-            <img src="assets/droppy-logo.png" alt="Droppy">
-            <span>Droppy</span>
-        </a>
-        <nav class="header-nav">
-            <a href="index.html">Home</a>
-            <a href="extensions.html">Extensions</a>
-            <a href="download.html">Download</a>
-            <a href="https://github.com/iordv/Droppy" target="_blank">GitHub</a>
-        </nav>
-    </header>
+    <!-- LEFT EDGE CARDS -->
+    <div class="card main l1" data-rot="-8" style="--op:0.75">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Spotify Integration</div>
+            <div class="card-sub">Play/Pause/Skip</div>
+        </div>
+    </div>
+    <div class="card l2" data-rot="5" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Apple Music</div>
+            <div class="card-sub">Shuffle • Repeat • Love</div>
+        </div>
+    </div>
+    <div class="card l3" data-rot="-4" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">Window Snap</div>
+            <div class="card-sub">Rectangle-style</div>
+        </div>
+    </div>
+    <div class="card main l4" data-rot="7" style="--op:0.75">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Termi-Notch</div>
+            <div class="card-sub">Terminal in notch</div>
+        </div>
+    </div>
+    <div class="card l5" data-rot="-3" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Background Removal</div>
+            <div class="card-sub">AI-powered</div>
+        </div>
+    </div>
+    <div class="card l6" data-rot="6" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">Element Capture</div>
+            <div class="card-sub">Grab UI elements</div>
+        </div>
+    </div>
+    <div class="card l7" data-rot="-5" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Menu Bar Manager</div>
+            <div class="card-sub">Hide icons</div>
+        </div>
+    </div>
+    <div class="card l8" data-rot="4" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">Finder Services</div>
+            <div class="card-sub">Right-click menu</div>
+        </div>
+    </div>
+
+    <!-- RIGHT EDGE CARDS -->
+    <div class="card main r1" data-rot="6" style="--op:0.75">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Quick Actions</div>
+            <div class="card-sub">AirDrop • Delete • More</div>
+        </div>
+    </div>
+    <div class="card r2" data-rot="-7" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">ZIP / UNZIP</div>
+            <div class="card-sub">Quick compress</div>
+        </div>
+    </div>
+    <div class="card r3" data-rot="4" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">Alfred Integration</div>
+            <div class="card-sub">Quick workflows</div>
+        </div>
+    </div>
+    <div class="card main r4" data-rot="-5" style="--op:0.75">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Voice Transcription</div>
+            <div class="card-sub">Whisper AI</div>
+        </div>
+    </div>
+    <div class="card r5" data-rot="8" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">Screenshot OCR</div>
+            <div class="card-sub">Extract text</div>
+        </div>
+    </div>
+    <div class="card r6" data-rot="-4" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">Smart Export</div>
+            <div class="card-sub">Convert formats</div>
+        </div>
+    </div>
+    <div class="card r7" data-rot="5" style="--op:0.65">
+        <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                <path d="M6 13l4 4 8-9" />
+            </svg></div>
+        <div class="card-body">
+            <div class="card-title">File Conversion</div>
+            <div class="card-sub">Video • Image • Audio</div>
+        </div>
+    </div>
+    <div class="card r8" data-rot="-6" style="--op:0.55">
+        <div class="checkbox"></div>
+        <div class="card-body">
+            <div class="card-title">OCR Services</div>
+            <div class="card-sub">Vision API</div>
+        </div>
+    </div>
 
     <section class="page-hero">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 24px;">
-            <img src="assets/icons/extensions.png" alt=""
-                style="width: 72px; height: 72px; border-radius: 16px; transform: translateY(4px);">
-            <h1 style="margin: 0;">Explore <em>Extensions</em></h1>
+        <img src="assets/icons/extensions.png" alt="Extensions">
+        <div class="search-morph-container" id="search-morph">
+            <h1>Extensions</h1>
+            <input type="text" class="search-bar" id="extension-search" placeholder="">
         </div>
-        <p>Extend Droppy with powerful integrations. All free, all open-source, all built with love.</p>
+        <p>Extend Droppy with powerful integrations. All free, all open-source.</p>
     </section>
 
     <div class="category-filter">
@@ -960,31 +1466,6 @@
         </div>
     </div>
 
-    <footer>
-        <div class="footer-content">
-            <div class="footer-brand"><img src="assets/droppy-logo.png" alt="Droppy"><span>Droppy</span></div>
-            <div class="footer-links">
-                <div class="footer-column">
-                    <h5>Product</h5><a href="download.html">Download</a><a href="extensions.html">Extensions</a>
-                </div>
-                <div class="footer-column">
-                    <h5>Resources</h5><a href="https://github.com/iordv/Droppy" target="_blank">GitHub</a><a
-                        href="https://github.com/iordv/Droppy/issues" target="_blank">Support</a>
-                </div>
-            </div>
-        </div>
-        <div class="footer-bottom">© 2025-
-            <script>document.write(new Date().getFullYear())</script> Droppy. Free and open-source.
-        </div>
-    </footer>
-
-    <div class="floating-cta">
-        <a href="download.html" class="cta-button"><svg width="18" height="18" fill="none" stroke="currentColor"
-                stroke-width="2" viewBox="0 0 24 24">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-            </svg>Download Droppy</a>
-    </div>
-
     <script>
         const SUPABASE_URL = 'https://anannmonpspjsnfgdglb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuYW5ubW9ucHNwanNuZmdkZ2xiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDgxODQsImV4cCI6MjA4MzEyNDE4NH0.5BvuW5cS0kJCuA2Nm5HCVDLNWNzn6EA_8JVVrW6pfnY';
@@ -1012,7 +1493,7 @@
             'element-capture': { icon: 'assets/icons/element-capture.jpg', title: 'Element Capture', category: 'Utilities', deepUrl: 'droppy://extension/element-capture', screenshot: 'assets/images/element-capture-screenshot.png', description: 'Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element.', features: ['Element detection', 'Pixel-perfect capture', 'Auto-cropping', 'Multiple formats', 'Quick save to basket'] },
             'finder': { icon: 'assets/icons/finder.png', title: 'Finder Services', category: 'Utilities', deepUrl: 'droppy://extension/finder', screenshot: 'assets/images/finder-screenshot.png', description: 'Access Droppy directly from Finder\'s right-click menu. Add selected files to the Shelf or Basket without switching apps.', features: ['Services menu integration', 'Right-click actions', 'Quick add to basket', 'Process with extensions'] },
             'spotify': { icon: 'assets/icons/spotify.png', title: 'Spotify Integration', category: 'Media', deepUrl: 'droppy://extension/spotify', screenshot: 'assets/images/spotify-screenshot.jpg', description: 'Control Spotify playback directly from your notch. See album art, track info, and playback controls without switching apps.', features: ['Now Playing widget in notch', 'Playback controls', 'Volume adjustment', 'Album artwork display', 'Keyboard shortcuts'] },
-            'apple-music': { icon: 'assets/icons/apple-music.png', title: 'Apple Music', category: 'Media', deepUrl: 'droppy://extension/apple-music', screenshot: null, description: 'Control Apple Music playback from your notch. Shuffle, repeat, and love songs with native AppleScript integration—no account linking required.', features: ['Now Playing widget in notch', 'Shuffle and repeat controls', 'Love songs instantly', 'Album artwork display', 'Enabled by default'] },
+            'apple-music': { icon: 'assets/icons/apple-music.png', title: 'Apple Music', category: 'Media', deepUrl: 'droppy://extension/apple-music', screenshot: 'assets/images/applemusic-screenshot.jpg', description: 'Control Apple Music playback from your notch. Shuffle, repeat, and love songs with native AppleScript integration—no account linking required.', features: ['Now Playing widget in notch', 'Shuffle and repeat controls', 'Love songs instantly', 'Album artwork display', 'Enabled by default'] },
             'voice-transcribe': { icon: 'assets/icons/voice-transcribe.jpg', title: 'Voice Transcribe', category: 'AI', deepUrl: 'droppy://extension/voice-transcribe', screenshot: 'assets/images/voice-transcribe-screenshot.png', description: 'Transcribe audio recordings to text using WhisperKit AI. 100% on-device processing means your voice never leaves your Mac—completely private.', features: ['On-device Whisper AI', 'Multiple language support', 'Audio file upload', 'Real-time transcription', 'Export to text'] },
             'window-snap': { icon: 'assets/icons/window-snap.jpg', title: 'Window Snap', category: 'Productivity', deepUrl: 'droppy://extension/window-snap', screenshot: 'assets/images/window-snap-screenshot.png', description: 'Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included.', features: ['Keyboard shortcuts', 'Custom snap areas', 'Multi-monitor support', 'Edge snapping', 'Remembers positions'] },
             'video-target-size': { icon: 'assets/icons/video-target-size.png', title: 'Video Target Size', category: 'Media', deepUrl: 'droppy://extension/video-target-size', screenshot: 'assets/images/video-target-size-screenshot.png', description: 'Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect for Discord, email, or social media limits.', features: ['Exact file size targeting', 'Two-pass encoding', 'H.264/AAC output', 'One-time FFmpeg install', 'Fast processing'] },
@@ -1134,6 +1615,227 @@
 
         // Fetch on load
         document.addEventListener('DOMContentLoaded', fetchExtensionStats);
+
+        // Search bar functionality
+        const searchContainer = document.getElementById('search-morph');
+        const searchInput = document.getElementById('extension-search');
+        const typingText = 'Search extensions here...';
+        let typingIndex = 0;
+        let hasAnimatedOnce = false;
+
+        // Typing animation on first page load
+        function typeAnimation() {
+            if (typingIndex < typingText.length) {
+                searchInput.placeholder = typingText.substring(0, typingIndex + 1) + '|';
+                typingIndex++;
+                setTimeout(typeAnimation, 60);
+            } else {
+                searchInput.placeholder = typingText;
+                hasAnimatedOnce = true;
+                // Hide search bar after animation completes (3 seconds delay)
+                setTimeout(() => {
+                    if (!searchInput.matches(':focus') && searchInput.value === '') {
+                        searchContainer.classList.remove('searching');
+                    }
+                }, 2500);
+            }
+        }
+
+        // Play intro animation on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                searchContainer.classList.add('searching');
+                searchInput.focus();
+                typeAnimation();
+            }, 800);
+        });
+
+        // Keep search visible when focused or has value
+        searchInput.addEventListener('focus', () => {
+            searchContainer.classList.add('searching');
+            if (!hasAnimatedOnce) return;
+            searchInput.placeholder = typingText;
+        });
+
+        searchInput.addEventListener('blur', () => {
+            if (searchInput.value === '') {
+                searchContainer.classList.remove('searching');
+            }
+        });
+
+        // Live search filtering
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase().trim();
+            document.querySelectorAll('.extension-card').forEach(card => {
+                const title = card.querySelector('h3')?.textContent.toLowerCase() || '';
+                const category = card.dataset.category?.toLowerCase() || '';
+                const matches = query === '' || title.includes(query) || category.includes(query);
+                card.style.display = matches ? 'block' : 'none';
+            });
+            // Reset category filter to "All" when searching
+            if (query !== '') {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.category-btn[data-category="all"]').classList.add('active');
+            }
+        });
+
+        // Donation modal logic (wait for DOM)
+        document.addEventListener('DOMContentLoaded', () => {
+            let downloadUrl = 'https://github.com/iordv/Droppy/releases/latest';
+            const donateModal = document.getElementById('donate-modal');
+            const downloadBtn = document.getElementById('download-btn');
+            const freeDownloadBtn = document.getElementById('free-download-btn');
+            let freeButtonReady = false;
+
+            if (!donateModal || !downloadBtn || !freeDownloadBtn) return;
+
+            // Fetch the actual download URL
+            fetch('https://api.github.com/repos/iordv/Droppy/releases/latest').then(r => r.json()).then(rel => {
+                const dmg = rel.assets?.find(a => a.name.endsWith('.dmg'));
+                if (dmg) downloadUrl = dmg.browser_download_url;
+            }).catch(() => { });
+
+            downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                donateModal.classList.add('active');
+                freeButtonReady = false;
+                freeDownloadBtn.classList.remove('ready');
+
+                // Start fill animation after a brief delay
+                setTimeout(() => {
+                    freeDownloadBtn.classList.add('filling');
+                }, 100);
+
+                // Enable button after 5 seconds
+                setTimeout(() => {
+                    freeButtonReady = true;
+                    freeDownloadBtn.classList.add('ready');
+                }, 5100);
+            });
+
+            freeDownloadBtn.addEventListener('click', () => {
+                if (!freeButtonReady) return;
+                donateModal.classList.remove('active');
+                window.location.href = downloadUrl;
+            });
+
+            donateModal.addEventListener('click', (e) => {
+                if (e.target === donateModal) {
+                    donateModal.classList.remove('active');
+                    freeDownloadBtn.classList.remove('filling');
+                }
+            });
+        });
+    </script>
+
+    <!-- Donation Modal -->
+    <div class="donate-modal-overlay" id="donate-modal">
+        <div class="donate-modal">
+            <span class="donate-modal-icon">☕</span>
+            <h2>A Quick Note</h2>
+            <p>Droppy is <span class="highlight">completely free</span> and <span class="highlight">open source</span>,
+                built with love by a single developer.</p>
+            <p>If you can afford it, a small donation would mean the world. It helps keep this project alive and makes
+                future improvements possible.</p>
+            <p>Droppy costs money to develop and maintain — and right now, I'm covering those costs myself to bring you
+                great software for free.</p>
+            <div class="donate-modal-buttons">
+                <a href="https://buymeacoffee.com/droppy" class="donate-modal-btn primary" target="_blank">
+                    ☕ Donate a Cup of Coffee
+                </a>
+                <div class="donate-perks-list">
+                    <span class="donate-perk">🎖️ Discord Role</span>
+                    <span class="donate-perk">💬 Exclusive Channel</span>
+                    <span class="donate-perk">⭐ Website Credit</span>
+                </div>
+                <button class="donate-modal-btn secondary" id="free-download-btn">
+                    <span class="fill-bar"></span>
+                    <span>I understand, but I want it for free</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Bar -->
+    <div class="cta-bar">
+        <button id="download-btn" class="btn btn-main">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download Droppy
+        </button>
+        <a href="https://buymeacoffee.com/droppy" class="btn btn-donate" target="_blank">☕ Donate</a>
+        <a href="index.html" class="btn">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Home
+        </a>
+    </div>
+
+    <script>
+        document.querySelectorAll('a[href]:not([target="_blank"])').forEach(link => {
+            link.addEventListener('click', e => {
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+                    e.preventDefault();
+                    document.body.classList.add('fade-out');
+                    setTimeout(() => window.location.href = href, 300);
+                }
+            });
+        });
+
+        // Staggered fade-in for cards with rotation
+        document.querySelectorAll('.card').forEach((card, i) => {
+            const rot = card.dataset.rot || 0;
+            card.style.transform = `rotate(${rot}deg)`;
+            setTimeout(() => card.classList.add('visible'), 80 + Math.random() * 500);
+        });
+
+        // Drag with momentum for cards
+        let activeCard = null, x = 0, y = 0, vx = 0, vy = 0, lastX = 0, lastY = 0;
+        const friction = 0.92, minV = 0.3;
+
+        document.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('mousedown', e => {
+                activeCard = card;
+                const rect = card.getBoundingClientRect();
+                x = rect.left; y = rect.top;
+                lastX = e.clientX; lastY = e.clientY;
+                vx = 0; vy = 0;
+                card.style.position = 'fixed';
+                card.style.left = x + 'px';
+                card.style.top = y + 'px';
+                card.classList.add('dragging');
+            });
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!activeCard) return;
+            const dx = e.clientX - lastX, dy = e.clientY - lastY;
+            x += dx; y += dy;
+            vx = dx * 0.5; vy = dy * 0.5;
+            lastX = e.clientX; lastY = e.clientY;
+            activeCard.style.left = x + 'px';
+            activeCard.style.top = y + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!activeCard) return;
+            activeCard.classList.remove('dragging');
+            const card = activeCard;
+            activeCard = null;
+            const animate = () => {
+                if (Math.abs(vx) < minV && Math.abs(vy) < minV) return;
+                x += vx; y += vy;
+                vx *= friction; vy *= friction;
+                card.style.left = x + 'px';
+                card.style.top = y + 'px';
+                requestAnimationFrame(animate);
+            };
+            if (Math.abs(vx) > minV || Math.abs(vy) > minV) requestAnimationFrame(animate);
+        });
     </script>
 </body>
 

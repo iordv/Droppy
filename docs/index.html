@@ -4,113 +4,377 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Droppy — Your all-in-one Mac productivity companion</title>
+    <title>Droppy — The free native productivity layer macOS is missing</title>
     <meta name="description"
         content="Droppy: The ultimate drag-and-drop productivity companion for macOS. Free, open-source, and built entirely in Swift.">
     <link rel="icon" type="image/png" href="assets/app-icon.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
     <style>
+        :root {
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --bg: #0a0a0a;
+            --bg-card: rgba(38, 38, 38, 0.92);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #fafafa;
+            --secondary: #a1a1aa;
+            --muted: #71717a;
+            --gray-100: #f4f4f5;
+            --gray-200: #e4e4e7;
+            --gray-800: #27272a;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
             user-select: none;
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
-
+        html,
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: #000;
-            color: #ddd;
-            line-height: 1.6;
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--primary);
             -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
         }
 
-        /* Typography */
-        .serif {
-            font-family: 'Playfair Display', Georgia, serif;
+        .page {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.3s ease;
         }
 
-        .serif-italic {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-style: italic;
+        .page.fade-in {
+            opacity: 0;
         }
 
-        /* Container */
-        .container {
-            max-width: 1200px;
+        .page.fade-out {
+            opacity: 0;
+        }
+
+        .card {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 22px;
+            min-width: 175px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            cursor: grab;
+            opacity: 0;
+            transition: opacity 0.5s ease-out;
+            touch-action: none;
+        }
+
+        .card.visible {
+            opacity: var(--op, 0.7);
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+
+        .card.dragging {
+            z-index: 200 !important;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            opacity: 1 !important;
+            transition: none;
+        }
+
+        .card:hover:not(.dragging) {
+            z-index: 100;
+        }
+
+        .card.main {
+            min-width: 200px;
+            padding: 18px 26px;
+            border-radius: 18px;
+        }
+
+        .card.main .card-title {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .card.main .card-sub {
+            font-size: 13px;
+        }
+
+        .card.main .checkbox {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+        }
+
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 5px;
+            border: 1.5px solid var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .checkbox.checked {
+            background: var(--muted);
+            border-color: var(--muted);
+        }
+
+        .checkbox svg {
+            width: 11px;
+            height: 11px;
+            stroke: var(--bg);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: none;
+        }
+
+        .checkbox.checked svg {
+            display: block;
+        }
+
+        .card.main .checkbox svg {
+            width: 13px;
+            height: 13px;
+        }
+
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+
+        .card-sub {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        /* Positions */
+        .t1 {
+            top: -15px;
+            left: -20px;
+        }
+
+        .t2 {
+            top: -8px;
+            left: 10%;
+        }
+
+        .t3 {
+            top: -12px;
+            left: 20%;
+        }
+
+        .t4 {
+            top: -8px;
+            left: 30%;
+        }
+
+        .t5 {
+            top: -10px;
+            left: 40%;
+        }
+
+        .t6 {
+            top: -10px;
+            right: 40%;
+        }
+
+        .t7 {
+            top: -8px;
+            right: 30%;
+        }
+
+        .t8 {
+            top: -12px;
+            right: 20%;
+        }
+
+        .t9 {
+            top: -8px;
+            right: 10%;
+        }
+
+        .t10 {
+            top: -15px;
+            right: -20px;
+        }
+
+        .l1 {
+            top: 10%;
+            left: -25px;
+        }
+
+        .l2 {
+            top: 20%;
+            left: -20px;
+        }
+
+        .l3 {
+            top: 30%;
+            left: -25px;
+        }
+
+        .l4 {
+            top: 40%;
+            left: -20px;
+        }
+
+        .l5 {
+            top: 52%;
+            left: -25px;
+        }
+
+        .l6 {
+            top: 62%;
+            left: -20px;
+        }
+
+        .l7 {
+            top: 72%;
+            left: -25px;
+        }
+
+        .l8 {
+            top: 82%;
+            left: -20px;
+        }
+
+        .r1 {
+            top: 10%;
+            right: -25px;
+        }
+
+        .r2 {
+            top: 20%;
+            right: -20px;
+        }
+
+        .r3 {
+            top: 30%;
+            right: -25px;
+        }
+
+        .r4 {
+            top: 40%;
+            right: -20px;
+        }
+
+        .r5 {
+            top: 52%;
+            right: -25px;
+        }
+
+        .r6 {
+            top: 62%;
+            right: -20px;
+        }
+
+        .r7 {
+            top: 72%;
+            right: -25px;
+        }
+
+        .r8 {
+            top: 82%;
+            right: -20px;
+        }
+
+        .b1 {
+            bottom: -15px;
+            left: -20px;
+        }
+
+        .b2 {
+            bottom: -8px;
+            left: 10%;
+        }
+
+        .b3 {
+            bottom: -12px;
+            left: 20%;
+        }
+
+        .b4 {
+            bottom: -8px;
+            left: 30%;
+        }
+
+        .b5 {
+            bottom: -10px;
+            left: 40%;
+        }
+
+        .b6 {
+            bottom: -10px;
+            right: 40%;
+        }
+
+        .b7 {
+            bottom: -8px;
+            right: 30%;
+        }
+
+        .b8 {
+            bottom: -12px;
+            right: 20%;
+        }
+
+        .b9 {
+            bottom: -8px;
+            right: 10%;
+        }
+
+        .b10 {
+            bottom: -15px;
+            right: -20px;
+        }
+
+        /* Center content */
+        .center {
+            position: relative;
+            min-height: 80vh;
+            text-align: center;
+            z-index: 50;
+            width: 100%;
+            max-width: 950px;
             margin: 0 auto;
-            padding-left: 48px;
-            padding-right: 48px;
-        }
-
-        .container-narrow {
-            max-width: 800px;
-            margin: 0 auto;
-            padding-left: 48px;
-            padding-right: 48px;
-        }
-
-        /* Hero Section */
-        .hero {
-            min-height: 100vh;
+            padding: 60px 48px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            padding: 80px 24px 120px;
-            position: relative;
-            background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
-        }
-
-        .hero-logo {
-            width: 160px;
-            height: 160px;
-            margin-bottom: 0;
-            animation: float 6s ease-in-out infinite;
-            filter: drop-shadow(0 0 60px rgba(59, 130, 246, 0.4));
-        }
-
-        .hero-logo-wrapper {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 32px;
-        }
-
-        .hero-logo-wrapper::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
             pointer-events: none;
-            z-index: -1;
         }
 
-        .hero-logo-text {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-style: italic;
-            font-size: clamp(56px, 10vw, 96px);
-            font-weight: 500;
-            color: #fff;
-            margin-top: 0;
+        .logo {
+            width: 130px;
+            height: 130px;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 0 80px rgba(59, 130, 246, 0.3));
+            animation: float 6s ease-in-out infinite;
+            pointer-events: auto;
         }
 
         @keyframes float {
@@ -121,1879 +385,1230 @@
             }
 
             50% {
-                transform: translateY(-10px);
+                transform: translateY(-8px);
             }
         }
 
-        .hero-title {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: clamp(56px, 10vw, 100px);
-            font-weight: 400;
-            font-style: italic;
+        .headline {
+            font-size: 36px;
+            font-weight: 600;
             letter-spacing: -0.02em;
-            line-height: 1.0;
-            margin-bottom: 24px;
-            color: #fff;
-            text-shadow: 0 4px 30px rgba(255, 255, 255, 0.1);
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
         }
 
-        .hero-title em {
-            font-style: italic;
+        .headline .dim {
+            color: var(--secondary);
         }
 
-        .hero-tagline {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: clamp(24px, 4vw, 36px);
-            font-weight: 400;
-            background: linear-gradient(135deg, #fff 0%, #888 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 24px;
-            letter-spacing: -0.01em;
-        }
-
-        .hero-subtitle {
-            font-size: 15px;
-            color: #666;
-            max-width: 400px;
-            margin: 0 auto 48px;
-            line-height: 1.7;
-        }
-
-        .hero-image-container {
+        .headline .free {
             position: relative;
-            width: 100%;
-            max-width: 700px;
-            margin: 0 auto;
+            display: inline-block;
         }
 
-        .hero-glow {
+        .headline .free::after {
+            content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 120%;
-            height: 120%;
-            background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.1) 40%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
+            left: 0;
+            bottom: 2px;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary) 100%);
+            transform: scaleX(0);
+            transform-origin: left;
+            animation: scribble 0.8s ease-out 1s forwards;
+            border-radius: 2px;
         }
 
-        .hero-image {
-            position: relative;
-            z-index: 1;
+        @keyframes scribble {
+            0% {
+                transform: scaleX(0) translateY(0);
+            }
+
+            20% {
+                transform: scaleX(0.3) translateY(1px);
+            }
+
+            40% {
+                transform: scaleX(0.5) translateY(-1px);
+            }
+
+            60% {
+                transform: scaleX(0.7) translateY(1px);
+            }
+
+            80% {
+                transform: scaleX(0.9) translateY(-0.5px);
+            }
+
+            100% {
+                transform: scaleX(1) translateY(0);
+            }
+        }
+
+        .video-box {
             width: 100%;
+            max-width: 850px;
+            margin-top: 24px;
+            aspect-ratio: 16 / 9;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
             border-radius: 24px;
-            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
         }
 
-        /* Stacked Cards Effect */
-        .hero-stack {
-            position: relative;
-            width: 100%;
-            max-width: 700px;
-            margin: 0 auto;
-            height: 420px;
-            perspective: 1000px;
+        .video-box svg {
+            width: 72px;
+            height: 72px;
+            color: var(--muted);
+            opacity: 0.5;
         }
 
-        .hero-stack-card {
-            position: absolute;
-            width: 100%;
-            max-width: 600px;
-            left: 50%;
-            top: 50%;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
-            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        .credits-btn {
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 13px;
             cursor: pointer;
-            object-fit: cover;
+            opacity: 0.4;
+            transition: opacity 0.2s ease;
+            pointer-events: auto;
         }
 
-        .hero-stack-card:nth-child(1) {
-            transform: translate(-50%, -50%) rotate(-3deg) scale(0.92);
-            z-index: 1;
+        .credits-btn:hover {
+            opacity: 0.8;
         }
 
-        .hero-stack-card:nth-child(2) {
-            transform: translate(-50%, -50%) rotate(2deg) scale(0.96);
-            z-index: 2;
+        .credits-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
-        .hero-stack-card:nth-child(3) {
-            transform: translate(-50%, -50%) rotate(0deg) scale(1);
-            z-index: 3;
+        .credits-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        /* Hover: Fan out like pulling cards */
-        .hero-stack:hover .hero-stack-card:nth-child(1) {
-            transform: translate(-120%, -55%) rotate(-15deg) scale(0.85);
+        .credits-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 480px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
         }
 
-        .hero-stack:hover .hero-stack-card:nth-child(2) {
-            transform: translate(-50%, -50%) rotate(0deg) scale(0.9);
+        .credits-modal-overlay.active .credits-modal {
+            transform: scale(1);
         }
 
-        .hero-stack:hover .hero-stack-card:nth-child(3) {
-            transform: translate(20%, -55%) rotate(12deg) scale(0.85);
+        .credits-modal h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
-        /* Load animation: spread out then back */
-        @keyframes card-spread-1 {
-            0% {
-                transform: translate(-50%, -50%) rotate(-3deg) scale(0.92);
-            }
-
-            40% {
-                transform: translate(-120%, -55%) rotate(-15deg) scale(0.85);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) rotate(-3deg) scale(0.92);
-            }
+        .credits-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
         }
 
-        @keyframes card-spread-2 {
-            0% {
-                transform: translate(-50%, -50%) rotate(2deg) scale(0.96);
-            }
-
-            40% {
-                transform: translate(-50%, -50%) rotate(0deg) scale(0.9);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) rotate(2deg) scale(0.96);
-            }
+        .credits-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
 
-        @keyframes card-spread-3 {
-            0% {
-                transform: translate(-50%, -50%) rotate(0deg) scale(1);
-            }
-
-            40% {
-                transform: translate(20%, -55%) rotate(12deg) scale(0.85);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) rotate(0deg) scale(1);
-            }
+        .credits-section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary);
         }
 
-        .hero-stack-card:nth-child(1) {
-            animation: card-spread-1 1.8s ease-out 0.8s;
+        .credits-section p {
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin-bottom: 8px;
         }
 
-        .hero-stack-card:nth-child(2) {
-            animation: card-spread-2 1.8s ease-out 0.8s;
+        .credits-section a {
+            color: #ffd700;
+            text-decoration: none;
+            font-size: 12px;
         }
 
-        .hero-stack-card:nth-child(3) {
-            animation: card-spread-3 1.8s ease-out 0.8s;
+        .credits-section a:hover {
+            text-decoration: underline;
         }
 
-        @media (max-width: 768px) {
-            .hero-stack {
-                height: 300px;
-            }
-
-            .hero-stack-card {
-                max-width: 90%;
-            }
-
-            .hero-stack:hover .hero-stack-card:nth-child(1) {
-                transform: translate(-55%, -55%) rotate(-8deg) scale(0.88);
-            }
-
-            .hero-stack:hover .hero-stack-card:nth-child(3) {
-                transform: translate(-45%, -55%) rotate(8deg) scale(0.88);
-            }
-        }
-
-        .hero-caption {
-            font-size: 18px;
-            color: #888;
-            margin-top: 48px;
-            font-family: 'Playfair Display', Georgia, serif;
-        }
-
-        /* Floating CTA Button */
-        .floating-cta {
+        .cta-bar {
             position: fixed;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            padding: 6px;
+            background: rgba(23, 23, 23, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            opacity: 1;
+            transition: opacity 0.3s ease;
         }
 
-        .cta-button {
+        .cta-bar.fade-in {
+            opacity: 0;
+        }
+
+        .cta-bar.fade-out {
+            opacity: 0;
+        }
+
+        .cta-bar .btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
-            padding: 14px 28px;
-            background: #1a1a1a;
-            border: 1px solid #333;
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
             border-radius: 999px;
-            color: #fff;
+            color: var(--secondary);
+            font-family: var(--font-sans);
             font-size: 14px;
             font-weight: 500;
             text-decoration: none;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            white-space: nowrap;
         }
 
-        .cta-button:hover {
-            background: #2a2a2a;
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        .cta-bar .btn:hover {
+            color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
         }
 
-        .cta-button img,
-        .cta-button svg {
-            width: 18px;
-            height: 18px;
+        .cta-bar .btn svg {
+            width: 16px;
+            height: 16px;
         }
 
-        .cta-badge {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #22c55e;
+        .cta-bar .btn-main {
+            background: var(--gray-100);
+            color: var(--gray-800);
+        }
+
+        .cta-bar .btn-main:hover {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .cta-bar .btn-donate {
+            background: #FFDD00;
             color: #000;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 999px;
-            transform: rotate(12deg);
         }
 
-        /* Sections - Professional 80px padding (160px gap) */
-        section {
-            padding: 80px 0;
-            position: relative;
+        .cta-bar .btn-donate:hover {
+            background: #e6c700;
+            color: #000;
         }
 
-        .section-title {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: clamp(32px, 5vw, 52px);
-            font-weight: 400;
-            text-align: center;
-            margin-bottom: 24px;
-            color: #fff;
-        }
-
-        .section-subtitle {
-            font-size: 16px;
-            color: #888;
-            text-align: center;
-            max-width: 600px;
-            margin: 0 auto 48px;
-            line-height: 1.8;
-        }
-
-        /* Feature Grid */
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 32px;
-        }
-
-        .feature-card {
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 24px;
-            padding: 40px 32px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .feature-card.wide {
-            grid-column: span 2;
-        }
-
-        .feature-card:hover {
-            border-color: #333;
-            transform: translateY(-4px);
-        }
-
-        .feature-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 24px;
+        /* Donation Modal */
+        .donate-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #1a1a1a;
-            border-radius: 16px;
-            color: #fff;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
 
-        .feature-icon svg {
-            width: 28px;
-            height: 28px;
+        .donate-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .feature-icon img {
-            width: 32px;
-            height: 32px;
+        .donate-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
         }
 
-        .feature-card h3 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 22px;
-            font-weight: 400;
-            color: #fff;
-            margin-bottom: 12px;
+        .donate-modal-overlay.active .donate-modal {
+            transform: scale(1);
         }
 
-        .feature-card p {
-            font-size: 14px;
-            color: #888;
-            line-height: 1.7;
+        .donate-modal-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+            display: block;
         }
 
-        @media (max-width: 900px) {
-            .feature-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .feature-card.wide {
-                grid-column: span 1;
-            }
+        .donate-modal h2 {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
         }
 
-        /* Feature Badge */
-        .feature-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 999px;
-            font-size: 13px;
-            color: #888;
-            transition: all 0.2s ease;
-            text-decoration: none;
-        }
-
-        .feature-badge:hover {
-            border-color: #333;
-            color: #fff;
-            transform: translateY(-2px);
-        }
-
-        .feature-badge svg {
-            width: 14px;
-            height: 14px;
-            color: #fff;
-            opacity: 0.8;
-        }
-
-        @media (max-width: 600px) {
-            .feature-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Two Column Section */
-        .two-col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 100px;
-            align-items: center;
-        }
-
-        @media (max-width: 768px) {
-            .two-col {
-                grid-template-columns: 1fr;
-                gap: 48px;
-            }
-        }
-
-        .two-col-text h2 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: clamp(28px, 4vw, 40px);
-            font-weight: 400;
-            color: #fff;
-            margin-bottom: 32px;
-            line-height: 1.2;
-        }
-
-        .two-col-text p {
+        .donate-modal p {
             font-size: 15px;
-            color: #888;
-            line-height: 1.8;
-        }
-
-        .two-col-image {
-            position: relative;
-        }
-
-        .two-col-image img {
-            width: 100%;
-            border-radius: 24px;
-        }
-
-        /* Privacy Section */
-        .privacy-section {
-            background: linear-gradient(180deg, #000 0%, #0a0a0a 100%);
-            text-align: center;
-            padding-bottom: 80px;
-            /* Consistent section gap */
-        }
-
-        .privacy-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: #1a1a1a;
-            border: 1px solid #1a1a1a;
-            border-radius: 999px;
-            font-size: 13px;
-            color: #888;
-            margin-bottom: 32px;
-        }
-
-        .privacy-badge svg {
-            width: 16px;
-            height: 16px;
-            color: #22c55e;
-        }
-
-        /* Extensions Preview */
-        .extensions-preview {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 32px;
-        }
-
-        @media (max-width: 768px) {
-            .extensions-preview {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .extension-card {
-            background: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 24px;
-            padding: 40px 32px;
-            text-align: center;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .extension-card:hover {
-            border-color: #333;
-            transform: translateY(-4px);
-        }
-
-        .extension-card-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 20px;
-            border-radius: 16px;
-        }
-
-        .extension-card h4 {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 18px;
-            color: #fff;
-            margin-bottom: 10px;
-        }
-
-        .extension-card p {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.5;
-        }
-
-        /* Footer */
-        footer {
-            padding: 80px 0;
-            border-top: 1px solid #1a1a1a;
-        }
-
-        .footer-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 48px;
-        }
-
-        .footer-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .footer-brand img {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-        }
-
-        .footer-brand span {
-            font-family: 'Playfair Display', Georgia, serif;
-            font-size: 18px;
-            color: #fff;
-        }
-
-        .footer-links {
-            display: flex;
-            gap: 48px;
-        }
-
-        .footer-column h5 {
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
+            color: var(--secondary);
+            line-height: 1.7;
             margin-bottom: 16px;
         }
 
-        .footer-column a {
-            display: block;
-            font-size: 14px;
-            color: #888;
+        .donate-modal p:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .donate-modal .highlight {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .donate-modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .donate-modal-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 18px 28px;
+            border-radius: 999px;
+            font-family: var(--font-sans);
+            font-size: 16px;
+            font-weight: 600;
             text-decoration: none;
-            margin-bottom: 12px;
-            transition: color 0.2s;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
         }
 
-        .footer-column a:hover {
-            color: #fff;
+        .donate-modal-btn.primary {
+            background: linear-gradient(135deg, #ffd700 0%, #ffb800 100%);
+            color: #000;
         }
 
-        .footer-bottom {
-            margin-top: 48px;
-            padding-top: 24px;
-            border-top: 1px solid #1a1a1a;
-            text-align: center;
-            font-size: 13px;
-            color: #555;
+        .donate-modal-btn.primary:hover {
+            transform: translateY(-2px);
         }
 
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
+        .donate-perks-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+
+        .donate-perk {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .donate-modal-btn.secondary {
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .donate-modal-btn.secondary.ready {
+            cursor: pointer;
+            opacity: 1;
+        }
+
+        .donate-modal-btn.secondary.ready:hover {
+            color: var(--secondary);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .donate-modal-btn.secondary .fill-bar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.08);
+            transition: width 5s linear;
+            pointer-events: none;
+        }
+
+        .donate-modal-btn.secondary.filling .fill-bar {
+            width: 100%;
+        }
+
+        .donate-modal-btn.secondary span {
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (max-width: 1200px) {
+            .video-box {
+                max-width: 700px;
             }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            .center {
+                max-width: 800px;
             }
         }
 
-        .animate-in {
-            animation: fadeInUp 0.8s ease-out forwards;
-        }
-
-        .delay-1 {
-            animation-delay: 0.1s;
-        }
-
-        .delay-2 {
-            animation-delay: 0.2s;
-        }
-
-        .delay-3 {
-            animation-delay: 0.3s;
-        }
-
-        .delay-4 {
-            animation-delay: 0.4s;
-        }
-
-        /* Hide scrollbars */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-
-        * {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        /* Responsive - uniform padding at all breakpoints */
-        @media (max-width: 900px) {
-            section {
-                padding: 60px 0;
+        @media (max-width: 1024px) {
+            .card {
+                min-width: 145px;
+                padding: 14px 18px;
             }
 
-            .container {
-                padding-left: 32px;
-                padding-right: 32px;
+            .card.main {
+                min-width: 170px;
             }
 
-            .two-col {
-                gap: 48px;
-            }
-        }
-
-        @media (max-width: 640px) {
-            section {
-                padding: 40px 0;
+            .card-title {
+                font-size: 14px;
             }
 
-            .container {
-                padding-left: 24px;
-                padding-right: 24px;
+            .card.main .card-title {
+                font-size: 16px;
             }
 
-            .hero {
-                padding: 60px 24px 100px;
-            }
-
-            .hero-logo {
-                width: 140px;
-                height: 140px;
-            }
-
-            .hero-logo-text {
+            .headline {
                 font-size: 32px;
             }
 
-            .floating-cta {
-                flex-direction: column;
-                bottom: 16px;
-                width: calc(100% - 32px);
+            .logo {
+                width: 100px;
+                height: 100px;
             }
 
-            .cta-button {
+            .video-box {
+                max-width: 550px;
+                border-radius: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                min-width: 125px;
+                padding: 12px 16px;
+            }
+
+            .card.main {
+                min-width: 150px;
+            }
+
+            .card-title {
+                font-size: 13px;
+            }
+
+            .card.main .card-title {
+                font-size: 15px;
+            }
+
+            .card-sub {
+                font-size: 10px;
+            }
+
+            .headline {
+                font-size: 26px;
+                white-space: normal;
+            }
+
+            .center {
+                padding: 0 24px;
+                top: 42%;
+            }
+
+            .logo {
+                width: 85px;
+                height: 85px;
+            }
+
+            .video-box {
+                max-width: 420px;
+                border-radius: 16px;
+            }
+
+            .cta-bar .btn {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                min-width: 105px;
+                padding: 10px 14px;
+            }
+
+            .card.main {
+                min-width: 130px;
+            }
+
+            .card-title {
+                font-size: 12px;
+            }
+
+            .card.main .card-title {
+                font-size: 13px;
+            }
+
+            .card-sub {
+                font-size: 9px;
+            }
+
+            .headline {
+                font-size: 22px;
+            }
+
+            .logo {
+                width: 68px;
+                height: 68px;
+            }
+
+            .video-box {
+                max-width: 300px;
+            }
+
+            .cta-bar {
+                padding: 4px;
+                gap: 4px;
+                max-width: calc(100% - 24px);
+                flex-wrap: wrap;
                 justify-content: center;
-                width: 100%;
+                border-radius: 20px;
             }
 
-            .two-col {
-                gap: 40px;
+            .cta-bar .btn {
+                padding: 8px 12px;
+                font-size: 12px;
             }
-
-            .feature-grid {
-                gap: 16px;
-            }
-
-            .feature-grid {
-                gap: 16px;
-            }
-
-            .marquee-container {
-                mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-                -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-            }
-        }
-
-        /* Infinite Marquee */
-        .marquee-container {
-            width: 100vw;
-            margin-left: calc(50% - 50vw);
-            overflow: hidden;
-            position: relative;
-            margin-top: 64px;
-            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
-        }
-
-        .marquee-content {
-            display: flex;
-            gap: 16px;
-            width: max-content;
-            animation: marquee-scroll 60s linear infinite;
-            padding-left: 20px;
-            padding-top: 10px;
-            padding-bottom: 10px;
-        }
-
-        .marquee-content:hover {
-            animation-play-state: paused;
-        }
-
-        @keyframes marquee-scroll {
-            0% {
-                transform: translateX(0);
-            }
-
-            100% {
-                transform: translateX(-50%);
-            }
-        }
-
-        .marquee-content .feature-badge {
-            white-space: nowrap;
-            opacity: 0.8;
-            background: #0a0a0a;
-            border-color: #222;
-        }
-
-        .marquee-content .feature-badge:hover {
-            opacity: 1;
-            border-color: #444;
-            transform: translateY(-2px);
-            background: #111;
         }
     </style>
 </head>
 
-<body oncontextmenu="return false;">
-
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-logo-wrapper animate-in">
-            <img src="assets/droppy-logo.png" alt="Droppy" class="hero-logo">
-        </div>
-
-        <h1 class="hero-title animate-in delay-1">Droppy</h1>
-
-        <p class="hero-tagline animate-in delay-2">The native productivity layer macOS is missing.</p>
-
-        <p class="hero-subtitle animate-in delay-2">
-            Free and open-source. Built entirely in Swift.<br>
-            Requires macOS 14 Sonoma or later.
-        </p>
-
-        <div class="hero-image-container animate-in delay-3">
-            <div class="hero-glow"></div>
-            <div class="hero-stack">
-                <img src="assets/images/droppy-demo.gif" alt="Droppy Demo" class="hero-stack-card">
-                <img src="assets/images/shelf-demo.gif" alt="Droppy Shelf Demo" class="hero-stack-card">
-                <img src="assets/images/basket-demo.gif" alt="Droppy Basket Demo" class="hero-stack-card">
+<body>
+    <div class="page">
+        <!-- TOP EDGE -->
+        <div class="card main t1" data-rot="-8" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">File Shelf</div>
+                <div class="card-sub">Drop files to notch</div>
             </div>
         </div>
-
-        <p class="hero-caption animate-in delay-4" style="max-width: 700px; margin-top: 56px;">
-            The ultimate <strong style="color: #fff;">Mac productivity monster</strong>. Droppy unifies your entire
-            workflow—clipboard
-            history, drag & drop shelf, fast file uploads, and native HUDs—into one <span style="color: #fff;">stunning,
-                native
-                interface.</span>
-        </p>
-
-        <!-- As Seen On Banner -->
-        <div class="animate-in delay-4" style="margin-top: 40px; text-align: center;">
-            <p
-                style="font-size: 12px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 16px;">
-                📰 As Seen On
-            </p>
-            <div style="display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;">
-                <a href="https://medium.com/@PowerUpSkills/droppy-is-the-free-mac-productivity-app-power-users-should-install-first-61e1f42c9b3d"
-                    target="_blank" rel="noopener"
-                    style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #0a0a0a; border: 1px solid #222; border-radius: 999px; color: #aaa; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.2s ease;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zm7.42 0c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
-                    </svg>
-                    Medium
-                </a>
-                <a href="https://appaddict.app/post/droppy-a-notch-app-with-a-lot-to-like" target="_blank"
-                    rel="noopener"
-                    style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #0a0a0a; border: 1px solid #222; border-radius: 999px; color: #aaa; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.2s ease;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="4" />
-                        <path d="M12 8v8M8 12h8" />
-                    </svg>
-                    AppAddict
-                </a>
-                <a href="https://www.producthunt.com/products/droppy-3" target="_blank" rel="noopener"
-                    style="display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #0a0a0a; border: 1px solid #222; border-radius: 999px; color: #aaa; font-size: 14px; font-weight: 500; text-decoration: none; transition: all 0.2s ease;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M13.604 8.4h-3.405V12h3.405c.996 0 1.801-.805 1.801-1.8 0-.995-.805-1.8-1.801-1.8zM12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zm1.604 14.4h-3.405V18H7.801V6h5.803c2.427 0 4.199 1.965 4.199 4.2 0 2.236-1.772 4.2-4.199 4.2z" />
-                    </svg>
-                    Product Hunt
-                </a>
+        <div class="card t2" data-rot="5" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Drag-Out Files</div>
+                <div class="card-sub">From anywhere</div>
             </div>
         </div>
-
-        <!-- Infinite Feature Marquee -->
-        <div class="marquee-container animate-in delay-4">
-            <div class="marquee-content">
-                <!-- Set 1 -->
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                    </svg>
-                    Clipboard History
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path
-                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                        </path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    Drag & Drop Shelf
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                    Voice Dictation
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                    </svg>
-                    Instant Access
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                    Element Capture
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <polyline points="4 14 10 14 10 20"></polyline>
-                        <polyline points="20 10 14 10 14 4"></polyline>
-                        <line x1="14" y1="10" x2="21" y2="3"></line>
-                        <line x1="3" y1="21" x2="10" y2="14"></line>
-                    </svg>
-                    File Compression
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 18V5l12-2v13"></path>
-                        <circle cx="6" cy="18" r="3"></circle>
-                        <circle cx="18" cy="16" r="3"></circle>
-                    </svg>
-                    Media Controls
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21.2 15c.7-1.2 1-2.5 1-3.9 0-4.4-3.6-8-8-8-3.2 0-6 2.1-7.2 5"></path>
-                        <polyline points="16 16 12 12 8 16"></polyline>
-                        <line x1="12" y1="12" x2="12" y2="21"></line>
-                    </svg>
-                    Instant Uploads
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="9" y1="3" x2="9" y2="21"></line>
-                    </svg>
-                    Window Snapping
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    Text Recognition
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"></path>
-                        <path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                        <line x1="12" y1="2" x2="12" y2="4"></line>
-                        <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
-                        <line x1="2" y1="12" x2="4" y2="12"></line>
-                        <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line>
-                        <line x1="12" y1="22" x2="12" y2="20"></line>
-                        <line x1="19.07" y1="19.07" x2="17.66" y2="17.66"></line>
-                        <line x1="22" y1="12" x2="20" y2="12"></line>
-                        <line x1="19.07" y1="4.93" x2="17.66" y2="6.34"></line>
-                    </svg>
-                    AirDrop Zone
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                        <path
-                            d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z">
-                        </path>
-                    </svg>
-                    AirPods HUD
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
-                        <line x1="7" y1="15" x2="7.5" y2="11.5"></line>
-                        <line x1="7" y1="15" x2="10" y2="15"></line>
-                        <circle cx="15.5" cy="11.5" r="1.5"></circle>
-                    </svg>
-                    Caps Lock HUD
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M8 14.5c2.5 1.5 6.5 1.5 9 0"></path>
-                        <path d="M7 11.5c3 2 8 2 11 0"></path>
-                        <path d="M6.5 8.5c3.5 2.5 9.5 2.5 13 0"></path>
-                    </svg>
-                    Spotify Integration
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                        <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                    Shortcuts Support
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    Dark Mode
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                    </svg>
-                    Native Swift
-                </div>
-
-                <!-- Set 2 (Duplicate for loop) -->
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                    </svg>
-                    Clipboard History
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path
-                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                        </path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    Drag & Drop Shelf
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                    Voice Dictation
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                    </svg>
-                    Instant Access
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                        <polyline points="13 2 13 9 20 9"></polyline>
-                    </svg>
-                    Element Capture
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <polyline points="4 14 10 14 10 20"></polyline>
-                        <polyline points="20 10 14 10 14 4"></polyline>
-                        <line x1="14" y1="10" x2="21" y2="3"></line>
-                        <line x1="3" y1="21" x2="10" y2="14"></line>
-                    </svg>
-                    File Compression
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 18V5l12-2v13"></path>
-                        <circle cx="6" cy="18" r="3"></circle>
-                        <circle cx="18" cy="16" r="3"></circle>
-                    </svg>
-                    Media Controls
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21.2 15c.7-1.2 1-2.5 1-3.9 0-4.4-3.6-8-8-8-3.2 0-6 2.1-7.2 5"></path>
-                        <polyline points="16 16 12 12 8 16"></polyline>
-                        <line x1="12" y1="12" x2="12" y2="21"></line>
-                    </svg>
-                    Instant Uploads
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="9" y1="3" x2="9" y2="21"></line>
-                    </svg>
-                    Window Snapping
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    Text Recognition
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10z"></path>
-                        <path d="M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path>
-                        <line x1="12" y1="2" x2="12" y2="4"></line>
-                        <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
-                        <line x1="2" y1="12" x2="4" y2="12"></line>
-                        <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line>
-                        <line x1="12" y1="22" x2="12" y2="20"></line>
-                        <line x1="19.07" y1="19.07" x2="17.66" y2="17.66"></line>
-                        <line x1="22" y1="12" x2="20" y2="12"></line>
-                        <line x1="19.07" y1="4.93" x2="17.66" y2="6.34"></line>
-                    </svg>
-                    AirDrop Zone
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                        <path
-                            d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z">
-                        </path>
-                    </svg>
-                    AirPods HUD
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
-                        <line x1="7" y1="15" x2="7.5" y2="11.5"></line>
-                        <line x1="7" y1="15" x2="10" y2="15"></line>
-                        <circle cx="15.5" cy="11.5" r="1.5"></circle>
-                    </svg>
-                    Caps Lock HUD
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M8 14.5c2.5 1.5 6.5 1.5 9 0"></path>
-                        <path d="M7 11.5c3 2 8 2 11 0"></path>
-                        <path d="M6.5 8.5c3.5 2.5 9.5 2.5 13 0"></path>
-                    </svg>
-                    Spotify Integration
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                        <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                    Shortcuts Support
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    Dark Mode
-                </div>
-                <div class="feature-badge">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                    </svg>
-                    Native Swift
-                </div>
+        <div class="card main t3" data-rot="-4" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Floating Basket</div>
+                <div class="card-sub">Jiggle mouse</div>
             </div>
         </div>
-    </section>
-
-    <!-- What is Droppy -->
-    <section class="container">
-        <div class="two-col">
-            <div class="two-col-text">
-                <h2>The ultimate Mac<br>productivity monster.</h2>
-                <p>
-                    Stop juggling a dozen single-purpose apps. Droppy unifies your <strong>entire workflow</strong> into
-                    one stunning, native interface.
-                    It's your Clipboard Manager, Drag & Drop Shelf, File Compressor, AI Assistant, and System HUD—all
-                    living inside your Notch.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="4" y="4" width="16" height="16" rx="2" />
-                            <rect x="9" y="9" width="6" height="6" />
-                        </svg>
-                        Clipboard History
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="12" y1="18" x2="12" y2="12"></line>
-                            <line x1="9" y1="15" x2="15" y2="15"></line>
-                        </svg>
-                        Drag & Drop Shelf
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        Instant Uploads
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                            <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                            <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                        </svg>
-                        Native HUDs
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="23"></line>
-                            <line x1="8" y1="23" x2="16" y2="23"></line>
-                        </svg>
-                        Voice Dictation
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                            <line x1="8" y1="21" x2="16" y2="21"></line>
-                            <line x1="12" y1="17" x2="12" y2="21"></line>
-                        </svg>
-                        Window Snapping
-                    </div>
-                </div>
-            </div>
-            <div class="two-col-image">
-                <img src="assets/images/shelf-demo.gif" alt="Droppy Shelf Demo"
-                    style="border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        <div class="card t4" data-rot="7" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Peek & Hide</div>
+                <div class="card-sub">Smooth animations</div>
             </div>
         </div>
-    </section>
-
-    <!-- Context Menu Showcase -->
-    <section class="container">
-        <div class="two-col" style="direction: rtl;">
-            <div class="two-col-text" style="direction: ltr;">
-                <h2>Powerful actions,<br>right at your fingertips.</h2>
-                <p>
-                    Right-click any file in the shelf for instant access to everything you need.
-                    <strong style="color: #fff;">Remove backgrounds with AI</strong>, compress files, create ZIPs,
-                    or share anywhere — all without leaving Droppy.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M12 2a10 10 0 0 1 10 10 10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2z">
-                            </path>
-                            <path d="M12 6v6l4 2"></path>
-                        </svg>
-                        AI Background Removal
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path
-                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                            </path>
-                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                        </svg>
-                        Compress Files
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                        </svg>
-                        Share Anywhere
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
-                            </path>
-                        </svg>
-                        Batch Operations
-                    </div>
-                </div>
-            </div>
-            <div class="two-col-image" style="direction: ltr;">
-                <img src="assets/images/context-menu-screenshot.png"
-                    alt="Droppy context menu with AI background removal, compression, and file management options"
-                    style="border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        <div class="card main t5" data-rot="-6" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Clipboard Manager</div>
+                <div class="card-sub">⌘⇧Space • History</div>
             </div>
         </div>
-    </section>
-
-    <!-- Core Features Grid (2 rows max) -->
-    <section class="container">
-        <h2 class="section-title">Everything you need,<br>nothing you don't.</h2>
-        <p class="section-subtitle">Plus tons of powerful extensions to supercharge your workflow.</p>
-
-        <div class="feature-grid">
-            <!-- Row 1: Core storage -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="3" y="3" width="18" height="14" rx="2" />
-                        <rect x="8" y="2" width="8" height="3" rx="1" />
-                    </svg>
-                </div>
-                <h3>Notch Shelf</h3>
-                <p>Drop files into your MacBook's notch. Works with Dynamic Island too.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="4" y="6" width="16" height="14" rx="3" />
-                        <path d="M8 6V4a4 4 0 018 0v2" />
-                    </svg>
-                </div>
-                <h3>Floating Basket</h3>
-                <p>Appears at any screen edge. Drag files in, drop them out.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="4" y="4" width="16" height="16" rx="2" />
-                        <rect x="7" y="8" width="10" height="2" rx="1" />
-                        <rect x="7" y="12" width="6" height="2" rx="1" />
-                    </svg>
-                </div>
-                <h3>Clipboard Manager</h3>
-                <p>Full history with search, favorites, and editing.</p>
-            </div>
-
-            <!-- Row 2: Media & AI -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="8" cy="17" r="4" />
-                        <circle cx="19" cy="14" r="3" />
-                        <path d="M8 13V5l11-3v9" />
-                    </svg>
-                </div>
-                <h3>Media Player HUD</h3>
-                <p>Now-playing widget in your notch. Spotify, Apple Music, and more.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13 3v7h6l-7 11v-7H6l7-11z" />
-                    </svg>
-                </div>
-                <h3>AI Background Removal</h3>
-                <p>One-click background removal with on-device AI.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill-opacity="0.2" />
-                        <circle cx="12" cy="12" r="4" />
-                    </svg>
-                </div>
-                <h3>AirDrop Zone</h3>
-                <p>Drop files directly to AirDrop from the Basket.</p>
+        <div class="card t6" data-rot="4" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Instant Search</div>
+                <div class="card-sub">Find anything</div>
             </div>
         </div>
-    </section>
-
-    <!-- Screenshot: Clipboard -->
-    <section class="container">
-        <div class="two-col">
-            <div class="two-col-text">
-                <h2>Full-fledged<br>clipboard manager.</h2>
-                <p>
-                    Never lose anything you copy. <strong style="color: #fff;">Search, favorite, flag as important,
-                        edit, and
-                        paste</strong>
-                    from your complete clipboard history. Supports text, images, files, and more.
-                </p>
-            </div>
-            <div class="two-col-image">
-                <img src="assets/images/clipboard-demo.gif" alt="Droppy Clipboard Manager"
-                    style="border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        <div class="card t7" data-rot="-5" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Favorites</div>
+                <div class="card-sub">Pin important</div>
             </div>
         </div>
-    </section>
-
-    <!-- HUDs Grid (2 rows max) -->
-    <section class="container">
-        <h2 class="section-title">Smart HUDs in your notch.</h2>
-
-        <div class="feature-grid">
-            <!-- Row 1: Status HUDs -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12 3C7 3 3 7 3 12s4 9 9 9 9-4 9-9-4-9-9-9zm0 16c-3.9 0-7-3.1-7-7s3.1-7 7-7 7 3.1 7 7-3.1 7-7 7z"
-                            fill-opacity="0.3" />
-                        <circle cx="12" cy="8" r="3" />
-                        <path d="M12 13c3 0 7 1.5 7 4v2H5v-2c0-2.5 4-4 7-4z" />
-                    </svg>
-                </div>
-                <h3>AirPods HUD</h3>
-                <p>Battery levels and connection status for your AirPods.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="4" y="6" width="16" height="12" rx="2" />
-                        <text x="12" y="15" text-anchor="middle" font-size="8" font-weight="bold"
-                            fill="#1a1a1a">A</text>
-                    </svg>
-                </div>
-                <h3>Caps Lock HUD</h3>
-                <p>Visual confirmation in your notch when Caps Lock is active.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="4" width="12" height="16" rx="2" />
-                        <rect x="8" y="17" width="8" height="2" fill="#1a1a1a" />
-                    </svg>
-                </div>
-                <h3>Battery HUD</h3>
-                <p>See charging status and battery percentage at a glance.</p>
-            </div>
-
-            <!-- Row 2: More HUDs -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 3C7 3 2 8.5 2 12s5 9 10 9 10-4.5 10-9-5-9-10-9z" fill-opacity="0.2" />
-                        <circle cx="12" cy="12" r="6" />
-                    </svg>
-                </div>
-                <h3>WiFi HUD</h3>
-                <p>Network changes displayed right in your notch.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="2" y="8" width="20" height="8" rx="2" />
-                        <path d="M4 10h12v4H4z" />
-                    </svg>
-                </div>
-                <h3>Volume HUD</h3>
-                <p>Volume slider appears in your notch instead of the default overlay.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill-opacity="0.2" />
-                        <circle cx="12" cy="12" r="5" />
-                    </svg>
-                </div>
-                <h3>Brightness HUD</h3>
-                <p>Brightness adjustments shown elegantly in the notch.</p>
+        <div class="card t8" data-rot="9" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Flag Important</div>
+                <div class="card-sub">Mark priority</div>
             </div>
         </div>
-    </section>
-
-    <!-- Screenshot: Media HUD -->
-    <section class="container">
-        <div class="two-col" style="direction: rtl;">
-            <div class="two-col-text" style="direction: ltr;">
-                <h2>Minimal media HUD<br>in your notch.</h2>
-                <p>
-                    See what's playing with a small, elegant widget.
-                    <strong style="color: #fff;">Album art, track info, and playback controls</strong> —
-                    all tucked away in your notch until you need them.
-                </p>
-            </div>
-            <div class="two-col-image" style="direction: ltr;">
-                <img src="assets/images/media-hud-minimal.png" alt="Droppy Media HUD in notch"
-                    style="border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        <div class="card main t9" data-rot="-3" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Beautiful Media HUD</div>
+                <div class="card-sub">Album art</div>
             </div>
         </div>
-    </section>
-
-    <!-- File Operations Grid (2 rows max) -->
-    <section class="container">
-        <h2 class="section-title">Powerful file operations.</h2>
-
-        <div class="feature-grid">
-            <!-- Row 1 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill-opacity="0.2" />
-                        <circle cx="12" cy="12" r="4" />
-                    </svg>
-                </div>
-                <h3>Quick Look</h3>
-                <p>Press Space to preview any file instantly.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold"
-                            fill="#1a1a1a">T</text>
-                    </svg>
-                </div>
-                <h3>OCR Text Extraction</h3>
-                <p>Extract text from any image with Apple Vision.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="4" y="4" width="16" height="16" rx="2" />
-                        <path d="M4 12h16M12 4v16" stroke="#1a1a1a" stroke-width="2" />
-                    </svg>
-                </div>
-                <h3>Create ZIPs</h3>
-                <p>Compress multiple files into a ZIP with one click.</p>
-            </div>
-
-            <!-- Row 2 -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="3" y="5" width="18" height="14" rx="2" />
-                        <circle cx="17" cy="13" r="2" fill="#1a1a1a" />
-                    </svg>
-                </div>
-                <h3>Image Compression</h3>
-                <p>Compress images to any target size.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
-                    </svg>
-                </div>
-                <h3>Format Conversion</h3>
-                <p>Convert between PNG, JPEG, HEIC, WebP.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="6" cy="12" r="3" />
-                        <circle cx="18" cy="6" r="3" />
-                        <circle cx="18" cy="18" r="3" />
-                        <path d="M8.5 10.5l7-3M8.5 13.5l7 3" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                </div>
-                <h3>Share Anywhere</h3>
-                <p>Share via any app with right-click.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Screenshot: AirDrop -->
-    <section class="container">
-        <div class="two-col">
-            <div class="two-col-text">
-                <h2>Instant AirDrop<br>from anywhere.</h2>
-                <p>
-                    Drag files to the AirDrop zone in your Basket.
-                    <strong style="color: #fff;">Just drop and share</strong> —
-                    no need to open Finder or navigate menus.
-                </p>
-            </div>
-            <div class="two-col-image">
-                <img src="assets/images/airdrop-screenshot.png" alt="AirDrop zone in Droppy Basket"
-                    style="border-radius: 24px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
-            </div>
-        </div>
-    </section>
-
-    <!-- System Features Grid (2 rows max) -->
-    <section class="container">
-        <h2 class="section-title">Built for your Mac.</h2>
-
-        <div class="feature-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="2" y="5" width="9" height="7" rx="1" />
-                        <rect x="13" y="5" width="9" height="7" rx="1" />
-                        <rect x="6" y="14" width="12" height="7" rx="1" />
-                    </svg>
-                </div>
-                <h3>Multi-Monitor</h3>
-                <p>Works seamlessly across all your displays.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" />
-                        <path d="M12 12l-4-2.5v5L12 17l4-2.5v-5L12 12z" fill="#1a1a1a" />
-                    </svg>
-                </div>
-                <h3>100% Private</h3>
-                <p>All processing on your Mac. No data leaves your device.</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M13 3v7h6l-7 11v-7H6l7-11z" />
-                    </svg>
-                </div>
-                <h3>Blazing Fast</h3>
-                <p>100% native Swift. No Electron, no bloat.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Privacy Section -->
-    <section class="privacy-section">
-        <div class="container-narrow">
-            <div class="privacy-badge">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                Zero Tracking, Zero Ads
-            </div>
-            <h2 class="section-title">We make software that is<br>truly <em class="serif-italic">private</em>.</h2>
-            <p class="section-subtitle">
-                Droppy contains no trackers, displays no ads, and gathers no data.
-                Your files and clipboard stay on your device.
-            </p>
-        </div>
-    </section>
-
-    <!-- Extensions Showcase -->
-    <section class="container" style="padding-top: 100px; padding-bottom: 100px;">
-        <h2 class="section-title">Supercharge with <em class="serif-italic">extensions</em>.</h2>
-        <p class="section-subtitle" style="max-width: 600px; margin: 0 auto 40px;">
-            Droppy works beautifully on its own. But with extensions, you can go from an Opel to a Ferrari in no time.
-            All free. All open-source.
-        </p>
-
-        <!-- Extension Store Preview -->
-        <div style="max-width: 900px; margin: 0 auto 80px;">
-            <img src="assets/images/extension-store.png" alt="Droppy Extension Store"
-                style="width: 100%; border-radius: 24px; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);">
-        </div>
-
-        <!-- Window Snap Extension -->
-        <div class="two-col" style="margin-bottom: 80px;">
-            <div class="two-col-text">
-                <h2>Window Snap</h2>
-                <p style="font-size: 18px; color: #888; margin-bottom: 24px;">Keyboard-driven window management</p>
-                <p>
-                    Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts.
-                    <strong style="color: #fff;">Multi-monitor support included.</strong>
-                    No more dragging windows around — just press a key.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                            <path
-                                d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h.01M10 16h12">
-                            </path>
-                        </svg>
-                        Left Half (⌃⌥←)
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                            <path
-                                d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h.01M10 16h12">
-                            </path>
-                        </svg>
-                        Maximize (⌃⌥↵)
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                            <path
-                                d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M6 16h.01M10 16h12">
-                            </path>
-                        </svg>
-                        Center (⌃⌥C)
-                    </div>
-                </div>
-            </div>
-            <div class="two-col-image">
-                <img src="assets/images/extension-window-snap.png" alt="Window Snap extension with keyboard shortcuts"
-                    style="border-radius: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        <div class="card t10" data-rot="6" style="--op:0.65">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Bulk Copy</div>
+                <div class="card-sub">Multiple items</div>
             </div>
         </div>
 
-        <!-- Voice Transcribe Extension -->
-        <div class="two-col" style="direction: rtl; margin-bottom: 80px;">
-            <div class="two-col-text" style="direction: ltr;">
-                <h2>Voice Transcribe</h2>
-                <p style="font-size: 18px; color: #888; margin-bottom: 24px;">On-device AI transcription</p>
-                <p>
-                    Download high-end AI models (up to 3GB) and transcribe audio entirely on your Mac.
-                    <strong style="color: #fff;">No cloud, no subscriptions, no limits.</strong>
-                    Record live or upload any audio file.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="23"></line>
-                            <line x1="8" y1="23" x2="16" y2="23"></line>
-                        </svg>
-                        Quick Record
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path
-                                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
-                            </path>
-                            <line x1="1" y1="1" x2="23" y2="23"></line>
-                        </svg>
-                        Invisi-record
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M21.2 15c.7-1.2 1-2.5 1-3.9 0-4.4-3.6-8-8-8-3.2 0-6 2.1-7.2 5"></path>
-                            <polyline points="16 16 12 12 8 16"></polyline>
-                            <line x1="12" y1="12" x2="12" y2="21"></line>
-                        </svg>
-                        Upload Audio
-                    </div>
-                </div>
+        <!-- LEFT EDGE -->
+        <div class="card main l1" data-rot="-8" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Volume HUD</div>
+                <div class="card-sub">Smooth animation</div>
             </div>
-            <div class="two-col-image" style="direction: ltr;">
-                <img src="assets/images/extension-voice-transcribe.png" alt="Voice Transcribe extension with AI models"
-                    style="border-radius: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        </div>
+        <div class="card l2" data-rot="5" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Brightness HUD</div>
+                <div class="card-sub">Beautiful design</div>
+            </div>
+        </div>
+        <div class="card l3" data-rot="-4" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Battery HUD</div>
+                <div class="card-sub">% indicator</div>
+            </div>
+        </div>
+        <div class="card l4" data-rot="7" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Caps Lock HUD</div>
+                <div class="card-sub">Visual alert</div>
+            </div>
+        </div>
+        <div class="card l5" data-rot="-6" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Screen Unlock</div>
+                <div class="card-sub">Notification</div>
+            </div>
+        </div>
+        <div class="card l6" data-rot="4" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">AirPods HUD</div>
+                <div class="card-sub">Connection status</div>
+            </div>
+        </div>
+        <div class="card main l7" data-rot="-5" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Power Folders</div>
+                <div class="card-sub">Drop to organize</div>
+            </div>
+        </div>
+        <div class="card l8" data-rot="9" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Tracked Folders</div>
+                <div class="card-sub">Auto-watch</div>
             </div>
         </div>
 
-        <!-- Element Capture Extension -->
-        <div class="two-col" style="margin-bottom: 80px;">
-            <div class="two-col-text">
-                <h2>Element Capture</h2>
-                <p style="font-size: 18px; color: #888; margin-bottom: 24px;">Capture any screen element instantly</p>
-                <p>
-                    Capture specific screen elements and copy them to clipboard or add to Droppy.
-                    Perfect for grabbing UI components, icons, or any visual element.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        Secure Capture
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                            <polyline points="13 2 13 9 20 9"></polyline>
-                        </svg>
-                        Copy to Clipboard
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M5 12h14"></path>
-                            <path d="M12 5v14"></path>
-                        </svg>
-                        Add to Droppy
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                            <line x1="8" y1="21" x2="16" y2="21"></line>
-                            <line x1="12" y1="17" x2="12" y2="21"></line>
-                        </svg>
-                        Shortcut Optimized
-                    </div>
-                </div>
+        <!-- RIGHT EDGE -->
+        <div class="card main r1" data-rot="9" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Audio Visualizer</div>
+                <div class="card-sub">Live beats</div>
             </div>
-            <div class="two-col-image">
-                <img src="assets/images/extension-element-capture.png"
-                    alt="Element Capture extension showcasing screen region selection"
-                    style="border-radius: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        </div>
+        <div class="card r2" data-rot="-5" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Tap-to-Seek</div>
+                <div class="card-sub">Precise control</div>
+            </div>
+        </div>
+        <div class="card r3" data-rot="4" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Shuffle & Repeat</div>
+                <div class="card-sub">Playback modes</div>
+            </div>
+        </div>
+        <div class="card r4" data-rot="-6" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Play/Pause/Skip</div>
+                <div class="card-sub">Media controls</div>
+            </div>
+        </div>
+        <div class="card main r5" data-rot="7" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Dynamic Island</div>
+                <div class="card-sub">Works on any Mac</div>
+            </div>
+        </div>
+        <div class="card r6" data-rot="-4" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Multi-Monitor</div>
+                <div class="card-sub">All displays</div>
+            </div>
+        </div>
+        <div class="card r7" data-rot="5" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Fullscreen Mode</div>
+                <div class="card-sub">Smart detection</div>
+            </div>
+        </div>
+        <div class="card r8" data-rot="-8" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Transparency</div>
+                <div class="card-sub">See-through notch</div>
             </div>
         </div>
 
-        <!-- Terminal Notch Extension -->
-        <div class="two-col" style="direction: rtl; margin-bottom: 80px;">
-            <div class="two-col-text" style="direction: ltr;">
-                <h2>Termi-Notch</h2>
-                <p style="font-size: 18px; color: #888; margin-bottom: 24px;">Power user? Run commands instantly</p>
-                <p>
-                    A quick terminal right in your notch — run commands without leaving your workflow.
-                    <strong style="color: #fff;">Extensions make you fully stacked.</strong>
-                    History navigation, customizable shortcut, instant access.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px;">
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <polyline points="4 17 10 11 4 5"></polyline>
-                            <line x1="12" y1="19" x2="20" y2="19"></line>
-                        </svg>
-                        Quick Commands
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                        </svg>
-                        Command History
-                    </div>
-                    <div class="feature-badge">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                            <line x1="8" y1="21" x2="16" y2="21"></line>
-                            <line x1="12" y1="17" x2="12" y2="21"></line>
-                        </svg>
-                        Custom Shortcut
-                    </div>
-                </div>
+        <!-- BOTTOM EDGE -->
+        <div class="card b1" data-rot="6" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Smart Export</div>
+                <div class="card-sub">Auto-save output</div>
             </div>
-            <div class="two-col-image" style="direction: ltr;">
-                <img src="assets/images/terminal-notch-screenshot.png"
-                    alt="Terminal Notch extension - run commands from your notch"
-                    style="border-radius: 20px; box-shadow: 0 30px 60px rgba(0,0,0,0.4);">
+        </div>
+        <div class="card main b2" data-rot="-3" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Spotify</div>
+                <div class="card-sub">Now Playing</div>
+            </div>
+        </div>
+        <div class="card b3" data-rot="9" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Apple Music</div>
+                <div class="card-sub">Full controls</div>
+            </div>
+        </div>
+        <div class="card b4" data-rot="-5" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">OCR Text</div>
+                <div class="card-sub">Extract from images</div>
+            </div>
+        </div>
+        <div class="card b5" data-rot="4" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Compress Files</div>
+                <div class="card-sub">ZIP/UNZIP</div>
+            </div>
+        </div>
+        <div class="card main b6" data-rot="-6" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Voice Transcribe</div>
+                <div class="card-sub">Whisper AI</div>
+            </div>
+        </div>
+        <div class="card b7" data-rot="7" style="--op:0.55">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">BG Removal</div>
+                <div class="card-sub">AI powered</div>
+            </div>
+        </div>
+        <div class="card b8" data-rot="-4" style="--op:0.65">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Video Compress</div>
+                <div class="card-sub">Discord ready</div>
+            </div>
+        </div>
+        <div class="card main b9" data-rot="5" style="--op:0.75">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Window Snap</div>
+                <div class="card-sub">Keyboard shortcuts</div>
+            </div>
+        </div>
+        <div class="card b10" data-rot="-8" style="--op:0.65">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Element Capture</div>
+                <div class="card-sub">Screenshot UI</div>
             </div>
         </div>
 
-        <!-- More Extensions -->
-        <div style="text-align: center; margin-top: 48px;">
-            <p style="color: #666; margin-bottom: 24px;">Plus: Spotify Integration • Alfred Workflows • Finder Services
-                • and
-                more</p>
-            <a href="extensions.html" class="cta-button">
-                Browse all extensions
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-            </a>
+        <!-- EXTRA scattered -->
+        <div class="card" style="top:15%;left:8%;--op:0.55" data-rot="-4">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Convert Images</div>
+                <div class="card-sub">PNG/JPG/HEIC</div>
+            </div>
         </div>
-    </section>
+        <div class="card" style="top:88%;left:42%;--op:0.65" data-rot="5">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">AirDrop</div>
+                <div class="card-sub">Quick share</div>
+            </div>
+        </div>
+        <div class="card" style="top:88%;right:42%;--op:0.55" data-rot="-5">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Quick Actions</div>
+                <div class="card-sub">Right-click menu</div>
+            </div>
+        </div>
+        <div class="card" style="top:15%;right:8%;--op:0.65" data-rot="5">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Rename Entries</div>
+                <div class="card-sub">Clipboard items</div>
+            </div>
+        </div>
+        <div class="card" style="bottom:5%;left:5%;--op:0.55" data-rot="7">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Termi-Notch</div>
+                <div class="card-sub">Quick terminal</div>
+            </div>
+        </div>
+        <div class="card" style="bottom:5%;right:5%;--op:0.65" data-rot="-7">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Menu Bar Manager</div>
+                <div class="card-sub">Hide icons</div>
+            </div>
+        </div>
+        <div class="card" style="top:92%;left:15%;--op:0.55" data-rot="9">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Alfred Workflow</div>
+                <div class="card-sub">Add from Alfred</div>
+            </div>
+        </div>
+        <div class="card" style="top:92%;right:15%;--op:0.65" data-rot="-8">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Finder Services</div>
+                <div class="card-sub">Right-click send</div>
+            </div>
+        </div>
+        <div class="card" style="top:5%;left:50%;--op:0.55" data-rot="-3">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Quickshare</div>
+                <div class="card-sub">Instant sharing</div>
+            </div>
+        </div>
+        <div class="card" style="bottom:12%;left:3%;--op:0.65" data-rot="5">
+            <div class="checkbox"></div>
+            <div class="card-body">
+                <div class="card-title">Lock Screen</div>
+                <div class="card-sub">Widgets</div>
+            </div>
+        </div>
+        <div class="card" style="bottom:12%;right:3%;--op:0.55" data-rot="-4">
+            <div class="checkbox checked"><svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6 13l4 4 8-9" />
+                </svg></div>
+            <div class="card-body">
+                <div class="card-title">Notification HUD</div>
+                <div class="card-sub">System alerts</div>
+            </div>
+        </div>
 
-    <!-- Support Section -->
-    <section class="privacy-section" style="background: linear-gradient(180deg, #0a0a0a 0%, #000 100%);">
-        <div class="container" style="text-align: center;">
-            <div class="privacy-badge">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <!-- Center -->
+        <div class="center">
+            <img src="assets/droppy-logo-transparent.png" alt="Droppy" class="logo">
+            <p class="headline"><span class="dim">The <span class="free">free</span> native productivity layer</span>
+                macOS is missing.</p>
+            <div class="video-box">
+                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     <path
-                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
-                    </path>
+                        d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
                 </svg>
-                Made with love
             </div>
-            <h2 class="section-title">Hey, I'm Jordy 👋</h2>
-            <p class="section-subtitle" style="max-width: 700px;">
-                I'm a solo developer building Droppy in my spare time because I love creating tools that make Mac
-                workflows better.
-                <br><br>
-                Droppy is <strong style="color: #fff;">free forever</strong>—no ads, no subscriptions, no paywalls, no
-                tracking.
-                Every feature and extension is included at no cost because I believe great software should be accessible
-                to everyone.
-            </p>
-            <p style="color: #666; font-size: 15px; max-width: 600px; margin: 0 auto 32px;">
-                If Droppy saves you time or makes your workflow better, consider buying me a coffee.
-                It helps keep the project alive and motivates me to keep adding new features! ☕
-            </p>
-            <a href="https://buymeacoffee.com/droppy" target="_blank" class="cta-button"
-                style="background: #FFDD00; color: #000; border-color: #FFDD00; display: inline-flex;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.168.364z" />
-                </svg>
-                Buy me a coffee
-            </a>
+            <button class="credits-btn" id="credits-btn">Credits & Acknowledgements</button>
         </div>
-    </section>
+    </div>
 
-    <!-- Community Section -->
-    <section
-        style="padding: 100px 0; background: linear-gradient(180deg, rgba(88, 101, 242, 0.1) 0%, transparent 100%);">
-        <div class="container" style="text-align: center;">
-            <div
-                style="display: inline-block; background: rgba(88, 101, 242, 0.2); padding: 6px 14px; border-radius: 20px; margin-bottom: 20px;">
-                <span
-                    style="background: linear-gradient(135deg, #5865F2 0%, #7289DA 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-size: 13px; font-weight: 600;">
-                    JOIN THE COMMUNITY
-                </span>
+    <!-- Credits Modal -->
+    <div class="credits-modal-overlay" id="credits-modal">
+        <div class="credits-modal">
+            <h2>Credits & Acknowledgements</h2>
+
+            <div class="credits-section">
+                <h3>🧑‍💻 Contributors</h3>
+                <p>Droppy has had contributions from developers who helped create code, improve features, and build
+                    community-driven extensions. Thank you to everyone who has contributed!</p>
             </div>
-            <h2 class="section-title">Connect with other Droppy users</h2>
-            <p class="section-subtitle" style="max-width: 600px;">
-                Share feedback, get help, and stay updated on new features. Join our growing community on Discord.
-            </p>
-            <a href="https://discord.gg/ghMSjHRa" target="_blank" class="cta-button"
-                style="background: #5865F2; color: #fff; border-color: #5865F2; display: inline-flex; gap: 10px; align-items: center; margin-top: 16px;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-                </svg>
-                Join our Discord
-            </a>
-        </div>
-    </section>
 
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-brand">
-                    <img src="assets/droppy-logo.png" alt="Droppy">
-                    <span>Droppy</span>
+            <div class="credits-section">
+                <h3>✨ Alcove</h3>
+                <p>Alcove has been a great inspiration for creating a beautiful notch app with smooth animations. One of
+                    the founding fathers of good-looking notch apps on macOS. The developer has been supportive and is
+                    behind this project.</p>
+                <a href="https://tryalcove.com/" target="_blank">tryalcove.com →</a>
+            </div>
+
+            <div class="credits-section">
+                <h3>🌊 Atoll</h3>
+                <p>Atoll inspired some of the animations and foundational functionalities of Droppy. While we're totally
+                    different apps, the foundation Atoll laid with notch animations can't be denied. Atoll is a fork of
+                    Boringnotch.</p>
+                <a href="https://github.com/Ebullioscopic/Atoll" target="_blank">github.com/Ebullioscopic/Atoll →</a>
+            </div>
+
+            <div class="credits-section">
+                <h3>🎯 Boringnotch</h3>
+                <p>The original project that Atoll was forked from. Thank you for pioneering notch creativity on macOS
+                    and laying the groundwork for the community.</p>
+                <a href="https://github.com/TheBoredTeam/boring.notch"
+                    target="_blank">github.com/TheBoredTeam/boring.notch →</a>
+            </div>
+        </div>
+    </div>
+    <!-- Donation Modal -->
+    <div class="donate-modal-overlay" id="donate-modal">
+        <div class="donate-modal">
+            <span class="donate-modal-icon">☕</span>
+            <h2>A Quick Note</h2>
+            <p>Droppy is <span class="highlight">completely free</span> and <span class="highlight">open source</span>,
+                built with love by a single developer.</p>
+            <p>If you can afford it, a small donation would mean the world. It helps keep this project alive and makes
+                future improvements possible.</p>
+            <p>Droppy costs money to develop and maintain — and right now, I'm covering those costs myself to bring you
+                great software for free.</p>
+            <div class="donate-modal-buttons">
+                <a href="https://buymeacoffee.com/droppy" class="donate-modal-btn primary" target="_blank">
+                    ☕ Donate a Cup of Coffee
+                </a>
+                <div class="donate-perks-list">
+                    <span class="donate-perk">🎖️ Discord Role</span>
+                    <span class="donate-perk">💬 Exclusive Channel</span>
+                    <span class="donate-perk">⭐ Website Credit</span>
                 </div>
-                <div class="footer-links">
-                    <div class="footer-column">
-                        <h5>Product</h5>
-                        <a href="download.html">Download</a>
-                        <a href="extensions.html">Extensions</a>
-                    </div>
-                    <div class="footer-column">
-                        <h5>Resources</h5>
-                        <a href="https://github.com/iordv/Droppy" target="_blank">GitHub</a>
-                        <a href="https://github.com/iordv/Droppy/issues" target="_blank">Support</a>
-                    </div>
-                    <div class="footer-column">
-                        <h5>Social</h5>
-                        <a href="https://buymeacoffee.com/droppy" target="_blank">Buy me a coffee</a>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                © 2025-
-                <script>document.write(new Date().getFullYear())</script> Droppy. Free and open-source.
+                <button class="donate-modal-btn secondary" id="free-download-btn">
+                    <span class="fill-bar"></span>
+                    <span>I understand, but I want it for free</span>
+                </button>
             </div>
         </div>
-    </footer>
+    </div>
 
-    <!-- Floating CTA -->
-    <div class="floating-cta">
-        <a href="download.html" class="cta-button" style="position: relative;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+    <!-- CTA Bar -->
+    <div class="cta-bar">
+        <button id="download-btn" class="btn btn-main">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Download for Mac
-            <span class="cta-badge">FREE</span>
-        </a>
-        <a href="extensions.html" class="cta-button">
-            <img src="assets/icons/extensions.png" alt="">
+            Download Droppy
+        </button>
+        <a href="https://buymeacoffee.com/droppy" class="btn btn-donate" target="_blank">☕ Donate</a>
+        <a href="extensions.html" class="btn">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path
+                    d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
             Extensions
         </a>
     </div>
 
+    <script>
+        document.oncontextmenu = () => false;
+
+        // Smooth page transitions - fade out before navigation
+        document.querySelectorAll('a[href]:not([target="_blank"])').forEach(link => {
+            link.addEventListener('click', e => {
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+                    e.preventDefault();
+                    document.querySelector('.page').classList.add('fade-out');
+                    document.querySelector('.cta-bar').classList.add('fade-out');
+                    setTimeout(() => window.location.href = href, 300);
+                }
+            });
+        });
+
+        // Smooth staggered fade-in
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, i) => {
+            const rot = card.dataset.rot || 0;
+            card.style.transform = `rotate(${rot}deg)`;
+            setTimeout(() => card.classList.add('visible'), 80 + Math.random() * 500);
+        });
+
+        // Optimized drag with momentum
+        let activeCard = null, x = 0, y = 0, vx = 0, vy = 0, lastX = 0, lastY = 0, rot = 0;
+        const friction = 0.9, minV = 0.3;
+
+        document.addEventListener('mousedown', e => {
+            const card = e.target.closest('.card');
+            if (!card) return;
+            activeCard = card;
+            rot = parseFloat(card.dataset.rot) || 0;
+            const style = getComputedStyle(card);
+            const matrix = new DOMMatrix(style.transform);
+            x = matrix.m41; y = matrix.m42;
+            lastX = e.clientX; lastY = e.clientY;
+            vx = 0; vy = 0;
+            card.classList.add('dragging');
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!activeCard) return;
+            const dx = e.clientX - lastX, dy = e.clientY - lastY;
+            x += dx; y += dy;
+            vx = dx * 0.5; vy = dy * 0.5;
+            lastX = e.clientX; lastY = e.clientY;
+            activeCard.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg)`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!activeCard) return;
+            activeCard.classList.remove('dragging');
+            const card = activeCard;
+            activeCard = null;
+
+            const animate = () => {
+                if (Math.abs(vx) < minV && Math.abs(vy) < minV) return;
+                x += vx; y += vy;
+                vx *= friction; vy *= friction;
+                card.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg)`;
+                requestAnimationFrame(animate);
+            };
+            if (Math.abs(vx) > minV || Math.abs(vy) > minV) requestAnimationFrame(animate);
+        });
+
+        // Touch support
+        document.addEventListener('touchstart', e => {
+            const card = e.target.closest('.card');
+            if (!card) return;
+            activeCard = card;
+            rot = parseFloat(card.dataset.rot) || 0;
+            const style = getComputedStyle(card);
+            const matrix = new DOMMatrix(style.transform);
+            x = matrix.m41; y = matrix.m42;
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            vx = 0; vy = 0;
+            card.classList.add('dragging');
+        }, { passive: true });
+
+        document.addEventListener('touchmove', e => {
+            if (!activeCard) return;
+            const dx = e.touches[0].clientX - lastX, dy = e.touches[0].clientY - lastY;
+            x += dx; y += dy;
+            vx = dx * 0.5; vy = dy * 0.5;
+            lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+            activeCard.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg)`;
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            if (!activeCard) return;
+            activeCard.classList.remove('dragging');
+            const card = activeCard;
+            activeCard = null;
+            const animate = () => {
+                if (Math.abs(vx) < minV && Math.abs(vy) < minV) return;
+                x += vx; y += vy;
+                vx *= friction; vy *= friction;
+                card.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg)`;
+                requestAnimationFrame(animate);
+            };
+            if (Math.abs(vx) > minV || Math.abs(vy) > minV) requestAnimationFrame(animate);
+        });
+
+        let downloadUrl = 'https://github.com/iordv/Droppy/releases/latest';
+        fetch('https://api.github.com/repos/iordv/Droppy/releases/latest').then(r => r.json()).then(rel => {
+            const dmg = rel.assets?.find(a => a.name.endsWith('.dmg'));
+            if (dmg) downloadUrl = dmg.browser_download_url;
+        }).catch(() => { });
+
+        // Credits modal logic
+        const creditsModal = document.getElementById('credits-modal');
+        const creditsBtn = document.getElementById('credits-btn');
+
+        creditsBtn.addEventListener('click', () => {
+            creditsModal.classList.add('active');
+        });
+
+        creditsModal.addEventListener('click', (e) => {
+            if (e.target === creditsModal) {
+                creditsModal.classList.remove('active');
+            }
+        });
+
+        // Donation modal logic
+        const donateModal = document.getElementById('donate-modal');
+        const downloadBtn = document.getElementById('download-btn');
+        const freeDownloadBtn = document.getElementById('free-download-btn');
+        let freeButtonReady = false;
+
+        downloadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            donateModal.classList.add('active');
+            freeButtonReady = false;
+            freeDownloadBtn.classList.remove('ready');
+
+            // Start fill animation after a brief delay
+            setTimeout(() => {
+                freeDownloadBtn.classList.add('filling');
+            }, 100);
+
+            // Enable button after 5 seconds
+            setTimeout(() => {
+                freeButtonReady = true;
+                freeDownloadBtn.classList.add('ready');
+            }, 5100);
+        });
+
+        freeDownloadBtn.addEventListener('click', () => {
+            if (!freeButtonReady) return;
+            donateModal.classList.remove('active');
+            window.location.href = downloadUrl;
+        });
+
+        donateModal.addEventListener('click', (e) => {
+            if (e.target === donateModal) {
+                donateModal.classList.remove('active');
+                freeDownloadBtn.classList.remove('filling');
+            }
+        });
+    </script>
 </body>
 
 </html>
