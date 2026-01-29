@@ -127,7 +127,7 @@ struct ExtensionsShopView: View {
                 )
             }
             
-            // Row 2: Notify me! + Termi-Notch
+            // Row 2: Notify me! + High Alert
             HStack(spacing: 12) {
                 FeaturedExtensionCardCompact(
                     category: "COMMUNITY",
@@ -144,17 +144,19 @@ struct ExtensionsShopView: View {
                 }
                 
                 FeaturedExtensionCardCompact(
-                    category: "",
-                    title: "Termi-Notch",
-                    subtitle: "Quick terminal",
-                    iconURL: "https://getdroppy.app/assets/icons/termi-notch.jpg",
-                    screenshotURL: "https://getdroppy.app/assets/images/terminal-notch-screenshot.png",
-                    accentColor: .green,
-                    isInstalled: isTerminalNotchInstalled
+                    category: "COMMUNITY",
+                    title: "High Alert",
+                    subtitle: "Keep Mac awake",
+                    iconURL: "https://getdroppy.app/assets/icons/high-alert.jpg",
+                    screenshotURL: "https://getdroppy.app/assets/images/high-alert-screenshot.gif",
+                    accentColor: .orange,
+                    isInstalled: isCaffeineInstalled,
+                    isNew: true,
+                    isCommunity: true
                 ) {
-                    TerminalNotchInfoView(
-                        installCount: extensionCounts["terminalNotch"],
-                        rating: extensionRatings["terminalNotch"]
+                    CaffeineInfoView(
+                        installCount: extensionCounts["caffeine"],
+                        rating: extensionRatings["caffeine"]
                     )
                 }
             }
