@@ -1628,13 +1628,13 @@ struct SettingsView: View {
                 // Caffeine Extension
                 if isCaffeineInstalled {
                     HStack(spacing: 12) {
-                        CaffeineHUDIcon(isEnabled: enableCaffeine && CaffeineManager.shared.isActive)
+                        HighAlertHUDIcon(isEnabled: enableCaffeine && CaffeineManager.shared.isActive)
                         
                         // Extension is installed - show on/off toggle for HUD visibility
                         Toggle(isOn: $enableCaffeine) {
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 6) {
-                                    Text("Caffeine")
+                                    Text("High Alert")
                                     if CaffeineManager.shared.isActive {
                                         Text(CaffeineManager.shared.formattedRemaining)
                                             .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -1653,7 +1653,7 @@ struct SettingsView: View {
                 } else {
                     // Extension is not installed - clickable card to open Extension Store
                     Button {
-                        // Navigate to Extension Store with Caffeine selected
+                        // Navigate to Extension Store with High Alert selected
                         NotificationCenter.default.post(
                             name: NSNotification.Name("OpenExtensionStore"),
                             object: nil,
@@ -1661,10 +1661,10 @@ struct SettingsView: View {
                         )
                     } label: {
                         HStack(spacing: 12) {
-                            CaffeineHUDIcon(isEnabled: false)
+                            HighAlertHUDIcon(isEnabled: false)
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Caffeine")
+                                Text("High Alert")
                                     .foregroundStyle(.secondary)
                                 Text("Enable in Extension Store")
                                     .font(.caption)

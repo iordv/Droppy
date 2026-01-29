@@ -700,14 +700,14 @@ struct NotchShelfView: View {
                                         }
                                     }
                                 }) {
-                                    Image(systemName: "cup.and.saucer.fill")
+                                    Image(systemName: "eyes")
                                 }
                                 .buttonStyle(DroppyCircleButtonStyle(
                                     size: 32,
                                     useTransparent: shouldUseFloatingButtonTransparent,
                                     solidFill: isHighlight ? .orange : (isDynamicIslandMode ? dynamicIslandGray : .black)
                                 ))
-                                .help(CaffeineManager.shared.isActive ? "Caffeine: \(CaffeineManager.shared.formattedRemaining)" : "Caffeine")
+                                .help(CaffeineManager.shared.isActive ? "High Alert: \(CaffeineManager.shared.formattedRemaining)" : "High Alert")
                                 .transition(.scale(scale: 0.8).combined(with: .opacity))
                             }
                             
@@ -1319,8 +1319,8 @@ struct NotchShelfView: View {
             // Center vertically in the notch bar (approx 16pt height for content)
             let yOffset: CGFloat = (notchHeight - 16) / 2
             
-            // Left: Cup Icon
-            Image(systemName: "cup.and.saucer.fill")
+            // Left: Eyes Icon (High Alert active)
+            Image(systemName: "eyes")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.orange)
                 // +26 pushes it INWARD from the left edge (safe from corner clipping)

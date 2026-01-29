@@ -1934,11 +1934,11 @@ struct TerminalHUDIcon: View {
     }
 }
 
-/// Compact animated caffeine icon for settings rows - orange gradient with coffee cup
-struct CaffeineHUDIcon: View {
+/// Compact animated High Alert icon for settings rows - orange gradient with wide-open eyes
+struct HighAlertHUDIcon: View {
     let isEnabled: Bool
     
-    @State private var steam = false
+    @State private var wideAwake = false
     
     var body: some View {
         ZStack {
@@ -1969,19 +1969,21 @@ struct CaffeineHUDIcon: View {
                 )
                 .frame(width: 40, height: 40)
             
-            Image(systemName: "cup.and.saucer.fill")
-                .font(.system(size: 16, weight: .semibold))
+            // Wide-open eyes - caffeine junkie style
+            Image(systemName: "eyes")
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white)
-                .symbolEffect(.pulse, options: .repeating, isActive: isEnabled && steam)
+                .scaleEffect(wideAwake && isEnabled ? 1.15 : 1.0)
+                .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: wideAwake)
                 .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0, y: 0.5)
         }
         .onAppear {
             if isEnabled {
-                steam = true
+                wideAwake = true
             }
         }
         .onChange(of: isEnabled) { _, newValue in
-            steam = newValue
+            wideAwake = newValue
         }
     }
 }
