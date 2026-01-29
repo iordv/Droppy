@@ -17,8 +17,8 @@
 <p align="center">
   <a href="https://github.com/iordv/Droppy/releases/latest"><img src="https://img.shields.io/github/v/release/iordv/Droppy?style=flat-square&label=Version" /></a>
   <a href="https://github.com/iordv/Droppy/stargazers"><img src="https://img.shields.io/github/stars/iordv/Droppy?style=flat-square" /></a>
-  <a href="https://github.com/iordv/Droppy/blob/main/LICENSE"><img src="https://img.shields.io/github/license/iordv/Droppy?style=flat-square" /></a>
-  <a href="https://discord.gg/7dVMKJmHqR"><img src="https://img.shields.io/discord/1337148979547848778?style=flat-square&logo=discord&logoColor=white&label=Discord" /></a>
+  <a href="https://github.com/iordv/Droppy/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" /></a>
+  <a href="https://discord.gg/7dVMKJmHqR"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
 </p>
 
 ---
