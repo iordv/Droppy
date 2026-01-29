@@ -1369,27 +1369,66 @@ struct NotchShelfView: View {
         // 3. Shelf is NOT expanded
         // 4. No other HUD visible
         if state.isMouseHovering && CaffeineManager.shared.isActive && !isExpandedOnThisScreen && !hudIsVisible {
-            // Center vertically in the notch bar (approx 16pt height for content)
-            let yOffset: CGFloat = (notchHeight - 16) / 2
+            // Use HUDLayoutCalculator for consistent positioning across all screen types
+            let layout = HUDLayoutCalculator(screen: targetScreen)
+            let iconSize: CGFloat = layout.isDynamicIslandMode ? 16 : 14
+            let textSize: CGFloat = CaffeineManager.shared.formattedRemaining == "∞" ? 20 : 12
             
-            // Left: Eyes Icon (High Alert active)
-            Image(systemName: "eyes")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.orange)
-                // +26 pushes it INWARD from the left edge (safe from corner clipping)
-                .offset(x: -(notchWidth / 2) + 26, y: yOffset)
+            if layout.isDynamicIslandMode {
+                // DYNAMIC ISLAND MODE: Icon on left, timer on right with symmetric padding
+                let symmetricPadding = layout.symmetricPadding(for: iconSize)
+                
+                HStack {
+                    // Left: Eyes Icon
+                    Image(systemName: "eyes")
+                        .font(.system(size: iconSize, weight: .medium))
+                        .foregroundStyle(.orange)
+                    
+                    Spacer()
+                    
+                    // Right: Timer Text
+                    Text(CaffeineManager.shared.formattedRemaining)
+                        .font(.system(size: textSize, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.orange)
+                }
+                .padding(.horizontal, symmetricPadding)
+                .frame(height: layout.notchHeight)
                 .transition(.opacity)
                 .zIndex(6)
-            
-            // Right: Timer Text
-            Text(CaffeineManager.shared.formattedRemaining)
-                .font(.system(size: CaffeineManager.shared.formattedRemaining == "∞" ? 22 : 13, weight: .medium, design: .monospaced))
-                .foregroundStyle(.orange)
-                .offset(y: (CaffeineManager.shared.formattedRemaining == "∞" ? -4 : 0)) // Adjusted -4 to center larger symbol
-                // -26 pushes it INWARD from the right edge
-                .offset(x: (notchWidth / 2) - 26, y: yOffset)
+            } else {
+                // NOTCH MODE: Position in wings around the notch
+                let wingWidth = (highAlertHudWidth - layout.notchWidth) / 2
+                let symmetricPadding = layout.symmetricPadding(for: iconSize)
+                
+                HStack(spacing: 0) {
+                    // Left wing: Eyes Icon
+                    HStack {
+                        Image(systemName: "eyes")
+                            .font(.system(size: iconSize, weight: .medium))
+                            .foregroundStyle(.orange)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, symmetricPadding)
+                    .frame(width: wingWidth)
+                    
+                    // Notch spacer
+                    Spacer()
+                        .frame(width: layout.notchWidth)
+                    
+                    // Right wing: Timer Text
+                    HStack {
+                        Spacer(minLength: 0)
+                        Text(CaffeineManager.shared.formattedRemaining)
+                            .font(.system(size: textSize, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(.trailing, symmetricPadding)
+                    .frame(width: wingWidth)
+                }
+                .frame(width: highAlertHudWidth, height: layout.notchHeight)
                 .transition(.opacity)
                 .zIndex(6)
+            }
         }
     }
     
