@@ -525,6 +525,27 @@ struct NotchShelfView: View {
             }
         }
         
+        // HIGH ALERT (CAFFEINE): Content height based on layout
+        // Content is ~80pt (toggle circle 44pt + status text + buttons layout)
+        let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
+        if showCaffeineView && caffeineShouldShow {
+            // SSOT: Same formula as Terminal/Media for consistent padding
+            // - Pure Island mode: 20 (top) + 80 content + 20 (bottom) = 120pt
+            // - External notch style: 20 (top) + 80 content + 20 (bottom) = 120pt
+            // - Built-in notch mode: notchHeight (top) + 80 content + 20 (bottom)
+            let isExternalNotchStyle = isExternalDisplay && !externalDisplayUseDynamicIsland
+            if contentLayoutNotchHeight > 0 {
+                // Built-in notch mode: notchHeight + 100
+                return contentLayoutNotchHeight + 100
+            } else if isExternalNotchStyle {
+                // External notch style: 120pt (20 top + 80 content + 20 bottom)
+                return 120
+            } else {
+                // Pure Island mode: 120pt (20+80+20)
+                return 120
+            }
+        }
+        
         // Determine if we're showing media player or shelf
         let shouldShowMediaPlayer = musicManager.isMediaHUDForced || (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) ||
             ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.shelfDisplaySlotCount == 0)
