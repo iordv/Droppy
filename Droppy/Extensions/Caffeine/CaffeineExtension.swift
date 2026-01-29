@@ -26,7 +26,7 @@ struct CaffeineExtension: ExtensionDefinition {
     }
     
     static var iconURL: URL? {
-        URL(string: "https://getdroppy.app/assets/icons/high-alert.png")
+        URL(string: "https://getdroppy.app/assets/icons/high-alert.jpg")
     }
     
     static let iconPlaceholder = "eyes"
