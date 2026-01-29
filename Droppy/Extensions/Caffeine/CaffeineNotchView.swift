@@ -23,7 +23,8 @@ struct CaffeineNotchView: View {
     private let hourPresets: [CaffeineDuration] = [.hours(1), .hours(2), .hours(3), .hours(4), .hours(5)]
     
     var body: some View {
-        HStack(spacing: 16) {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 16) {
                 // Toggle Section
                 VStack(spacing: 6) {
                     Button {
@@ -83,7 +84,10 @@ struct CaffeineNotchView: View {
                             }
                         }
                     }
+                }
             }
+            
+            Spacer(minLength: 0)
         }
         .padding(contentPadding)
     }
