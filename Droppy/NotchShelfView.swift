@@ -1289,7 +1289,8 @@ struct NotchShelfView: View {
             HighAlertHUDView(
                 isActive: caffeineManager.isActive,
                 hudWidth: highAlertHudWidth,
-                targetScreen: targetScreen
+                targetScreen: targetScreen,
+                notchHeight: notchHeight
             )
             .frame(width: highAlertHudWidth, height: notchHeight)
             .transition(.premiumHUD.animation(DroppyAnimation.notchState))

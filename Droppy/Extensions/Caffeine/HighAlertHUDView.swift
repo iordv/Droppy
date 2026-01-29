@@ -2,18 +2,19 @@
 //  HighAlertHUDView.swift
 //  Droppy
 //
-//  High Alert HUD matching CapsLockHUDView style exactly
-//  Shows eyes icon on left wing, timer/Active/Inactive on right wing
+//  High Alert brief HUD - matches the Caffeine Hover Indicators style exactly
+//  Shows eyes icon + timer/status text in a simple wing layout
 //
 
 import SwiftUI
 
-/// Compact High Alert HUD that sits inside the notch
-/// Matches CapsLockHUDView layout: icon on left wing, timer on right wing when active
+/// Compact High Alert HUD that displays briefly when activating/deactivating
+/// Uses same layout as Caffeine Hover Indicators for visual consistency
 struct HighAlertHUDView: View {
     let isActive: Bool
     let hudWidth: CGFloat     // Total HUD width
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
+    var notchHeight: CGFloat = 0  // Pass through for layout calculations
     
     // Access CaffeineManager for timer display
     private var caffeineManager: CaffeineManager { CaffeineManager.shared }
@@ -25,94 +26,86 @@ struct HighAlertHUDView: View {
     
     /// Accent color based on High Alert state
     private var accentColor: Color {
-        isActive ? .orange : .white
-    }
-    
-    /// High Alert icon - use filled variant when active
-    private var alertIcon: String {
-        isActive ? "eyes" : "eyes"  // Same icon, color changes
+        isActive ? .orange : .white.opacity(0.5)
     }
     
     /// Display text - shows timer when active, "Inactive" when not
     private var statusText: String {
         if isActive {
-            // Show timer countdown or ∞ for indefinite
             return caffeineManager.formattedRemaining
         } else {
             return "Inactive"
         }
     }
     
-    /// Font size for status text - larger for ∞ symbol
-    private var statusFontSize: CGFloat {
+    /// Icon size matching hover indicators
+    private var iconSize: CGFloat {
+        layout.isDynamicIslandMode ? 16 : 14
+    }
+    
+    /// Text size - larger for ∞ symbol, matching hover indicators
+    private var textSize: CGFloat {
         if isActive && caffeineManager.formattedRemaining == "∞" {
-            return layout.labelFontSize + 6  // Larger for infinity symbol
+            return 20
         }
-        return layout.labelFontSize
+        return 12
     }
     
     var body: some View {
-        VStack(alignment: .center, spacing: 0) {
-            if layout.isDynamicIslandMode {
-                // DYNAMIC ISLAND: Icon on left edge, timer/status on right edge
-                let iconSize = layout.iconSize
-                let symmetricPadding = layout.symmetricPadding(for: iconSize)
+        if layout.isDynamicIslandMode {
+            // DYNAMIC ISLAND MODE: Icon on left, timer on right with symmetric padding
+            let symmetricPadding = layout.symmetricPadding(for: iconSize)
+            
+            HStack {
+                // Left: Eyes Icon
+                Image(systemName: "eyes")
+                    .font(.system(size: iconSize, weight: .medium))
+                    .foregroundStyle(accentColor)
+                    .symbolEffect(.bounce.up, value: isActive)
                 
+                Spacer()
+                
+                // Right: Timer/Status Text
+                Text(statusText)
+                    .font(.system(size: textSize, weight: .medium, design: isActive && statusText != "∞" ? .monospaced : .default))
+                    .foregroundStyle(accentColor)
+                    .contentTransition(.numericText())
+            }
+            .padding(.horizontal, symmetricPadding)
+            .frame(height: layout.notchHeight)
+        } else {
+            // NOTCH MODE: Position in wings around the notch
+            let wingWidth = (hudWidth - layout.notchWidth) / 2
+            let symmetricPadding = layout.symmetricPadding(for: iconSize)
+            
+            HStack(spacing: 0) {
+                // Left wing: Eyes Icon
                 HStack {
-                    // High Alert icon - .leading alignment within frame
-                    Image(systemName: alertIcon)
-                        .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
+                    Image(systemName: "eyes")
+                        .font(.system(size: iconSize, weight: .medium))
+                        .foregroundStyle(accentColor)
                         .symbolEffect(.bounce.up, value: isActive)
-                        .frame(width: 20, height: iconSize, alignment: .leading)
-                    
-                    Spacer()
-                    
-                    // Timer/status text
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, symmetricPadding)
+                .frame(width: wingWidth)
+                
+                // Notch spacer
+                Spacer()
+                    .frame(width: layout.notchWidth)
+                
+                // Right wing: Timer/Status Text
+                HStack {
+                    Spacer(minLength: 0)
                     Text(statusText)
-                        .font(.system(size: statusFontSize, weight: .semibold, design: isActive ? .monospaced : .default))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
+                        .font(.system(size: textSize, weight: .medium, design: isActive && statusText != "∞" ? .monospaced : .default))
+                        .foregroundStyle(accentColor)
                         .contentTransition(.numericText())
                 }
-                .padding(.horizontal, symmetricPadding)
-                .frame(width: hudWidth, height: layout.notchHeight)
-            } else {
-                // NOTCH MODE: Two wings separated by the notch space
-                let iconSize = layout.iconSize
-                let symmetricPadding = layout.symmetricPadding(for: iconSize)
-                let wingWidth = layout.wingWidth(for: hudWidth)
-                
-                HStack(spacing: 0) {
-                    // Left wing: High Alert icon near left edge
-                    HStack {
-                        Image(systemName: alertIcon)
-                            .font(.system(size: iconSize, weight: .semibold))
-                            .foregroundStyle(accentColor)
-                            .symbolEffect(.bounce.up, value: isActive)
-                            .frame(width: iconSize, height: iconSize, alignment: .leading)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.leading, symmetricPadding)
-                    .frame(width: wingWidth)
-                    
-                    // Camera notch area (spacer)
-                    Spacer()
-                        .frame(width: layout.notchWidth)
-                    
-                    // Right wing: Timer/status near right edge
-                    HStack {
-                        Spacer(minLength: 0)
-                        Text(statusText)
-                            .font(.system(size: statusFontSize, weight: .semibold, design: isActive ? .monospaced : .default))
-                            .foregroundStyle(accentColor)
-                            .contentTransition(.numericText())
-                            .animation(DroppyAnimation.notchState, value: statusText)
-                    }
-                    .padding(.trailing, symmetricPadding)
-                    .frame(width: wingWidth)
-                }
-                .frame(height: layout.notchHeight)
+                .padding(.trailing, symmetricPadding)
+                .frame(width: wingWidth)
             }
+            .frame(width: hudWidth, height: layout.notchHeight)
         }
     }
 }
