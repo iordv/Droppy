@@ -283,8 +283,8 @@ struct QuickshareInfoView: View {
                 .background(Color.white.opacity(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else {
-                // File List - tight spacing to avoid divider-like gaps
-                VStack(spacing: 2) {
+                // File List - no spacing to avoid any visible gaps
+                VStack(spacing: 0) {
                     ForEach(manager.items) { item in
                         itemRow(for: item)
                     }
