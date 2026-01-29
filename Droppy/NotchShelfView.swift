@@ -525,25 +525,21 @@ struct NotchShelfView: View {
             }
         }
         
-        // HIGH ALERT (CAFFEINE): Content height based on layout
-        // Content is ~70pt (toggle circle 44pt + 6pt spacing + status text ~20pt)
+        // HIGH ALERT (CAFFEINE): Use EXACT same height formula as Terminal
+        // This ensures identical left/right/bottom padding behavior
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         if showCaffeineView && caffeineShouldShow {
-            // SSOT: Height = topPadding + contentHeight + bottomPadding
-            // Content height = 70pt (toggle section height)
-            // Pure Island mode: 20 (top) + 70 content + 20 (bottom) = 110pt
-            // External notch style: 20 (top) + 70 content + 20 (bottom) = 110pt
-            // Built-in notch mode: notchHeight (top) + 70 content + 20 (bottom)
+            // SSOT: EXACT same formula as Terminal for consistent padding
             let isExternalNotchStyle = isExternalDisplay && !externalDisplayUseDynamicIsland
             if contentLayoutNotchHeight > 0 {
-                // Built-in notch mode: notchHeight + 90 (70 content + 20 bottom)
-                return contentLayoutNotchHeight + 90
+                // Built-in notch mode: notchHeight + 160 (same as Terminal)
+                return contentLayoutNotchHeight + 160
             } else if isExternalNotchStyle {
-                // External notch style: 110pt (20 top + 70 content + 20 bottom)
-                return 110
+                // External notch style: 180pt (same as Terminal)
+                return 180
             } else {
-                // Pure Island mode: 110pt (20 top + 70 content + 20 bottom)
-                return 110
+                // Pure Island mode: 180pt (same as Terminal)
+                return 180
             }
         }
         
