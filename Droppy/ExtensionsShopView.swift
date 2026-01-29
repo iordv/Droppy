@@ -224,7 +224,8 @@ struct ExtensionsShopView: View {
                         subtitle: ext.subtitle,
                         isInstalled: ext.isInstalled,
                         installCount: extensionCounts[ext.analyticsKey],
-                        isCommunity: ext.isCommunity
+                        isCommunity: ext.isCommunity,
+                        accentColor: ext.accentColor
                     ) {
                         ext.detailView()
                     }
@@ -421,7 +422,8 @@ struct ExtensionsShopView: View {
                 category: .productivity,
                 isInstalled: isTerminalNotchInstalled,
                 analyticsKey: "terminalNotch",
-                extensionType: .terminalNotch
+                extensionType: .terminalNotch,
+                accentColor: .green  // Green glow when installed
             ) {
                 AnyView(TerminalNotchInfoView(
                     installCount: extensionCounts["terminalNotch"],
@@ -479,7 +481,8 @@ struct ExtensionsShopView: View {
                 category: .productivity,
                 isInstalled: isCaffeineInstalled,
                 analyticsKey: "caffeine",
-                extensionType: .caffeine
+                extensionType: .caffeine,
+                accentColor: .orange  // Orange glow when installed
             ) {
                 AnyView(CaffeineInfoView(
                     installCount: extensionCounts["caffeine"],
@@ -519,6 +522,7 @@ private struct ExtensionListItem: Identifiable {
     let analyticsKey: String
     let extensionType: ExtensionType
     var isCommunity: Bool = false
+    var accentColor: Color? = nil  // Optional accent color for glow when installed
     let detailView: () -> AnyView
 }
 
@@ -964,6 +968,7 @@ struct CompactExtensionRow<DetailView: View>: View {
     let isInstalled: Bool
     var installCount: Int?
     var isCommunity: Bool = false
+    var accentColor: Color? = nil  // Optional accent color for glow when installed
     let detailView: () -> DetailView
     
     @State private var showSheet = false
@@ -985,6 +990,8 @@ struct CompactExtensionRow<DetailView: View>: View {
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                // Accent glow when installed
+                .shadow(color: (isInstalled && accentColor != nil) ? accentColor!.opacity(0.5) : .clear, radius: 8, y: 2)
                 
                 // Title + Subtitle
                 VStack(alignment: .leading, spacing: 2) {
