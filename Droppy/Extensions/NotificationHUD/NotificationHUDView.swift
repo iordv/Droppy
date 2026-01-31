@@ -24,6 +24,14 @@ struct NotificationHUDView: View {
     @State private var appearScale: CGFloat = 0.8
     @State private var appearOpacity: Double = 0
 
+    init(manager: NotificationHUDManager, hudWidth: CGFloat, targetScreen: NSScreen? = nil) {
+        self.manager = manager
+        self.hudWidth = hudWidth
+        self.targetScreen = targetScreen
+        // DEBUG: Log when view is created
+        print("🔔 NotificationHUDView: VIEW CREATED - hudWidth=\(hudWidth), hasNotification=\(manager.currentNotification != nil)")
+    }
+
     /// Centralized layout calculator
     private var layout: HUDLayoutCalculator {
         HUDLayoutCalculator(screen: targetScreen ?? NSScreen.main ?? NSScreen.screens.first ?? NSScreen())
@@ -63,29 +71,68 @@ struct NotificationHUDView: View {
                 NSCursor.pop()
             }
         }
-        .simultaneousGesture(
+        // HIGH PRIORITY GESTURE: Must capture clicks BEFORE parent view's hover/expand logic
+        // Using highPriorityGesture ensures notification clicks aren't consumed by shelf
+        .highPriorityGesture(
             DragGesture(minimumDistance: 0)
-                .onChanged { _ in
+                .onChanged { value in
+                    // Debug: Log that gesture is receiving events
+                    if !isPressed {
+                        print("🔔 NotificationHUDView: Gesture onChanged - press started")
+                    }
+                    // Visual press feedback
                     if !isPressed {
                         withAnimation(.easeOut(duration: 0.1)) {
                             isPressed = true
                         }
                     }
+                    // Drag up for dismiss (only track upward drags past threshold)
+                    if value.translation.height < -8 {
+                        dragOffset = value.translation.height * 0.6
+                    }
                 }
-                .onEnded { _ in
+                .onEnded { value in
+                    let dragDistance = abs(value.translation.height) + abs(value.translation.width)
+                    print("🔔 NotificationHUDView: Gesture onEnded - dragDistance=\(dragDistance), translation=\(value.translation)")
+
                     withAnimation(.easeOut(duration: 0.15)) {
                         isPressed = false
                     }
+
+                    // Check if this was a swipe up to dismiss
+                    if value.translation.height < -30 || value.predictedEndTranslation.height < -50 {
+                        // Swipe up - dismiss the notification
+                        print("🔔 NotificationHUDView: Swipe up detected - dismissing")
+                        withAnimation(DroppyAnimation.hoverScale) {
+                            dragOffset = -100
+                            appearOpacity = 0
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            manager.dismissCurrentOnly()
+                            dragOffset = 0
+                            appearOpacity = 1
+                        }
+                    } else if dragDistance < 10 {
+                        // This was a TAP (minimal movement) - open the source app
+                        print("🔔 NotificationHUDView: TAP detected - opening source app")
+                        withAnimation(DroppyAnimation.hover) {
+                            dragOffset = 0
+                        }
+                        openSourceApp()
+                    } else {
+                        // Small drag that wasn't a dismiss - reset position
+                        print("🔔 NotificationHUDView: Small drag detected - resetting position")
+                        withAnimation(DroppyAnimation.hover) {
+                            dragOffset = 0
+                        }
+                    }
                 }
         )
-        .onTapGesture {
-            openSourceApp()
-        }
-        .gesture(dismissGesture)
         .offset(y: dragOffset)
         .opacity(appearOpacity * (1.0 - Double(abs(dragOffset)) / 80.0))
         .scaleEffect(appearScale * (isPressed ? 0.97 : (isHovering ? 1.02 : 1.0)))
         .onAppear {
+            print("🔔 NotificationHUDView: VIEW APPEARED - notification=\(manager.currentNotification?.appName ?? "nil")")
             withAnimation(DroppyAnimation.transition) {
                 appearScale = 1.0
                 appearOpacity = 1.0
@@ -99,34 +146,6 @@ struct NotificationHUDView: View {
                 appearOpacity = 1.0
             }
         }
-    }
-
-    // MARK: - Dismiss Gesture
-
-    private var dismissGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { value in
-                if value.translation.height < 0 {
-                    dragOffset = value.translation.height * 0.6
-                }
-            }
-            .onEnded { value in
-                if value.translation.height < -30 || value.predictedEndTranslation.height < -50 {
-                    withAnimation(DroppyAnimation.hoverScale) {
-                        dragOffset = -100
-                        appearOpacity = 0
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        manager.dismissCurrentOnly()
-                        dragOffset = 0
-                        appearOpacity = 1
-                    }
-                } else {
-                    withAnimation(DroppyAnimation.hover) {
-                        dragOffset = 0
-                    }
-                }
-            }
     }
 
     // MARK: - Compact Layout (Dynamic Island)
@@ -346,63 +365,128 @@ struct NotificationHUDView: View {
         }
     }
 
+    // MARK: - Debug Logging
+
+    /// Debug flag for notification HUD troubleshooting
+    private var isDebugEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "DEBUG_NOTIFICATION_HUD")
+    }
+
+    private func debugLog(_ message: String) {
+        if isDebugEnabled {
+            print("🔔 NotificationHUDView: \(message)")
+        }
+    }
+
     // MARK: - Actions
 
     private func openSourceApp() {
         guard let notification = manager.currentNotification else {
             print("NotificationHUD: No current notification to open")
+            debugLog("openSourceApp called but currentNotification is nil")
             return
         }
 
-        print("NotificationHUD: Opening app for bundle ID: \(notification.appBundleID)")
+        let bundleID = notification.appBundleID
+        print("NotificationHUD: Opening app for bundle ID: \(bundleID)")
+        debugLog("Click received - opening \(notification.appName) (\(bundleID))")
 
         withAnimation(.easeOut(duration: 0.1)) {
             isPressed = true
         }
 
-        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: notification.appBundleID) {
-            print("NotificationHUD: Found app URL at \(appURL.path), launching...")
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = true
-            NSWorkspace.shared.openApplication(at: appURL, configuration: config) { app, error in
-                if let error = error {
-                    print("NotificationHUD: Failed to open via URL: \(error.localizedDescription)")
-                    _ = self.activateRunningApp(bundleID: notification.appBundleID)
-                } else {
-                    print("NotificationHUD: App opened successfully via NSWorkspace")
-                }
-            }
-        } else {
-            print("NotificationHUD: No app URL found for \(notification.appBundleID), trying active instances...")
-            if !activateRunningApp(bundleID: notification.appBundleID) {
-                print("NotificationHUD: Running app failed, trying shell open...")
-                openViaShell(bundleID: notification.appBundleID)
-            }
-        }
+        // ROBUST APP ACTIVATION STRATEGY
+        // The most reliable way to bring an app to foreground on macOS (including minimized apps,
+        // apps on other Spaces, etc.) is the `open` command. We use this as our PRIMARY method.
+        //
+        // Strategy:
+        // 1. First, try to unhide and activate via NSRunningApplication (fast, works for visible apps)
+        // 2. Always follow up with `open -b` command (handles minimized, different Spaces, etc.)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        let debugEnabled = isDebugEnabled
+
+        // Step 1: Try NSRunningApplication first for immediate activation of visible apps
+        Self.activateRunningAppStatic(bundleID: bundleID, debugEnabled: debugEnabled)
+
+        // Step 2: ALWAYS use `open -b` as the reliable method
+        // This handles all edge cases: minimized windows, different Spaces, app not running, etc.
+        Self.openViaShellStatic(bundleID: bundleID, debugEnabled: debugEnabled)
+
+        // Dismiss notification after a short delay
+        let notificationManager = manager
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.easeOut(duration: 0.1)) {
-                self.isPressed = false
+                // isPressed animation handled by view lifecycle
             }
-            self.manager.dismissCurrentOnly()
+            notificationManager.dismissCurrentOnly()
         }
     }
 
-    private func activateRunningApp(bundleID: String) -> Bool {
-        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
-            print("NotificationHUD: Found running instance, activating...")
-            let success = app.activate()
-            return success
+    /// Static helper for activating running apps (avoids struct self-capture issues)
+    /// This provides fast activation for apps that are already visible/accessible
+    @discardableResult
+    private static func activateRunningAppStatic(bundleID: String, debugEnabled: Bool) -> Bool {
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        if debugEnabled { print("🔔 NotificationHUDView: Found \(runningApps.count) running instance(s) for \(bundleID)") }
+
+        guard let app = runningApps.first else {
+            if debugEnabled { print("🔔 NotificationHUDView: No running instance found for \(bundleID)") }
+            return false
         }
-        return false
+
+        print("NotificationHUD: Found running instance, activating...")
+
+        // If app is hidden, unhide it first
+        if app.isHidden {
+            if debugEnabled { print("🔔 NotificationHUDView: App is hidden, unhiding...") }
+            app.unhide()
+        }
+
+        // Activate the app - brings to foreground
+        let success = app.activate()
+        if debugEnabled { print("🔔 NotificationHUDView: activate() result: \(success), isActive: \(app.isActive)") }
+
+        return success
     }
 
-    private func openViaShell(bundleID: String) {
-        DispatchQueue.global(qos: .userInitiated).async {
+    /// Static helper for shell-based app opening - THE MOST RELIABLE METHOD
+    /// `open -b` handles all edge cases: minimized windows, different Spaces, app not running
+    private static func openViaShellStatic(bundleID: String, debugEnabled: Bool) {
+        if debugEnabled { print("🔔 NotificationHUDView: Using open -b \(bundleID) (most reliable method)") }
+
+        // Run synchronously on background thread to ensure it completes
+        DispatchQueue.global(qos: .userInteractive).async {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            // -b: open by bundle identifier
+            // -g would keep in background, but we WANT foreground, so don't use it
             process.arguments = ["-b", bundleID]
-            try? process.run()
+
+            // Suppress any output
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                let exitCode = process.terminationStatus
+                if debugEnabled {
+                    DispatchQueue.main.async {
+                        if exitCode == 0 {
+                            print("🔔 NotificationHUDView: ✅ open -b succeeded for \(bundleID)")
+                        } else {
+                            print("🔔 NotificationHUDView: ⚠️ open -b exited with code \(exitCode) for \(bundleID)")
+                        }
+                    }
+                }
+            } catch {
+                if debugEnabled {
+                    DispatchQueue.main.async {
+                        print("🔔 NotificationHUDView: ❌ open -b failed: \(error.localizedDescription)")
+                    }
+                }
+            }
         }
     }
 

@@ -503,6 +503,15 @@ final class NotchWindowController: NSObject, ObservableObject {
                 self?.updateAllWindowsMouseEventHandling()
             }
             .store(in: &cancellables)
+
+        // 1b. React to HUD state changes (notification HUD needs mouse events)
+        NotificationCenter.default.publisher(for: .hudStateDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                print("🔔 NotchWindowController: Received hudStateDidChange - updating mouse event handling")
+                self?.updateAllWindowsMouseEventHandling()
+            }
+            .store(in: &cancellables)
         
         // CRITICAL (v7.0.2): Also update when drag LOCATION changes during a drag.
         // This ensures the window ignores events when drag moves BELOW the notch,
@@ -759,12 +768,35 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let isInNotchZone = clickZone.contains(mouseLocation)
                 let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
 
+                // CRITICAL FIX: When notification HUD is visible, check if click is in notification area
+                // The notification HUD is LARGER than the normal notch zone, so we need a separate check
+                if HUDManager.shared.isNotificationHUDVisible {
+                    // Calculate notification HUD area (centered on screen, larger than notch)
+                    let notifWidth: CGFloat = 260  // expandedWidth used for notification
+                    let notifHeight: CGFloat = 110 // Notification HUD height for built-in notch
+                    let centerX = targetScreen.frame.origin.x + targetScreen.frame.width / 2
+                    let notifZone = NSRect(
+                        x: centerX - notifWidth / 2,
+                        y: targetScreen.frame.maxY - notifHeight,
+                        width: notifWidth,
+                        height: notifHeight
+                    )
+
+                    if notifZone.contains(mouseLocation) {
+                        print("🔔 LocalMonitor: Click detected in notification HUD area - opening source app")
+                        DispatchQueue.main.async {
+                            NotificationHUDManager.shared.openCurrentNotificationApp()
+                        }
+                        return nil  // Consume the click
+                    }
+                }
+
                 if isInNotchZone {
                     // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
                     let now = Date()
                     guard now.timeIntervalSince(self.lastNotchClickTime) > self.clickDebounceInterval else { return event }
                     self.lastNotchClickTime = now
-                    
+
                     // Click on notch zone
                     // CRITICAL FIX: When shelf is expanded WITH ITEMS, don't intercept clicks!
                     // Let them pass through to SwiftUI item buttons (like the X to delete a file).
@@ -1404,18 +1436,24 @@ final class NotchWindowController: NSObject, ObservableObject {
         
         for (displayID, window) in notchWindows {
             // MOUSE EVENT VALIDATION
-            // If shelf is enabled but window is ignoring events AND not in a valid ignore state
-            if enableNotchShelf && window.ignoresMouseEvents {
-                // Check if this is actually correct
+            // Check if window is ignoring events when it shouldn't be
+            if window.ignoresMouseEvents {
                 let isExpanded = DroppyState.shared.isExpanded
                 let isHovering = DroppyState.shared.isMouseHovering
-                
-                // If shelf is expanded or mouse is hovering, window SHOULD accept events
-                if isExpanded || isHovering {
+                let isNotificationHUDActive = HUDManager.shared.isNotificationHUDVisible
+
+                // Window SHOULD accept events when:
+                // 1. Shelf is expanded or hovering (and shelf is enabled)
+                // 2. NotificationHUD is visible (needs clicks to open source app)
+                let shelfNeedsEvents = enableNotchShelf && (isExpanded || isHovering)
+                let hudNeedsEvents = isNotificationHUDActive
+
+                if shelfNeedsEvents || hudNeedsEvents {
                     // Throttle log to once per minute to avoid console spam
                     let now = Date()
                     if Self.lastWatchdogLogTime.map({ now.timeIntervalSince($0) > 60 }) ?? true {
-                        print("⚠️ Watchdog: Self-healing - window stuck with ignoresMouseEvents=true")
+                        let reason = hudNeedsEvents ? "NotificationHUD active" : "shelf expanded/hovering"
+                        print("⚠️ Watchdog: Self-healing - window stuck with ignoresMouseEvents=true (\(reason))")
                         Self.lastWatchdogLogTime = now
                     }
                     window.ignoresMouseEvents = false
@@ -1534,7 +1572,14 @@ final class NotchWindowController: NSObject, ObservableObject {
         print("🟢 AUTO-EXPAND TIMER STARTED with delay: \(actualDelay)s for displayID: \(displayID?.description ?? "nil")")
         autoExpandTimer = Timer.scheduledTimer(withTimeInterval: actualDelay, repeats: false) { [weak self] _ in
             guard self != nil else { return }
-            
+
+            // CRITICAL: Don't expand shelf when NotificationHUD is visible
+            // User needs to click the notification, not accidentally expand the shelf
+            if HUDManager.shared.isNotificationHUDVisible {
+                print("⏰ AUTO-EXPAND BLOCKED: NotificationHUD is visible")
+                return
+            }
+
             // Check setting again (in case user disabled it during the delay)
             // CRITICAL: Use object() ?? true to match @AppStorage default
             guard (UserDefaults.standard.object(forKey: "autoExpandShelf") as? Bool) ?? true else { return }
@@ -2235,25 +2280,50 @@ class NotchWindow: NSPanel {
         // CRITICAL FIX (v8.1.x): When shelf is DISABLED, the window should NOT block
         // for shelf-related interactions (hover, expand, drag-to-drop on notch).
         // User only wants floating basket, not the notch/island UI blocking their screen.
-        // HUDs are handled separately and render passively without needing click interaction.
         // CRITICAL: Use object() ?? true to match @AppStorage defaults
         let enableNotchShelf = (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true
-        
+
+        // CRITICAL FIX (v10.x): NotificationHUD requires click interaction to redirect to source app.
+        // When notification HUD is visible, window must accept mouse events so taps reach SwiftUI.
+        let isNotificationHUDActive = HUDManager.shared.isNotificationHUDVisible
+
         // Window should accept mouse events when:
         // - Shelf is expanded AND shelf is enabled (need to interact with items)
         // - User is hovering over notch AND shelf is enabled (need click to open)
         // - Drop is actively targeted on the notch AND shelf is enabled
         // - User is dragging files AND they are OVER a valid drop zone AND shelf is enabled
-        // When shelf is disabled, the window passes through ALL mouse events.
-        // HUDs are display-only and don't require mouse hit detection.
-        let shouldAcceptEvents = enableNotchShelf && (isExpanded || isHovering || isDropTargeted || isDragOverValidZone)
-        
+        // - NotificationHUD is visible (need click to open source app) - ADDED v10.x
+        // When shelf is disabled, the window passes through ALL mouse events (except for interactive HUDs).
+        let shouldAcceptEvents = (enableNotchShelf && (isExpanded || isHovering || isDropTargeted || isDragOverValidZone)) || isNotificationHUDActive
+
+        // DEBUG: Log notification HUD state affecting mouse events
+        if isNotificationHUDActive {
+            print("🔔 NotchWindow: NotificationHUD active - shouldAcceptEvents=\(shouldAcceptEvents), ignoresMouseEvents=\(self.ignoresMouseEvents)")
+        }
+
         // Only update if the value actually needs to change
         if self.ignoresMouseEvents == shouldAcceptEvents {
             self.ignoresMouseEvents = !shouldAcceptEvents
+            if isNotificationHUDActive {
+                print("🔔 NotchWindow: Updated ignoresMouseEvents to \(!shouldAcceptEvents) for NotificationHUD")
+            }
+        }
+
+        // CRITICAL: When NotificationHUD is active, allow the window to become key immediately
+        // This ensures clicks on the notification are processed without requiring a first click to activate
+        if isNotificationHUDActive {
+            if self.becomesKeyOnlyIfNeeded {
+                self.becomesKeyOnlyIfNeeded = false
+                print("🔔 NotchWindow: Set becomesKeyOnlyIfNeeded=false for NotificationHUD clicks")
+            }
+        } else {
+            // Restore default behavior when notification is not visible
+            if !self.becomesKeyOnlyIfNeeded {
+                self.becomesKeyOnlyIfNeeded = true
+            }
         }
     }
-    
+
     func checkForFullscreen() {
         _ = checkForFullscreenAndReturn()
     }
@@ -2360,15 +2430,21 @@ class NotchWindow: NSPanel {
         // Fast check: if another Droppy window is the current key window, yield
         if let keyWindow = NSApp.keyWindow, keyWindow !== self {
             // Check if current key window is one of our important windows
-            if keyWindow is ClipboardPanel || keyWindow is BasketPanel || 
+            if keyWindow is ClipboardPanel || keyWindow is BasketPanel ||
                keyWindow.title == "Settings" || keyWindow.title.contains("Update") ||
                keyWindow.title == "Welcome to Droppy" {
                 return false
             }
         }
-        
-        // Only become key when shelf is expanded and needs interaction
-        return DroppyState.shared.isExpanded || DroppyState.shared.isMouseHovering
+
+        // CRITICAL FIX: NotificationHUD needs key window status to receive clicks
+        let isNotificationHUDActive = HUDManager.shared.isNotificationHUDVisible
+
+        // Become key when:
+        // - Shelf is expanded and needs interaction
+        // - Mouse is hovering (about to interact)
+        // - NotificationHUD is visible (needs clicks to open source app)
+        return DroppyState.shared.isExpanded || DroppyState.shared.isMouseHovering || isNotificationHUDActive
     }
 }
 

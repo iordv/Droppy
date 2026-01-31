@@ -65,13 +65,21 @@ final class NotificationHUDManager {
     private(set) var seenApps: [String: (name: String, icon: NSImage?)] = [:]
     
     // MARK: - Private State
-    
+
     private var pollingTimer: Timer?
     private var lastProcessedRecordID: Int64 = 0
     private var dbConnection: OpaquePointer?
-    private let pollingInterval: TimeInterval = 0.5
+    private let pollingInterval: TimeInterval = 2.0  // Backup polling (file watcher is primary)
     private var dismissWorkItem: DispatchWorkItem?
-    
+
+    // File system monitoring for instant notification detection
+    private var fileMonitorSource: DispatchSourceFileSystemObject?
+    private var walMonitorSource: DispatchSourceFileSystemObject?  // WAL file monitor
+    private var fileDescriptor: Int32 = -1
+    private var walFileDescriptor: Int32 = -1
+    private var fileChangeDebounceWorkItem: DispatchWorkItem?
+    private let fileChangeDebounceInterval: TimeInterval = 0.02  // 20ms debounce (reduced for speed)
+
     // App bundle IDs to ignore (Droppy itself, system apps, etc.)
     private let ignoredBundleIDs: Set<String> = [
         "app.getdroppy.Droppy",
@@ -92,39 +100,121 @@ final class NotificationHUDManager {
     func startMonitoring() {
         guard isInstalled else { return }
         guard pollingTimer == nil else { return }
-        
+
         recheckAccess()
-        
+
         guard hasFullDiskAccess else {
             print("NotificationHUD: Cannot start - Full Disk Access not granted")
             return
         }
-        
+
         // Connect to database
         guard connectToDatabase() else {
             print("NotificationHUD: Failed to connect to notification database")
             return
         }
-        
+
         // Set initial record ID to avoid processing old notifications
         lastProcessedRecordID = getLatestRecordID()
         print("NotificationHUD: Initial record ID set to \(lastProcessedRecordID)")
-        
-        // Start polling on background thread
+
+        // PRIMARY: Start file system monitoring for instant notification detection
+        startFileMonitoring()
+
+        // BACKUP: Slow polling timer as fallback (in case file monitoring misses something)
         pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] _ in
             DispatchQueue.global(qos: .utility).async {
                 self?.pollForNewNotifications()
             }
         }
-        
-        print("NotificationHUD: Started monitoring for notifications")
+
+        print("NotificationHUD: Started monitoring for notifications (file watcher + backup polling)")
+    }
+
+    /// Start monitoring the notification database file for changes
+    /// This provides near-instant notification detection
+    private func startFileMonitoring() {
+        let dbPath = Self.notificationDatabasePath
+        let walPath = dbPath + "-wal"  // SQLite Write-Ahead Log file
+
+        // Handler for file changes (shared between db and WAL monitors)
+        let handleFileChange: () -> Void = { [weak self] in
+            guard let self = self else { return }
+
+            // Debounce rapid file changes (database may be written multiple times per notification)
+            self.fileChangeDebounceWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.pollForNewNotifications()
+            }
+            self.fileChangeDebounceWorkItem = workItem
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + self.fileChangeDebounceInterval,
+                execute: workItem
+            )
+        }
+
+        // Monitor main database file
+        fileDescriptor = open(dbPath, O_EVTONLY)
+        if fileDescriptor >= 0 {
+            let source = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: fileDescriptor,
+                eventMask: [.write, .extend, .attrib],
+                queue: DispatchQueue.global(qos: .userInitiated)
+            )
+            source.setEventHandler(handler: handleFileChange)
+            source.setCancelHandler { [weak self] in
+                if let fd = self?.fileDescriptor, fd >= 0 {
+                    close(fd)
+                    self?.fileDescriptor = -1
+                }
+            }
+            source.resume()
+            fileMonitorSource = source
+            print("NotificationHUD: ✅ Database file monitoring started")
+        } else {
+            print("NotificationHUD: ⚠️ Could not open database file for monitoring")
+        }
+
+        // Monitor WAL file (SQLite often writes here first for better performance)
+        walFileDescriptor = open(walPath, O_EVTONLY)
+        if walFileDescriptor >= 0 {
+            let walSource = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: walFileDescriptor,
+                eventMask: [.write, .extend, .attrib],
+                queue: DispatchQueue.global(qos: .userInitiated)
+            )
+            walSource.setEventHandler(handler: handleFileChange)
+            walSource.setCancelHandler { [weak self] in
+                if let fd = self?.walFileDescriptor, fd >= 0 {
+                    close(fd)
+                    self?.walFileDescriptor = -1
+                }
+            }
+            walSource.resume()
+            walMonitorSource = walSource
+            print("NotificationHUD: ✅ WAL file monitoring started (faster detection)")
+        } else {
+            print("NotificationHUD: ℹ️ WAL file not found (normal if not in WAL mode)")
+        }
+    }
+
+    /// Stop file system monitoring
+    private func stopFileMonitoring() {
+        fileMonitorSource?.cancel()
+        fileMonitorSource = nil
+        walMonitorSource?.cancel()
+        walMonitorSource = nil
+        fileChangeDebounceWorkItem?.cancel()
+        fileChangeDebounceWorkItem = nil
+        // File descriptors are closed in the cancel handlers
     }
     
     func stopMonitoring() {
         pollingTimer?.invalidate()
         pollingTimer = nil
+        stopFileMonitoring()  // Stop file system monitoring
         closeDatabase()
-        
+
         DispatchQueue.main.async { [weak self] in
             self?.currentNotification = nil
             self?.notificationQueue.removeAll()
@@ -365,59 +455,157 @@ final class NotificationHUDManager {
         return NSWorkspace.shared.icon(forFile: url.path)
     }
     
+    // MARK: - Debug Logging
+
+    /// Debug flag for notification HUD troubleshooting
+    /// Set via UserDefaults: defaults write app.getdroppy.Droppy DEBUG_NOTIFICATION_HUD -bool true
+    private var isDebugEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "DEBUG_NOTIFICATION_HUD")
+    }
+
+    private func debugLog(_ message: String) {
+        if isDebugEnabled {
+            print("🔔 NotificationHUD: \(message)")
+        }
+    }
+
     // MARK: - Notification Processing
-    
+
     private func processNewNotifications(_ notifications: [CapturedNotification]) {
         // Respect the "Notify me!" toggle in HUDs settings
-        guard isEnabled else { return }
-        
+        guard isEnabled else {
+            debugLog("Skipping \(notifications.count) notification(s) - extension disabled")
+            return
+        }
+
         // Respect Focus mode / DND - don't show notifications when Focus is active
-        guard !DNDManager.shared.isDNDActive else { return }
-        
+        guard !DNDManager.shared.isDNDActive else {
+            debugLog("Skipping \(notifications.count) notification(s) - DND/Focus active")
+            return
+        }
+
+        debugLog("Processing \(notifications.count) new notification(s), current queue: \(notificationQueue.count)")
+
         for notification in notifications {
-            if currentNotification == nil {
-                // Show immediately
+            if currentNotification == nil && !HUDManager.shared.isVisible {
+                // Show immediately - no other HUD is active
+                debugLog("Showing notification from \(notification.appName) immediately")
                 currentNotification = notification
                 scheduleAutoDismiss()
-                
-                // Show HUD through HUDManager
                 HUDManager.shared.show(.notification)
+            } else if currentNotification == nil && HUDManager.shared.isVisible {
+                // Another HUD type is active - queue this notification
+                // It will be shown when HUDManager processes its queue
+                debugLog("Queueing notification from \(notification.appName) - another HUD type active")
+                notificationQueue.append(notification)
             } else {
-                // Add to queue
+                // We have a current notification - add to queue
+                debugLog("Queueing notification from \(notification.appName) - already showing \(currentNotification?.appName ?? "unknown")")
                 notificationQueue.append(notification)
             }
         }
     }
-    
+
     private func scheduleAutoDismiss() {
         dismissWorkItem?.cancel()
-        
+
         let workItem = DispatchWorkItem { [weak self] in
             self?.dismissCurrentOnly()
         }
         dismissWorkItem = workItem
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: workItem)
     }
-    
+
     func dismissCurrentOnly() {
-        HUDManager.shared.dismiss()
-        
-        // Show next in queue if available
-        if !notificationQueue.isEmpty {
-            currentNotification = notificationQueue.removeFirst()
-            scheduleAutoDismiss()
-            HUDManager.shared.show(.notification)
+        debugLog("Dismissing current notification, queue count: \(notificationQueue.count)")
+
+        // CRITICAL FIX: Check for next notification BEFORE dismissing
+        // This prevents a race condition where the view observes nil state briefly
+        let nextNotification = notificationQueue.isEmpty ? nil : notificationQueue.removeFirst()
+
+        if let next = nextNotification {
+            // We have another notification to show - transition smoothly
+            debugLog("Transitioning to next notification from \(next.appName)")
+
+            // Dismiss current HUD
+            HUDManager.shared.dismiss()
+
+            // CRITICAL: Delay showing next to allow dismiss animation to complete
+            // This prevents animation conflicts and ensures clean state transitions
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                guard let self = self else { return }
+                self.currentNotification = next
+                self.scheduleAutoDismiss()
+                HUDManager.shared.show(.notification)
+                self.debugLog("Now showing notification from \(next.appName)")
+            }
         } else {
+            // No more notifications - clean dismiss
+            debugLog("No more notifications in queue, dismissing completely")
             currentNotification = nil
+            HUDManager.shared.dismiss()
         }
     }
-    
+
     func dismissAll() {
+        debugLog("Dismissing all notifications")
         dismissWorkItem?.cancel()
         dismissWorkItem = nil
         currentNotification = nil
         notificationQueue.removeAll()
         HUDManager.shared.dismiss()
+    }
+
+    // MARK: - App Activation (Called from event monitor for reliable click handling)
+
+    /// Opens the source app for the current notification
+    /// This is called from the local event monitor to bypass SwiftUI gesture issues on NSPanel
+    func openCurrentNotificationApp() {
+        guard let notification = currentNotification else {
+            print("🔔 NotificationHUDManager: No current notification to open")
+            return
+        }
+
+        let bundleID = notification.appBundleID
+        print("🔔 NotificationHUDManager: Opening app for bundle ID: \(bundleID)")
+
+        // Strategy: NSRunningApplication first (fast), then open -b (reliable)
+
+        // Step 1: Try NSRunningApplication for immediate activation
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        if let app = runningApps.first {
+            if app.isHidden {
+                app.unhide()
+            }
+            app.activate()
+            print("🔔 NotificationHUDManager: Activated via NSRunningApplication")
+        }
+
+        // Step 2: ALWAYS use `open -b` as the reliable method
+        DispatchQueue.global(qos: .userInteractive).async {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-b", bundleID]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+                DispatchQueue.main.async {
+                    print("🔔 NotificationHUDManager: ✅ open -b succeeded for \(bundleID)")
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    print("🔔 NotificationHUDManager: ⚠️ open -b failed: \(error)")
+                }
+            }
+        }
+
+        // Dismiss the notification after opening
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.dismissCurrentOnly()
+        }
     }
 }

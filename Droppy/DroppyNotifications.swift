@@ -27,8 +27,13 @@ extension Notification.Name {
     /// Posted when any drag-out operation completes
     static let droppyDragOutCompleted = Notification.Name("droppyDragOutCompleted")
     
+    // MARK: - HUD
+
+    /// Posted when HUD state changes (show/hide) - used to update window mouse event handling
+    static let hudStateDidChange = Notification.Name("hudStateDidChange")
+
     // MARK: - Extensions
-    
+
     /// Posted when an extension is installed/uninstalled
     static let extensionStateChanged = Notification.Name("extensionStateChanged")
     

@@ -61,6 +61,8 @@ struct NotchShelfView: View {
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
     var caffeineManager = CaffeineManager.shared  // @Observable - no wrapper needed
+    var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
+    var notificationHUDManager = NotificationHUDManager.shared  // @Observable - needed for current notification tracking
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var caffeineEnabled = PreferenceDefault.caffeineEnabled
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
@@ -443,7 +445,7 @@ struct NotchShelfView: View {
             return batteryHudWidth  // Focus/DND HUD uses same width as battery HUD
         } else if HUDManager.shared.isUpdateHUDVisible && enableUpdateHUD {
             return updateHudWidth  // Update HUD uses wider width to fit "Update" + version text
-        } else if HUDManager.shared.isNotificationHUDVisible && NotificationHUDManager.shared.isInstalled {
+        } else if hudManager.isNotificationHUDVisible && notificationHUDManager.isInstalled {
             // Notification HUD: mode-aware width
             return isDynamicIslandMode ? hudWidth : expandedWidth
         } else if shouldShowMediaHUD {
@@ -487,7 +489,7 @@ struct NotchShelfView: View {
             return notchHeight  // Focus/DND HUD just uses notch height (no slider)
         } else if HUDManager.shared.isUpdateHUDVisible && enableUpdateHUD {
             return notchHeight  // Update HUD just uses notch height (no slider)
-        } else if HUDManager.shared.isNotificationHUDVisible && NotificationHUDManager.shared.isInstalled {
+        } else if hudManager.isNotificationHUDVisible && notificationHUDManager.isInstalled {
             // Notification HUD: mode-aware height
             // SSOT (v21.72): Different heights per mode
             // - Island mode: 70pt compact
@@ -1358,8 +1360,23 @@ struct NotchShelfView: View {
         
         // Notification HUD - uses centralized HUDManager
         // NOTE: This HUD expands to show beautiful notification content
-        if HUDManager.shared.isNotificationHUDVisible && !hudIsVisible && !isExpandedOnThisScreen,
-           let _ = NotificationHUDManager.shared.currentNotification {
+        // OBSERVATION: Both HUDManager.isNotificationHUDVisible AND NotificationHUDManager.currentNotification
+        // must be tracked for proper reactive updates. Use explicit property access for observation.
+        // CRITICAL FIX: Removed !isExpandedOnThisScreen condition - notification must stay visible
+        // even when shelf expands (user hovering to click shouldn't hide the notification)
+        // CRITICAL: Use tracked properties (hudManager, notificationHUDManager) for proper SwiftUI observation
+        let hasNotification = notificationHUDManager.currentNotification != nil
+        let isNotificationHUDActive = hudManager.isNotificationHUDVisible
+
+        // DEBUG: Log render condition values (use let _ = for side effects in @ViewBuilder)
+        let _ = {
+            if hasNotification || isNotificationHUDActive {
+                let screenName = targetScreen?.localizedName ?? "main"
+                print("🔔 NotchShelfView[\(screenName)]: Render check - isNotificationHUDActive=\(isNotificationHUDActive), hasNotification=\(hasNotification), hudIsVisible=\(hudIsVisible), willRender=\(isNotificationHUDActive && hasNotification && !hudIsVisible)")
+            }
+        }()
+
+        if isNotificationHUDActive && hasNotification && !hudIsVisible {
             let notifWidth = isDynamicIslandMode ? hudWidth : expandedWidth
             // SSOT (v21.72): Different heights for different modes
             // - Island mode: 70pt compact
@@ -1367,15 +1384,15 @@ struct NotchShelfView: View {
             // - Built-in notch: 110pt (notchHeight ~37 + content)
             let isExternalNotchStyle = isExternalDisplay && !externalDisplayUseDynamicIsland
             let notifHeight: CGFloat = isDynamicIslandMode ? 70 : (isExternalNotchStyle ? 78 : 110)
-            
+
             NotificationHUDView(
-                manager: NotificationHUDManager.shared,
+                manager: notificationHUDManager,
                 hudWidth: notifWidth,
                 targetScreen: targetScreen
             )
             .frame(width: notifWidth, height: notifHeight)
             .transition(.premiumHUD.animation(DroppyAnimation.notchState))
-            .zIndex(5.7)
+            .zIndex(100) // High z-index to stay on top of shelf content
         }
         
         // Caffeine Hover Indicators (Strict UI Requirement)

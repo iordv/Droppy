@@ -138,13 +138,21 @@ final class HUDManager {
     
     /// Dismiss the current HUD immediately
     func dismiss() {
+        let wasNotificationHUD = activeHUD?.type == .notification
+
         dismissTimer?.invalidate()
         dismissTimer = nil
-        
+
         withAnimation(DroppyAnimation.easeOut) {
             activeHUD = nil
         }
-        
+
+        // Notify window controller to update mouse event handling
+        if wasNotificationHUD {
+            print("🔔 HUDManager: Notification HUD dismissed - posting state change notification")
+            NotificationCenter.default.post(name: .hudStateDidChange, object: nil)
+        }
+
         // Process queue after dismiss animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.processQueue()
@@ -168,12 +176,18 @@ final class HUDManager {
             brightnessValue: request.brightnessValue,
             isMuted: request.isMuted
         )
-        
+
         withAnimation(DroppyAnimation.hover) {
             activeHUD = hud
         }
-        
+
         resetDismissTimer(duration: request.duration)
+
+        // Notify window controller to update mouse event handling for interactive HUDs
+        if request.type == .notification {
+            print("🔔 HUDManager: Notification HUD shown - posting state change notification")
+            NotificationCenter.default.post(name: .hudStateDidChange, object: nil)
+        }
     }
     
     private func interruptAndShow(_ request: HUDRequest) {
