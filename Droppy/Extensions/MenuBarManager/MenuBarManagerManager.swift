@@ -561,8 +561,8 @@ final class MenuBarManager: ObservableObject {
     init() {
         self.isEnabled = UserDefaults.standard.bool(forKey: "MenuBarManager_Enabled")
         self.showOnHover = UserDefaults.standard.bool(forKey: "MenuBarManager_ShowOnHover")
-        self.showOnHoverDelay = UserDefaults.standard.double(forKey: "MenuBarManager_ShowOnHoverDelay")
-        if self.showOnHoverDelay == 0 { self.showOnHoverDelay = 0.3 }
+        let storedDelay = UserDefaults.standard.double(forKey: "MenuBarManager_ShowOnHoverDelay")
+        self.showOnHoverDelay = storedDelay == 0 ? 0.3 : storedDelay
         self.iconSet = MBMIconSet(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_IconSet") ?? "") ?? .eye
         
         // Check if extension was removed
