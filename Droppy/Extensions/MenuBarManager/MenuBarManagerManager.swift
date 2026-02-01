@@ -3,7 +3,7 @@
 //  Droppy
 //
 //  Menu Bar Manager - Hide/show menu bar icons using divider expansion pattern
-//  Implementation based on proven open-source patterns
+//  Implementation based on Ice's exact patterns
 //
 
 import SwiftUI
@@ -58,11 +58,11 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
 // MARK: - Status Item Defaults
 
 /// Proxy getters and setters for status item's user defaults values
+/// Mirrors Ice's StatusItemDefaults exactly
 private enum StatusItemDefaults {
-    /// Keys for values stored in user defaults
     enum Key<Value> {
-        static var preferredPosition: Key<CGFloat> { Key<CGFloat>() }
-        static var visible: Key<Bool> { Key<Bool>() }
+        @MainActor static var preferredPosition: Key<CGFloat> { Key<CGFloat>() }
+        @MainActor static var visible: Key<Bool> { Key<Bool>() }
     }
     
     static subscript<Value>(key: Key<Value>, autosaveName: String) -> Value? {
@@ -95,9 +95,27 @@ private enum StatusItemDefaults {
     }
 }
 
+// MARK: - Predicates
+
+/// A namespace for predicates (mirrors Ice's pattern)
+private enum Predicates<Input> {
+    typealias NonThrowingPredicate = (Input) -> Bool
+}
+
+extension Predicates where Input == NSLayoutConstraint {
+    /// Creates a predicate that matches the horizontal constraint for a status bar button
+    /// Ice pattern: constraint.secondItem === button.superview
+    static func controlItemConstraint(button: NSStatusBarButton) -> NonThrowingPredicate {
+        return { constraint in
+            constraint.secondItem === button.superview
+        }
+    }
+}
+
 // MARK: - Menu Bar Section
 
 /// A representation of a section in the menu bar
+/// Mirrors Ice's MenuBarSection
 @MainActor
 final class MenuBarSection {
     /// Section names
@@ -113,7 +131,7 @@ final class MenuBarSection {
         }
     }
     
-    /// Possible hiding states
+    /// Possible hiding states (mirrors Ice's ControlItem.HidingState)
     enum HidingState {
         case hideItems  // Divider expanded to 10,000pt, icons pushed off
         case showItems  // Divider at normal width, icons visible
@@ -131,8 +149,15 @@ final class MenuBarSection {
     }
     
     /// Creates a section with the given name
+    /// Mirrors Ice's convenience init
     init(name: Name) {
-        self.controlItem = ControlItem(sectionName: name)
+        let controlItem = switch name {
+        case .visible:
+            ControlItem(identifier: .iceIcon, sectionName: name)
+        case .hidden:
+            ControlItem(identifier: .hidden, sectionName: name)
+        }
+        self.controlItem = controlItem
         self.name = name
     }
     
@@ -161,9 +186,16 @@ final class MenuBarSection {
 // MARK: - Control Item
 
 /// A status item that controls a section in the menu bar
+/// Mirrors Ice's ControlItem exactly
 @MainActor
 final class ControlItem {
-    /// Possible lengths for control items
+    /// Possible identifiers for control items (mirrors Ice)
+    enum Identifier: String {
+        case iceIcon = "DroppyMBM_Icon"
+        case hidden = "DroppyMBM_Hidden"
+    }
+    
+    /// Possible lengths for control items (mirrors Ice)
     enum Lengths {
         static let standard: CGFloat = NSStatusItem.variableLength
         static let expanded: CGFloat = 10_000
@@ -175,32 +207,36 @@ final class ControlItem {
     /// A Boolean value that indicates whether the control item is visible
     @Published var isVisible = true
     
-    /// The section name this control item belongs to
-    let sectionName: MenuBarSection.Name
+    /// The frame of the control item's window
+    @Published private(set) var windowFrame: CGRect?
     
-    /// The underlying status item
+    /// The control item's underlying status item
     private let statusItem: NSStatusItem
     
-    /// A horizontal constraint for the control item's content view (the constraint hack)
+    /// A horizontal constraint for the control item's content view (THE CONSTRAINT HACK)
     private let constraint: NSLayoutConstraint?
+    
+    /// The control item's identifier
+    private let identifier: Identifier
+    
+    /// The section name this control item belongs to
+    /// CRITICAL: Ice uses section.name for length logic, not identifier
+    let sectionName: MenuBarSection.Name
     
     /// Storage for Combine observers
     private var cancellables = Set<AnyCancellable>()
     
-    /// The autosave name for this control item
-    private var autosaveName: String {
-        switch sectionName {
-        case .visible: return "DroppyMBM_Icon"
-        case .hidden: return "DroppyMBM_Hidden"
-        }
+    /// The control item's window
+    var window: NSWindow? {
+        statusItem.button?.window
     }
     
-    /// Whether this is a section divider (expands to hide) vs main icon (never expands)
+    /// A Boolean value that indicates whether the control item serves as a divider
     var isSectionDivider: Bool {
-        sectionName != .visible
+        identifier != .iceIcon
     }
     
-    /// Whether the item is added to menu bar
+    /// A Boolean value that indicates whether the control item is added to the menu bar
     var isAddedToMenuBar: Bool {
         statusItem.isVisible
     }
@@ -210,23 +246,15 @@ final class ControlItem {
         statusItem.button
     }
     
-    /// The control item's window
-    var window: NSWindow? {
-        statusItem.button?.window
-    }
-    
-    /// Creates a control item for the given section
-    init(sectionName: MenuBarSection.Name) {
-        let autosaveName: String
-        switch sectionName {
-        case .visible: autosaveName = "DroppyMBM_Icon"
-        case .hidden: autosaveName = "DroppyMBM_Hidden"
-        }
+    /// Creates a control item with the given identifier and section name
+    init(identifier: Identifier, sectionName: MenuBarSection.Name) {
+        let autosaveName = identifier.rawValue
         
-        // CRITICAL: Seed position BEFORE creating item if not already set
+        // If the status item doesn't have a preferred position, set it
+        // according to the identifier. (Mirrors Ice exactly)
         if StatusItemDefaults[.preferredPosition, autosaveName] == nil {
-            switch sectionName {
-            case .visible:
+            switch identifier {
+            case .iceIcon:
                 StatusItemDefaults[.preferredPosition, autosaveName] = 0
             case .hidden:
                 StatusItemDefaults[.preferredPosition, autosaveName] = 1
@@ -236,18 +264,22 @@ final class ControlItem {
         // Create with length 0 - Combine publishers will set actual length
         self.statusItem = NSStatusBar.system.statusItem(withLength: 0)
         self.statusItem.autosaveName = autosaveName
+        self.identifier = identifier
         self.sectionName = sectionName
         
-        // THE CONSTRAINT HACK:
-        // We need this constraint to be able to hide the control item to a true 0 width.
-        // A previous implementation used isVisible, but that removes the item entirely.
-        // We need to be able to accurately retrieve items for each section, so we need
-        // the control item to always be present to act as a delimiter. The solution is
-        // to remove the constraint that prevents status items from having a length of zero,
+        // THE CONSTRAINT HACK - Mirrors Ice exactly:
+        // This could break in a new macOS release, but we need this constraint in order to be
+        // able to hide the control item when the "ShowSectionDividers" setting is disabled. A
+        // previous implementation used the status item's isVisible property, which was more
+        // robust, but would completely remove the control item. With the current set of
+        // features, we need to be able to accurately retrieve the items for each section, so
+        // we need the control item to always be present to act as a delimiter. The new solution
+        // is to remove the constraint that prevents status items from having a length of zero,
         // then resize the content view.
-        if let button = statusItem.button,
-           let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
-           let constraint = constraints.first(where: { $0.secondItem === button.superview })
+        if
+            let button = statusItem.button,
+            let constraints = button.window?.contentView?.constraintsAffectingLayout(for: .horizontal),
+            let constraint = constraints.first(where: Predicates.controlItemConstraint(button: button))
         {
             self.constraint = constraint
         } else {
@@ -259,29 +291,33 @@ final class ControlItem {
         print("[ControlItem] Created \(autosaveName), position=\(String(describing: StatusItemDefaults[.preferredPosition, autosaveName]))")
     }
     
+    /// Removes the status item without clearing its stored position (mirrors Ice)
     deinit {
-        // CRITICAL: Cache position before removing, then restore
-        // Removing the status item deletes the preferredPosition
-        let name = statusItem.autosaveName as String
-        let cached: CGFloat? = StatusItemDefaults[.preferredPosition, name]
+        // Removing the status item has the unwanted side effect of deleting
+        // the preferredPosition. Cache and restore it.
+        let autosaveName = statusItem.autosaveName as String
+        let cached: CGFloat? = StatusItemDefaults[.preferredPosition, autosaveName]
         NSStatusBar.system.removeStatusItem(statusItem)
-        StatusItemDefaults[.preferredPosition, name] = cached
-        print("[ControlItem] deinit \(name), preserved position=\(String(describing: cached))")
+        StatusItemDefaults[.preferredPosition, autosaveName] = cached
+        print("[ControlItem] deinit \(autosaveName), preserved position=\(String(describing: cached))")
     }
     
-    /// Sets up the status item
+    /// Sets the initial configuration for the status item
     private func configureStatusItem() {
+        // Ice's pattern: defer configureCancellables and updateStatusItem
         defer {
             configureCancellables()
             updateStatusItem(with: state)
         }
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button else {
+            return
+        }
         button.target = self
         button.action = #selector(performAction)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
     }
     
-    /// Configures Combine publishers for reactive state management
+    /// Configures the internal observers for the control item (mirrors Ice exactly)
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
         
@@ -292,15 +328,19 @@ final class ControlItem {
             }
             .store(in: &c)
         
-        // CRITICAL PATTERN: React to both isVisible AND state changes together
+        // CRITICAL PATTERN FROM ICE:
+        // Publishers.CombineLatest($isVisible, $state)
+        // Uses section.name for length logic, not identifier!
         Publishers.CombineLatest($isVisible, $state)
             .sink { [weak self] (isVisible, state) in
                 guard let self else { return }
                 
                 if isVisible {
-                    // The KEY difference:
-                    // - .visible section → ALWAYS standard length
-                    // - .hidden section → expanded when hiding, standard when showing
+                    // Ice's exact pattern:
+                    // statusItem.length = switch section.name {
+                    // case .visible: Lengths.standard
+                    // case .hidden, .alwaysHidden: switch state { ... }
+                    // }
                     statusItem.length = switch sectionName {
                     case .visible:
                         Lengths.standard
@@ -312,7 +352,7 @@ final class ControlItem {
                     }
                     constraint?.isActive = true
                 } else {
-                    // When not visible, use constraint hack to set zero width
+                    // When not visible, use constraint hack for zero width
                     statusItem.length = 0
                     constraint?.isActive = false
                     if let window {
@@ -322,11 +362,11 @@ final class ControlItem {
                     }
                 }
                 
-                print("[ControlItem] \(autosaveName) length=\(statusItem.length), state=\(state)")
+                print("[ControlItem] \(identifier.rawValue) length=\(statusItem.length), state=\(state), section=\(sectionName)")
             }
             .store(in: &c)
         
-        // Sync constraint state with isVisible
+        // Sync constraint state with isVisible (mirrors Ice)
         constraint?.publisher(for: \.isActive)
             .removeDuplicates()
             .sink { [weak self] isActive in
@@ -334,38 +374,67 @@ final class ControlItem {
             }
             .store(in: &c)
         
+        // Track window frame (mirrors Ice)
+        window?.publisher(for: \.frame)
+            .sink { [weak self] frame in
+                guard
+                    let self,
+                    let screen = window?.screen,
+                    screen.frame.intersects(frame)
+                else {
+                    return
+                }
+                windowFrame = frame
+            }
+            .store(in: &c)
+        
         cancellables = c
     }
     
-    /// Updates the visual appearance based on state
+    /// Updates the appearance of the status item using the given hiding state
+    /// Mirrors Ice's updateStatusItem exactly
     private func updateStatusItem(with state: MenuBarSection.HidingState) {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button else {
+            return
+        }
         
         switch sectionName {
         case .visible:
-            // Main icon - always visible
             isVisible = true
+            // Enable the cell, as it may have been previously disabled
             button.cell?.isEnabled = true
             // Icon changes handled by MenuBarManager
             
         case .hidden:
             switch state {
             case .hideItems:
-                // Expanded - hide the divider visual
                 isVisible = true
-                button.cell?.isEnabled = false  // Prevent highlighting
-                button.isHighlighted = false    // Cell still sometimes flashes
+                // Prevent the cell from highlighting while expanded
+                button.cell?.isEnabled = false
+                // Cell still sometimes briefly flashes on expansion unless manually unhighlighted
+                button.isHighlighted = false
                 button.image = nil
                 
             case .showItems:
-                // Normal - show the chevron divider
                 isVisible = true
+                // Enable the cell, as it may have been previously disabled
                 button.cell?.isEnabled = true
+                // Set the divider chevron image (matches Ice's .chevronLarge)
                 button.alphaValue = 0.7
-                let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
-                button.image = NSImage(systemSymbolName: "chevron.compact.left", accessibilityDescription: "Section divider")?
-                    .withSymbolConfiguration(config)
-                button.image?.isTemplate = true
+                let image = NSImage(size: CGSize(width: 12, height: 12), flipped: false) { bounds in
+                    let insetBounds = bounds.insetBy(dx: 1, dy: 1)
+                    let path = NSBezierPath()
+                    path.move(to: CGPoint(x: (insetBounds.midX + insetBounds.maxX) / 2, y: insetBounds.maxY))
+                    path.line(to: CGPoint(x: (insetBounds.minX + insetBounds.midX) / 2, y: insetBounds.midY))
+                    path.line(to: CGPoint(x: (insetBounds.midX + insetBounds.maxX) / 2, y: insetBounds.minY))
+                    path.lineWidth = 2
+                    path.lineCapStyle = .butt
+                    NSColor.black.setStroke()
+                    path.stroke()
+                    return true
+                }
+                image.isTemplate = true
+                button.image = image
             }
         }
     }
@@ -375,17 +444,19 @@ final class ControlItem {
         NotificationCenter.default.post(
             name: .menuBarManagerItemClicked,
             object: self,
-            userInfo: ["sectionName": sectionName, "event": event]
+            userInfo: ["identifier": identifier, "event": event]
         )
     }
     
     /// Removes the control item from the menu bar
     func removeFromMenuBar() {
         guard isAddedToMenuBar else { return }
-        let name = statusItem.autosaveName as String
-        let cached: CGFloat? = StatusItemDefaults[.preferredPosition, name]
+        // Setting statusItem.isVisible to false has the unwanted side effect
+        // of deleting the preferredPosition. Cache and restore it.
+        let autosaveName = statusItem.autosaveName as String
+        let cached: CGFloat? = StatusItemDefaults[.preferredPosition, autosaveName]
         statusItem.isVisible = false
-        StatusItemDefaults[.preferredPosition, name] = cached
+        StatusItemDefaults[.preferredPosition, autosaveName] = cached
     }
     
     /// Adds the control item to the menu bar
@@ -516,16 +587,18 @@ final class MenuBarManager: ObservableObject {
     
     // MARK: - Section Initialization
     
-    /// Initializes the sections. Must only be called once.
+    /// Performs the initial setup of the menu bar manager's sections
+    /// Mirrors Ice's initializeSections exactly
     private func initializeSections() {
+        // Make sure initialization can only happen once
         guard sections.isEmpty else {
             print("[MenuBarManager] Sections already initialized")
             return
         }
         
-        // Create sections in order:
-        // 1. Visible (main toggle icon) - created first, will be rightmost
-        // 2. Hidden (divider that expands) - created second, will be to the left
+        // Create sections in order (matches Ice):
+        // 1. Visible (main toggle icon)
+        // 2. Hidden (divider that expands)
         sections = [
             MenuBarSection(name: .visible),
             MenuBarSection(name: .hidden),
@@ -549,7 +622,7 @@ final class MenuBarManager: ObservableObject {
         // Configure Combine observers
         configureCancellables()
         
-        // ALWAYS start with showItems to ensure visibility
+        // SAFETY-FIRST: Always start with showItems to ensure visibility
         for section in sections {
             section.controlItem.state = .showItems
         }
@@ -587,13 +660,13 @@ final class MenuBarManager: ObservableObject {
     
     /// Toggle between showing and hiding items
     func toggle() {
-        guard let hiddenSection else { return }
+        guard let hiddenSection, let visibleSection else { return }
         
         // Toggle the hidden section - this controls the expansion
         hiddenSection.toggle()
         
         // Sync the visible section's state
-        visibleSection?.controlItem.state = hiddenSection.controlItem.state
+        visibleSection.controlItem.state = hiddenSection.controlItem.state
         
         UserDefaults.standard.set(state == .hideItems ? "hideItems" : "showItems", forKey: Keys.state)
         
@@ -662,7 +735,7 @@ final class MenuBarManager: ObservableObject {
     private func configureCancellables() {
         var c = Set<AnyCancellable>()
         
-        // Observe hidden section state changes
+        // Observe hidden section state changes (mirrors Ice)
         if let hiddenSection {
             hiddenSection.controlItem.$state
                 .receive(on: DispatchQueue.main)
@@ -695,13 +768,12 @@ final class MenuBarManager: ObservableObject {
     @objc private func handleItemClick(_ notification: Notification) {
         guard
             let userInfo = notification.userInfo,
-            let sectionName = userInfo["sectionName"] as? MenuBarSection.Name,
             let event = userInfo["event"] as? NSEvent
         else { return }
         
         switch event.type {
         case .leftMouseUp:
-            // Both main icon and divider toggle visibility
+            // Toggle visibility
             toggle()
             
         case .rightMouseUp:
