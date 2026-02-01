@@ -840,19 +840,24 @@ final class MenuBarManager: ObservableObject {
         
         if let hiddenSection = section(withName: .hidden) {
             if isInMenuBar && hiddenSection.isHidden {
-                // Cancel auto-hide when hovering back in
+                // Cancel auto-hide when hovering back in, then show (which will reschedule auto-hide if needed)
                 cancelAutoHide()
                 hiddenSection.show()
             } else if !isInMenuBar && !hiddenSection.isHidden {
-                // Add a delay before hiding using the configured hover delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + showOnHoverDelay) { [weak self] in
-                    guard self != nil else { return }
-                    let currentLocation = NSEvent.mouseLocation
-                    let stillInMenuBar = currentLocation.y >= screen.frame.maxY - menuBarHeight
-                    if !stillInMenuBar {
-                        hiddenSection.hide()
+                // If auto-hide delay is set, let the timer handle hiding (don't hide on hover-out)
+                // Only hide on hover-out if auto-hide is disabled (0)
+                if autoHideDelay == 0 {
+                    // Add a delay before hiding using the configured hover delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + showOnHoverDelay) { [weak self] in
+                        guard self != nil else { return }
+                        let currentLocation = NSEvent.mouseLocation
+                        let stillInMenuBar = currentLocation.y >= screen.frame.maxY - menuBarHeight
+                        if !stillInMenuBar {
+                            hiddenSection.hide()
+                        }
                     }
                 }
+                // If autoHideDelay > 0, the timer is already running from show() - let it handle hiding
             }
         }
     }
