@@ -48,6 +48,7 @@ enum AppPreferenceKey {
     // MARK: - Media Source Filter
     static let mediaSourceFilterEnabled = "mediaSourceFilterEnabled"
     static let mediaSourceAllowedBundles = "mediaSourceAllowedBundles"  // JSON array of bundle identifiers
+    static let hideIncognitoBrowserMedia = "hideIncognitoBrowserMedia"  // Hide media from incognito/private browsing windows
     
     // MARK: - HUD Settings
     static let enableBatteryHUD = "enableBatteryHUD"
@@ -178,6 +179,7 @@ enum PreferenceDefault {
     // MARK: - Media Source Filter
     static let mediaSourceFilterEnabled = false  // Off by default: show all media sources
     static let mediaSourceAllowedBundles = "{}"  // Empty JSON dictionary: no filter applied
+    static let hideIncognitoBrowserMedia = false  // Off by default: show media from incognito browsers
     
     // MARK: - HUD Settings
     static let enableBatteryHUD = true

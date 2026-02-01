@@ -19,6 +19,7 @@ struct NotchItemView: View {
     @State private var isExtractingText = false
     @State private var isCreatingZIP = false
     @State private var isCompressing = false
+    @State private var isUnzipping = false
     @State private var isRemovingBackground = false
     @State private var isPoofing = false
     @State private var pendingConvertedItem: DroppedItem?
@@ -29,8 +30,10 @@ struct NotchItemView: View {
     @State private var shakeOffset: CGFloat = 0
     @State private var isShakeAnimating = false
     @State private var isDropTargeted = false  // For pinned folder drop zone
+    @State private var isDraggingSelf = false   // Track when THIS item is being dragged
     @State private var showFolderPreview = false  // Delayed folder preview popover
-    @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover
+    @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover show
+    @State private var dismissTask: Task<Void, Never>?  // Task for delayed hover dismiss (to reach popover)
     
     // MARK: - Bulk Operation Helpers
     
@@ -150,9 +153,12 @@ struct NotchItemView: View {
         }
     }
     
-    /// Moves external files (from drag) into a pinned folder
-    /// Only COPIES files - never deletes source (safe operation)
+    /// Moves or copies external files (from drag) into a folder
+    /// Respects "Protect Originals" setting: copies when ON, moves when OFF
     private func moveFilesToFolder(urls: [URL], destination: URL) {
+        // Read preference on main thread before dispatching
+        let protectOriginals = UserDefaults.standard.bool(forKey: AppPreferenceKey.alwaysCopyOnDrag)
+        
         DispatchQueue.global(qos: .userInitiated).async {
             for url in urls {
                 // Skip if trying to drop a folder into itself
@@ -179,78 +185,111 @@ struct NotchItemView: View {
                         counter += 1
                     }
                     
-                    // Copy file into folder (don't move - safer for drag operations)
-                    try FileManager.default.copyItem(at: url, to: finalDestURL)
-                    print("📁 Copied \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    if protectOriginals {
+                        // Copy file into folder (safe - source remains)
+                        try FileManager.default.copyItem(at: url, to: finalDestURL)
+                        print("📁 Copied \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    } else {
+                        // Move file into folder (source deleted)
+                        try FileManager.default.moveItem(at: url, to: finalDestURL)
+                        print("📁 Moved \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    }
                 } catch {
-                    print("❌ Failed to copy file into folder: \(error.localizedDescription)")
+                    print("❌ Failed to \(protectOriginals ? "copy" : "move") file into folder: \(error.localizedDescription)")
                 }
             }
         }
     }
 
     var body: some View {
-        DraggableArea(
-            items: {
-                // If this item is selected, drag all selected items.
-                // Otherwise, drag only this item.
-                if state.selectedItems.contains(item.id) {
-                    let selected = state.items.filter { state.selectedItems.contains($0.id) }
-                    return selected.map { $0.url as NSURL }
-                } else {
-                    return [item.url as NSURL]
-                }
-            },
-            onTap: { modifiers in
-                // Handle Selection
-                if modifiers.contains(.command) {
-                    state.toggleSelection(item)
-                } else if modifiers.contains(.shift) {
-                    state.selectRange(to: item)
-                } else {
-                    state.deselectAll()
-                    state.select(item)
-                }
-            },
-            onRightClick: {
-                // Cancel folder preview preventing overlap with context menu
-                hoverTask?.cancel()
-                hoverTask = nil
-                showFolderPreview = false
-                
-                // Select if not selected
-                 if !state.selectedItems.contains(item.id) {
-                    state.deselectAll()
-                    state.select(item)
-                }
-            },
-            onDragStart: {
-                // Dismiss tooltip immediately when drag starts
-                hoverTask?.cancel()
-                hoverTask = nil
-                showFolderPreview = false
-            },
-            onDragComplete: { [weak state] operation in
-                guard let state = state else { return }
-                // Auto-clean: remove only the dragged items, not everything (skip pinned items)
-                let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
-                if enableAutoClean {
-                    withAnimation(DroppyAnimation.state) {
-                        // If this item was selected, remove all selected non-pinned items
-                        if state.selectedItems.contains(item.id) {
-                            // Get items to remove (non-pinned selected items)
-                            let itemsToRemove = state.items.filter { state.selectedItems.contains($0.id) && !$0.isPinned }
-                            for itemToRemove in itemsToRemove {
-                                state.removeItem(itemToRemove)
-                            }
-                            state.selectedItems.removeAll()
-                        } else if !item.isPinned {
-                            // Otherwise just remove this single item (if not pinned)
-                            state.removeItem(item)
+        // MARK: - Pre-defined closures to help compiler type-check
+        // (Breaking up complex expression that was timing out)
+        
+        let itemsClosure: () -> [NSPasteboardWriting] = {
+            if state.selectedItems.contains(item.id) {
+                let selected = state.items.filter { state.selectedItems.contains($0.id) }
+                return selected.map { $0.url as NSURL }
+            } else {
+                return [item.url as NSURL]
+            }
+        }
+        
+        let tapClosure: (NSEvent.ModifierFlags) -> Void = { modifiers in
+            print("📌 onTap callback triggered for item: \(item.url.lastPathComponent)")
+            if modifiers.contains(.command) {
+                state.toggleSelection(item)
+            } else if modifiers.contains(.shift) {
+                state.selectRange(to: item)
+            } else {
+                state.deselectAll()
+                state.select(item)
+            }
+            print("📌 Selection now contains: \(state.selectedItems.count) items")
+        }
+        
+        let doubleClickClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            
+            let ext = item.url.pathExtension.lowercased()
+            if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
+                unzipFile()
+                return
+            }
+            NSWorkspace.shared.open(item.url)
+        }
+        
+        let rightClickClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            if !state.selectedItems.contains(item.id) {
+                state.deselectAll()
+                state.select(item)
+            }
+        }
+        
+        let dragStartClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            isDraggingSelf = true
+        }
+        
+        let dragCompleteClosure: (NSDragOperation) -> Void = { [weak state] operation in
+            isDraggingSelf = false
+            guard let state = state else { return }
+            let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
+            if enableAutoClean {
+                withAnimation(DroppyAnimation.state) {
+                    if state.selectedItems.contains(item.id) {
+                        let itemsToRemove = state.items.filter { state.selectedItems.contains($0.id) && !$0.isPinned }
+                        for itemToRemove in itemsToRemove {
+                            state.removeItem(itemToRemove)
                         }
+                        state.selectedItems.removeAll()
+                    } else if !item.isPinned {
+                        state.removeItem(item)
                     }
                 }
-            },
+            }
+        }
+        
+        let pinButtonClosure: (() -> Void)? = item.isDirectory ? {
+            HapticFeedback.pin()
+            state.togglePin(item)
+        } : nil
+        
+        return DraggableArea(
+            items: itemsClosure,
+            onTap: tapClosure,
+            onDoubleClick: doubleClickClosure,
+            onRightClick: rightClickClosure,
+            onDragStart: dragStartClosure,
+            onDragComplete: dragCompleteClosure,
+            onRemoveButton: item.isPinned ? nil : onRemove,
+            onPinButton: pinButtonClosure,
             selectionSignature: state.selectedItems.hashValue
         ) {
             NotchItemContent(
@@ -263,12 +302,14 @@ struct NotchItemView: View {
                 isExtractingText: isExtractingText,
                 isRemovingBackground: isRemovingBackground,
                 isCompressing: isCompressing,
+                isUnzipping: isUnzipping,
                 isCreatingZIP: isCreatingZIP,
                 isPoofing: $isPoofing,
                 pendingConvertedItem: $pendingConvertedItem,
                 renamingItemId: $renamingItemId,
                 renamingText: $renamingText,
-                onRename: performRename
+                onRename: performRename,
+                onUnzip: unzipFile
             )
             .offset(x: shakeOffset)
             .overlay(alignment: .center) {
@@ -297,12 +338,13 @@ struct NotchItemView: View {
                 }
             }
             // Drop target for ANY folder - drop files INTO the folder
+            // CRITICAL: Disable when this item is being dragged to prevent gesture conflict
             .dropDestination(for: URL.self) { urls, location in
-                guard item.isDirectory else { return false }
+                guard !isDraggingSelf && item.isDirectory else { return false }
                 moveFilesToFolder(urls: urls, destination: item.url)
                 return true
             } isTargeted: { targeted in
-                guard item.isDirectory else { return }
+                guard !isDraggingSelf && item.isDirectory else { return }
                 withAnimation(DroppyAnimation.easeOut) {
                     isDropTargeted = targeted
                 }
@@ -343,11 +385,11 @@ struct NotchItemView: View {
                             }
                         }
                     } else {
-                        // Grace period before dismissal to allow checking isHoveringPopover
+                        // Grace period before dismissal to allow reaching popover
                         hoverTask?.cancel()
                         hoverTask = Task {
-                            // Short grace period (0.1s)
-                            try? await Task.sleep(nanoseconds: 100_000_000)
+                            // Grace period (0.3s to reach popover)
+                            try? await Task.sleep(nanoseconds: 300_000_000)
                             
                             // Check if we moved INTO the popover or back to the item
                             if !Task.isCancelled && !isHoveringPopover && !isHovering {
@@ -373,6 +415,22 @@ struct NotchItemView: View {
                     isPinned: item.isPinned,
                     isHovering: $isHoveringPopover
                 )
+            }
+            .onChange(of: isHoveringPopover) { _, hovering in
+                // When cursor leaves the popover, dismiss after grace period (if not back on folder)
+                if !hovering && showFolderPreview {
+                    hoverTask?.cancel()
+                    hoverTask = Task {
+                        try? await Task.sleep(nanoseconds: 150_000_000)  // 150ms to allow return to folder
+                        if !Task.isCancelled && !isHoveringPopover && !isHovering {
+                            showFolderPreview = false
+                        }
+                    }
+                } else if hovering {
+                    // Cancel any pending dismiss when entering popover
+                    hoverTask?.cancel()
+                    hoverTask = nil
+                }
             }
             .onChange(of: state.poofingItemIds) { _, newIds in
                 if newIds.contains(item.id) {
@@ -987,6 +1045,62 @@ struct NotchItemView: View {
         }
     }
     
+    /// Unzip an archive file, replacing it with the extracted folder
+    private func unzipFile() {
+        let ext = item.url.pathExtension.lowercased()
+        guard ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) else { return }
+        guard !isUnzipping else { return }
+        
+        isUnzipping = true
+        state.beginFileOperation()
+        HapticFeedback.tap()
+        
+        Task {
+            let destFolder = item.url.deletingPathExtension()
+            var finalDestFolder = destFolder
+            var counter = 1
+            
+            // Handle name collisions
+            while FileManager.default.fileExists(atPath: finalDestFolder.path) {
+                finalDestFolder = destFolder.deletingLastPathComponent()
+                    .appendingPathComponent("\(destFolder.lastPathComponent) \(counter)")
+                counter += 1
+            }
+            
+            do {
+                // Use ditto for extraction (handles zip, tar, and more)
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                process.arguments = ["-x", "-k", item.url.path, finalDestFolder.path]
+                
+                try process.run()
+                process.waitUntilExit()
+                
+                if process.terminationStatus == 0 {
+                    let newItem = DroppedItem(url: finalDestFolder)
+                    
+                    await MainActor.run {
+                        withAnimation(DroppyAnimation.state) {
+                            state.replaceItem(item, with: newItem)
+                        }
+                        HapticFeedback.drop()
+                    }
+                } else {
+                    print("❌ Unzip failed with status: \(process.terminationStatus)")
+                    await MainActor.run { HapticFeedback.error() }
+                }
+            } catch {
+                print("❌ Unzip error: \(error.localizedDescription)")
+                await MainActor.run { HapticFeedback.error() }
+            }
+            
+            await MainActor.run {
+                isUnzipping = false
+                state.endFileOperation()
+            }
+        }
+    }
+    
     /// Remove background from all selected images
     private func removeBackgroundFromAllSelected() {
         guard !isRemovingBackground else { return }
@@ -1100,12 +1214,14 @@ private struct NotchItemContent: View {
     let isExtractingText: Bool
     let isRemovingBackground: Bool
     let isCompressing: Bool
+    let isUnzipping: Bool
     let isCreatingZIP: Bool
     @Binding var isPoofing: Bool
     @Binding var pendingConvertedItem: DroppedItem?
     @Binding var renamingItemId: UUID?
     @Binding var renamingText: String
     let onRename: () -> Void
+    let onUnzip: () -> Void
     
     private var isSelected: Bool {
         state.selectedItems.contains(item.id)
@@ -1153,10 +1269,10 @@ private struct NotchItemContent: View {
                             .padding(-4)
                     }
                 }
-                .opacity((isConverting || isExtractingText || isCompressing || isCreatingZIP) ? 0.5 : 1.0)
+                .opacity((isConverting || isExtractingText || isCompressing || isUnzipping || isCreatingZIP) ? 0.5 : 1.0)
                 // Selection and processing overlays on icon only
                 .overlay {
-                    if isConverting || isExtractingText || isCompressing || isCreatingZIP {
+                    if isConverting || isExtractingText || isCompressing || isUnzipping || isCreatingZIP {
                         ProgressView()
                             .scaleEffect(0.6)
                             .tint(.white)
@@ -1183,6 +1299,28 @@ private struct NotchItemContent: View {
                     }
                     .buttonStyle(.borderless)
                     .offset(x: 4, y: 2) // Keep within bounds
+                    .transition(.scale.combined(with: .opacity))
+                }
+                
+                // Pin toggle button for folders on hover
+                if isHovering && !isPoofing && item.isDirectory && renamingItemId != item.id {
+                    Button {
+                        HapticFeedback.pin()
+                        state.togglePin(item)
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(item.isPinned ? Color.orange : Color.white.opacity(0.9))
+                                .frame(width: 18, height: 18)
+                                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                            
+                            Image(systemName: item.isPinned ? "pin.slash.fill" : "pin.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(item.isPinned ? .white : .orange)
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .offset(x: 4, y: 54) // Bottom-right of icon
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1224,6 +1362,13 @@ private struct NotchItemContent: View {
         }
         .padding(.vertical, 2)
         .id(item.id)
+        // Double-click to unzip archive files
+        .onTapGesture(count: 2) {
+            let ext = item.url.pathExtension.lowercased()
+            if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
+                onUnzip()
+            }
+        }
         .poofEffect(isPoofing: $isPoofing) {
             if let newItem = pendingConvertedItem {
                 withAnimation(DroppyAnimation.state) {

@@ -556,7 +556,7 @@ struct SubtleScrollingText: View {
                         }
                     )
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: alignment == .center ? .center : .leading)
             .clipped()
             .onAppear {
                 containerWidth = geo.size.width

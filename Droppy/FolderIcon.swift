@@ -13,6 +13,7 @@ struct FolderIcon: View {
     var size: CGFloat = 30
     var isPinned: Bool = false
     var isHovering: Bool = false
+    var onPinToggle: (() -> Void)? = nil  // Optional callback for pin toggle
     
     // Gradient for regular folder (blue tint like NotchFace)
     private var folderGradient: LinearGradient {
@@ -50,13 +51,35 @@ struct FolderIcon: View {
                 .frame(width: size * 0.4, height: size * 0.18)
                 .offset(x: -size * 0.2, y: -size * 0.22)
             
-            // Pin icon for pinned folders
-            if isPinned {
+            // Pin icon for pinned folders (static display)
+            if isPinned && onPinToggle == nil {
                 PinShape()
                     .fill(Color(red: 0.85, green: 0.65, blue: 0.2))
                     .frame(width: size * 0.22, height: size * 0.28)
                     .offset(x: size * 0.22, y: -size * 0.02)
                     .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+            }
+            
+            // Interactive pin toggle button (appears on hover when callback provided)
+            if let onPinToggle = onPinToggle, isHovering {
+                Button {
+                    HapticFeedback.pin()
+                    onPinToggle()
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(isPinned ? Color.orange : Color.white.opacity(0.9))
+                            .frame(width: size * 0.4, height: size * 0.4)
+                            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                        
+                        Image(systemName: isPinned ? "pin.slash.fill" : "pin.fill")
+                            .font(.system(size: size * 0.18, weight: .semibold))
+                            .foregroundStyle(isPinned ? .white : .orange)
+                    }
+                }
+                .buttonStyle(.plain)
+                .offset(x: size * 0.28, y: -size * 0.18)
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .frame(width: size, height: size)

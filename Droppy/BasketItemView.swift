@@ -27,6 +27,7 @@ struct BasketItemView: View {
     @State private var isExtractingText = false
     @State private var isCreatingZIP = false
     @State private var isCompressing = false
+    @State private var isUnzipping = false
     @State private var isRemovingBackground = false
     @State private var isPoofing = false
     @State private var pendingConvertedItem: DroppedItem?
@@ -37,8 +38,11 @@ struct BasketItemView: View {
     @State private var shakeOffset: CGFloat = 0
     @State private var isShakeAnimating = false
     @State private var isDropTargeted = false  // For pinned folder drop zone
+    @State private var isDraggingSelf = false   // Track when THIS item is being dragged
     @State private var showFolderPreview = false  // Delayed folder preview popover
-    @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover
+    @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover show
+    @State private var dismissTask: Task<Void, Never>?  // Task for delayed hover dismiss (to reach popover)
+    @State private var isHoveringPopover = false  // Track if cursor is over popover content
     
     private var isSelected: Bool {
         state.selectedBasketItems.contains(item.id)
@@ -105,64 +109,96 @@ struct BasketItemView: View {
     }
     
     var body: some View {
-        DraggableArea(
-            items: {
-                // If this item is selected, drag all selected items
-                if state.selectedBasketItems.contains(item.id) {
-                    let selected = state.basketItems.filter { state.selectedBasketItems.contains($0.id) }
-                    return selected.map { $0.url as NSURL }
-                } else {
-                    return [item.url as NSURL]
-                }
-            },
-            onTap: { modifiers in
-                if modifiers.contains(.command) {
-                    state.toggleBasketSelection(item)
-                } else if modifiers.contains(.shift) {
-                    state.selectBasketRange(to: item)
-                } else {
-                    state.deselectAllBasket()
-                    state.selectBasket(item)
-                }
-            },
-            onRightClick: {
-                // Cancel folder preview preventing overlap with context menu
-                hoverTask?.cancel()
-                hoverTask = nil
-                showFolderPreview = false
-                
-                if !state.selectedBasketItems.contains(item.id) {
-                    state.deselectAllBasket()
-                    state.selectBasket(item)
-                }
-            },
-            onDragStart: {
-                // Dismiss tooltip immediately when drag starts
-                hoverTask?.cancel()
-                hoverTask = nil
-                showFolderPreview = false
-            },
-            onDragComplete: { [weak state] operation in
-                guard let state = state else { return }
-                // Auto-clean: remove only the dragged items, not everything (skip pinned items)
-                let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
-                if enableAutoClean {
-                    withAnimation(DroppyAnimation.state) {
-                        // If this item was selected, remove all selected non-pinned items
-                        if state.selectedBasketItems.contains(item.id) {
-                            // Get items to remove (non-pinned selected items)
-                            let itemsToRemove = state.basketItems.filter { state.selectedBasketItems.contains($0.id) && !$0.isPinned }
-                            for itemToRemove in itemsToRemove {
-                                state.removeBasketItem(itemToRemove)
-                            }
-                            state.selectedBasketItems.removeAll()
-                        } else if !item.isPinned {
-                            // Otherwise just remove this single item (if not pinned)
-                            state.removeBasketItem(item)
+        // MARK: - Pre-defined closures to help compiler type-check
+        // (Breaking up complex expression that was timing out)
+        
+        let itemsClosure: () -> [NSPasteboardWriting] = {
+            if state.selectedBasketItems.contains(item.id) {
+                let selected = state.basketItems.filter { state.selectedBasketItems.contains($0.id) }
+                return selected.map { $0.url as NSURL }
+            } else {
+                return [item.url as NSURL]
+            }
+        }
+        
+        let tapClosure: (NSEvent.ModifierFlags) -> Void = { modifiers in
+            print("🧺 Basket onTap callback for item: \(item.url.lastPathComponent)")
+            if modifiers.contains(.command) {
+                state.toggleBasketSelection(item)
+            } else if modifiers.contains(.shift) {
+                state.selectBasketRange(to: item)
+            } else {
+                state.deselectAllBasket()
+                state.selectBasket(item)
+            }
+            print("🧺 Basket selection now contains: \(state.selectedBasketItems.count) items")
+        }
+        
+        let doubleClickClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            
+            let ext = item.url.pathExtension.lowercased()
+            if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
+                unzipFile()
+                return
+            }
+            NSWorkspace.shared.open(item.url)
+        }
+        
+        let rightClickClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            if !state.selectedBasketItems.contains(item.id) {
+                state.deselectAllBasket()
+                state.selectBasket(item)
+            }
+        }
+        
+        let dragStartClosure: () -> Void = {
+            hoverTask?.cancel()
+            hoverTask = nil
+            showFolderPreview = false
+            isDraggingSelf = true
+        }
+        
+        let dragCompleteClosure: (NSDragOperation) -> Void = { [weak state] operation in
+            isDraggingSelf = false
+            guard let state = state else { return }
+            let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
+            if enableAutoClean {
+                withAnimation(DroppyAnimation.state) {
+                    if state.selectedBasketItems.contains(item.id) {
+                        let itemsToRemove = state.basketItems.filter { state.selectedBasketItems.contains($0.id) && !$0.isPinned }
+                        for itemToRemove in itemsToRemove {
+                            state.removeBasketItem(itemToRemove)
                         }
+                        state.selectedBasketItems.removeAll()
+                    } else if !item.isPinned {
+                        state.removeBasketItem(item)
                     }
                 }
-            },
+            }
+        }
+        
+        // Button callbacks - ONLY for grid mode which has visible X/pin buttons
+        let removeButtonClosure: (() -> Void)? = layoutMode == .grid && !item.isPinned ? onRemove : nil
+        let pinButtonClosure: (() -> Void)? = layoutMode == .grid && item.isDirectory ? {
+            HapticFeedback.pin()
+            state.togglePin(item)
+        } : nil
+        
+        return DraggableArea(
+            items: itemsClosure,
+            onTap: tapClosure,
+            onDoubleClick: doubleClickClosure,
+            onRightClick: rightClickClosure,
+            onDragStart: dragStartClosure,
+            onDragComplete: dragCompleteClosure,
+            onRemoveButton: removeButtonClosure,
+            onPinButton: pinButtonClosure,
             selectionSignature: state.selectedBasketItems.hashValue
         ) {
             Group {
@@ -186,6 +222,8 @@ struct BasketItemView: View {
                                                 .resizable()
                                                 .aspectRatio(contentMode: .fit)
                                                 .frame(width: 24, height: 24)
+                                                // AUTO-TINT for Pinned Folders: Blue -> Yellow (+180 deg)
+                                                .hueRotation(item.isPinned && item.isDirectory ? .degrees(180) : .degrees(0))
                                         )
                                 }
                             }
@@ -333,13 +371,15 @@ struct BasketItemView: View {
                         isExtractingText: isExtractingText,
                         isRemovingBackground: isRemovingBackground,
                         isCompressing: isCompressing,
+                        isUnzipping: isUnzipping,
                         isCreatingZIP: isCreatingZIP,
                         isSelected: isSelected,
                         isPoofing: $isPoofing,
                         pendingConvertedItem: $pendingConvertedItem,
                         renamingItemId: $renamingItemId,
                         renamingText: $renamingText,
-                        onRename: performRename
+                        onRename: performRename,
+                        onUnzip: unzipFile
                     )
                     .offset(x: shakeOffset)
                     .overlay(alignment: .center) {
@@ -360,12 +400,13 @@ struct BasketItemView: View {
                 }
             }
             // Drop target for pinned folders - drop files INTO the folder
+            // CRITICAL: Disable when this item is being dragged to prevent gesture conflict
             .dropDestination(for: URL.self) { urls, location in
-                guard enablePowerFolders && item.isPinned && item.isDirectory else { return false }
+                guard !isDraggingSelf && enablePowerFolders && item.isPinned && item.isDirectory else { return false }
                 moveFilesToFolder(urls: urls, destination: item.url)
                 return true
             } isTargeted: { targeted in
-                guard enablePowerFolders && item.isPinned && item.isDirectory else { return }
+                guard !isDraggingSelf && enablePowerFolders && item.isPinned && item.isDirectory else { return }
                 withAnimation(DroppyAnimation.easeOut) {
                     isDropTargeted = targeted
                 }
@@ -399,6 +440,10 @@ struct BasketItemView: View {
                 // Delayed folder preview for ALL folders (not just pinned)
                 if item.isDirectory {
                     if hovering && !isDropTargeted {
+                        // Cancel any pending dismiss when returning to folder
+                        dismissTask?.cancel()
+                        dismissTask = nil
+                        
                         hoverTask = Task {
                             try? await Task.sleep(nanoseconds: 800_000_000)  // 0.8s delay
                             if !Task.isCancelled && !isDropTargeted && !state.isInteractionBlocked {
@@ -406,10 +451,20 @@ struct BasketItemView: View {
                             }
                         }
                     } else {
-                        // Clean dismiss - cancel pending task and hide popover
+                        // Cancel pending show task
                         hoverTask?.cancel()
                         hoverTask = nil
-                        showFolderPreview = false
+                        
+                        // Delayed dismiss - give user time to reach the popover
+                        if showFolderPreview {
+                            dismissTask = Task {
+                                try? await Task.sleep(nanoseconds: 300_000_000)  // 0.3s grace period
+                                // Only dismiss if cursor hasn't moved to the popover
+                                if !Task.isCancelled && !isHoveringPopover && !isHovering {
+                                    showFolderPreview = false
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -417,12 +472,34 @@ struct BasketItemView: View {
                 if blocked {
                     hoverTask?.cancel()
                     hoverTask = nil
+                    dismissTask?.cancel()
+                    dismissTask = nil
                     showFolderPreview = false
                     isHovering = false
                 }
             }
             .popover(isPresented: $showFolderPreview, arrowEdge: .bottom) {
-                FolderPreviewPopover(folderURL: item.url)
+                FolderPreviewPopover(
+                    folderURL: item.url,
+                    isPinned: item.isPinned,
+                    isHovering: $isHoveringPopover
+                )
+            }
+            .onChange(of: isHoveringPopover) { _, hovering in
+                // When cursor leaves the popover, dismiss after grace period (if not back on folder)
+                if !hovering && showFolderPreview {
+                    dismissTask?.cancel()
+                    dismissTask = Task {
+                        try? await Task.sleep(nanoseconds: 150_000_000)  // 150ms to allow return to folder
+                        if !Task.isCancelled && !isHoveringPopover && !isHovering {
+                            showFolderPreview = false
+                        }
+                    }
+                } else if hovering {
+                    // Cancel any pending dismiss when entering popover
+                    dismissTask?.cancel()
+                    dismissTask = nil
+                }
             }
             .onChange(of: state.poofingItemIds) { _, newIds in
                 // Trigger local poof animation when this item is marked for poof (from bulk operations)
@@ -846,9 +923,12 @@ struct BasketItemView: View {
         }
     }
     
-    /// Moves external files (from drag) into a pinned folder
-    /// Only COPIES files - never deletes source (safe operation)
+    /// Moves or copies external files (from drag) into a folder
+    /// Respects "Protect Originals" setting: copies when ON, moves when OFF
     private func moveFilesToFolder(urls: [URL], destination: URL) {
+        // Read preference on main thread before dispatching
+        let protectOriginals = UserDefaults.standard.bool(forKey: AppPreferenceKey.alwaysCopyOnDrag)
+        
         DispatchQueue.global(qos: .userInitiated).async {
             for url in urls {
                 // Skip if trying to drop a folder into itself
@@ -875,11 +955,17 @@ struct BasketItemView: View {
                         counter += 1
                     }
                     
-                    // Copy file into folder (don't move - safer for drag operations)
-                    try FileManager.default.copyItem(at: url, to: finalDestURL)
-                    print("📁 Copied \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    if protectOriginals {
+                        // Copy file into folder (safe - source remains)
+                        try FileManager.default.copyItem(at: url, to: finalDestURL)
+                        print("📁 Copied \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    } else {
+                        // Move file into folder (source deleted)
+                        try FileManager.default.moveItem(at: url, to: finalDestURL)
+                        print("📁 Moved \(url.lastPathComponent) into \(destination.lastPathComponent)")
+                    }
                 } catch {
-                    print("❌ Failed to copy file into folder: \(error.localizedDescription)")
+                    print("❌ Failed to \(protectOriginals ? "copy" : "move") file into folder: \(error.localizedDescription)")
                 }
             }
         }
@@ -1199,6 +1285,62 @@ struct BasketItemView: View {
         }
     }
     
+    /// Unzip an archive file, replacing it with the extracted folder
+    private func unzipFile() {
+        let ext = item.url.pathExtension.lowercased()
+        guard ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) else { return }
+        guard !isUnzipping else { return }
+        
+        isUnzipping = true
+        state.beginFileOperation()
+        HapticFeedback.tap()
+        
+        Task {
+            let destFolder = item.url.deletingPathExtension()
+            var finalDestFolder = destFolder
+            var counter = 1
+            
+            // Handle name collisions
+            while FileManager.default.fileExists(atPath: finalDestFolder.path) {
+                finalDestFolder = destFolder.deletingLastPathComponent()
+                    .appendingPathComponent("\(destFolder.lastPathComponent) \(counter)")
+                counter += 1
+            }
+            
+            do {
+                // Use ditto for extraction (handles zip, tar, and more)
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                process.arguments = ["-x", "-k", item.url.path, finalDestFolder.path]
+                
+                try process.run()
+                process.waitUntilExit()
+                
+                if process.terminationStatus == 0 {
+                    let newItem = DroppedItem(url: finalDestFolder)
+                    
+                    await MainActor.run {
+                        withAnimation(DroppyAnimation.state) {
+                            state.replaceBasketItem(item, with: newItem)
+                        }
+                        HapticFeedback.drop()
+                    }
+                } else {
+                    print("❌ Unzip failed with status: \(process.terminationStatus)")
+                    await MainActor.run { HapticFeedback.error() }
+                }
+            } catch {
+                print("❌ Unzip error: \(error.localizedDescription)")
+                await MainActor.run { HapticFeedback.error() }
+            }
+            
+            await MainActor.run {
+                isUnzipping = false
+                state.endFileOperation()
+            }
+        }
+    }
+    
     /// Remove background from all selected images
     private func removeBackgroundFromAllSelected() {
         guard !isRemovingBackground else { return }
@@ -1291,6 +1433,7 @@ private struct BasketItemContent: View {
     let isExtractingText: Bool
     let isRemovingBackground: Bool
     let isCompressing: Bool
+    let isUnzipping: Bool
     let isCreatingZIP: Bool
     let isSelected: Bool
     @Binding var isPoofing: Bool
@@ -1298,6 +1441,7 @@ private struct BasketItemContent: View {
     @Binding var renamingItemId: UUID?
     @Binding var renamingText: String
     let onRename: () -> Void
+    let onUnzip: () -> Void
     
     // Extracted to fix compiler timeout on complex ternary
     private var containerFillColor: Color {
@@ -1327,6 +1471,8 @@ private struct BasketItemContent: View {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                             .resizable()
                             .aspectRatio(contentMode: .fit)
+                            // AUTO-TINT for Pinned Folders: Blue -> Yellow (+180 deg)
+                            .hueRotation(item.isPinned && item.isDirectory ? .degrees(180) : .degrees(0))
                     }
                 }
                 .frame(width: 48, height: 48)
@@ -1339,10 +1485,10 @@ private struct BasketItemContent: View {
                             .padding(-4)
                     }
                 }
-                .opacity((isConverting || isExtractingText || isCompressing || isCreatingZIP) ? 0.5 : 1.0)
+                .opacity((isConverting || isExtractingText || isCompressing || isUnzipping || isCreatingZIP) ? 0.5 : 1.0)
                 // Selection and processing overlays on icon only
                 .overlay {
-                    if isConverting || isExtractingText || isCompressing || isCreatingZIP {
+                    if isConverting || isExtractingText || isCompressing || isUnzipping || isCreatingZIP {
                         ProgressView()
                             .scaleEffect(0.6)
                             .tint(.white)
@@ -1369,6 +1515,28 @@ private struct BasketItemContent: View {
                     }
                     .buttonStyle(.borderless)
                     .offset(x: 4, y: 2) // Keep within bounds
+                    .transition(.scale.combined(with: .opacity))
+                }
+                
+                // Pin toggle button for folders on hover
+                if isHovering && !isPoofing && item.isDirectory && renamingItemId != item.id {
+                    Button {
+                        HapticFeedback.pin()
+                        state.togglePin(item)
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(item.isPinned ? Color.orange : Color.white.opacity(0.9))
+                                .frame(width: 18, height: 18)
+                                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+                            
+                            Image(systemName: item.isPinned ? "pin.slash.fill" : "pin.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(item.isPinned ? .white : .orange)
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .offset(x: 4, y: 54) // Bottom-right of icon
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1412,6 +1580,13 @@ private struct BasketItemContent: View {
         }
         .padding(.vertical, 2)
         .id(item.id)
+        // Double-click to unzip archive files
+        .onTapGesture(count: 2) {
+            let ext = item.url.pathExtension.lowercased()
+            if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
+                onUnzip()
+            }
+        }
         .poofEffect(isPoofing: $isPoofing) {
             if let newItem = pendingConvertedItem {
                 withAnimation(DroppyAnimation.state) {

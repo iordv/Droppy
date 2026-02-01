@@ -53,6 +53,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer = PreferenceDefault.enableRealAudioVisualizer
     @AppStorage(AppPreferenceKey.mediaSourceFilterEnabled) private var mediaSourceFilterEnabled = PreferenceDefault.mediaSourceFilterEnabled
     @AppStorage(AppPreferenceKey.mediaSourceAllowedBundles) private var mediaSourceAllowedBundles = PreferenceDefault.mediaSourceAllowedBundles
+    @AppStorage(AppPreferenceKey.hideIncognitoBrowserMedia) private var hideIncognitoBrowserMedia = PreferenceDefault.hideIncognitoBrowserMedia
     @AppStorage(AppPreferenceKey.autoShrinkShelf) private var autoShrinkShelf = PreferenceDefault.autoShrinkShelf  // Legacy
     @AppStorage(AppPreferenceKey.autoShrinkDelay) private var autoShrinkDelay = PreferenceDefault.autoShrinkDelay  // Legacy
     @AppStorage(AppPreferenceKey.autoCollapseDelay) private var autoCollapseDelay = PreferenceDefault.autoCollapseDelay
@@ -426,6 +427,7 @@ struct SettingsView: View {
                         }
                     }
                 }
+                
                 
                 SmartExportSettingsRow()
                 
@@ -1473,6 +1475,16 @@ struct SettingsView: View {
 
                         // Media Source Filter (inline list like Tracked Folders)
                         MediaSourceFilterSettingsRow(allowedBundles: $mediaSourceAllowedBundles, filterEnabled: $mediaSourceFilterEnabled)
+
+                        // Hide Incognito/Private Browser Media
+                        Toggle(isOn: $hideIncognitoBrowserMedia) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hide Incognito Media")
+                                Text("Hide media from private browsing windows")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 } else {
                     // macOS 14 - feature not available

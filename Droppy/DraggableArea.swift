@@ -19,6 +19,8 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
     let onRightClick: () -> Void
     let onDragStart: (() -> Void)?
     let onDragComplete: ((NSDragOperation) -> Void)?  // Called when drag ends successfully
+    let onRemoveButton: (() -> Void)?  // Called when X button is clicked
+    let onPinButton: (() -> Void)?  // Called when pin button is clicked
     let selectionSignature: Int // Force update
     
     init(
@@ -26,8 +28,10 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
         onTap: @escaping (NSEvent.ModifierFlags) -> Void,
         onDoubleClick: @escaping () -> Void = {},
         onRightClick: @escaping () -> Void,
-        onDragStart: (() -> Void)? = nil,  // Default to nil for backward compatibility
+        onDragStart: (() -> Void)? = nil,
         onDragComplete: ((NSDragOperation) -> Void)? = nil,
+        onRemoveButton: (() -> Void)? = nil,
+        onPinButton: (() -> Void)? = nil,
         selectionSignature: Int = 0,
         @ViewBuilder content: () -> Content
     ) {
@@ -37,12 +41,14 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
         self.onRightClick = onRightClick
         self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
+        self.onRemoveButton = onRemoveButton
+        self.onPinButton = onPinButton
         self.selectionSignature = selectionSignature
         self.content = content()
     }
     
     func makeNSView(context: Context) -> DraggableAreaView<Content> {
-        return DraggableAreaView(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete)
+        return DraggableAreaView(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete, onRemoveButton: onRemoveButton, onPinButton: onPinButton)
     }
     
     func updateNSView(_ nsView: DraggableAreaView<Content>, context: Context) {
@@ -65,7 +71,7 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
         }
         guard !hasActiveMenu else { return }
         
-        nsView.update(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete)
+        nsView.update(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete, onRemoveButton: onRemoveButton, onPinButton: onPinButton)
     }
 }
 
@@ -76,6 +82,8 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     var onRightClick: () -> Void
     var onDragStart: (() -> Void)?
     var onDragComplete: ((NSDragOperation) -> Void)?
+    var onRemoveButton: (() -> Void)?
+    var onPinButton: (() -> Void)?
     
     private var hostingView: NSHostingView<Content>
     private var mouseDownEvent: NSEvent?
@@ -85,13 +93,15 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     /// causing crashes in RB::SurfacePool::collect / release_image.
     private var dragSessionImages: [NSImage] = []
     
-    init(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?) {
+    init(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?, onRemoveButton: (() -> Void)?, onPinButton: (() -> Void)?) {
         self.items = items
         self.onTap = onTap
         self.onDoubleClick = onDoubleClick
         self.onRightClick = onRightClick
         self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
+        self.onRemoveButton = onRemoveButton
+        self.onPinButton = onPinButton
         self.hostingView = NSHostingView(rootView: rootView)
         super.init(frame: .zero)
         
@@ -121,7 +131,7 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         return hostingView.intrinsicContentSize
     }
     
-    func update(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?) {
+    func update(rootView: Content, items: @escaping () -> [NSPasteboardWriting], onTap: @escaping (NSEvent.ModifierFlags) -> Void, onDoubleClick: @escaping () -> Void, onRightClick: @escaping () -> Void, onDragStart: (() -> Void)?, onDragComplete: ((NSDragOperation) -> Void)?, onRemoveButton: (() -> Void)?, onPinButton: (() -> Void)?) {
         self.hostingView.rootView = rootView
         self.items = items
         self.onTap = onTap
@@ -129,25 +139,89 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         self.onRightClick = onRightClick
         self.onDragStart = onDragStart
         self.onDragComplete = onDragComplete
+        self.onRemoveButton = onRemoveButton
+        self.onPinButton = onPinButton
+    }
+    
+    // CRITICAL: Override hitTest to intercept ALL left-clicks for selection/drag
+    // Button clicks are handled in mouseUp via zone detection and direct callbacks
+    // Right-clicks pass through to SwiftUI for context menus
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard bounds.contains(point) else { return nil }
+        
+        // For right-clicks, let them pass through to the hosting view for context menus
+        if let event = NSApp.currentEvent, event.type == .rightMouseDown {
+            let convertedPoint = convert(point, to: hostingView)
+            return hostingView.hitTest(convertedPoint) ?? self
+        }
+        
+        // For all left-clicks, intercept here for selection/drag/button zone detection
+        return self
     }
     
     override func mouseDown(with event: NSEvent) {
+        print("🖱️ mouseDown received!")
         self.mouseDownEvent = event
     }
     
     override func mouseUp(with event: NSEvent) {
+        print("🖱️ mouseUp received! clickCount=\(event.clickCount)")
         // If we get here without a drag starting, treat as click
         if let mouseDown = mouseDownEvent {
-            if abs(event.locationInWindow.x - mouseDown.locationInWindow.x) < 5 &&
-               abs(event.locationInWindow.y - mouseDown.locationInWindow.y) < 5 {
-                
+            let dx = abs(event.locationInWindow.x - mouseDown.locationInWindow.x)
+            let dy = abs(event.locationInWindow.y - mouseDown.locationInWindow.y)
+            print("🖱️ Distance: dx=\(dx), dy=\(dy)")
+            if dx < 5 && dy < 5 {
                 if event.clickCount == 2 {
+                    print("🖱️ Calling onDoubleClick")
                     onDoubleClick()
                 } else {
-                    // Use NSEvent.modifierFlags class property for reliable detection in non-activating panels
-                    onTap(NSEvent.modifierFlags)
+                    // Check if click is in a button zone
+                    let clickPoint = convert(event.locationInWindow, from: nil)
+                    // Increased zone size for better hit detection (covers 28x28 area)
+                    let buttonZoneSize: CGFloat = 28
+                    
+                    // Debug: Print bounds and click point
+                    print("🖱️ Bounds: \(bounds), Click: \(clickPoint)")
+                    
+                    // X button zone: top-right corner (NSView coords: y=maxY is top)
+                    let xButtonZone = NSRect(
+                        x: bounds.maxX - buttonZoneSize,
+                        y: bounds.maxY - buttonZoneSize,
+                        width: buttonZoneSize,
+                        height: buttonZoneSize
+                    )
+                    
+                    // Pin button zone: bottom-right of ICON area
+                    // Pin button is at SwiftUI offset(y: 54) from ZStack top (with 6pt top padding)
+                    // In NSView coords: y = bounds.height - 54 - 9 (half button) ≈ height - 63
+                    // For ~89pt content: center at ~26pt from bottom
+                    // Center the 28pt zone on the button center
+                    let pinCenterY = bounds.height - 54 - 9  // Approximate center of pin button
+                    let pinButtonZone = NSRect(
+                        x: bounds.maxX - buttonZoneSize,
+                        y: pinCenterY - buttonZoneSize / 2,  // Center zone on button
+                        width: buttonZoneSize,
+                        height: buttonZoneSize
+                    )
+                    
+                    print("🖱️ X Zone: \(xButtonZone), Pin Zone: \(pinButtonZone)")
+                    
+                    if xButtonZone.contains(clickPoint), let onRemove = onRemoveButton {
+                        print("🖱️ ✅ Calling onRemoveButton")
+                        onRemove()
+                    } else if pinButtonZone.contains(clickPoint), let onPin = onPinButton {
+                        print("🖱️ ✅ Calling onPinButton")
+                        onPin()
+                    } else {
+                        print("🖱️ Calling onTap")
+                        // Use NSEvent.modifierFlags class property for reliable detection in non-activating panels
+                        onTap(NSEvent.modifierFlags)
+                    }
                 }
             }
+        } else {
+            print("🖱️ mouseDownEvent was nil!")
         }
         mouseDownEvent = nil
     }

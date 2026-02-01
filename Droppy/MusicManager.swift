@@ -183,6 +183,89 @@ final class MusicManager: ObservableObject {
         return allowed.contains(bundleId)
     }
 
+    // MARK: - Incognito Browser Filtering
+
+    /// Whether to hide media from incognito/private browsing windows
+    private var hideIncognitoBrowserMedia: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.hideIncognitoBrowserMedia,
+            default: PreferenceDefault.hideIncognitoBrowserMedia
+        )
+    }
+
+    /// Check if the current media source is from an incognito/private browsing window
+    /// Uses AppleScript to detect incognito windows in common browsers
+    private func isFromIncognitoBrowser(_ bundleId: String?) -> Bool {
+        guard hideIncognitoBrowserMedia else { return false }
+        guard let bundleId = bundleId, isBrowserBundle(bundleId) else { return false }
+        
+        // Check each browser for incognito/private mode using AppleScript
+        var script: String
+        
+        switch bundleId {
+        case "com.google.Chrome", "com.brave.Browser", "com.microsoft.edgemac":
+            // Chromium-based browsers - check for incognito mode
+            let appName = getAppName(from: bundleId) ?? "Google Chrome"
+            script = """
+            tell application "\(appName)"
+                repeat with w in windows
+                    if mode of w is "incognito" then
+                        return "incognito"
+                    end if
+                end repeat
+            end tell
+            return "normal"
+            """
+        case "com.apple.Safari":
+            // Safari - check for private browsing windows
+            script = """
+            tell application "Safari"
+                repeat with w in windows
+                    if name of w contains "Private" then
+                        return "private"
+                    end if
+                end repeat
+            end tell
+            return "normal"
+            """
+        case "org.mozilla.firefox":
+            // Firefox - check for private browsing windows
+            script = """
+            tell application "Firefox"
+                repeat with w in windows
+                    if name of w contains "Private" then
+                        return "private"
+                    end if
+                end repeat
+            end tell
+            return "normal"
+            """
+        case "company.thebrowser.Browser":
+            // Arc - check for incognito spaces
+            script = """
+            tell application "Arc"
+                repeat with w in windows
+                    if incognito of w then
+                        return "incognito"
+                    end if
+                end repeat
+            end tell
+            return "normal"
+            """
+        default:
+            return false
+        }
+        
+        // Execute synchronously to check incognito status
+        var error: NSDictionary?
+        if let appleScript = NSAppleScript(source: script),
+           let result = appleScript.executeAndReturnError(&error).stringValue {
+            return result == "incognito" || result == "private"
+        }
+        
+        return false
+    }
+
     /// Track previously detected media sources for settings UI
     @Published private(set) var detectedMediaSources: [MediaSourceInfo] = []
 
@@ -962,6 +1045,18 @@ final class MusicManager: ObservableObject {
             // This handles the case where filter is enabled while content from a blocked source is already showing
             if payload.launchableBundleIdentifier == bundleIdentifier {
                 print("MusicManager: Current display is from blocked source - clearing")
+                clearMediaDisplay()
+            }
+            return
+        }
+
+        // Check if this is from an incognito/private browsing window
+        if isFromIncognitoBrowser(payload.launchableBundleIdentifier) {
+            print("MusicManager: Skipping update from incognito browser: \(payload.launchableBundleIdentifier ?? "unknown")")
+            
+            // Clear display if incognito source was previously shown
+            if payload.launchableBundleIdentifier == bundleIdentifier {
+                print("MusicManager: Current display is from incognito browser - clearing")
                 clearMediaDisplay()
             }
             return
