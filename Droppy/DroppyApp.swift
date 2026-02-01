@@ -323,6 +323,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // Initialize Voice Transcribe (restores menu bar if it was enabled)
             _ = VoiceTranscribeManager.shared
+            
+            // Initialize Menu Bar Manager (restores status items if it was enabled)
+            _ = MenuBarManager.shared
         }
         
         // Start analytics (anonymous launch tracking)
