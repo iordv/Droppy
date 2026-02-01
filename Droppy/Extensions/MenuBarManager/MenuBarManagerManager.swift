@@ -335,6 +335,7 @@ final class MenuBarManager: ObservableObject {
         // Create DIVIDER item (the hidden section marker that expands)
         dividerItem = NSStatusBar.system.statusItem(withLength: lengthStandard)
         dividerItem?.autosaveName = Self.dividerAutosaveName
+        dividerItem?.isVisible = true  // CRITICAL: Ensure divider is visible
         
         if let button = dividerItem?.button {
             button.target = self
