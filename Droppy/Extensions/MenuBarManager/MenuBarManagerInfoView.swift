@@ -194,6 +194,7 @@ struct MenuBarManagerInfoView: View {
             }
             .padding(.top, 4)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -256,6 +257,7 @@ struct MenuBarManagerInfoView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
