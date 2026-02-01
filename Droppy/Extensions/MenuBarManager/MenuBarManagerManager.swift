@@ -815,13 +815,25 @@ final class MenuBarManager: ObservableObject {
     
     /// Initializes a new menu bar manager instance.
     init() {
-        // Load saved settings - use unified ExtensionType.isRemoved as primary source
-        // Also check legacy key for backwards compatibility
-        let isRemovedViaExtension = ExtensionType.menuBarManager.isRemoved
-        let isRemovedViaLegacy = UserDefaults.standard.bool(forKey: "MenuBarManager_Removed")
-        let savedEnabled = !isRemovedViaExtension && !isRemovedViaLegacy
+        // Load saved settings - default to ENABLED for new users
+        // Only disable if user has explicitly disabled the extension
+        // Check if either removal key was ever explicitly set to true
+        let extensionRemovedKey = "extension_removed_menuBarManager"
+        let legacyRemovedKey = "MenuBarManager_Removed"
         
-        self.isEnabled = savedEnabled
+        // Default to enabled (true) unless explicitly disabled
+        // This ensures new users see Menu Bar Manager as available
+        let wasExplicitlyRemoved: Bool
+        if UserDefaults.standard.object(forKey: extensionRemovedKey) != nil {
+            wasExplicitlyRemoved = UserDefaults.standard.bool(forKey: extensionRemovedKey)
+        } else if UserDefaults.standard.object(forKey: legacyRemovedKey) != nil {
+            wasExplicitlyRemoved = UserDefaults.standard.bool(forKey: legacyRemovedKey)
+        } else {
+            // Neither key exists - this is a new user, default to ENABLED
+            wasExplicitlyRemoved = false
+        }
+        
+        self.isEnabled = !wasExplicitlyRemoved
         self.showOnHover = UserDefaults.standard.bool(forKey: "MenuBarManager_ShowOnHover")
         let storedDelay = UserDefaults.standard.double(forKey: "MenuBarManager_ShowOnHoverDelay")
         self.showOnHoverDelay = storedDelay == 0 ? 0.3 : storedDelay
@@ -841,13 +853,13 @@ final class MenuBarManager: ObservableObject {
         // Load item spacing offset (default is 0)
         self.itemSpacingOffset = UserDefaults.standard.integer(forKey: "MenuBarManager_ItemSpacingOffset")
         
-        print("[MenuBarManager] INIT CALLED, isEnabled: \(savedEnabled)")
+        print("[MenuBarManager] INIT CALLED, isEnabled: \(self.isEnabled)")
         
         // Always perform setup to create sections
         performSetup()
         
         // If not enabled, remove from menu bar
-        if !savedEnabled {
+        if !self.isEnabled {
             for section in sections {
                 section.controlItem.removeFromMenuBar()
             }

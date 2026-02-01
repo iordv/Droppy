@@ -18,7 +18,8 @@ enum OnboardingPage: Int, CaseIterable {
     case basket
     case clipboard
     case media
-    case lockScreen
+    // DISABLED: Lock screen features causing issues, will debug later
+    // case lockScreen
     case extensions
     case ready
 }
@@ -246,7 +247,7 @@ struct OnboardingView: View {
         case .basket: return "Floating Basket"
         case .clipboard: return "Clipboard Manager"
         case .media: return "Media & HUDs"
-        case .lockScreen: return "Lock Screen Widgets"
+        // DISABLED: case .lockScreen: return "Lock Screen Widgets"
         case .extensions: return "Extensions"
         case .ready: return "You're All Set!"
         }
@@ -259,7 +260,7 @@ struct OnboardingView: View {
         case .basket: return "A drop zone that appears wherever you need it"
         case .clipboard: return "Your complete clipboard history at your fingertips"
         case .media: return "Beautiful notifications for music, volume, and more"
-        case .lockScreen: return "Show your notch and media controls on the lock screen"
+        // DISABLED: case .lockScreen: return "Show your notch and media controls on the lock screen"
         case .extensions: return "Extend Droppy with powerful modules"
         case .ready: return "Droppy is ready to make your Mac more productive"
         }
@@ -288,11 +289,12 @@ struct OnboardingView: View {
                 enableDNDHUD: $enableDNDHUD,
                 enableUpdateHUD: $enableUpdateHUD
             )
-        case .lockScreen:
-            LockScreenContent(
-                enableLockScreenHUD: $enableLockScreenHUD,
-                enableLockScreenMediaWidget: $enableLockScreenMediaWidget
-            )
+        // DISABLED: Lock screen features causing issues
+        // case .lockScreen:
+        //     LockScreenContent(
+        //         enableLockScreenHUD: $enableLockScreenHUD,
+        //         enableLockScreenMediaWidget: $enableLockScreenMediaWidget
+        //     )
         case .extensions:
             ExtensionsContent()
         case .ready:

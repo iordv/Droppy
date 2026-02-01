@@ -185,7 +185,7 @@ enum PreferenceDefault {
     static let enableBatteryHUD = true
     static let enableCapsLockHUD = true
     static let enableAirPodsHUD = true
-    static let enableLockScreenHUD = true
+    static let enableLockScreenHUD = false  // DISABLED: Lock screen features causing issues, will debug later
     static let enableDNDHUD = false  // Requires Full Disk Access
     static let enableUpdateHUD = true  // Show HUD when update is available
     

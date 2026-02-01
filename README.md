@@ -44,18 +44,17 @@
 Drop files into your notch for quick access.
 
 • Drag files, folders, or URLs into the notch<br>
-• Preview files with Quick Look peek<br>
 • Interact with items inside folder previews<br>
 • Tracked folders auto-sync with Finder<br>
-• ZIP, unzip, and convert files in-place<br>
+• ZIP, unzip, convert, and compress files<br>
 • Create new folders with auto-rename<br>
-• Smart stacking with fan-out on hover
+• Rename items directly in shelf or basket
 
 </td>
 <td width="50%" align="center">
 
 **🧺 Floating Basket**<br>
-Jiggle mouse at screen edge for instant basket.
+A floating drop zone that appears anywhere.
 
 • Appears anywhere — drag to position<br>
 • Switch between grid and list views<br>
@@ -63,7 +62,7 @@ Jiggle mouse at screen edge for instant basket.
 • App-specific autofade timers<br>
 • Display-specific autofade rules<br>
 • Expands naturally to fit content<br>
-• Ghost mode — auto-hides when idle
+• Keyboard shortcuts for quick actions
 
 </td>
 </tr>
@@ -73,9 +72,9 @@ Jiggle mouse at screen edge for instant basket.
 **📋 Clipboard Manager**<br>
 `⌘⇧Space` opens your clipboard history.
 
-• Unlimited clipboard history storage<br>
-• Full-text search across all clips<br>
-• Pin frequently used items<br>
+• Configurable history limit (default 50)<br>
+• Search clips by title or content<br>
+• Favorite frequently used items<br>
 • Tag clips with custom labels<br>
 • Rich previews for images and files<br>
 • One-click paste any previous clip<br>

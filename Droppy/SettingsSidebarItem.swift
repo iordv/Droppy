@@ -216,6 +216,9 @@ struct SettingsSidebar: View {
             switch tab {
             case .quickshare:
                 return showQuickshareInSidebar
+            case .lockScreen:
+                // DISABLED: Lock screen features causing issues, will debug later
+                return false
             default:
                 return true
             }

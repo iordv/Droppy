@@ -66,3 +66,13 @@ UI & Interaction
 - Removed unstable Classic Folder Stack feature
 - Updated website with mobile-responsive video embed
 - README updated with YouTube demo and dark mode icon
+
+---
+
+v10.2.1 Hotfix
+
+🐛 Bug Fixes
+- Fixed Menu Bar Manager not enabled by default for new users
+- Disabled problematic lock screen features (Skylight API causing crashes/hangs)
+- Lock Screen HUD and Media Widget are now disabled for all users
+- Existing users with lock screen features enabled will have them auto-disabled on update

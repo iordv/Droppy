@@ -35,7 +35,10 @@ class LockScreenManager: ObservableObject {
     }
     
     private init() {
-        setupObservers()
+        // DISABLED: Lock screen features (Skylight API, window recreation) causing serious issues.
+        // All observers that trigger lock screen behavior are disabled until issues are resolved.
+        // The code is preserved for future debugging - just uncomment to re-enable.
+        // setupObservers()
     }
     
     private func setupObservers() {
