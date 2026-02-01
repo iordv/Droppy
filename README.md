@@ -165,37 +165,6 @@ Your support helps cover development costs and keeps Droppy free for everyone!
 
 ---
 
-## Credits & Acknowledgements
-
-<details>
-<summary><b>Contributors</b></summary>
-<br>
-Thank you to everyone who has contributed code, features, and extensions!
-</details>
-
-<details>
-<summary><b>Alcove</b></summary>
-<br>
-Great inspiration for creating a beautiful notch app. One of the founding fathers of good-looking notch apps on macOS.
-<br>→ <a href="https://tryalcove.com/">tryalcove.com</a>
-</details>
-
-<details>
-<summary><b>Atoll</b></summary>
-<br>
-Inspired some animations and foundational functionalities. A fork of Boringnotch.
-<br>→ <a href="https://github.com/Ebullioscopic/Atoll">github.com/Ebullioscopic/Atoll</a>
-</details>
-
-<details>
-<summary><b>Boringnotch</b></summary>
-<br>
-The original project that pioneered notch creativity on macOS.
-<br>→ <a href="https://github.com/TheBoredTeam/boring.notch">github.com/TheBoredTeam/boring.notch</a>
-</details>
-
----
-
 ## License
 
 Droppy is released under the [GPL-3.0 License with Commons Clause](LICENSE).
@@ -205,3 +174,13 @@ Droppy is released under the [GPL-3.0 License with Commons Clause](LICENSE).
 <p align="center">
   <sub>Made with ❤️ for the Mac community</sub>
 </p>
+
+<details>
+<summary><sub>Credits & Acknowledgements</sub></summary>
+<sub>
+<br>
+<b>Alcove</b> — Inspiration for beautiful notch design (<a href="https://tryalcove.com/">tryalcove.com</a>)<br>
+<b>Atoll</b> — Animations & foundational patterns (<a href="https://github.com/Ebullioscopic/Atoll">github</a>)<br>
+<b>Boringnotch</b> — Pioneered notch creativity on macOS (<a href="https://github.com/TheBoredTeam/boring.notch">github</a>)
+</sub>
+</details>
