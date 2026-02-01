@@ -305,6 +305,48 @@ struct MenuBarManagerInfoView: View {
                     }
                 }
             }
+            
+            Divider()
+            
+            // Item spacing
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Menu Bar Spacing")
+                            .font(.callout)
+                        Text("Adjust spacing between all menu bar items")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(manager.itemSpacingOffset > 0 ? "+" : "")\(manager.itemSpacingOffset)pt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                
+                HStack {
+                    Slider(value: Binding(
+                        get: { Double(manager.itemSpacingOffset) },
+                        set: { manager.itemSpacingOffset = Int($0) }
+                    ), in: -8...8, step: 1)
+                        .controlSize(.small)
+                    
+                    Button("Apply") {
+                        Task {
+                            try? await manager.applyItemSpacing()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+                
+                if manager.spacingChangesPending {
+                    Text("⚠️ Log out or restart apps for changes to take effect")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

@@ -667,6 +667,50 @@ final class MenuBarManager: ObservableObject {
         }
     }
     
+    /// Spacing offset for menu bar items (-8 to +8, where 0 is default)
+    /// Affects NSStatusItemSpacing and NSStatusItemSelectionPadding system-wide
+    @Published var itemSpacingOffset: Int {
+        didSet {
+            UserDefaults.standard.set(itemSpacingOffset, forKey: "MenuBarManager_ItemSpacingOffset")
+        }
+    }
+    
+    /// Whether spacing changes are pending restart
+    @Published var spacingChangesPending: Bool = false
+    
+    /// Default spacing value used by macOS
+    private let defaultSpacingValue = 16
+    
+    /// Applies the current item spacing offset (requires restarting apps with menu bar items)
+    func applyItemSpacing() async throws {
+        if itemSpacingOffset == 0 {
+            // Remove custom values to restore defaults
+            try await runDefaultsCommand(["delete", "-currentHost", "-globalDomain", "NSStatusItemSpacing"])
+            try await runDefaultsCommand(["delete", "-currentHost", "-globalDomain", "NSStatusItemSelectionPadding"])
+        } else {
+            let newValue = defaultSpacingValue + itemSpacingOffset
+            try await runDefaultsCommand(["-currentHost", "write", "-globalDomain", "NSStatusItemSpacing", "-int", String(newValue)])
+            try await runDefaultsCommand(["-currentHost", "write", "-globalDomain", "NSStatusItemSelectionPadding", "-int", String(newValue)])
+        }
+        
+        // Mark that changes need restart
+        await MainActor.run {
+            spacingChangesPending = true
+        }
+    }
+    
+    /// Runs a defaults command
+    private func runDefaultsCommand(_ arguments: [String]) async throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/defaults")
+        process.arguments = arguments
+        
+        try await Task.detached {
+            try process.run()
+            process.waitUntilExit()
+        }.value
+    }
+    
     /// Mouse monitoring
     private var mouseMonitor: Any?
     
@@ -732,6 +776,9 @@ final class MenuBarManager: ObservableObject {
         } else {
             self.showChevronSeparator = UserDefaults.standard.bool(forKey: "MenuBarManager_ShowChevronSeparator")
         }
+        
+        // Load item spacing offset (default is 0)
+        self.itemSpacingOffset = UserDefaults.standard.integer(forKey: "MenuBarManager_ItemSpacingOffset")
         
         print("[MenuBarManager] INIT CALLED, isEnabled: \(savedEnabled)")
         
