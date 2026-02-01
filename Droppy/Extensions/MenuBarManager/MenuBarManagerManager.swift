@@ -372,11 +372,28 @@ final class ControlItem {
             // Create the base image
             var image = NSImage(systemSymbolName: iconName, accessibilityDescription: "Toggle Menu Bar")
             
-            // Apply gradient tint if enabled
-            if manager?.useGradientIcon == true {
-                image = image?.withSymbolConfiguration(
-                    NSImage.SymbolConfiguration(paletteColors: [.systemBlue, .systemPurple])
-                )
+            // Apply gradient if enabled
+            if manager?.useGradientIcon == true, let baseImage = image {
+                let size = NSSize(width: 18, height: 18)
+                let gradientImage = NSImage(size: size, flipped: false) { bounds in
+                    // Draw gradient background masked by the symbol
+                    guard let cgImage = baseImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return false }
+                    guard let context = NSGraphicsContext.current?.cgContext else { return false }
+                    
+                    // Create gradient
+                    let colors = [NSColor.systemBlue.cgColor, NSColor.systemPurple.cgColor] as CFArray
+                    guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) else { return false }
+                    
+                    // Clip to the symbol shape
+                    context.clip(to: bounds, mask: cgImage)
+                    
+                    // Draw gradient
+                    context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: bounds.maxY), end: CGPoint(x: bounds.maxX, y: 0), options: [])
+                    
+                    return true
+                }
+                gradientImage.isTemplate = false
+                image = gradientImage
             }
             
             button.image = image
@@ -661,10 +678,15 @@ final class MenuBarManager: ObservableObject {
         cancelAutoHide()
         
         // Only schedule if auto-hide is enabled (delay > 0)
-        guard autoHideDelay > 0 else { return }
+        guard autoHideDelay > 0 else {
+            print("[MenuBarManager] Auto-hide disabled (delay = 0)")
+            return
+        }
         
+        print("[MenuBarManager] Scheduling auto-hide in \(autoHideDelay)s")
         autoHideTimer = Timer.scheduledTimer(withTimeInterval: autoHideDelay, repeats: false) { [weak self] _ in
             Task { @MainActor in
+                print("[MenuBarManager] Auto-hide timer fired")
                 self?.hideAllSections()
             }
         }
@@ -678,6 +700,7 @@ final class MenuBarManager: ObservableObject {
     
     /// Hides all sections
     private func hideAllSections() {
+        print("[MenuBarManager] Hiding all sections")
         for section in sections {
             section.hide()
         }
