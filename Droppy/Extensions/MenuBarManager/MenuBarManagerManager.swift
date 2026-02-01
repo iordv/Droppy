@@ -319,7 +319,24 @@ final class MenuBarManager: ObservableObject {
     // MARK: - Status Items Creation
     
     private func createStatusItems() {
-        // Create MAIN item (user's toggle button)
+        // Log current position seeds
+        print("[MenuBarManager] Position seeds - main=\(String(describing: StatusItemDefaults[Self.mainAutosaveName])), divider=\(String(describing: StatusItemDefaults[Self.dividerAutosaveName]))")
+        
+        // Create DIVIDER item FIRST (will be to the LEFT of main)
+        // The hidden section divider expands to hide items to its LEFT
+        dividerItem = NSStatusBar.system.statusItem(withLength: lengthStandard)
+        dividerItem?.autosaveName = Self.dividerAutosaveName
+        dividerItem?.isVisible = true
+        
+        if let button = dividerItem?.button {
+            button.target = self
+            button.action = #selector(dividerClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            print("[MenuBarManager] Created DIVIDER item, button=\(button)")
+        }
+        
+        // Create MAIN item SECOND (will be to the RIGHT of divider)
+        // This stays visible when divider expands because it's to the RIGHT
         mainItem = NSStatusBar.system.statusItem(withLength: lengthStandard)
         mainItem?.autosaveName = Self.mainAutosaveName
         
@@ -327,35 +344,21 @@ final class MenuBarManager: ObservableObject {
             button.target = self
             button.action = #selector(mainItemClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            print("[MenuBarManager] Created MAIN item, button=\(button), window=\(String(describing: button.window))")
-        } else {
-            print("[MenuBarManager] ERROR: mainItem has no button!")
+            print("[MenuBarManager] Created MAIN item, button=\(button)")
         }
         
-        // Create DIVIDER item (the hidden section marker that expands)
-        dividerItem = NSStatusBar.system.statusItem(withLength: lengthStandard)
-        dividerItem?.autosaveName = Self.dividerAutosaveName
-        dividerItem?.isVisible = true  // CRITICAL: Ensure divider is visible
+        print("[MenuBarManager] Created status items")
         
-        if let button = dividerItem?.button {
-            button.target = self
-            button.action = #selector(dividerClicked)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            print("[MenuBarManager] Created DIVIDER item, button=\(button), window=\(String(describing: button.window))")
-        } else {
-            print("[MenuBarManager] ERROR: dividerItem has no button!")
+        // Debug: Check window positions after a brief delay (let system settle)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self else { return }
+            if let mainWindow = self.mainItem?.button?.window {
+                print("[MenuBarManager] MAIN window frame=\(mainWindow.frame)")
+            }
+            if let dividerWindow = self.dividerItem?.button?.window {
+                print("[MenuBarManager] DIVIDER window frame=\(dividerWindow.frame)")
+            }
         }
-        
-        print("[MenuBarManager] Created status items - mainItem=\(String(describing: mainItem)), dividerItem=\(String(describing: dividerItem))")
-        
-        // Debug: Check window positions
-        if let mainWindow = mainItem?.button?.window {
-            print("[MenuBarManager] MAIN window frame=\(mainWindow.frame), isVisible=\(mainWindow.isVisible)")
-        }
-        if let dividerWindow = dividerItem?.button?.window {
-            print("[MenuBarManager] DIVIDER window frame=\(dividerWindow.frame), isVisible=\(dividerWindow.isVisible)")
-        }
-        print("[MenuBarManager] mainItem.isVisible=\(String(describing: mainItem?.isVisible)), dividerItem.isVisible=\(String(describing: dividerItem?.isVisible))")
     }
     
     private func removeStatusItems() {
