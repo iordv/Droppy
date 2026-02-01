@@ -78,7 +78,7 @@ final class MenuBarManager: ObservableObject {
         
         // Clear any stale chevron position to force it next to toggle
         // (The autosave mechanism may have cached a far-left position)
-        StatusItemDefaults.setPreferredPosition(nil, for: chevronAutosaveName)
+        UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position \(chevronAutosaveName)")
         
         // Create all status items
         createStatusItems()
