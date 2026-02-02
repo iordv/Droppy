@@ -35,10 +35,20 @@ enum HapticFeedback {
         }
     }
     
+    // MARK: - Debounce Tracking (Bug #132 Fix)
+    // Prevents duplicate haptics when multiple call sites fire in quick succession
+    
+    private static var lastDropTime: Date = .distantPast
+    private static let debounceInterval: TimeInterval = 0.25
+    
     // MARK: - Convenience Methods
     
     /// File successfully dropped onto shelf or basket
     static func drop() {
+        // BUG #132 FIX: Debounce to prevent multiple haptics from redundant call sites
+        let now = Date()
+        guard now.timeIntervalSince(lastDropTime) > debounceInterval else { return }
+        lastDropTime = now
         HapticFeedback.medium.perform()
     }
     

@@ -286,19 +286,33 @@ struct ElementCaptureInfoView: View {
     
     private func saveShortcut(_ shortcut: SavedShortcut) {
         currentShortcut = shortcut
+        print("🔐 [ElementCapture] saveShortcut called: keyCode=\(shortcut.keyCode), modifiers=\(shortcut.modifiers)")
+        
         if let encoded = try? JSONEncoder().encode(shortcut) {
             UserDefaults.standard.set(encoded, forKey: "elementCaptureShortcut")
+            UserDefaults.standard.synchronize()  // Force immediate write
+            print("🔐 [ElementCapture] ✅ Saved to UserDefaults (key: elementCaptureShortcut)")
+            
+            // Verify it was actually saved
+            if let check = UserDefaults.standard.data(forKey: "elementCaptureShortcut") {
+                print("🔐 [ElementCapture] ✅ Verified: \(check.count) bytes saved")
+            } else {
+                print("🔐 [ElementCapture] ❌ FAILED: Key not found after save!")
+            }
             
             // Track extension activation (only once per user)
             if !UserDefaults.standard.bool(forKey: "elementCaptureTracked") {
                 AnalyticsService.shared.trackExtensionActivation(extensionId: "elementCapture")
                 UserDefaults.standard.set(true, forKey: "elementCaptureTracked")
             }
+        } else {
+            print("🔐 [ElementCapture] ❌ Failed to encode shortcut!")
         }
         // Also update the manager (for global hotkey monitoring)
         Task { @MainActor in
             ElementCaptureManager.shared.shortcut = shortcut
             ElementCaptureManager.shared.startMonitoringShortcut()
+            print("🔐 [ElementCapture] Manager updated \(ElementCaptureManager.shared.isShortcutEnabled ? "✅" : "❌")")
         }
     }
 }

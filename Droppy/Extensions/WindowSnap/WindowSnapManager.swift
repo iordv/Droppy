@@ -242,7 +242,7 @@ final class WindowSnapManager: ObservableObject {
     
     // MARK: - Private Properties
     
-    private var hotkeyMonitors: [SnapAction: Any] = [:]
+    private var hotkeyMonitors: [SnapAction: GlobalHotKey] = [:]  // Carbon-based for reliability
     private var savedWindowFrames: [pid_t: CGRect] = [:]  // For restore functionality
     
     // Cycle behavior tracking (Rectangle-style repeated shortcut cycling)
@@ -263,17 +263,41 @@ final class WindowSnapManager: ObservableObject {
         // Empty - shortcuts loaded via loadAndStartMonitoring after app launch
     }
     
+    // DEBUG: Write to file for debugging
+    private func debugLog(_ message: String) {
+        let logPath = "/tmp/droppy_windowsnap_debug.log"
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(timestamp)] \(message)\n"
+        if let handle = FileHandle(forWritingAtPath: logPath) {
+            handle.seekToEndOfFile()
+            handle.write(line.data(using: .utf8)!)
+            handle.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
+        }
+        print(message)  // Also print for console
+    }
+    
     /// Called from AppDelegate after app finishes launching
     func loadAndStartMonitoring() {
+        debugLog("[WindowSnap] loadAndStartMonitoring called")
+        
         // Don't start if extension is disabled
         guard !ExtensionType.windowSnap.isRemoved else {
+            debugLog("[WindowSnap] Extension is disabled, skipping monitoring")
             print("[WindowSnap] Extension is disabled, skipping monitoring")
             return
         }
         
+        debugLog("[WindowSnap] Extension is enabled, loading shortcuts...")
         loadShortcuts()
+        debugLog("[WindowSnap] Loaded \(shortcuts.count) shortcuts from UserDefaults")
+        
         if !shortcuts.isEmpty {
             startMonitoringAllShortcuts()
+            debugLog("[WindowSnap] Monitoring started for \(shortcuts.count) shortcuts")
+        } else {
+            debugLog("[WindowSnap] No shortcuts configured, not starting monitors")
         }
     }
     
@@ -479,14 +503,28 @@ final class WindowSnapManager: ObservableObject {
     // MARK: - Shortcut Persistence
     
     private func loadShortcuts() {
-        guard let data = UserDefaults.standard.data(forKey: shortcutsKey),
-              let decoded = try? JSONDecoder().decode([String: SavedShortcut].self, from: data) else {
+        print("[WindowSnap] loadShortcuts: Reading from key '\(shortcutsKey)'")
+        
+        guard let data = UserDefaults.standard.data(forKey: shortcutsKey) else {
+            print("[WindowSnap] loadShortcuts: No data found in UserDefaults")
             return
         }
+        
+        print("[WindowSnap] loadShortcuts: Found \(data.count) bytes of data")
+        
+        guard let decoded = try? JSONDecoder().decode([String: SavedShortcut].self, from: data) else {
+            print("[WindowSnap] loadShortcuts: Failed to decode shortcut data")
+            return
+        }
+        
+        print("[WindowSnap] loadShortcuts: Decoded \(decoded.count) shortcuts")
         
         for (key, shortcut) in decoded {
             if let action = SnapAction(rawValue: key) {
                 shortcuts[action] = shortcut
+                print("[WindowSnap] loadShortcuts: Loaded \(action.title) -> keyCode=\(shortcut.keyCode), modifiers=\(shortcut.modifiers)")
+            } else {
+                print("[WindowSnap] loadShortcuts: Unknown action key '\(key)'")
             }
         }
     }
@@ -497,8 +535,23 @@ final class WindowSnapManager: ObservableObject {
             toEncode[action.rawValue] = shortcut
         }
         
-        if let encoded = try? JSONEncoder().encode(toEncode) {
+        print("[WindowSnap] Saving \(toEncode.count) shortcuts to UserDefaults")
+        
+        do {
+            let encoded = try JSONEncoder().encode(toEncode)
             UserDefaults.standard.set(encoded, forKey: shortcutsKey)
+            
+            // Force synchronize and verify
+            UserDefaults.standard.synchronize()
+            
+            // Read back to verify
+            if let readBack = UserDefaults.standard.data(forKey: shortcutsKey) {
+                print("[WindowSnap] Successfully saved and verified shortcuts (\(readBack.count) bytes)")
+            } else {
+                print("[WindowSnap] ERROR: Save appeared to succeed but data cannot be read back!")
+            }
+        } catch {
+            print("[WindowSnap] ERROR: Failed to encode shortcuts: \(error)")
         }
     }
     
@@ -530,32 +583,26 @@ final class WindowSnapManager: ObservableObject {
         guard hotkeyMonitors[action] == nil else { return }
         guard let savedShortcut = shortcuts[action] else { return }
         
-        hotkeyMonitors[action] = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // CRITICAL: Check if extension is disabled - stops shortcuts from working
+        debugLog("[WindowSnap] Registering GlobalHotKey for \(action.title): keyCode=\(savedShortcut.keyCode), modifiers=\(savedShortcut.modifiers)")
+        
+        // Use GlobalHotKey (Carbon-based) for reliable global shortcut detection
+        hotkeyMonitors[action] = GlobalHotKey(
+            keyCode: savedShortcut.keyCode,
+            modifiers: savedShortcut.modifiers
+        ) { [weak self] in
+            guard let self = self else { return }
+            // CRITICAL: Check if extension is disabled
             guard !ExtensionType.windowSnap.isRemoved else { return }
             
-            // Mask to only compare control/option/shift/command - ignore function/numericPad flags
-            // Arrow keys include .numericPad and .function flags which would break comparison
-            let relevantModifiers: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
-            let eventFlags = event.modifierFlags.intersection(relevantModifiers)
-            let savedFlags = NSEvent.ModifierFlags(rawValue: savedShortcut.modifiers).intersection(relevantModifiers)
-            
-            if Int(event.keyCode) == savedShortcut.keyCode &&
-               eventFlags == savedFlags {
-                DispatchQueue.main.async {
-                    self?.executeAction(action)
-                }
-            }
+            self.debugLog("[WindowSnap] ✅ Shortcut triggered via GlobalHotKey: \(action.title)")
+            self.executeAction(action)
         }
         
         isEnabled = true
     }
     
     private func stopMonitoringShortcut(for action: SnapAction) {
-        if let monitor = hotkeyMonitors[action] {
-            NSEvent.removeMonitor(monitor)
-            hotkeyMonitors.removeValue(forKey: action)
-        }
+        hotkeyMonitors.removeValue(forKey: action)  // GlobalHotKey deinit handles unregistration
     }
     
     // MARK: - Permission Checking

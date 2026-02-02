@@ -14,17 +14,19 @@ struct ElementCaptureExtension: ExtensionDefinition {
     static let category: ExtensionGroup = .productivity
     static let categoryColor: Color = .yellow // Matches yellow capture icon
     
-    static let description = "Capture specific screen elements and copy them to clipboard or add to Droppy. Perfect for grabbing UI components, icons, or any visual element."
+    static let description = "Capture specific screen elements, annotate with arrows, shapes, text, and blur, then copy to clipboard or add to Droppy. Perfect for grabbing and marking up UI components, icons, or any visual element."
     
     static let features: [(icon: String, text: String)] = [
         ("keyboard", "Configurable keyboard shortcuts"),
         ("rectangle.dashed", "Select screen regions"),
+        ("pencil.tip.crop.circle", "Annotate with arrows, shapes & text"),
+        ("eye.slash", "Blur sensitive content"),
         ("doc.on.clipboard", "Copy to clipboard"),
         ("plus.circle", "Add directly to Droppy")
     ]
     
     static var screenshotURL: URL? {
-        URL(string: "https://getdroppy.app/assets/images/element-capture-screenshot.png")
+        URL(string: "https://getdroppy.app/assets/images/element-capture-screenshot.gif")
     }
     
     static var iconURL: URL? {

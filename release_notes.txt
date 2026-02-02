@@ -1,15 +1,12 @@
-## ✨ New Features
-- Added adjustable Island height slider with smooth live preview animation
-- Added subtle haptic feedback to all sliders for premium tactile experience
-- Added Gradient Visualizer toggle in Settings → Media for two-tone audio visualization
+✨ New Features
+- Added full screenshot editor to Element Capture: draw arrows, rectangles, ellipses, lines, freehand, and highlighter annotations
+- Added text annotations with customizable font sizes
+- Added blur tool to redact sensitive content in screenshots
+- Added zoom and pan controls in the screenshot editor
+- Added "Edit" button to capture preview for quick access to editor
+- Updated Element Capture marketing with new GIF demo
 
-## 🐛 Bug Fixes
-- Fixed HUD padding asymmetry: visualizer now perfectly mirrors album art spacing
-- Fixed Island not displaying correctly on MacBook Air models
-- Fixed media title not vertically centered with album art in collapsed HUD
-
-## 🎯 Polish & Refinements
-- Complete Settings redesign with high-density grids and modern button styles
-- Centralized all HUD padding calculations to HUDLayoutCalculator for pixel-perfect consistency
-- Refined slider controls with consistent haptic responses across all settings
-- Improved visual hierarchy with new grouped layouts
+🐛 Bug Fixes
+- Fixed blur effect rendering to match preview and export exactly
+- Fixed annotation scaling to remain fixed during zoom operations
+- Removed Lock Screen settings section (feature deprecated)

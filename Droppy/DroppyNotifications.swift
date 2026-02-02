@@ -51,6 +51,11 @@ extension Notification.Name {
     /// Posted when Window Snap shortcuts are changed
     static let windowSnapShortcutChanged = Notification.Name("windowSnapShortcutChanged")
     
+    // MARK: - Shelf
+    
+    /// Posted when a file should be added to the shelf (e.g., from screenshot editor)
+    static let addFileToShelf = Notification.Name("addFileToShelf")
+    
     // MARK: - System (Darwin notifications - keep as-is)
     
     /// System notification for screen lock (Darwin)

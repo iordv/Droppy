@@ -2046,15 +2046,7 @@ struct NotchShelfView: View {
                 if let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID {
                     // Direct state update - animation handled by view-level .animation() modifier
                     if enableNotchShelf {
-                        // PREMIUM: Subtle haptic on hover enter (not when expanded)
-                        // FIX #126: Debounce haptic to prevent spam from rapid hover oscillation
-                        if isHovering && !isExpandedOnThisScreen && !state.isHovering(for: displayID) {
-                            let now = Date()
-                            if now.timeIntervalSince(lastHoverHapticTime) > 0.2 {
-                                HapticFeedback.hover()
-                                lastHoverHapticTime = now
-                            }
-                        }
+                        // NOTE: Hover haptic removed per user request - only expand gives feedback
                         state.setHovering(for: displayID, isHovering: isHovering)
                         
                         // PREMIUM: Update hover scale state - only active when hovering AND not expanded

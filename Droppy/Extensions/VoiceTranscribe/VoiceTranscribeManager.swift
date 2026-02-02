@@ -107,7 +107,8 @@ final class VoiceTranscribeManager: ObservableObject {
     private var recordingURL: URL?
     private var whisperKit: WhisperKit?
     private var downloadTask: Task<Void, Never>?
-    private var globalKeyMonitor: Any?
+    private var quickRecordHotkey: GlobalHotKey?   // Carbon-based for reliability
+    private var invisiRecordHotkey: GlobalHotKey?  // Carbon-based for reliability
     
     // Model storage directory
     private var modelsDirectory: URL {
@@ -999,49 +1000,49 @@ extension VoiceTranscribeManager {
     
     /// Start global keyboard monitoring for shortcuts
     func startGlobalKeyMonitoring() {
-        guard globalKeyMonitor == nil else { return }
-        
-        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor [weak self] in
-                self?.handleGlobalKeyEvent(event)
+        // Register Quick Record shortcut
+        if let shortcut = quickRecordShortcut, quickRecordHotkey == nil {
+            quickRecordHotkey = GlobalHotKey(
+                keyCode: shortcut.keyCode,
+                modifiers: shortcut.modifiers
+            ) { [weak self] in
+                guard let self = self else { return }
+                guard !ExtensionType.voiceTranscribe.isRemoved else { return }
+                guard self.isModelDownloaded else { return }
+                
+                print("[VoiceTranscribe] ✅ Quick Record triggered via GlobalHotKey")
+                self.triggerQuickRecord()
             }
         }
         
-        print("[VoiceTranscribe] Global key monitoring started")
+        // Register Invisi-Record shortcut
+        if let shortcut = invisiRecordShortcut, invisiRecordHotkey == nil {
+            invisiRecordHotkey = GlobalHotKey(
+                keyCode: shortcut.keyCode,
+                modifiers: shortcut.modifiers
+            ) { [weak self] in
+                guard let self = self else { return }
+                guard !ExtensionType.voiceTranscribe.isRemoved else { return }
+                guard self.isModelDownloaded else { return }
+                
+                print("[VoiceTranscribe] ✅ Invisi-Record triggered via GlobalHotKey")
+                self.triggerInvisiRecord()
+            }
+        }
+        
+        print("[VoiceTranscribe] Global key monitoring started (using GlobalHotKey/Carbon)")
     }
     
     /// Stop global keyboard monitoring
     func stopGlobalKeyMonitoring() {
-        if let monitor = globalKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalKeyMonitor = nil
-            print("[VoiceTranscribe] Global key monitoring stopped")
-        }
+        quickRecordHotkey = nil   // GlobalHotKey deinit handles unregistration
+        invisiRecordHotkey = nil
+        print("[VoiceTranscribe] Global key monitoring stopped")
     }
     
-    /// Handle global key events
+    /// Handle global key events (unused with GlobalHotKey, kept for reference)
     private func handleGlobalKeyEvent(_ event: NSEvent) {
-        guard !ExtensionType.voiceTranscribe.isRemoved else { return }
-        guard isModelDownloaded else { return }
-        
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let keyCode = Int(event.keyCode)
-        
-        // Check Quick Record shortcut
-        if let quickShortcut = quickRecordShortcut,
-           keyCode == quickShortcut.keyCode,
-           flags.rawValue == quickShortcut.modifiers {
-            triggerQuickRecord()
-            return
-        }
-        
-        // Check Invisi-Record shortcut
-        if let invisiShortcut = invisiRecordShortcut,
-           keyCode == invisiShortcut.keyCode,
-           flags.rawValue == invisiShortcut.modifiers {
-            triggerInvisiRecord()
-            return
-        }
+        // No longer used - GlobalHotKey handles matching internally
     }
     
     /// Trigger quick record via shortcut (shows recording window)

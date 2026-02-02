@@ -118,6 +118,18 @@ final class SystemAudioAnalyzer: NSObject, ObservableObject {
     private func startCapture() async {
         guard stream == nil else { return }
         
+        // PERMISSION CHECK: Verify screen recording permission BEFORE calling ScreenCaptureKit
+        // This prevents macOS from showing repeated permission prompts
+        guard CGPreflightScreenCaptureAccess() else {
+            if !hasLoggedError {
+                print("SystemAudioAnalyzer: Screen recording permission not granted - skipping capture")
+                hasLoggedError = true
+            }
+            hasPermission = false
+            isActive = false
+            return
+        }
+        
         do {
             // Get shareable content - this checks permission
             let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)

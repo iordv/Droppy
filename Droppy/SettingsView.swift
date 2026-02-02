@@ -130,8 +130,6 @@ struct SettingsView: View {
                             clipboardSettings
                         case .huds:
                             hudSettings
-                        case .lockScreen:
-                            lockScreenSettings
                         case .extensions:
                             integrationsSettings
                         case .quickshare:
@@ -865,71 +863,6 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: Lock Screen Tab (Extracted from HUDs)
-    private var lockScreenSettings: some View {
-        Group {
-            // MARK: Lock Screen HUD
-            Section {
-                HStack(spacing: 12) {
-                    LockScreenHUDIcon()
-                    
-                    Toggle(isOn: $enableLockScreenHUD) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Lock and Unlock Animation")
-                            Text("Show animation when screen locks and unlocks")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .onChange(of: enableLockScreenHUD) { _, newValue in
-                    if newValue {
-                        NotchWindowController.shared.setupNotchWindow()
-                    } else {
-                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
-                    }
-                }
-            } header: {
-                Text("Lock and Unlock Animation")
-            }
-            
-            // MARK: Now Playing Widget
-            Section {
-                HStack(spacing: 12) {
-                    NowPlayingIcon()
-                    
-                    Toggle(isOn: $enableLockScreenMediaWidget) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text("Now Playing")
-                                Text("new")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.droppyAccent))
-                            }
-                            Text("Show notch & music controls on the lock screen")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .onChange(of: enableLockScreenMediaWidget) { _, newValue in
-                    if newValue {
-                        LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
-                        NotchWindowController.shared.delegateToLockScreen()
-                    }
-                }
-                
-
-            } header: {
-                Text("Now Playing")
-            }
-        }
-    }
     
     // MARK: Accessibility Tab (Extracted from various places)
     private var accessibilitySettings: some View {

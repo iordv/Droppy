@@ -42,7 +42,7 @@ final class ElementCaptureManager: ObservableObject {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var lastDetectedFrame: CGRect = .zero
-    private var hotkeyMonitor: Any?
+    private var globalHotKey: GlobalHotKey?  // Uses Carbon for reliable global shortcuts
     private var escapeMonitor: Any?  // Local monitor for ESC key
     
     // MARK: - Configuration
@@ -173,40 +173,34 @@ final class ElementCaptureManager: ObservableObject {
         // Don't start if extension is disabled
         guard !ExtensionType.elementCapture.isRemoved else { return }
         // Prevent duplicate monitoring
-        guard hotkeyMonitor == nil else { return }
+        guard globalHotKey == nil else { return }
         guard let savedShortcut = shortcut else { return }
         
-        hotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // CRITICAL: Check if extension is disabled - stops shortcuts from working
+        // Use GlobalHotKey (Carbon-based) for reliable global shortcut detection
+        globalHotKey = GlobalHotKey(
+            keyCode: savedShortcut.keyCode,
+            modifiers: savedShortcut.modifiers
+        ) { [weak self] in
+            guard let self = self else { return }
             guard !ExtensionType.elementCapture.isRemoved else { return }
             
-            // Check if the pressed key matches our shortcut
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            print("🔑 [ElementCapture] ✅ Shortcut triggered via GlobalHotKey!")
             
-            if Int(event.keyCode) == savedShortcut.keyCode &&
-               flags.rawValue == savedShortcut.modifiers {
-                // Use async to avoid blocking event handler
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    if self.isActive {
-                        self.stopCaptureMode()
-                    } else {
-                        self.startCaptureMode()
-                    }
-                }
+            if self.isActive {
+                self.stopCaptureMode()
+            } else {
+                self.startCaptureMode()
             }
         }
         
         isShortcutEnabled = true
-        print("[ElementCapture] Shortcut monitoring started: \(savedShortcut.description)")
+        print("[ElementCapture] Shortcut monitoring started: \(savedShortcut.description) (using GlobalHotKey/Carbon)")
     }
     
     func stopMonitoringShortcut() {
-        if let monitor = hotkeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            hotkeyMonitor = nil
-        }
+        globalHotKey = nil  // GlobalHotKey deinit handles unregistration
         isShortcutEnabled = false
+        print("[ElementCapture] Shortcut monitoring stopped")
     }
     
     // MARK: - Permission Checking
@@ -656,6 +650,15 @@ final class ElementCaptureManager: ObservableObject {
     }
     
     private func captureRect(_ rect: CGRect) async throws -> CGImage {
+        // PERMISSION CHECK: Verify screen recording permission BEFORE calling ScreenCaptureKit
+        // SCShareableContent triggers macOS prompts even when CGPreflight passes in some cases
+        guard CGPreflightScreenCaptureAccess() else {
+            print("[ElementCapture] Screen recording permission not granted - aborting capture")
+            // Request permission via system dialog
+            CGRequestScreenCaptureAccess()
+            throw CaptureError.permissionDenied
+        }
+        
         // SAFETY CHECK 1: Validate input rect has reasonable dimensions
         guard rect.width > 0 && rect.height > 0 && rect.width < 50000 && rect.height < 50000 else {
             print("[ElementCapture] SAFETY: Invalid input rect dimensions: \(rect)")
@@ -1011,9 +1014,16 @@ final class CapturePreviewWindowController {
         // Clean up any existing window first
         cleanUp()
         
-        // Create SwiftUI view (no extra clipShape - view handles its own clipping)
-        let previewView = CapturePreviewView(image: image)
-            .preferredColorScheme(.dark) // Force dark mode always
+        // Create SwiftUI view with edit callback
+        let previewView = CapturePreviewView(
+            image: image,
+            onEditTapped: { capturedImage in
+                Task { @MainActor in
+                    ScreenshotEditorWindowController.shared.show(with: capturedImage)
+                }
+            }
+        )
+        .preferredColorScheme(.dark) // Force dark mode always
         
         // Fixed size for consistent appearance
         let contentSize = NSSize(width: 280, height: 220)

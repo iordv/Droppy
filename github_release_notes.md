@@ -1,18 +1,14 @@
 ## ✨ New Features
-- Added adjustable Island height slider with smooth live preview animation
-- Added subtle haptic feedback to all sliders for premium tactile experience
-- Added Gradient Visualizer toggle in Settings → Media for two-tone audio visualization
+- **Full Screenshot Editor** for Element Capture: draw arrows, rectangles, ellipses, lines, freehand, and highlighter annotations
+- **Text Annotations** with customizable font sizes
+- **Blur Tool** to redact sensitive content in screenshots
+- **Zoom & Pan** controls in the screenshot editor
+- **Edit Button** on capture preview for quick access to editor
 
 ## 🐛 Bug Fixes
-- Fixed HUD padding asymmetry: visualizer now perfectly mirrors album art spacing
-- Fixed Island not displaying correctly on MacBook Air models
-- Fixed media title not vertically centered with album art in collapsed HUD
-
-## 🎯 Polish & Refinements
-- Complete Settings redesign with high-density grids and modern button styles
-- Centralized all HUD padding calculations to HUDLayoutCalculator for pixel-perfect consistency
-- Refined slider controls with consistent haptic responses across all settings
-- Improved visual hierarchy with new grouped layouts
+- Fixed blur effect rendering to match preview and export exactly
+- Fixed annotation scaling to remain fixed during zoom operations
+- Removed Lock Screen settings section (feature deprecated)
 
 ---
 
@@ -20,7 +16,7 @@
 
 <img src="https://raw.githubusercontent.com/iordv/Droppy/main/docs/assets/macos-disk-icon.png" height="24"> **Recommended: Direct Download** (signed & notarized)
 
-Download `Droppy-10.2.3.dmg` below, open it, and drag Droppy to Applications. That's it!
+Download `Droppy-10.2.4.dmg` below, open it, and drag Droppy to Applications. That's it!
 
 > ✅ **Signed & Notarized by Apple** — No quarantine warnings, no terminal commands needed.
 

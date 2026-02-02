@@ -122,6 +122,10 @@ final class NotchWindowController: NSObject, ObservableObject {
     private var fullscreenExitDebounceCounts: [CGDirectDisplayID: Int] = [:]
     private let fullscreenExitDebounceThreshold = 2  // Require 2 consecutive non-fullscreen (2 seconds at 1s interval)
     
+    /// Per-display fullscreen hover-reveal tracking (Bug #133 fix)
+    /// When user hovers at top edge in fullscreen, we temporarily reveal the notch
+    var fullscreenHoverRevealedDisplays: Set<CGDirectDisplayID> = []
+    
     private override init() {
         super.init()
         setupSystemObservers()
@@ -1559,6 +1563,8 @@ final class NotchWindowController: NSObject, ObservableObject {
                         // Stable non-fullscreen - safe to exit for this display
                         updatedFullscreenDisplays.remove(displayID)
                         fullscreenExitDebounceCounts[displayID] = 0
+                        // BUG #133 FIX: Also clear hover-reveal state
+                        fullscreenHoverRevealedDisplays.remove(displayID)
                     }
                     // Otherwise, keep display in fullscreen set until debounce threshold reached
                 }
@@ -1669,7 +1675,48 @@ final class NotchWindowController: NSObject, ObservableObject {
         let mouseLocation = NSEvent.mouseLocation
         
         // Find which window should handle this event (the one whose screen contains the mouse)
-        if let (window, _) = findWindowForMouseLocation(mouseLocation) {
+        if let (window, screen) = findWindowForMouseLocation(mouseLocation) {
+            let displayID = screen.displayID
+            let isFullscreenOnThisDisplay = fullscreenDisplayIDs.contains(displayID)
+            
+            // BUG #133 FIX: Detect hover in fullscreen mode to trigger reveal
+            // Uses SAME logic as normal hover detection in handleGlobalMouseEvent
+            if isFullscreenOnThisDisplay {
+                let alreadyRevealed = fullscreenHoverRevealedDisplays.contains(displayID)
+                
+                if !alreadyRevealed {
+                    // Check if mouse is in the notch area (same logic as normal hover)
+                    let isInNotchArea = window.notchRect.contains(mouseLocation)
+                    
+                    // Check expanded zone - matches normal hover behavior
+                    let screenTopY = screen.frame.maxY
+                    let upwardExpansion = (screenTopY - window.notchRect.maxY) + 5
+                    let expandedRect = NSRect(
+                        x: window.notchRect.origin.x - 20,
+                        y: window.notchRect.origin.y,
+                        width: window.notchRect.width + 40,
+                        height: window.notchRect.height + upwardExpansion
+                    )
+                    var isInExpandedZone = expandedRect.contains(mouseLocation)
+                    
+                    // Fitt's Law special case: at screen top within notch X range = always hover
+                    // (Same as normal hover detection - cursor pushed against edge)
+                    let isAtScreenTop = mouseLocation.y >= screenTopY - 20
+                    let isWithinNotchX = mouseLocation.x >= window.notchRect.minX - 30 && 
+                                         mouseLocation.x <= window.notchRect.maxX + 30
+                    if isAtScreenTop && isWithinNotchX {
+                        isInExpandedZone = true
+                    }
+                    
+                    if isInNotchArea || isInExpandedZone {
+                        // Trigger reveal - window becomes visible again
+                        print("🎬 FULLSCREEN REVEAL: Triggering for display \(displayID)")
+                        fullscreenHoverRevealedDisplays.insert(displayID)
+                        window.revealInFullscreen()
+                    }
+                }
+            }
+            
             // Route event only to the window for this screen
             window.handleGlobalMouseEvent(event)
         } else {
@@ -1683,6 +1730,16 @@ final class NotchWindowController: NSObject, ObservableObject {
                     }
                 }
             }
+        }
+    }
+    
+    /// Called when mouse leaves the notch area while in fullscreen hover-reveal mode (Bug #133)
+    func hideFullscreenReveal(for displayID: CGDirectDisplayID) {
+        guard fullscreenHoverRevealedDisplays.contains(displayID) else { return }
+        fullscreenHoverRevealedDisplays.remove(displayID)
+        
+        if let window = notchWindows[displayID] {
+            window.hideAfterFullscreenReveal()
         }
     }
     
@@ -1904,7 +1961,7 @@ class NotchWindow: NSPanel {
     /// Top margin for Dynamic Island - creates floating effect like iPhone
     private let dynamicIslandTopMargin: CGFloat = 4
     
-    private var notchRect: NSRect {
+    fileprivate var notchRect: NSRect {
         guard let screen = notchScreen else { return .zero }
 
         // DYNAMIC ISLAND MODE: Floating pill centered below screen top edge
@@ -2214,6 +2271,18 @@ class NotchWindow: NSPanel {
                         DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
                     }
                     NotchWindowController.shared.cancelAutoExpandTimer()
+                    
+                    // BUG #133 FIX: Trigger delayed hide for fullscreen hover-reveal
+                    let displayID = targetScreen.displayID
+                    if NotchWindowController.shared.fullscreenHoverRevealedDisplays.contains(displayID) {
+                        // Delay hide slightly to allow re-entry if user is just moving around
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            // Recheck: only hide if still not hovering and not expanded
+                            if !DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+                                NotchWindowController.shared.hideFullscreenReveal(for: displayID)
+                            }
+                        }
+                    }
                 }
             } else if DroppyState.shared.isExpanded(for: targetScreen.displayID) {
                 // When shelf is expanded ON THIS SCREEN, check if cursor is in the expanded shelf zone
@@ -2242,6 +2311,16 @@ class NotchWindow: NSPanel {
                 else if !isInExpandedShelf && currentlyHovering {
                     DispatchQueue.main.async {
                         DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
+                        
+                        // BUG #133 FIX: Trigger delayed hide for fullscreen hover-reveal
+                        let displayID = targetScreen.displayID
+                        if NotchWindowController.shared.fullscreenHoverRevealedDisplays.contains(displayID) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                if !DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+                                    NotchWindowController.shared.hideFullscreenReveal(for: displayID)
+                                }
+                            }
+                        }
                     }
                 }
             } else if DroppyState.shared.isExpanded && currentlyHovering && !isOverNotch {
@@ -2444,9 +2523,13 @@ class NotchWindow: NSPanel {
         // so the media player knows to hide (via fullscreenDisplayIDs in NotchShelfView)
         let hideMediaOnly = (UserDefaults.standard.object(forKey: AppPreferenceKey.hideMediaOnlyOnFullscreen) as? Bool) ?? PreferenceDefault.hideMediaOnlyOnFullscreen
         
+        // BUG #133 FIX: Check if we're in hover-reveal mode for this display
+        let isHoverRevealed = NotchWindowController.shared.fullscreenHoverRevealedDisplays.contains(targetDisplayID)
+        
         // If hideMediaOnly is enabled, don't hide the window - just report fullscreen status
         // This allows volume/brightness HUDs to still appear while media is hidden
-        let shouldHide = isFullscreen && !hideMediaOnly
+        // Also respect hover-reveal state - don't hide if user has triggered reveal via top-edge hover
+        let shouldHide = isFullscreen && !hideMediaOnly && !isHoverRevealed
         let newTargetAlpha: CGFloat = shouldHide ? 0.0 : 1.0
         
         // Only trigger animation if the TARGET has changed
@@ -2460,6 +2543,26 @@ class NotchWindow: NSPanel {
         // Return the fullscreen status (not whether we're hiding)
         // This is used by NotchWindowController to track fullscreenDisplayIDs
         return isFullscreen
+    }
+    
+    // MARK: - Fullscreen Hover-Reveal (Bug #133)
+    
+    /// Reveal the window when user hovers at top edge in fullscreen mode
+    func revealInFullscreen() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            self.animator().alphaValue = 1.0
+        }
+        targetAlpha = 1.0
+    }
+    
+    /// Hide the window when user stops hovering in fullscreen mode
+    func hideAfterFullscreenReveal() {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            self.animator().alphaValue = 0.0
+        }
+        targetAlpha = 0.0
     }
     
     // Ensure the window can become key to receive input - but only when appropriate

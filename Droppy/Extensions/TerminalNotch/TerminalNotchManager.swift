@@ -63,7 +63,7 @@ class TerminalNotchManager: ObservableObject {
     private var process: Process?
     private var outputPipe: Pipe?
     private var inputPipe: Pipe?
-    private var globalMonitor: Any?
+    private var terminalHotkey: GlobalHotKey?  // Carbon-based for reliability
     
     private init() {
         loadHistory()
@@ -382,50 +382,31 @@ class TerminalNotchManager: ObservableObject {
     
     /// Register global keyboard shortcut for terminal toggle
     func registerShortcut() {
-        // Remove existing monitor
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
-        }
+        // Remove existing hotkey
+        terminalHotkey = nil
         
         guard let shortcut = shortcut, isInstalled else { return }
         
-        // Create new global monitor
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        // Use GlobalHotKey (Carbon-based) for reliable global shortcut detection
+        terminalHotkey = GlobalHotKey(
+            keyCode: shortcut.keyCode,
+            modifiers: shortcut.modifiers
+        ) { [weak self] in
             guard let self = self else { return }
+            guard !ExtensionType.terminalNotch.isRemoved else { return }
             
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if Int(event.keyCode) == shortcut.keyCode && flags.rawValue == shortcut.modifiers {
-                Task { @MainActor in
-                    self.toggle()
-                }
-            }
-        }
-        
-        // Also monitor local events (when app is focused)
-        _ = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self, let shortcut = self.shortcut, self.isInstalled else { return event }
-            
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if Int(event.keyCode) == shortcut.keyCode && flags.rawValue == shortcut.modifiers {
-                Task { @MainActor in
-                    self.toggle()
-                }
-                return nil // Consume the event
-            }
-            return event
+            print("[TerminalNotch] ✅ Shortcut triggered via GlobalHotKey")
+            self.toggle()
         }
         
         saveShortcut()
+        print("[TerminalNotch] Registered shortcut: \(shortcut.description) (using GlobalHotKey/Carbon)")
     }
     
     /// Remove shortcut
     func removeShortcut() {
         shortcut = nil
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
-        }
+        terminalHotkey = nil  // GlobalHotKey deinit handles unregistration
         UserDefaults.standard.removeObject(forKey: "terminalNotch_shortcut")
     }
 }
