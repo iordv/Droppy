@@ -211,74 +211,44 @@ struct ScreenshotEditorView: View {
     @State private var keyboardMonitor: Any?
     
     private func setupKeyboardMonitor() {
+        // Load shortcuts from manager
+        let shortcuts = ElementCaptureManager.shared.editorShortcuts
+        
         keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
             // Don't capture if text input sheet is showing
             guard !showingTextInput else { return event }
             
             // Check for modifier keys
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let keyCode = Int(event.keyCode)
             
-            // ⌘Z for Undo
-            if flags == .command && event.charactersIgnoringModifiers == "z" {
-                undo()
-                return nil
-            }
-            
-            // ⌘⇧Z for Redo
-            if flags == [.command, .shift] && event.charactersIgnoringModifiers == "z" {
-                redo()
-                return nil
-            }
-            
-            // Escape to cancel
-            if event.keyCode == 53 {
-                onCancel()
-                return nil
-            }
-            
-            // Enter/Return to finish
-            if event.keyCode == 36 {
-                saveAnnotatedImage()
-                return nil
-            }
-            
-            // Tool shortcuts (no modifiers)
-            guard flags.isEmpty || flags == .shift else { return event }
-            
-            if let char = event.charactersIgnoringModifiers?.lowercased().first {
-                // Check for tool shortcuts
-                for tool in AnnotationTool.allCases {
-                    if char == tool.defaultShortcut {
-                        selectedTool = tool
-                        return nil
+            // Check against each editor shortcut
+            for (action, shortcut) in shortcuts {
+                if keyCode == shortcut.keyCode && flags.rawValue == shortcut.modifiers {
+                    switch action {
+                    // Tools
+                    case .arrow: selectedTool = .arrow; return nil
+                    case .line: selectedTool = .line; return nil
+                    case .rectangle: selectedTool = .rectangle; return nil
+                    case .ellipse: selectedTool = .ellipse; return nil
+                    case .freehand: selectedTool = .freehand; return nil
+                    case .highlighter: selectedTool = .highlighter; return nil
+                    case .blur: selectedTool = .blur; return nil
+                    case .text: selectedTool = .text; return nil
+                    // Strokes
+                    case .strokeSmall: strokeWidth = 2; return nil
+                    case .strokeMedium: strokeWidth = 4; return nil
+                    case .strokeLarge: strokeWidth = 6; return nil
+                    // Zoom
+                    case .zoomIn: zoomScale = min(4.0, zoomScale + 0.25); return nil
+                    case .zoomOut: zoomScale = max(0.25, zoomScale - 0.25); return nil
+                    case .zoomReset: zoomScale = 1.0; return nil
+                    // Actions  
+                    case .undo: undo(); return nil
+                    case .redo: redo(); return nil
+                    case .cancel: onCancel(); return nil
+                    case .done: saveAnnotatedImage(); return nil
                     }
-                }
-                
-                // Number keys 1-3 for stroke width
-                if char == "1" {
-                    strokeWidth = 2
-                    return nil
-                } else if char == "2" {
-                    strokeWidth = 4
-                    return nil
-                } else if char == "3" {
-                    strokeWidth = 6
-                    return nil
-                }
-                
-                // +/- for zoom
-                if char == "=" || char == "+" {
-                    zoomScale = min(4.0, zoomScale + 0.25)
-                    return nil
-                } else if char == "-" {
-                    zoomScale = max(0.25, zoomScale - 0.25)
-                    return nil
-                }
-                
-                // 0 to reset zoom
-                if char == "0" {
-                    zoomScale = 1.0
-                    return nil
                 }
             }
             

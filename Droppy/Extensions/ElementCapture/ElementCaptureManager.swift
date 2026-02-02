@@ -52,6 +52,127 @@ enum ElementCaptureMode: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Editor Shortcut Actions
+enum EditorShortcut: String, CaseIterable, Identifiable {
+    // Tool shortcuts
+    case arrow, line, rectangle, ellipse, freehand, highlighter, blur, text
+    // Action shortcuts
+    case strokeSmall, strokeMedium, strokeLarge
+    case zoomIn, zoomOut, zoomReset
+    case undo, redo
+    case cancel, done
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .arrow: return "Arrow"
+        case .line: return "Line"
+        case .rectangle: return "Rectangle"
+        case .ellipse: return "Ellipse"
+        case .freehand: return "Freehand"
+        case .highlighter: return "Highlighter"
+        case .blur: return "Blur"
+        case .text: return "Text"
+        case .strokeSmall: return "Small Stroke"
+        case .strokeMedium: return "Medium Stroke"
+        case .strokeLarge: return "Large Stroke"
+        case .zoomIn: return "Zoom In"
+        case .zoomOut: return "Zoom Out"
+        case .zoomReset: return "Reset Zoom"
+        case .undo: return "Undo"
+        case .redo: return "Redo"
+        case .cancel: return "Cancel"
+        case .done: return "Done"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .arrow: return "arrow.up.right"
+        case .line: return "line.diagonal"
+        case .rectangle: return "rectangle"
+        case .ellipse: return "oval"
+        case .freehand: return "scribble"
+        case .highlighter: return "highlighter"
+        case .blur: return "eye.slash"
+        case .text: return "textformat"
+        case .strokeSmall: return "1.circle"
+        case .strokeMedium: return "2.circle"
+        case .strokeLarge: return "3.circle"
+        case .zoomIn: return "plus.magnifyingglass"
+        case .zoomOut: return "minus.magnifyingglass"
+        case .zoomReset: return "arrow.counterclockwise"
+        case .undo: return "arrow.uturn.backward"
+        case .redo: return "arrow.uturn.forward"
+        case .cancel: return "xmark"
+        case .done: return "checkmark"
+        }
+    }
+    
+    var shortcutKey: String {
+        "elementCaptureEditor_\(rawValue)"
+    }
+    
+    /// Default key code (Carbon key codes)
+    var defaultKeyCode: Int {
+        switch self {
+        case .arrow: return 0        // A
+        case .line: return 37        // L
+        case .rectangle: return 15   // R
+        case .ellipse: return 31     // O
+        case .freehand: return 3     // F
+        case .highlighter: return 4  // H
+        case .blur: return 11        // B
+        case .text: return 17        // T
+        case .strokeSmall: return 18  // 1
+        case .strokeMedium: return 19 // 2
+        case .strokeLarge: return 20  // 3
+        case .zoomIn: return 24       // =
+        case .zoomOut: return 27      // -
+        case .zoomReset: return 29    // 0
+        case .undo: return 6          // Z (needs Command modifier)
+        case .redo: return 6          // Z (needs Command+Shift modifier)
+        case .cancel: return 53       // Escape
+        case .done: return 36         // Return
+        }
+    }
+    
+    /// Default modifiers (raw value)
+    var defaultModifiers: UInt {
+        switch self {
+        case .undo: return NSEvent.ModifierFlags.command.rawValue
+        case .redo: return NSEvent.ModifierFlags.command.union(.shift).rawValue
+        default: return 0
+        }
+    }
+    
+    /// Default shortcut as SavedShortcut
+    var defaultShortcut: SavedShortcut {
+        SavedShortcut(keyCode: defaultKeyCode, modifiers: defaultModifiers)
+    }
+    
+    /// Is this a tool shortcut vs action shortcut
+    var isTool: Bool {
+        switch self {
+        case .arrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .text:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Tool shortcuts only
+    static var tools: [EditorShortcut] {
+        [.arrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .text]
+    }
+    
+    /// Action shortcuts only
+    static var actions: [EditorShortcut] {
+        [.strokeSmall, .strokeMedium, .strokeLarge, .zoomIn, .zoomOut, .zoomReset, .undo, .redo, .cancel, .done]
+    }
+}
+
 // MARK: - Element Capture Manager
 
 @MainActor
@@ -291,6 +412,49 @@ final class ElementCaptureManager: ObservableObject {
         globalHotKeys.removeAll()
         isShortcutEnabled = false
         print("[ElementCapture] All shortcut monitoring stopped")
+    }
+    
+    // MARK: - Editor Shortcuts API
+    
+    /// All editor shortcuts (loaded from UserDefaults or defaults)
+    var editorShortcuts: [EditorShortcut: SavedShortcut] {
+        var shortcuts: [EditorShortcut: SavedShortcut] = [:]
+        for action in EditorShortcut.allCases {
+            shortcuts[action] = editorShortcut(for: action)
+        }
+        return shortcuts
+    }
+    
+    /// Get editor shortcut for an action
+    func editorShortcut(for action: EditorShortcut) -> SavedShortcut {
+        if let data = UserDefaults.standard.data(forKey: action.shortcutKey),
+           let saved = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
+            return saved
+        }
+        return action.defaultShortcut
+    }
+    
+    /// Set editor shortcut for an action
+    func setEditorShortcut(_ shortcut: SavedShortcut, for action: EditorShortcut) {
+        if let encoded = try? JSONEncoder().encode(shortcut) {
+            UserDefaults.standard.set(encoded, forKey: action.shortcutKey)
+        }
+    }
+    
+    /// Load default editor shortcuts
+    func loadEditorDefaults() {
+        for action in EditorShortcut.allCases {
+            setEditorShortcut(action.defaultShortcut, for: action)
+        }
+        print("[ElementCapture] Editor shortcuts reset to defaults")
+    }
+    
+    /// Reset (clear) all editor shortcuts
+    func resetEditorShortcuts() {
+        for action in EditorShortcut.allCases {
+            UserDefaults.standard.removeObject(forKey: action.shortcutKey)
+        }
+        print("[ElementCapture] All editor shortcuts reset")
     }
     
     // MARK: - Permission Checking

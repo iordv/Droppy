@@ -19,14 +19,20 @@ struct ElementCaptureInfoView: View {
     @State private var showReviewsSheet = false
     @State private var isHoveringReviews = false
     
-    // Recording state per mode
+    // Recording state per capture mode
     @State private var recordingMode: ElementCaptureMode? = nil
     @State private var recordMonitor: Any?
     
-    // Shortcuts for each mode (loaded from manager)
+    // Shortcuts for each capture mode (loaded from manager)
     @State private var elementShortcut: SavedShortcut?
     @State private var fullscreenShortcut: SavedShortcut?
     @State private var windowShortcut: SavedShortcut?
+    
+    // Editor shortcuts state
+    @State private var editorShortcuts: [EditorShortcut: SavedShortcut] = [:]
+    @State private var recordingEditorShortcut: EditorShortcut? = nil
+    @State private var editorRecordMonitor: Any?
+    @State private var isHoveringEditorShortcut: [EditorShortcut: Bool] = [:]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -218,48 +224,60 @@ struct ElementCaptureInfoView: View {
         )
     }
     
-    // MARK: - Editor Shortcuts Reference
+    // MARK: - Editor Shortcuts Section
     
     private var editorShortcutsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Editor Shortcuts")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            Text("Quick access while editing screenshots")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 12) {
+            HStack {
+                Text("Editor Shortcuts")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                Button {
+                    loadEditorDefaults()
+                } label: {
+                    Text("Load Defaults")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.cyan)
+                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
+            }
             
             // Tools grid
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 8) {
-                editorShortcutItem(key: "A", label: "Arrow")
-                editorShortcutItem(key: "L", label: "Line")
-                editorShortcutItem(key: "R", label: "Rectangle")
-                editorShortcutItem(key: "O", label: "Ellipse")
-                editorShortcutItem(key: "F", label: "Freehand")
-                editorShortcutItem(key: "H", label: "Highlighter")
-                editorShortcutItem(key: "B", label: "Blur")
-                editorShortcutItem(key: "T", label: "Text")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("TOOLS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ], spacing: 8) {
+                    ForEach(EditorShortcut.tools) { action in
+                        editorShortcutRow(for: action)
+                    }
+                }
             }
             
             Divider()
                 .padding(.vertical, 4)
             
-            // Other shortcuts
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 8) {
-                editorShortcutItem(key: "1-3", label: "Stroke Size")
-                editorShortcutItem(key: "+/-", label: "Zoom")
-                editorShortcutItem(key: "0", label: "Reset Zoom")
-                editorShortcutItem(key: "⌘Z", label: "Undo")
-                editorShortcutItem(key: "⌘⇧Z", label: "Redo")
-                editorShortcutItem(key: "Esc", label: "Cancel")
-                editorShortcutItem(key: "↵", label: "Done")
+            // Actions grid
+            VStack(alignment: .leading, spacing: 4) {
+                Text("ACTIONS")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ], spacing: 8) {
+                    ForEach(EditorShortcut.actions) { action in
+                        editorShortcutRow(for: action)
+                    }
+                }
             }
         }
         .padding(DroppySpacing.lg)
@@ -271,22 +289,67 @@ struct ElementCaptureInfoView: View {
         )
     }
     
-    private func editorShortcutItem(key: String, label: String) -> some View {
+    private func editorShortcutRow(for action: EditorShortcut) -> some View {
         HStack(spacing: 8) {
-            Text(key)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            // Icon
+            Image(systemName: action.icon)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.cyan)
-                .frame(width: 36, alignment: .center)
-                .padding(.vertical, 4)
-                .background(Color.white.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .frame(width: 18)
             
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+            // Title
+            Text(action.displayName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
             
             Spacer()
+            
+            // Shortcut button
+            Button {
+                if recordingEditorShortcut == action {
+                    stopEditorRecording()
+                } else {
+                    startEditorRecording(for: action)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    if recordingEditorShortcut == action {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 6, height: 6)
+                        Text("...")
+                            .font(.system(size: 10, weight: .medium))
+                    } else if let shortcut = editorShortcuts[action] {
+                        Text(shortcut.description)
+                            .font(.system(size: 10, weight: .semibold))
+                    } else {
+                        Text("Click")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .foregroundStyle(recordingEditorShortcut == action ? .primary : (editorShortcuts[action] != nil ? .primary : .secondary))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(recordingEditorShortcut == action ? Color.red.opacity(isHoveringEditorShortcut[action] == true ? 1.0 : 0.85) : (isHoveringEditorShortcut[action] == true ? AdaptiveColors.hoverBackgroundAuto : AdaptiveColors.buttonBackgroundAuto))
+                )
+            }
+            .buttonStyle(DroppySelectableButtonStyle(isSelected: editorShortcuts[action] != nil))
+            .onHover { h in
+                withAnimation(DroppyAnimation.hoverQuick) { isHoveringEditorShortcut[action] = h }
+            }
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(AdaptiveColors.buttonBackgroundAuto)
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
     
     private func shortcutRow(mode: ElementCaptureMode, shortcut: Binding<SavedShortcut?>) -> some View {
@@ -380,6 +443,8 @@ struct ElementCaptureInfoView: View {
         windowShortcut = ElementCaptureManager.shared.windowShortcut
         // Sync with binding for legacy compatibility
         currentShortcut = elementShortcut
+        // Also load editor shortcuts
+        loadEditorShortcuts()
     }
     
     private func startRecording(for mode: ElementCaptureMode) {
@@ -471,5 +536,60 @@ struct ElementCaptureInfoView: View {
         for mode in ElementCaptureMode.allCases {
             clearShortcut(for: mode)
         }
+        // Also reset editor shortcuts
+        ElementCaptureManager.shared.resetEditorShortcuts()
+        loadEditorShortcuts()
+    }
+    
+    // MARK: - Editor Shortcut Recording
+    
+    private func loadEditorShortcuts() {
+        editorShortcuts = ElementCaptureManager.shared.editorShortcuts
+    }
+    
+    private func startEditorRecording(for action: EditorShortcut) {
+        // Stop any existing recording
+        stopEditorRecording()
+        stopRecording()
+        
+        recordingEditorShortcut = action
+        editorRecordMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Ignore just modifier keys pressed alone
+            if event.keyCode == 54 || event.keyCode == 55 || event.keyCode == 56 ||
+               event.keyCode == 58 || event.keyCode == 59 || event.keyCode == 60 ||
+               event.keyCode == 61 || event.keyCode == 62 {
+                return nil
+            }
+            
+            // Capture the shortcut
+            DispatchQueue.main.async {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let shortcut = SavedShortcut(keyCode: Int(event.keyCode), modifiers: flags.rawValue)
+                saveEditorShortcut(shortcut, for: action)
+                stopEditorRecording()
+            }
+            return nil
+        }
+    }
+    
+    private func stopEditorRecording() {
+        recordingEditorShortcut = nil
+        if let m = editorRecordMonitor {
+            NSEvent.removeMonitor(m)
+            editorRecordMonitor = nil
+        }
+    }
+    
+    private func saveEditorShortcut(_ shortcut: SavedShortcut, for action: EditorShortcut) {
+        // Update local state
+        editorShortcuts[action] = shortcut
+        
+        // Persist via manager
+        ElementCaptureManager.shared.setEditorShortcut(shortcut, for: action)
+    }
+    
+    private func loadEditorDefaults() {
+        ElementCaptureManager.shared.loadEditorDefaults()
+        loadEditorShortcuts()
     }
 }
