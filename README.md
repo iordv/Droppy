@@ -118,7 +118,7 @@ Modular extensions add even more power. **Install only what you need.**
 | <img src="https://getdroppy.app/assets/icons/finder.png" width="24"> | [**Finder Services**](https://getdroppy.app/extensions.html) | Right-click in Finder to add files to Shelf or Basket |
 | <img src="https://getdroppy.app/assets/icons/quickshare.jpg" width="24"> | [**Quickshare**](https://getdroppy.app/extensions.html) | Upload files to the cloud, get instant shareable links |
 | <img src="https://getdroppy.app/assets/icons/targeted-video-size.jpg" width="24"> | [**Video Target Size**](https://getdroppy.app/extensions.html) | Compress videos to exact file sizes using FFmpeg |
-| <img src="https://getdroppy.app/assets/icons/element-capture.jpg" width="24"> | [**Element Capture**](https://getdroppy.app/extensions.html) | Capture specific UI elements from any app on screen |
+| <img src="https://getdroppy.app/assets/icons/element-capture.jpg" width="24"> | [**Element Capture**](https://getdroppy.app/extensions.html) | Screenshot & annotate with full editor: arrows, blur, text, shapes, configurable shortcuts |
 | <img src="https://getdroppy.app/assets/icons/voice-transcribe.jpg" width="24"> | [**Voice Transcribe**](https://getdroppy.app/extensions.html) | Transcribe audio to text using on-device AI |
 | <img src="https://getdroppy.app/assets/icons/ai-bg.jpg" width="24"> | [**Background Removal**](https://getdroppy.app/extensions.html) | Remove image backgrounds with AI — one click |
 | <img src="https://getdroppy.app/assets/icons/menubarmanager.png" width="24"> | [**Menu Bar Manager**](https://getdroppy.app/extensions.html) | Hide & organize menu bar icons with hover reveal |
