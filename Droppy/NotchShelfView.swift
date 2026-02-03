@@ -100,6 +100,9 @@ struct NotchShelfView: View {
     // Global rename state
     @State private var renamingItemId: UUID?
     
+    // Drag-to-rearrange state
+    @State private var draggingShelfItem: UUID?
+    
     // Media HUD hover state - used to grow notch when showing song title
     @State private var mediaHUDIsHovered: Bool = false
     @State private var mediaHUDHoverWorkItem: DispatchWorkItem?  // Debounce for hover state
@@ -2358,7 +2361,7 @@ struct NotchShelfView: View {
                         .transition(state.isBulkAdding ? .identity : .scale.combined(with: .opacity))
                     }
                     
-                    // Regular items - flat display (no stacks)
+                    // Regular items - flat display with drag-to-rearrange
                     ForEach(state.shelfItems) { item in
                         NotchItemView(
                             item: item,
@@ -2369,6 +2372,14 @@ struct NotchShelfView: View {
                                     state.removeItem(item)
                                 }
                             }
+                        )
+                        .reorderable(
+                            item: item,
+                            in: $state.shelfItems,
+                            draggingItem: $draggingShelfItem,
+                            columns: 5,
+                            itemSize: CGSize(width: 72, height: 90),
+                            spacing: 12
                         )
                         // PERFORMANCE: Skip transitions during bulk add
                         .transition(state.isBulkAdding ? .identity : .scale.combined(with: .opacity))

@@ -53,6 +53,9 @@ struct FloatingBasketView: View {
     // Global rename state
     @State private var renamingItemId: UUID?
     
+    // Drag-to-rearrange state
+    @State private var draggingBasketItem: UUID?
+    
     private let cornerRadius: CGFloat = 28
     
     // Each item is 72pt wide + 12pt spacing (in expanded view)
@@ -759,13 +762,21 @@ struct FloatingBasketView: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                     
-                    // Regular items - flat display (no stacks)
+                    // Regular items - flat display with drag-to-rearrange
                     ForEach(state.basketItemsList) { item in
                         BasketItemView(item: item, state: state, renamingItemId: $renamingItemId) {
                             withAnimation(DroppyAnimation.state) {
                                 state.removeBasketItem(item)
                             }
                         }
+                        .reorderable(
+                            item: item,
+                            in: $state.basketItemsList,
+                            draggingItem: $draggingBasketItem,
+                            columns: columnsPerRow,
+                            itemSize: CGSize(width: itemWidth, height: 90),
+                            spacing: itemSpacing
+                        )
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
