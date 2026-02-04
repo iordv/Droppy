@@ -154,7 +154,9 @@ struct NotchShelfView: View {
             // This is more accurate than (screen.width - leftWidth - rightWidth)
             // which can have sub-pixel rounding errors on different display configurations
             let notchGap = rightArea.minX - leftArea.maxX
-            return max(notchGap, NotchLayoutConstants.physicalNotchWidth)
+            let width = max(notchGap, NotchLayoutConstants.physicalNotchWidth)
+            print("📐 NotchShelfView.notchWidth: notchGap=\(notchGap), returning width=\(width)")
+            return width
         }
         
         // Fallback for screens without notch data
