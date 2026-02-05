@@ -122,6 +122,11 @@ enum AppPreferenceKey {
     static let caffeineInstalled = "caffeine_installed"
     static let caffeineEnabled = "caffeine_enabled"  // Whether to show in HUD section
     static let caffeineMode = "caffeine_mode"  // CaffeineMode rawValue
+
+    // MARK: - Extension: Todo
+    static let todoInstalled = "todo_installed"
+    static let todoEnabled = "todo_enabled"  // Whether to show in shelf
+    static let todoAutoCleanupHours = "todo_autoCleanupHours"  // Hours before completed items are removed
     
     // MARK: - Extension: Video Compression (Legacy - migrated to Smart Export)
     static let compressionAutoSaveToFolder = "compressionAutoSaveToFolder"
@@ -254,6 +259,11 @@ enum PreferenceDefault {
     static let caffeineInstalled = false  // Disabled by default, user installs from Extension Store
     static let caffeineEnabled = true  // Enabled by default when installed
     static let caffeineMode = "Both"  // CaffeineMode.both.rawValue
+
+    // MARK: - Extension: Todo
+    static let todoInstalled = false  // Disabled by default, user installs from Extension Store
+    static let todoEnabled = true  // Enabled by default when installed
+    static let todoAutoCleanupHours = 5  // Completed items removed after 5 hours
     
     // MARK: - Extension: Video Compression (Legacy)
     static let compressionAutoSaveToFolder = false

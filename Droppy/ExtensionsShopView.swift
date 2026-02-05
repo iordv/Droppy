@@ -26,8 +26,8 @@ struct ExtensionsShopView: View {
     private var isNotificationHUDInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled) }
     private var isCaffeineInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled) }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
+    private var isTodoInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.todoInstalled) }
 
-    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -222,6 +222,8 @@ struct ExtensionsShopView: View {
                 ForEach(Array(extensions.enumerated()), id: \.1.id) { index, ext in
                     CompactExtensionRow(
                         iconURL: ext.iconURL,
+                        iconPlaceholder: ext.iconPlaceholder,
+                        iconPlaceholderColor: ext.iconPlaceholderColor,
                         title: ext.title,
                         subtitle: ext.subtitle,
                         isInstalled: ext.isInstalled,
@@ -489,7 +491,22 @@ struct ExtensionsShopView: View {
                     rating: extensionRatings["menuBarManager"]
                 ))
             },
-
+            ExtensionListItem(
+                id: "todo",
+                iconPlaceholder: "checklist",
+                iconPlaceholderColor: .blue,
+                title: "To-do",
+                subtitle: "Quick task capture",
+                category: .productivity,
+                isInstalled: isTodoInstalled,
+                analyticsKey: "todo",
+                extensionType: .todo
+            ) {
+                AnyView(ToDoInfoView(
+                    installCount: extensionCounts["todo"],
+                    rating: extensionRatings["todo"]
+                ))
+            },
         ]
         
         // nil = show all, otherwise filter by category
@@ -514,7 +531,9 @@ struct ExtensionsShopView: View {
 
 private struct ExtensionListItem: Identifiable {
     let id: String
-    let iconURL: String
+    let iconURL: String?
+    let iconPlaceholder: String?
+    let iconPlaceholderColor: Color?
     let title: String
     let subtitle: String
     let category: ExtensionCategory
@@ -523,6 +542,34 @@ private struct ExtensionListItem: Identifiable {
     let extensionType: ExtensionType
     var isCommunity: Bool = false
     let detailView: () -> AnyView
+
+    init(
+        id: String,
+        iconURL: String? = nil,
+        iconPlaceholder: String? = nil,
+        iconPlaceholderColor: Color? = nil,
+        title: String,
+        subtitle: String,
+        category: ExtensionCategory,
+        isInstalled: Bool,
+        analyticsKey: String,
+        extensionType: ExtensionType,
+        isCommunity: Bool = false,
+        detailView: @escaping () -> AnyView
+    ) {
+        self.id = id
+        self.iconURL = iconURL
+        self.iconPlaceholder = iconPlaceholder
+        self.iconPlaceholderColor = iconPlaceholderColor
+        self.title = title
+        self.subtitle = subtitle
+        self.category = category
+        self.isInstalled = isInstalled
+        self.analyticsKey = analyticsKey
+        self.extensionType = extensionType
+        self.isCommunity = isCommunity
+        self.detailView = detailView
+    }
 }
 
 // MARK: - Featured Extension Card (Large)
@@ -961,33 +1008,48 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
 // MARK: - Compact Extension Row
 
 struct CompactExtensionRow<DetailView: View>: View {
-    let iconURL: String
+    let iconURL: String?
+    var iconPlaceholder: String? = nil
+    var iconPlaceholderColor: Color? = nil
     let title: String
     let subtitle: String
     let isInstalled: Bool
     var installCount: Int?
     var isCommunity: Bool = false
     let detailView: () -> DetailView
-    
+
     @State private var showSheet = false
     @State private var isHovering = false
-    
+
     var body: some View {
         Button {
             showSheet = true
         } label: {
             HStack(spacing: 12) {
                 // Icon
-                CachedAsyncImage(url: URL(string: iconURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } placeholder: {
+                if let urlString = iconURL, let url = URL(string: urlString) {
+                    CachedAsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        RoundedRectangle(cornerRadius: DroppyRadius.ms)
+                            .fill(Color.white.opacity(0.1))
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
+                } else if let placeholder = iconPlaceholder {
+                    Image(systemName: placeholder)
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(iconPlaceholderColor ?? .blue)
+                        .frame(width: 44, height: 44)
+                        .background((iconPlaceholderColor ?? .blue).opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
+                } else {
                     RoundedRectangle(cornerRadius: DroppyRadius.ms)
                         .fill(Color.white.opacity(0.1))
+                        .frame(width: 44, height: 44)
                 }
-                .frame(width: 44, height: 44)
-                .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
                 
                 // Title + Subtitle
                 VStack(alignment: .leading, spacing: 2) {

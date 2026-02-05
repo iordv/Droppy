@@ -63,9 +63,11 @@ struct NotchShelfView: View {
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
     var caffeineManager = CaffeineManager.shared  // @Observable - no wrapper needed
+    var todoManager = ToDoManager.shared  // @Observable - no wrapper needed
     var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
     var notificationHUDManager = NotificationHUDManager.shared  // @Observable - needed for current notification tracking
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var caffeineEnabled = PreferenceDefault.caffeineEnabled
+    @AppStorage(AppPreferenceKey.todoEnabled) private var todoEnabled = PreferenceDefault.todoEnabled
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
     @State private var hudWorkItem: DispatchWorkItem?
@@ -118,7 +120,10 @@ struct NotchShelfView: View {
     
     // Caffeine extension view state
     @State private var showCaffeineView: Bool = false
-    
+
+    // Todo extension state (for in-shelf input bar)
+    @State private var isTodoListExpanded: Bool = false
+
     // MORPH: Namespace for album art morphing between HUD and expanded player
     @Namespace private var albumArtNamespace
     
@@ -568,7 +573,7 @@ struct NotchShelfView: View {
                 return 116
             }
         }
-        
+
         // Determine if we're showing media player or shelf
         let shouldShowMediaPlayer = musicManager.isMediaHUDForced || (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) ||
             ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.shelfDisplaySlotCount == 0)
@@ -598,13 +603,24 @@ struct NotchShelfView: View {
         // Use shelfDisplaySlotCount for correct row count
         let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
         let cappedRowCount = min(rowCount, 3)  // Max 3 rows visible, scroll for rest
-        let baseHeight = max(1, cappedRowCount) * 110 // 110 per row, no header
         
+        // TODO BAR: Add height when Todo extension is installed
+        let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
+        let todoBarHeight: CGFloat = todoInstalled && todoEnabled
+            ? ToDoShelfBar.expandedHeight(isListExpanded: isTodoListExpanded, itemCount: todoManager.items.count, notchHeight: contentLayoutNotchHeight)
+            : 0
+        
+        // FIX: When todo list is expanded and shelf is empty, don't add baseHeight
+        // The todo bar provides its own height, no need for the 110px shelf base
+        let shouldSkipBaseHeight = state.shelfDisplaySlotCount == 0 && isTodoListExpanded && todoBarHeight > 0
+        let baseHeight = shouldSkipBaseHeight ? 0 : max(1, cappedRowCount) * 110
+
         // In built-in notch mode, add extra height to compensate for top padding that clears physical notch
         // Island mode and external displays don't need this as they use symmetrical layout
         // SSOT: Use contentLayoutNotchHeight for consistent sizing
         let notchCompensation: CGFloat = contentLayoutNotchHeight
-        return baseHeight + notchCompensation
+
+        return baseHeight + notchCompensation + todoBarHeight
     }
     /// Helper to check if current screen is built-in (MacBook display)
     private var isBuiltInDisplay: Bool {
@@ -709,9 +725,10 @@ struct NotchShelfView: View {
         ZStack(alignment: .top) {
             shelfContent
                 .onChange(of: isExpandedOnThisScreen) { _, isExpanded in
-                    // RESET RULE: When shelf collapses, reset Caffeine view so next open shows default shelf
+                    // RESET RULE: When shelf collapses, reset extension views so next open shows default shelf
                     if !isExpanded {
                         showCaffeineView = false
+                        isTodoListExpanded = false
                     }
                 }
             
@@ -778,7 +795,7 @@ struct NotchShelfView: View {
                                 .help(CaffeineManager.shared.isActive ? "High Alert: \(CaffeineManager.shared.formattedRemaining)" : "High Alert")
                                 .transition(.scale(scale: 0.8).combined(with: .opacity))
                             }
-                            
+
                             // Terminal button (if extension installed AND enabled)
                             if terminalShouldShow {
                                 // Open in Terminal.app button (only when terminal is visible)
@@ -2141,7 +2158,14 @@ struct NotchShelfView: View {
         let terminalEnabled = UserDefaults.standard.preference(AppPreferenceKey.terminalNotchEnabled, default: PreferenceDefault.terminalNotchEnabled)
         let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) && caffeineEnabled
-        
+
+        // TODO: Compute early so we can hide empty shelf content when todo bar is visible
+        let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
+        let todoEnabled = UserDefaults.standard.preference(AppPreferenceKey.todoEnabled, default: PreferenceDefault.todoEnabled)
+        let shouldShowTodoBar = todoInstalled && todoEnabled &&
+                                !(terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible) &&
+                                !(showCaffeineView && caffeineShouldShow)
+
         return ZStack {
             // TERMINAL VIEW: Highest priority - takes over the shelf when active
             if terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible {
@@ -2159,52 +2183,62 @@ struct NotchShelfView: View {
                     .id("caffeine-view")
                     .notchTransition()
             }
-            // Show drop zone when dragging over (takes priority)
-            else if state.isDropTargeted && state.items.isEmpty {
+            // Show drop zone when dragging over (takes priority) - but NOT when Todo bar is visible
+            else if state.isDropTargeted && state.items.isEmpty && !shouldShowTodoBar {
                 emptyShelfContent
                     .frame(height: currentExpandedHeight)
                     .notchTransition()
-                }
-                // MEDIA PLAYER VIEW: Show if:
-                // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused/idle
-                // 2. Auto-open setting enabled AND not hidden by swipe (autoOpenMediaHUDOnShelfExpand && !isMediaHUDHidden)
-                // 3. Music is playing AND user hasn't hidden it (isMediaHUDHidden)
-                // All paths require: not drop targeted, media enabled, not idle
-                // CRITICAL: Don't show during file drag - prevents flash when dropping files
-                else if showMediaPlayer && !state.isDropTargeted && !dragMonitor.isDragging && !musicManager.isPlayerIdle &&
-                        (musicManager.isMediaHUDForced || (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) ||
-                         ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
-                    // SSOT: contentLayoutNotchHeight ensures MediaPlayerView and morphing overlays use identical positioning
-                    // showTitle: false when morphing overlay handles it (DI mode OR external displays)
-                    // UNIFIED ANIMATION: MediaPlayerView has its own contentAppeared state that triggers on appear
-                    // Uses same scale(0.8)+opacity with .smooth(0.35) timing as morphing overlays
-                    MediaPlayerView(musicManager: musicManager, notchHeight: contentLayoutNotchHeight, isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland, albumArtNamespace: albumArtNamespace, showAlbumArt: false, showVisualizer: false, showTitle: !shouldShowTitleInHUD)
-                        .frame(height: currentExpandedHeight)
-                        // Capture all clicks within the media player area
-                        .contentShape(Rectangle())
-                        // Stable identity for animation - prevents jitter on state changes
-                        .id("media-player-view")
-                }
-                // Show empty shelf when no items and no music (or user swiped to hide music)
-                else if state.items.isEmpty {
-                    emptyShelfContent
-                                            .frame(height: currentExpandedHeight)
-                        // Stable identity for animation
-                        .id("empty-shelf-view")
-                        // Premium blur transition matching basket pattern for polished appearance
-                        .notchTransition()
-                }
-                // Show items grid when items exist
-                else {
-                    itemsGridView
-                        .frame(height: currentExpandedHeight)
-                        // Stable identity for animation
-                        .id("items-grid-view")
-                        // PERFORMANCE: Use lightweight transition (no blur) for complex grids
-                        // Blur on many-child views is expensive; scale+opacity looks nearly identical
-                        .notchTransitionLight()
             }
-            
+            // MEDIA PLAYER VIEW: Show if:
+            // 1. User forced it via swipe (isMediaHUDForced) - shows even when paused/idle
+            // 2. Auto-open setting enabled AND not hidden by swipe (autoOpenMediaHUDOnShelfExpand && !isMediaHUDHidden)
+            // 3. Music is playing AND user hasn't hidden it (isMediaHUDHidden)
+            // All paths require: not drop targeted, media enabled, not idle
+            // CRITICAL: Don't show during file drag - prevents flash when dropping files
+            else if showMediaPlayer && !state.isDropTargeted && !dragMonitor.isDragging && !musicManager.isPlayerIdle &&
+                    (musicManager.isMediaHUDForced || (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) ||
+                     ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
+                // SSOT: contentLayoutNotchHeight ensures MediaPlayerView and morphing overlays use identical positioning
+                // showTitle: false when morphing overlay handles it (DI mode OR external displays)
+                // UNIFIED ANIMATION: MediaPlayerView has its own contentAppeared state that triggers on appear
+                // Uses same scale(0.8)+opacity with .smooth(0.35) timing as morphing overlays
+                MediaPlayerView(musicManager: musicManager, notchHeight: contentLayoutNotchHeight, isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland, albumArtNamespace: albumArtNamespace, showAlbumArt: false, showVisualizer: false, showTitle: !shouldShowTitleInHUD)
+                    .frame(height: currentExpandedHeight)
+                    // Capture all clicks within the media player area
+                    .contentShape(Rectangle())
+                    // Stable identity for animation - prevents jitter on state changes
+                    .id("media-player-view")
+            }
+            // Show empty shelf when no items and no music (or user swiped to hide music)
+            // Show drop zone + todo input bar coexisting, but HIDE drop zone when task list is expanded
+            else if state.items.isEmpty && !(shouldShowTodoBar && isTodoListExpanded) {
+                // When todo bar is visible (but list collapsed), reduce the drop zone height to leave room at bottom
+                let todoBarHeight = shouldShowTodoBar ? ToDoShelfBar.expandedHeight(isListExpanded: false, itemCount: todoManager.items.count) : 0
+                emptyShelfContent
+                    .frame(height: currentExpandedHeight - todoBarHeight, alignment: .top)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    // Stable identity for animation
+                    .id("empty-shelf-view")
+                    // Premium blur transition matching basket pattern for polished appearance
+                    .notchTransition()
+            }
+            // Show items grid when items exist
+            else if !state.items.isEmpty {
+                // When todo bar is visible, add bottom content inset so items don't overlap with it
+                let todoBarHeight = shouldShowTodoBar ? ToDoShelfBar.expandedHeight(isListExpanded: isTodoListExpanded, itemCount: todoManager.items.count, notchHeight: contentLayoutNotchHeight) : 0
+                itemsGridView
+                    .safeAreaInset(edge: .bottom) {
+                        // Add invisible spacer to push content up when todo bar is visible
+                        Color.clear.frame(height: todoBarHeight)
+                    }
+                    .frame(height: currentExpandedHeight)
+                    // Stable identity for animation
+                    .id("items-grid-view")
+                    // PERFORMANCE: Use lightweight transition (no blur) for complex grids
+                    // Blur on many-child views is expensive; scale+opacity looks nearly identical
+                    .notchTransitionLight()
+            }
+
             // QUICK ACTION EXPLANATION OVERLAY
             // Shows action description when hovering over quick action buttons during drag
             if let action = state.hoveredShelfQuickAction {
@@ -2213,6 +2247,18 @@ struct NotchShelfView: View {
                     .transition(.opacity.animation(.easeInOut(duration: 0.15)))
             }
 
+            // TODO INPUT BAR: Persistent bar at bottom when Todo extension is installed
+            // Only show when viewing shelf content (not Terminal, Caffeine, or Media player)
+            if shouldShowTodoBar && !dragMonitor.isDragging {
+                VStack(spacing: 0) {
+                    Spacer()
+                    ToDoShelfBar(manager: todoManager, isListExpanded: $isTodoListExpanded, notchHeight: contentLayoutNotchHeight)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         // NOTE: .drawingGroup() removed - breaks NSViewRepresentable views like AudioSpectrumView
         // which cannot be rasterized into Metal textures (Issue #81 partial rollback)

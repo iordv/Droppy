@@ -229,9 +229,10 @@ struct ExtensionInfoView: View {
         case .notificationHUD: return "Configure"
         case .caffeine: return "Configure"
         case .menuBarManager: return "Configure"
+        case .todo: return "Configure"
         }
     }
-    
+
     private var actionText: String {
         switch extensionType {
         case .aiBackgroundRemoval: return "Install"
@@ -248,9 +249,10 @@ struct ExtensionInfoView: View {
         case .notificationHUD: return "Configure"
         case .caffeine: return "Configure"
         case .menuBarManager: return "Configure"
+        case .todo: return "Configure"
         }
     }
-    
+
     private var actionIcon: String {
         switch extensionType {
         case .aiBackgroundRemoval: return "arrow.down.circle.fill"
@@ -267,6 +269,7 @@ struct ExtensionInfoView: View {
         case .notificationHUD: return "bell.badge"
         case .caffeine: return "cup.and.saucer.fill"
         case .menuBarManager: return "menubar.rectangle"
+        case .todo: return "checklist"
         }
     }
 }

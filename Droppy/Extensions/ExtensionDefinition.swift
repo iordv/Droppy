@@ -133,6 +133,7 @@ final class ExtensionRegistry {
         register(NotificationHUDExtension.self)
         register(CaffeineExtension.self)
         register(MenuBarManagerExtension.self)
+        register(ToDoExtension.self)
 
     }
     

@@ -1,0 +1,53 @@
+/* 
+  Localizable.strings
+  Droppy
+
+  Created for To-Do Extension
+*/
+
+/* To-Do Extension Metadata */
+"todo.title" = "To-do";
+"todo.subtitle" = "Tasks & Notes";
+"todo.description" = "A lightweight task capture bar and checklist. Supports priorities and auto-cleanup of completed tasks.";
+
+/* Features */
+"feature.capture" = "Quick task capture";
+"feature.priority" = "Priority levels with color coding";
+"feature.cleanup" = "Auto-cleanup of completed tasks";
+"feature.shortcuts" = "Keyboard shortcuts for power users";
+
+/* UI General */
+"add_task_placeholder" = "Add a task...";
+"no_tasks_yet" = "No tasks yet";
+"type_above_hint" = "Type above to add your first task";
+"undo" = "Undo";
+"task_deleted" = "Task deleted";
+
+/* Priority */
+"priority.normal" = "Normal Priority";
+"priority.medium" = "Medium Priority";
+"priority.high" = "High Priority";
+"priority.help.normal" = "Priority: Normal (click to change)";
+"priority.help.medium" = "Priority: Medium (click to change)";
+"priority.help.high" = "Priority: High (click to change)";
+
+/* Actions & Accessibility */
+"action.delete" = "Delete";
+"action.delete_task" = "Delete task";
+"action.mark_complete" = "Mark complete";
+"action.mark_incomplete" = "Mark incomplete";
+"action.set_priority" = "Set priority";
+"action.hide_tasks" = "Hide tasks";
+"action.show_tasks" = "Show tasks";
+"action.close" = "Close";
+"action.install" = "Install";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.cleanup.title" = "Auto-cleanup";
+"settings.cleanup.subtitle" = "Remove completed tasks after";
+"settings.cleanup.1h" = "1 hour";
+"settings.cleanup.2h" = "2 hours";
+"settings.cleanup.5h" = "5 hours";
+"settings.cleanup.12h" = "12 hours";
+"settings.cleanup.24h" = "24 hours";
