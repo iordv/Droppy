@@ -1,8 +1,15 @@
 ## ✨ New Features
+- **Modal Reorder Sheet**: Dedicated reorder panel for shelf and basket items
+  - Compact 2-column grid with horizontal rows for more items visible at once
+  - Resizable panel with drag handles
+  - Modal sovereignty: basket hides when reordering for clear focus
 - **Area Capture mode**: Click-drag-snap selection for capturing any screen region
-- **iPhone-style drag-to-rearrange** for basket and shelf items with smooth animations
-- **Persistent reorder mode** with iOS-style jiggle animation for easy reorganization
 - **Enhanced drag previews** showing actual thumbnails and correct folder icons
+
+## 🔧 Improvements
+- **Screenshot Editor** now properly resizable with edge drag handles
+- **Screenshot Editor** now respects transparent mode preference
+- Improved reorder UX with compact 40pt rows showing thumbnail + filename
 
 ## 🐛 Bug Fixes
 - Fixed Quick Actions bar being clipped when dragging files over multi-row shelf
