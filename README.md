@@ -35,18 +35,14 @@
 
 ## ✨ Core Features
 
-<div align="center">
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/assets/images/feature-shelf.png" width="300" alt="File Shelf" /></td>
-<td width="50%" align="center"><img src="docs/assets/images/feature-basket.png" width="300" alt="Floating Basket" /></td>
-</tr>
-<tr>
-<td width="50%" align="center"><img src="docs/assets/images/feature-clipboard.png" width="300" alt="Clipboard Manager" /></td>
-<td width="50%" align="center"><img src="docs/assets/images/feature-huds.png" width="300" alt="Beautiful HUDs" /></td>
-</tr>
-</table>
-</div>
+<p align="center">
+<img src="docs/assets/images/feature-shelf.png" width="300" alt="File Shelf" />
+<img src="docs/assets/images/feature-basket.png" width="300" alt="Floating Basket" />
+</p>
+<p align="center">
+<img src="docs/assets/images/feature-clipboard.png" width="300" alt="Clipboard Manager" />
+<img src="docs/assets/images/feature-huds.png" width="300" alt="Beautiful HUDs" />
+</p>
 
 
 

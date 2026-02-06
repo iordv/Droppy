@@ -7,6 +7,8 @@ cask "droppy" do
   desc "Drag and drop file shelf for macOS"
   homepage "https://github.com/iordv/Droppy"
 
+  auto_updates true
+
   app "Droppy.app"
 
   postflight do
