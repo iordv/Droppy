@@ -604,9 +604,10 @@ struct NotchShelfView: View {
         let rowCount = (Double(state.shelfDisplaySlotCount) / 5.0).rounded(.up)
         let cappedRowCount = min(rowCount, 3)  // Max 3 rows visible, scroll for rest
         
-        // TODO BAR: Add height when Todo extension is installed
+        // TODO BAR: Add height when Todo extension is installed AND not removed
         let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
-        let todoBarHeight: CGFloat = todoInstalled && todoEnabled
+        let todoNotRemoved = !ExtensionType.todo.isRemoved
+        let todoBarHeight: CGFloat = todoInstalled && todoNotRemoved
             ? ToDoShelfBar.expandedHeight(isListExpanded: isTodoListExpanded, itemCount: todoManager.items.count, notchHeight: contentLayoutNotchHeight)
             : 0
         
@@ -2160,9 +2161,10 @@ struct NotchShelfView: View {
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) && caffeineEnabled
 
         // TODO: Compute early so we can hide empty shelf content when todo bar is visible
+        // Check both installed AND not removed (isRemoved is set by DisableExtensionButton)
         let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
-        let todoEnabled = UserDefaults.standard.preference(AppPreferenceKey.todoEnabled, default: PreferenceDefault.todoEnabled)
-        let shouldShowTodoBar = todoInstalled && todoEnabled &&
+        let todoNotRemoved = !ExtensionType.todo.isRemoved
+        let shouldShowTodoBar = todoInstalled && todoNotRemoved &&
                                 !(terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible) &&
                                 !(showCaffeineView && caffeineShouldShow)
 

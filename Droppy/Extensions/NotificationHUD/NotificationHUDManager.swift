@@ -52,6 +52,12 @@ final class NotificationHUDManager {
     @ObservationIgnored
     @AppStorage(AppPreferenceKey.notificationHUDEnabled) var isEnabled = PreferenceDefault.notificationHUDEnabled
     @ObservationIgnored
+    @AppStorage(AppPreferenceKey.notificationHUDSoundEnabled) var isSoundEnabled = PreferenceDefault.notificationHUDSoundEnabled
+    @ObservationIgnored
+    @AppStorage(AppPreferenceKey.notificationHUDHapticEnabled) var isHapticsEnabled = PreferenceDefault.notificationHUDHapticEnabled
+    @ObservationIgnored
+    @AppStorage(AppPreferenceKey.notificationHUDSoundName) var soundName = PreferenceDefault.notificationHUDSoundName
+    @ObservationIgnored
     @AppStorage(AppPreferenceKey.notificationHUDShowPreview) var showPreview = PreferenceDefault.notificationHUDShowPreview
     
     private(set) var currentNotification: CapturedNotification?
@@ -78,7 +84,11 @@ final class NotificationHUDManager {
     private var fileDescriptor: Int32 = -1
     private var walFileDescriptor: Int32 = -1
     private var fileChangeDebounceWorkItem: DispatchWorkItem?
-    private let fileChangeDebounceInterval: TimeInterval = 0.02  // 20ms debounce (reduced for speed)
+    private let fileChangeDebounceInterval: TimeInterval = 0.01  // 10ms debounce (optimized for speed)
+    
+    // Darwin notification observer for instant notification pre-triggering
+    // This fires faster than file system events in some cases
+    private var darwinNotificationObserver: NSObjectProtocol?
 
     // App bundle IDs to ignore (Droppy itself, system apps, etc.)
     private let ignoredBundleIDs: Set<String> = [
@@ -120,6 +130,9 @@ final class NotificationHUDManager {
 
         // PRIMARY: Start file system monitoring for instant notification detection
         startFileMonitoring()
+        
+        // ACCELERATOR: Darwin notification observer (fires faster than file events in some cases)
+        startDarwinObserver()
 
         // BACKUP: Slow polling timer as fallback (in case file monitoring misses something)
         pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] _ in
@@ -128,12 +141,18 @@ final class NotificationHUDManager {
             }
         }
 
-        print("NotificationHUD: Started monitoring for notifications (file watcher + backup polling)")
+        print("NotificationHUD: Started monitoring (Darwin + file watcher + backup polling)")
     }
 
     /// Start monitoring the notification database file for changes
     /// This provides near-instant notification detection
     private func startFileMonitoring() {
+        // Guard against double-start (prevents file descriptor leaks)
+        guard fileMonitorSource == nil else {
+            print("NotificationHUD: File monitoring already active")
+            return
+        }
+        
         let dbPath = Self.notificationDatabasePath
         let walPath = dbPath + "-wal"  // SQLite Write-Ahead Log file
 
@@ -209,10 +228,56 @@ final class NotificationHUDManager {
         // File descriptors are closed in the cancel handlers
     }
     
+    // MARK: - Darwin Notification Observer (Pre-Trigger Accelerator)
+    
+    /// Start observing Darwin notifications for faster notification pre-triggering
+    /// These low-level system notifications can fire slightly faster than file system events
+    /// Privacy: No new permissions required - these are public system event signals (no payload data)
+    private func startDarwinObserver() {
+        // Guard against double-start
+        guard darwinNotificationObserver == nil else { return }
+        
+        // Listen for notification center UI changes
+        // This Darwin notification fires when the notification center UI updates
+        let notificationName = "com.apple.notificationcenterui.bulletin_added" as CFString
+        
+        // Use CFNotificationCenter for Darwin notifications
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            { (_, observer, name, _, _) in
+                // Callback when Darwin notification fires
+                guard let observer = observer else { return }
+                let manager = Unmanaged<NotificationHUDManager>.fromOpaque(observer).takeUnretainedValue()
+                
+                // Immediately poll database (bypass debounce for speed)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    manager.pollForNewNotifications()
+                }
+            },
+            notificationName,
+            nil,
+            .deliverImmediately
+        )
+        
+        print("NotificationHUD: ✅ Darwin notification observer started")
+    }
+    
+    /// Stop Darwin notification observer
+    private func stopDarwinObserver() {
+        CFNotificationCenterRemoveEveryObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque()
+        )
+        darwinNotificationObserver = nil
+        print("NotificationHUD: Darwin notification observer stopped")
+    }
+    
     func stopMonitoring() {
         pollingTimer?.invalidate()
         pollingTimer = nil
         stopFileMonitoring()  // Stop file system monitoring
+        stopDarwinObserver()  // Stop Darwin notification observer
         closeDatabase()
 
         DispatchQueue.main.async { [weak self] in
@@ -493,6 +558,7 @@ final class NotificationHUDManager {
                 currentNotification = notification
                 scheduleAutoDismiss()
                 HUDManager.shared.show(.notification)
+                triggerFeedback()  // Sound + haptic synced with HUD appearance
             } else if currentNotification == nil && HUDManager.shared.isVisible {
                 // Another HUD type is active - queue this notification
                 // It will be shown when HUDManager processes its queue
@@ -538,6 +604,7 @@ final class NotificationHUDManager {
                 self.currentNotification = next
                 self.scheduleAutoDismiss()
                 HUDManager.shared.show(.notification)
+                self.triggerFeedback()  // Sound + haptic synced with HUD appearance
                 self.debugLog("Now showing notification from \(next.appName)")
             }
         } else {
@@ -608,4 +675,39 @@ final class NotificationHUDManager {
             self?.dismissCurrentOnly()
         }
     }
+
+    
+    // MARK: - Feedback
+    
+    private func triggerFeedback() {
+        // Sound
+        if isSoundEnabled {
+            playNotificationSound()
+        }
+        
+        // Haptics
+        if isHapticsEnabled {
+            triggerHaptic()
+        }
+    }
+    
+    private func playNotificationSound() {
+        // Use custom/selected sound, or fallback to "Pop"
+        let soundToPlay = soundName
+        if let sound = NSSound(named: soundToPlay) {
+            sound.play()
+        } else if let defaultSound = NSSound(named: "Pop") {
+            // Fallback if custom sound fails
+            defaultSound.play()
+        }
+    }
+    
+    private func triggerHaptic() {
+        // Subtle haptic feedback pattern
+        NSHapticFeedbackManager.defaultPerformer.perform(
+            .alignment,
+            performanceTime: .default
+        )
+    }
 }
+

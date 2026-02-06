@@ -116,7 +116,11 @@ enum AppPreferenceKey {
     // MARK: - Extension: Notification HUD
     static let notificationHUDInstalled = "notificationHUD_installed"
     static let notificationHUDEnabled = "notificationHUD_enabled"
+
     static let notificationHUDShowPreview = "notificationHUD_showPreview"
+    static let notificationHUDSoundEnabled = "notificationHUD_soundEnabled"
+    static let notificationHUDSoundName = "notificationHUD_soundName" // "Glass", "Pop", etc.
+    static let notificationHUDHapticEnabled = "notificationHUD_hapticEnabled"
     
     // MARK: - Extension: Caffeine
     static let caffeineInstalled = "caffeine_installed"
@@ -254,6 +258,9 @@ enum PreferenceDefault {
     static let notificationHUDInstalled = false
     static let notificationHUDEnabled = true  // Enabled by default when installed
     static let notificationHUDShowPreview = true
+    static let notificationHUDSoundEnabled = true
+    static let notificationHUDSoundName = "Pop" // "Pop" is clearer and fits "Droppy" better than "Glass"
+    static let notificationHUDHapticEnabled = true
     
     // MARK: - Extension: Caffeine
     static let caffeineInstalled = false  // Disabled by default, user installs from Extension Store

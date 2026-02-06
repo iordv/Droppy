@@ -41,14 +41,12 @@ struct ToDoItem: Identifiable, Codable, Equatable {
     var createdAt: Date
     var completedAt: Date?
     var isCompleted: Bool
-    var sortOrder: Int? // Optional for backward compatibility
     
     static func == (lhs: ToDoItem, rhs: ToDoItem) -> Bool {
         lhs.id == rhs.id &&
         lhs.isCompleted == rhs.isCompleted &&
         lhs.title == rhs.title &&
-        lhs.priority == rhs.priority &&
-        lhs.sortOrder == rhs.sortOrder
+        lhs.priority == rhs.priority
     }
 }
 
@@ -65,13 +63,15 @@ final class ToDoManager {
     var newItemText: String = ""
     var newItemPriority: ToDoPriority = .normal
     
-
-
-    
-    // Undo buffer
-    var lastDeletedItem: ToDoItem?
+    // Undo buffer (supports multiple deletes)
+    var deletedItems: [ToDoItem] = []
     var showUndoToast: Bool = false
     var undoTimer: Timer?
+    
+    // Cleanup feedback
+    var showCleanupToast: Bool = false
+    var cleanupCount: Int = 0
+    var cleanupToastTimer: Timer?
     
     private let fileName = "todo_items.json"
     private var cleanupTimer: Timer?
@@ -154,41 +154,47 @@ final class ToDoManager {
         saveItems()
     }
     
+    func updateTitle(for item: ToDoItem, to newTitle: String) {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        withAnimation {
+            items[index].title = trimmed
+        }
+        saveItems()
+    }
+    
     func removeItem(_ item: ToDoItem) {
-        // Store for undo
-        lastDeletedItem = item
-        
         withAnimation(.smooth) {
             items.removeAll { $0.id == item.id }
+            deletedItems.append(item)
             showUndoToast = true
         }
         saveItems()
         
-        // Auto-dismiss toast
+        // Reset auto-dismiss timer 
         undoTimer?.invalidate()
         undoTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
             withAnimation {
                 self?.showUndoToast = false
-                self?.lastDeletedItem = nil
+                self?.deletedItems.removeAll()
             }
         }
     }
     
-
-    
     func restoreLastDeletedItem() {
-        guard let item = lastDeletedItem else { return }
+        guard let item = deletedItems.popLast() else { return }
         
         withAnimation(.smooth) {
-            // Insert back at original position if possible, or top
-            // Since we sort anyway, appending or inserting at 0 is fine
-            // But let's try to be smart? No, sort logic handles it.
             items.append(item)
-            showUndoToast = false
-            lastDeletedItem = nil
+            if deletedItems.isEmpty {
+                showUndoToast = false
+            }
         }
         
-        undoTimer?.invalidate()
+        if deletedItems.isEmpty {
+            undoTimer?.invalidate()
+        }
         saveItems()
     }
     
@@ -258,9 +264,23 @@ final class ToDoManager {
             }
         }
         
-        if items.count != originalCount {
+        let removedCount = originalCount - items.count
+        if removedCount > 0 {
             saveItems()
-            print("ToDoManager: Cleaned up \(originalCount - items.count) old items")
+            
+            // Show cleanup toast
+            cleanupCount = removedCount
+            withAnimation(.smooth) {
+                showCleanupToast = true
+            }
+            
+            // Auto-dismiss after 4 seconds
+            cleanupToastTimer?.invalidate()
+            cleanupToastTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
+                withAnimation {
+                    self?.showCleanupToast = false
+                }
+            }
         }
     }
     

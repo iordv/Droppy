@@ -45,12 +45,24 @@ struct ToDoShelfBar: View {
                         }
                     }
                 )
-                .padding(.bottom, 60) // Position above input bar
+                .padding(.bottom, 60)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .overlay(alignment: .top) {
+            if manager.showCleanupToast {
+                ToDoCleanupToast(count: manager.cleanupCount) {
+                    withAnimation {
+                        manager.showCleanupToast = false
+                    }
+                }
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(DroppyAnimation.expandOpen, value: isListExpanded)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showUndoToast)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showCleanupToast)
 
     }
 
@@ -284,6 +296,8 @@ private struct TaskRow: View {
     let item: ToDoItem
     let manager: ToDoManager
     @State private var isHovering = false
+    @State private var isEditing = false
+    @State private var editText = ""
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
@@ -387,7 +401,74 @@ private struct TaskRow: View {
             isHovering = hovering
         }
         .animation(DroppyAnimation.hoverQuick, value: isHovering)
+        .popover(isPresented: $isEditing) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(String(localized: "action.edit"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                
+                TextField(String(localized: "task_title"), text: $editText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.primary.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                    )
+                    .onSubmit {
+                        if !editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            manager.updateTitle(for: item, to: editText)
+                            isEditing = false
+                        }
+                    }
+                
+                HStack(spacing: 12) {
+                    Button {
+                        isEditing = false
+                    } label: {
+                        Text(String(localized: "action.cancel"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        manager.updateTitle(for: item, to: editText)
+                        isEditing = false
+                    } label: {
+                        Text(String(localized: "action.save"))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.blue.opacity(0.4) : Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(16)
+            .frame(width: 260)
+        }
         .contextMenu {
+            Button(String(localized: "action.edit")) {
+                editText = item.title
+                isEditing = true
+            }
+            .keyboardShortcut("e", modifiers: [.command])
+            
+            Divider()
+            
             Button("priority.high") {
                 HapticFeedback.medium.perform()
                 withAnimation(DroppyAnimation.state) {

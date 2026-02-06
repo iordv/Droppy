@@ -17,7 +17,7 @@ struct ToDoUndoToast: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.8))
             
-            Text("Task deleted")
+            Text(String(localized: "task_deleted"))
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white)
             
@@ -59,5 +59,41 @@ struct ToDoUndoToast: View {
         )
         .shadow(color: Color.black.opacity(0.3), radius: 8, y: 4)
         .frame(maxWidth: 300)
+    }
+}
+
+struct ToDoCleanupToast: View {
+    let count: Int
+    var onDismiss: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 11))
+                .foregroundStyle(.green.opacity(0.9))
+            
+            Text(String(localized: "tasks_cleaned_up \(count)"))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+            
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.green.opacity(0.15))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.green.opacity(0.3), lineWidth: 1)
+        )
     }
 }

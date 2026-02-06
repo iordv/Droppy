@@ -306,6 +306,89 @@ struct NotificationHUDInfoView: View {
                     .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
             
+            // Feedback Card
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Feedback")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                
+                // Sound Toggle
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(manager.isSoundEnabled ? .blue : .secondary)
+                        .frame(width: 32, height: 32)
+                        .background((manager.isSoundEnabled ? Color.blue : Color.secondary).opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sound Effects")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(manager.isSoundEnabled ? .primary : .secondary)
+                        Text(manager.isSoundEnabled ? "Play system sound on notification" : "Silent notifications")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    
+                    if manager.isSoundEnabled {
+                        Button {
+                            // Test sound
+                            if let sound = NSSound(named: manager.soundName) {
+                                sound.play()
+                            } else if let sound = NSSound(named: "Glass") {
+                                sound.play()
+                            }
+                        } label: {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Preview Sound")
+                    }
+                    
+                    Toggle("", isOn: Bindable(manager).isSoundEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                
+                Divider().opacity(0.5)
+                
+                // Haptic Toggle
+                HStack(spacing: 12) {
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(manager.isHapticsEnabled ? .green : .secondary)
+                        .frame(width: 32, height: 32)
+                        .background((manager.isHapticsEnabled ? Color.green : Color.secondary).opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Haptic Feedback")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(manager.isHapticsEnabled ? .primary : .secondary)
+                        Text(manager.isHapticsEnabled ? "Subtle vibration on receipt" : "No haptic feedback")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Bindable(manager).isHapticsEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
+            .padding(DroppySpacing.lg)
+            .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+            
             // System Integration Card
             VStack(spacing: 12) {
                 HStack {

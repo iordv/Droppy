@@ -32,6 +32,9 @@
 "priority.help.high" = "Priority: High (click to change)";
 
 /* Actions & Accessibility */
+"action.edit" = "Edit";
+"action.save" = "Save";
+"action.cancel" = "Cancel";
 "action.delete" = "Delete";
 "action.delete_task" = "Delete task";
 "action.mark_complete" = "Mark complete";
@@ -41,6 +44,10 @@
 "action.show_tasks" = "Show tasks";
 "action.close" = "Close";
 "action.install" = "Install";
+
+/* Task Editing */
+"task_title" = "Task title";
+"tasks_cleaned_up %lld" = "%lld tasks cleaned up";
 
 /* Settings */
 "settings.title" = "Settings";

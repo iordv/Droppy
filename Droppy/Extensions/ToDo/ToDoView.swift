@@ -168,6 +168,8 @@ struct ToDoRow: View {
     let item: ToDoItem
     let manager: ToDoManager
     @State private var isHovering = false
+    @State private var isEditing = false
+    @State private var editText = ""
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
@@ -185,7 +187,6 @@ struct ToDoRow: View {
                         .font(.system(size: 16))
                 }
             }
-            .buttonStyle(.plain)
             .buttonStyle(.plain)
             .accessibilityLabel(item.isCompleted ? String(localized: "action.mark_incomplete") : String(localized: "action.mark_complete"))
             .accessibilityHint("Toggles completion for \(item.title)")
@@ -221,7 +222,6 @@ struct ToDoRow: View {
             }
         }
         .padding(.horizontal, DroppySpacing.md)
-        .padding(.horizontal, DroppySpacing.md)
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .background(
@@ -236,8 +236,74 @@ struct ToDoRow: View {
                 isHovering = hovering
             }
         }
+        .popover(isPresented: $isEditing) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(String(localized: "action.edit"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                
+                TextField(String(localized: "task_title"), text: $editText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.primary.opacity(0.08))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                    )
+                    .onSubmit {
+                        if !editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            manager.updateTitle(for: item, to: editText)
+                            isEditing = false
+                        }
+                    }
+                
+                HStack(spacing: 12) {
+                    Button {
+                        isEditing = false
+                    } label: {
+                        Text(String(localized: "action.cancel"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button {
+                        manager.updateTitle(for: item, to: editText)
+                        isEditing = false
+                    } label: {
+                        Text(String(localized: "action.save"))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.blue.opacity(0.4) : Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(editText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .padding(16)
+            .frame(width: 260)
+        }
         .contextMenu {
-            // Priority changing
+            Button(String(localized: "action.edit")) {
+                editText = item.title
+                isEditing = true
+            }
+            .keyboardShortcut("e", modifiers: [.command])
+            
+            Divider()
+            
             Button("priority.high") {
                 HapticFeedback.medium.perform()
                 manager.updatePriority(for: item, to: .high)
