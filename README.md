@@ -40,7 +40,10 @@
 
 - Drop files, folders, images, and URLs onto the notch — pick them up in any app
 - Create folders, pin favorites, or watch a directory so its contents appear automatically
-- Full right-click menu: Copy, Move, Share, AirDrop, ZIP, Rename, Quick Look, OCR, and more
+- Right-click for Copy, Move, Share, AirDrop, Rename, Quick Look, OCR, and more
+- Quickshare: upload any file and get a shareable link in one click
+- ZIP and Unzip files directly from the shelf
+- Convert between dozens of file types — images, videos, audio, documents
 
 ---
 
