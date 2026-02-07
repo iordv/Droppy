@@ -174,21 +174,32 @@ struct ToDoInfoView: View {
             featureRow(icon: "timer", text: "Auto-cleanup of completed tasks")
             featureRow(icon: "keyboard", text: "Keyboard shortcuts for power users")
 
-            // Screenshot (same rendering style as standard extension info views)
+            // Screenshot (animated GIF, same behavior as other GIF-based extension views)
             if let screenshotURL = ToDoExtension.screenshotURL {
-                CachedAsyncImage(url: screenshotURL) { image in
-                    image
-                        .resizable()
+                if screenshotURL.pathExtension.lowercased() == "gif" {
+                    AnimatedGIFView(url: screenshotURL.absoluteString)
                         .aspectRatio(contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                                 .strokeBorder(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
                         )
-                } placeholder: {
-                    EmptyView()
+                        .padding(.top, 8)
+                } else {
+                    CachedAsyncImage(url: screenshotURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                                    .strokeBorder(AdaptiveColors.subtleBorderAuto, lineWidth: 1)
+                            )
+                    } placeholder: {
+                        EmptyView()
+                    }
+                    .padding(.top, 8)
                 }
-                .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
