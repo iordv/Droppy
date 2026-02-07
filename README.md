@@ -104,7 +104,7 @@ Absolutely! PRs welcome. Check out the issues for ideas or propose your own.
 Droppy is released under the [GPL-3.0 License with Commons Clause](LICENSE).
 
 <p align="center">
-  <sub>Made with ❤️ for the Mac community</sub>
+  <sub>Made with ❤️ in The Netherlands</sub>
 </p>
 
 <details>
