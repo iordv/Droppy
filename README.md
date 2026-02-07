@@ -34,14 +34,14 @@
 
 ## Core Features
 
-<p align="center">
-<img src="docs/assets/images/feature-shelf.png" width="300" alt="File Shelf" />
-<img src="docs/assets/images/feature-basket.png" width="300" alt="Floating Basket" />
-</p>
-<p align="center">
-<img src="docs/assets/images/feature-clipboard.png" width="300" alt="Clipboard Manager" />
-<img src="docs/assets/images/feature-huds.png" width="300" alt="Beautiful HUDs" />
-</p>
+<table>
+<tr>
+<td align="center"><img src="docs/assets/images/feature-shelf.png" width="220" alt="File Shelf" /><br/><b>File Shelf</b></td>
+<td align="center"><img src="docs/assets/images/feature-basket.png" width="220" alt="Floating Basket" /><br/><b>Floating Basket</b></td>
+<td align="center"><img src="docs/assets/images/feature-clipboard.png" width="220" alt="Clipboard Manager" /><br/><b>Clipboard Manager</b></td>
+<td align="center"><img src="docs/assets/images/feature-huds.png" width="220" alt="Beautiful HUDs" /><br/><b>Beautiful HUDs</b></td>
+</tr>
+</table>
 
 ## <img src="https://getdroppy.app/assets/icons/extensions.png" width="24"> Extensions
 
