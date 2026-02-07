@@ -38,6 +38,7 @@ struct NotchShelfView: View {
     @AppStorage(AppPreferenceKey.autoShrinkDelay) private var autoShrinkDelay = PreferenceDefault.autoShrinkDelay  // Legacy
     @AppStorage(AppPreferenceKey.autoCollapseDelay) private var autoCollapseDelay = PreferenceDefault.autoCollapseDelay
     @AppStorage(AppPreferenceKey.autoCollapseShelf) private var autoCollapseShelf = PreferenceDefault.autoCollapseShelf
+    @AppStorage(AppPreferenceKey.cameraKeepShelfOpen) private var cameraKeepShelfOpen = PreferenceDefault.cameraKeepShelfOpen
     @AppStorage(AppPreferenceKey.autoExpandDelay) private var autoExpandDelay = PreferenceDefault.autoExpandDelay
     @AppStorage(AppPreferenceKey.autoOpenMediaHUDOnShelfExpand) private var autoOpenMediaHUDOnShelfExpand = PreferenceDefault.autoOpenMediaHUDOnShelfExpand
     @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton = PreferenceDefault.showClipboardButton
@@ -63,6 +64,7 @@ struct NotchShelfView: View {
     @ObservedObject private var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
+    @ObservedObject private var cameraManager = CameraManager.shared
     var caffeineManager = CaffeineManager.shared  // @Observable - no wrapper needed
     var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
     var notificationHUDManager = NotificationHUDManager.shared  // @Observable - needed for current notification tracking
@@ -294,6 +296,9 @@ struct NotchShelfView: View {
     
     /// Top margin for Dynamic Island from SSOT - creates floating effect like iPhone
     private var dynamicIslandTopMargin: CGFloat { NotchLayoutConstants.dynamicIslandTopMargin }
+
+    /// Camera visibility state that keeps the view alive while stopping
+    private var isCameraActive: Bool { cameraManager.isVisible || cameraManager.isStopping }
     
     /// Width when showing files (matches media player width for visual consistency)
     private let shelfWidth: CGFloat = 450
@@ -304,6 +309,15 @@ struct NotchShelfView: View {
     /// Current expanded width based on what's shown
     /// Apple Music gets extra width for shuffle, repeat, and love controls
     private var expandedWidth: CGFloat {
+        let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
+        if cameraManager.isInstalled && cameraEnabled && isCameraActive {
+            return cameraManager.preferredWidth(
+                forHeight: currentExpandedHeight,
+                notchHeight: contentLayoutNotchHeight,
+                isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland
+            )
+        }
+
         // Media player gets full width, shelf gets narrower width
         if showMediaPlayer && !musicManager.isPlayerIdle && !state.isDropTargeted && !dragMonitor.isDragging &&
            (musicManager.isMediaHUDForced || (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) || ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)) {
@@ -582,6 +596,19 @@ struct NotchShelfView: View {
                 return 180
             }
         }
+
+        // CAMERA: Same height profile as terminal
+        let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
+        if cameraManager.isInstalled && cameraEnabled && isCameraActive {
+            let isExternalNotchStyle = isExternalDisplay && !externalDisplayUseDynamicIsland
+            if contentLayoutNotchHeight > 0 {
+                return contentLayoutNotchHeight + 160
+            } else if isExternalNotchStyle {
+                return 180
+            } else {
+                return 180
+            }
+        }
         
         // HIGH ALERT (CAFFEINE): Compact height for toggle + 2 rows of timer buttons
         // Timer buttons = 2 rows × 34pt + 8pt spacing = 76pt total content height
@@ -754,8 +781,10 @@ struct NotchShelfView: View {
             let caffeineInstalled = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled)
             let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
             let terminalEnabled = UserDefaults.standard.preference(AppPreferenceKey.terminalNotchEnabled, default: PreferenceDefault.terminalNotchEnabled)
+            let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
             let caffeineShouldShow = caffeineInstalled && caffeineEnabled
             let terminalShouldShow = terminalManager.isInstalled && terminalEnabled
+            let cameraShouldShow = cameraManager.isInstalled && cameraEnabled
             if enableNotchShelf && isExpandedOnThisScreen {
                 // FLOATING BUTTONS: ZStack enables smooth crossfade between button states
                 // - Quick Actions: Shown when dragging files
@@ -783,80 +812,119 @@ struct NotchShelfView: View {
                     }
                     
                     // Regular floating buttons (caffeine/terminal/close) - appear when NOT dragging
-                    if !dragMonitor.isDragging && (caffeineShouldShow || terminalShouldShow || !autoCollapseShelf) {
+                    if !dragMonitor.isDragging && (caffeineShouldShow || terminalShouldShow || cameraShouldShow || !autoCollapseShelf) {
                         HStack(spacing: 12) {
-                            // Caffeine button (if extension installed AND enabled)
-                            if caffeineShouldShow {
-                                let isHighlight = showCaffeineView || CaffeineManager.shared.isActive
-                                
-                                Button(action: {
-                                    HapticFeedback.tap()
-                                    withAnimation(DroppyAnimation.notchState) {
-                                        showCaffeineView.toggle()
-                                        // If activating caffeine view, close terminal if open
-                                        if showCaffeineView {
-                                            terminalManager.hide()
-                                        }
-                                    }
-                                }) {
-                                    Image(systemName: "eyes")
-                                }
-                                .buttonStyle(DroppyCircleButtonStyle(
-                                    size: 32,
-                                    useTransparent: shouldUseFloatingButtonTransparent,
-                                    solidFill: isHighlight ? .orange : (isDynamicIslandMode ? dynamicIslandGray : .black)
-                                ))
-                                .help(CaffeineManager.shared.isActive ? "High Alert: \(CaffeineManager.shared.formattedRemaining)" : "High Alert")
-                                .transition(.scale(scale: 0.8).combined(with: .opacity))
-                            }
-                            
-                            // Terminal button (if extension installed AND enabled)
-                            if terminalShouldShow {
-                                // Open in Terminal.app button (only when terminal is visible)
-                                if terminalManager.isVisible {
-                                    Button(action: {
-                                        terminalManager.openInTerminalApp()
-                                    }) {
-                                        Image(systemName: "arrow.up.forward.app")
-                                    }
-                                    .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
-                                    .help("Open in Terminal.app")
-                                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                                    
-                                    if !terminalManager.lastOutput.isEmpty {
-                                        Button(action: {
-                                            terminalManager.clearOutput()
-                                        }) {
-                                            Image(systemName: "arrow.counterclockwise")
-                                        }
-                                        .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
-                                        .help("Clear terminal output")
-                                        .transition(.scale(scale: 0.8).combined(with: .opacity))
-                                    }
-                                }
-                                // Toggle terminal button (shows terminal icon when hidden, X when visible)
+                            if isCameraActive {
                                 Button(action: {
                                     withAnimation(DroppyAnimation.listChange) {
-                                        terminalManager.toggle()
-                                    }
-                                }) {
-                                    Image(systemName: terminalManager.isVisible ? "xmark" : "terminal")
-                                }
-                                .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
-                                .transition(.scale(scale: 0.8).combined(with: .opacity))
-                            }
-                            
-                            // Close button (only in sticky mode AND when terminal is not visible)
-                            if !autoCollapseShelf && !terminalManager.isVisible {
-                                Button(action: {
-                                    withAnimation(DroppyAnimation.listChange) {
-                                        state.expandedDisplayID = nil
-                                        state.hoveringDisplayID = nil
+                                        cameraManager.hide()
                                     }
                                 }) {
                                     Image(systemName: "xmark")
                                 }
                                 .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                            } else {
+                                // Caffeine button (if extension installed AND enabled)
+                                if caffeineShouldShow {
+                                    let isHighlight = showCaffeineView || CaffeineManager.shared.isActive
+                                    
+                                    Button(action: {
+                                        HapticFeedback.tap()
+                                        withAnimation(DroppyAnimation.notchState) {
+                                            if cameraManager.isVisible {
+                                                cameraManager.hide()
+                                            }
+                                            showCaffeineView.toggle()
+                                            // If activating caffeine view, close terminal if open
+                                            if showCaffeineView {
+                                                terminalManager.hide()
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "eyes")
+                                    }
+                                    .buttonStyle(DroppyCircleButtonStyle(
+                                        size: 32,
+                                        useTransparent: shouldUseFloatingButtonTransparent,
+                                        solidFill: isHighlight ? .orange : (isDynamicIslandMode ? dynamicIslandGray : .black)
+                                    ))
+                                    .help(CaffeineManager.shared.isActive ? "High Alert: \(CaffeineManager.shared.formattedRemaining)" : "High Alert")
+                                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                                }
+                                
+                                // Terminal button (if extension installed AND enabled)
+                                if terminalShouldShow {
+                                    // Open in Terminal.app button (only when terminal is visible)
+                                    if terminalManager.isVisible {
+                                        Button(action: {
+                                            terminalManager.openInTerminalApp()
+                                        }) {
+                                            Image(systemName: "arrow.up.forward.app")
+                                        }
+                                        .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                                        .help("Open in Terminal.app")
+                                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                                        
+                                        if !terminalManager.lastOutput.isEmpty {
+                                            Button(action: {
+                                                terminalManager.clearOutput()
+                                            }) {
+                                                Image(systemName: "arrow.counterclockwise")
+                                            }
+                                            .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                                            .help("Clear terminal output")
+                                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                                        }
+                                    }
+                                    // Toggle terminal button (shows terminal icon when hidden, X when visible)
+                                    Button(action: {
+                                        withAnimation(DroppyAnimation.listChange) {
+                                            if cameraManager.isVisible {
+                                                cameraManager.hide()
+                                            }
+                                            terminalManager.toggle()
+                                        }
+                                    }) {
+                                        Image(systemName: terminalManager.isVisible ? "xmark" : "terminal")
+                                    }
+                                    .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                                }
+
+                                // Camera button (if extension installed AND enabled)
+                                if cameraShouldShow {
+                                    Button(action: {
+                                        withAnimation(DroppyAnimation.listChange) {
+                                            if !cameraManager.isVisible {
+                                                // Close other overlays when opening camera
+                                                terminalManager.hide()
+                                                showCaffeineView = false
+                                            }
+                                            cameraManager.toggle()
+                                        }
+                                    }) {
+                                        Image(systemName: cameraManager.isVisible ? "xmark" : "camera")
+                                    }
+                                    .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                                }
+                                
+                                // Close button (only in sticky mode AND when terminal is not visible)
+                                if !autoCollapseShelf && !terminalManager.isVisible {
+                                    Button(action: {
+                                        withAnimation(DroppyAnimation.listChange) {
+                                            if cameraManager.isVisible {
+                                                cameraManager.hide()
+                                            } else {
+                                                state.expandedDisplayID = nil
+                                                state.hoveringDisplayID = nil
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "xmark")
+                                    }
+                                    .buttonStyle(DroppyCircleButtonStyle(size: 32, useTransparent: shouldUseFloatingButtonTransparent, solidFill: isDynamicIslandMode ? dynamicIslandGray : .black))
+                                }
                             }
                         }
                         .onHover { isHovering in
@@ -915,6 +983,14 @@ struct NotchShelfView: View {
                 // Check both slot count AND actual array to avoid false positives during item moves
                 let isTrulyEmpty = state.shelfItems.isEmpty && state.shelfPowerFolders.isEmpty
                 if newCount == 0 && state.isExpanded && isTrulyEmpty {
+                    if isCameraActive {
+                        if cameraKeepShelfOpen && cameraManager.isVisible {
+                            return
+                        }
+                        cameraManager.hide()
+                        return
+                    }
+
                     withAnimation(DroppyAnimation.expandClose) {
                         state.expandedDisplayID = nil
                     }
@@ -1041,11 +1117,24 @@ struct NotchShelfView: View {
                     mediaHUDIsHovered = false
                     musicManager.isMediaHUDForced = false
                     musicManager.isMediaHUDHidden = false
+                    if cameraManager.isVisible {
+                        cameraManager.hide()
+                    }
                 }
             }
             .onChange(of: isHoveringOnThisScreen) { wasHovering, isHovering in
                 if wasHovering && !isHovering && isExpandedOnThisScreen && !isHoveringExpandedContent {
                     startAutoShrinkTimer()
+                }
+            }
+            .onChange(of: terminalManager.isVisible) { _, isVisible in
+                if isVisible && cameraManager.isVisible {
+                    cameraManager.hide()
+                }
+            }
+            .onChange(of: showCaffeineView) { _, isVisible in
+                if isVisible && cameraManager.isVisible {
+                    cameraManager.hide()
                 }
             }
             .background {
@@ -1165,6 +1254,11 @@ struct NotchShelfView: View {
         // Check if auto-collapse is enabled (new toggle)
         guard autoCollapseShelf else { return }
         guard isExpandedOnThisScreen else { return }
+        // Keep shelf open while camera is visible
+        if isCameraActive && cameraKeepShelfOpen {
+            autoShrinkWorkItem?.cancel()
+            return
+        }
         
         // Cancel any existing timer
         autoShrinkWorkItem?.cancel()
@@ -1200,6 +1294,16 @@ struct NotchShelfView: View {
             let isHoveringAnyMethod = isHoveringExpandedContent || isHoveringOnThisScreen || isMouseInExpandedZone
             guard isExpandedOnThisScreen && !isHoveringAnyMethod && !state.isDropTargeted else {
                 print("⏳ AUTO-SHRINK SKIPPED: conditions not met (isHoveringAnyMethod=\(isHoveringAnyMethod))")
+                return
+            }
+            // Do not auto-collapse while camera is visible (unless user prefers auto-close)
+            if isCameraActive {
+                if cameraKeepShelfOpen && cameraManager.isVisible {
+                    print("⏳ AUTO-SHRINK SKIPPED: camera is visible")
+                    return
+                }
+                cameraManager.hide()
+                state.hoveringDisplayID = nil
                 return
             }
             
@@ -1501,7 +1605,7 @@ struct NotchShelfView: View {
         // When isMediaSourceForced is true, we know the source is playing (verified via AppleScript)
         let bypassSafeguards = musicManager.isMediaSourceForced
         let hasContent = !musicManager.songTitle.isEmpty
-        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && 
+        let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen &&
                               (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
         
         // MORPH BEHAVIOR: Hide media HUD when Caffeine Hover Indicators are showing
@@ -1909,6 +2013,9 @@ struct NotchShelfView: View {
         // TERMINOTCH: Don't show morphing overlays when terminal is visible (and enabled)
         let terminalEnabled = UserDefaults.standard.preference(AppPreferenceKey.terminalNotchEnabled, default: PreferenceDefault.terminalNotchEnabled)
         guard !(terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible) else { return false }
+        // CAMERA: Don't show morphing overlays when camera is visible (and enabled)
+        let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
+        guard !(cameraManager.isInstalled && cameraEnabled && isCameraActive) else { return false }
         // HIGH ALERT: Don't show morphing overlays when caffeine view is visible (and enabled)
         let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) && caffeineEnabled
@@ -2186,12 +2293,22 @@ struct NotchShelfView: View {
         // No header row - auto-collapse handles hiding, right-click for settings/clipboard
         // Check both installed AND enabled for each extension
         let terminalEnabled = UserDefaults.standard.preference(AppPreferenceKey.terminalNotchEnabled, default: PreferenceDefault.terminalNotchEnabled)
+        let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
         let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) && caffeineEnabled
         
         return ZStack {
+            // CAMERA VIEW: Highest priority when visible
+            if cameraManager.isInstalled && cameraEnabled && isCameraActive {
+                CameraNotchView(manager: cameraManager, notchHeight: contentLayoutNotchHeight, isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland)
+                    .opacity(cameraManager.isVisible ? 1 : 0)
+                    .allowsHitTesting(cameraManager.isVisible)
+                    .frame(height: currentExpandedHeight, alignment: .top)
+                    .id("camera-view")
+                    .notchTransition()
+            }
             // TERMINAL VIEW: Highest priority - takes over the shelf when active
-            if terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible {
+            else if terminalManager.isInstalled && terminalEnabled && terminalManager.isVisible {
                 // SSOT: contentLayoutNotchHeight for consistent terminal content layout
                 TerminalNotchView(manager: terminalManager, notchHeight: contentLayoutNotchHeight, isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland)
                     .frame(height: currentExpandedHeight, alignment: .top)

@@ -2332,6 +2332,9 @@ struct SettingsView: View {
                 } else if extensionType == .ffmpegVideoCompression {
                     // FFmpeg Video Compression has its own install view
                     FFmpegInstallView(installCount: nil, rating: nil)
+                } else if extensionType == .camera {
+                    // Camera has its own info view
+                    CameraInfoView(installCount: nil, rating: nil)
                 } else if extensionType == .menuBarManager {
                     // Menu Bar Manager has its own configuration view
                     MenuBarManagerInfoView(installCount: nil, rating: nil)
@@ -2350,7 +2353,7 @@ struct SettingsView: View {
                             SpotifyAuthManager.shared.startAuthentication()
                         case .appleMusic:
                             AppleMusicController.shared.refreshState()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .quickshare, .notificationHUD, .caffeine, .menuBarManager:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .camera, .quickshare, .notificationHUD, .caffeine, .menuBarManager:
                             break // No action needed - these have their own configuration UI
                         }
                     }

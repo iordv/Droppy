@@ -122,6 +122,11 @@ enum AppPreferenceKey {
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = "terminalNotch_installed"
     static let terminalNotchEnabled = "terminalNotch_enabled"  // Whether to show in HUD section
+
+    // MARK: - Extension: Camera
+    static let cameraInstalled = "camera_installed"
+    static let cameraEnabled = "camera_enabled"  // Whether to show camera when invoked
+    static let cameraKeepShelfOpen = "camera_keepShelfOpen"  // Keep shelf open while camera is visible
     
     // MARK: - Extension: Notification HUD
     static let notificationHUDInstalled = "notificationHUD_installed"
@@ -262,6 +267,11 @@ enum PreferenceDefault {
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = false
     static let terminalNotchEnabled = true  // Enabled by default when installed
+
+    // MARK: - Extension: Camera
+    static let cameraInstalled = false
+    static let cameraEnabled = true  // Enabled by default when installed
+    static let cameraKeepShelfOpen = true  // Keep shelf open while camera is active by default
     
     // MARK: - Extension: Notification HUD
     static let notificationHUDInstalled = false

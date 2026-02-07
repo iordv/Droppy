@@ -48,6 +48,8 @@
 	</array>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Droppy needs to communicate with this app to export items when you drag them to the shelf or basket.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Droppy uses your camera for the Camera extension preview.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voice Transcribe needs access to your microphone to record audio for transcription.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>

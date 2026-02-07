@@ -663,8 +663,12 @@ final class NotchWindowController: NSObject, ObservableObject {
                     guard !DragMonitor.shared.isDragging else { return }
                     
                     withAnimation(DroppyAnimation.transition) {
-                        DroppyState.shared.expandedDisplayID = nil
-                        DroppyState.shared.isMouseHovering = false
+                        if CameraManager.shared.isVisible || CameraManager.shared.isStopping {
+                            CameraManager.shared.hide()
+                        } else {
+                            DroppyState.shared.expandedDisplayID = nil
+                            DroppyState.shared.isMouseHovering = false
+                        }
                     }
                 }
             }
@@ -859,8 +863,12 @@ final class NotchWindowController: NSObject, ObservableObject {
                         guard !DragMonitor.shared.isDragging else { return }
                         
                         withAnimation(DroppyAnimation.transition) {
-                            DroppyState.shared.expandedDisplayID = nil
-                            DroppyState.shared.isMouseHovering = false
+                            if CameraManager.shared.isVisible || CameraManager.shared.isStopping {
+                                CameraManager.shared.hide()
+                            } else {
+                                DroppyState.shared.expandedDisplayID = nil
+                                DroppyState.shared.isMouseHovering = false
+                            }
                         }
                     }
                 }

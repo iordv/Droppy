@@ -23,6 +23,7 @@ struct ExtensionsShopView: View {
     private var isFFmpegInstalled: Bool { FFmpegInstallManager.shared.isInstalled }
     private var isVoiceTranscribeInstalled: Bool { VoiceTranscribeManager.shared.isModelDownloaded }
     private var isTerminalNotchInstalled: Bool { TerminalNotchManager.shared.isInstalled }
+    private var isCameraInstalled: Bool { CameraManager.shared.isInstalled }
     private var isNotificationHUDInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled) }
     private var isCaffeineInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled) }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
@@ -224,6 +225,7 @@ struct ExtensionsShopView: View {
                 ForEach(Array(extensions.enumerated()), id: \.1.id) { index, ext in
                     CompactExtensionRow(
                         iconURL: ext.iconURL,
+                        iconAsset: ext.iconAsset,
                         title: ext.title,
                         subtitle: ext.subtitle,
                         isInstalled: ext.isInstalled,
@@ -433,6 +435,23 @@ struct ExtensionsShopView: View {
                 ))
             },
             ExtensionListItem(
+                id: "camera",
+                iconURL: "https://getdroppy.app/assets/icons/camera.jpg",
+                iconAsset: "CameraIcon",
+                title: "Camera",
+                subtitle: "Quick mirror preview",
+                category: .productivity,
+                isInstalled: isCameraInstalled,
+                analyticsKey: "camera",
+                extensionType: .camera,
+                isCommunity: true
+            ) {
+                AnyView(CameraInfoView(
+                    installCount: extensionCounts["camera"],
+                    rating: extensionRatings["camera"]
+                ))
+            },
+            ExtensionListItem(
                 id: "quickshare",
                 iconURL: "https://getdroppy.app/assets/icons/quickshare.jpg",
                 title: "Droppy Quickshare",
@@ -517,6 +536,7 @@ struct ExtensionsShopView: View {
 private struct ExtensionListItem: Identifiable {
     let id: String
     let iconURL: String
+    var iconAsset: String? = nil
     let title: String
     let subtitle: String
     let category: ExtensionCategory
@@ -964,6 +984,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
 
 struct CompactExtensionRow<DetailView: View>: View {
     let iconURL: String
+    var iconAsset: String? = nil
     let title: String
     let subtitle: String
     let isInstalled: Bool
@@ -980,13 +1001,24 @@ struct CompactExtensionRow<DetailView: View>: View {
         } label: {
             HStack(spacing: 12) {
                 // Icon
-                CachedAsyncImage(url: URL(string: iconURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: DroppyRadius.ms)
-                        .fill(Color.white.opacity(0.1))
+                Group {
+                    if let iconAsset {
+                        Image(iconAsset)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } else if let url = URL(string: iconURL) {
+                        CachedAsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            RoundedRectangle(cornerRadius: DroppyRadius.ms)
+                                .fill(Color.white.opacity(0.1))
+                        }
+                    } else {
+                        RoundedRectangle(cornerRadius: DroppyRadius.ms)
+                            .fill(Color.white.opacity(0.1))
+                    }
                 }
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))

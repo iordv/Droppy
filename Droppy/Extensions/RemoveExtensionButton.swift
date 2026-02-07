@@ -92,6 +92,8 @@ struct DisableExtensionButton: View {
             return "This will disable Video Target Size compression. You can enable it again later."
         case .terminalNotch:
             return "This will disable the terminal extension. You can enable it again later."
+        case .camera:
+            return "This will disable Camera and stop the preview. You can enable it again later."
         case .quickshare:
             return "This will disable Quickshare and hide it from menus and quick actions. You can enable it again later."
         case .notificationHUD:
@@ -157,6 +159,8 @@ struct DisableExtensionButton: View {
             case .menuBarManager:
                 // Re-enable Menu Bar Manager
                 MenuBarManager.shared.enable()
+            case .camera:
+                break
             default:
                 break
             }

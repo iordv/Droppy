@@ -128,6 +128,7 @@ final class ExtensionRegistry {
         register(VoiceTranscribeExtension.self)
         register(VideoTargetSizeExtension.self)
         register(TermiNotchExtension.self)
+        register(CameraExtension.self)
         register(QuickshareExtension.self)
         register(AppleMusicExtension.self)
         register(NotificationHUDExtension.self)
