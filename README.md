@@ -53,7 +53,10 @@
 
 - Jiggle your mouse while dragging to spawn a floating basket anywhere on screen
 - Multiple color-coded baskets for organizing different workflows
-- Batch-drag items between apps — baskets auto-hide when empty or idle
+- Cmd+Tab-style basket switcher to jump between baskets instantly
+- List and grid view for browsing basket contents
+- Quick actions to open, share, copy, or remove items fast
+- Auto-hide when empty or idle — batch-drag items between apps
 
 ---
 
