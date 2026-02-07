@@ -77,10 +77,12 @@
 
 <p align="center"><img src="docs/assets/images/feature-huds.png" width="500" alt="Beautiful HUDs" /></p>
 
-- Replaces macOS system overlays with premium HUDs in your notch
-- Volume and brightness controls — including full support for external monitors
-- Now-playing with album art, lyrics, and visualizer (Spotify & Apple Music)
-- AirPods battery, keyboard brightness, and more
+- Replaces macOS system overlays with beautifully animated HUDs in your notch
+- Volume, brightness, and keyboard backlight — including full external monitor support
+- Now-playing with album art, progress scrubbing, and visualizer (Spotify & Apple Music)
+- Full Apple Music controls: shuffle, repeat, love tracks, skip, and scrub
+- AirPods connection with per-ear battery levels and charging state
+- Notification banners, Do Not Disturb, power state, and mic/camera indicators
 
 ## <img src="https://getdroppy.app/assets/icons/extensions.png" width="24"> Extensions
 
