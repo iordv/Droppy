@@ -1333,6 +1333,28 @@
                     class="extension-tag">Productivity</span></div>
         </div>
 
+        <div class="extension-card" data-extension="camera" data-category="productivity">
+            <div class="extension-header">
+                <img src="assets/icons/snap-camera-v2.png" alt="Snap! Camera" class="extension-icon">
+                <div class="extension-meta">
+                    <h3>Snap! Camera</h3><span>Productivity</span>
+                </div>
+            </div>
+            <div class="extension-stats">
+                <div class="stat-item"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </svg><span class="stat-value" data-install-count="camera">0</span> installs</div>
+                <div class="stat-item"><svg fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg><span class="stat-value" data-rating="camera">—</span><span
+                        data-rating-count="camera">(0)</span></div>
+            </div>
+            <p class="extension-description">Adds a live camera preview to the right side of your expanded shelf with automatic spacing and smooth alignment.</p>
+            <div class="extension-tags"><span class="extension-tag">Camera</span><span
+                    class="extension-tag">Productivity</span></div>
+        </div>
+
         <div class="extension-card" data-extension="video-target-size" data-category="media">
             <div class="extension-header">
                 <img src="assets/icons/targeted-video-size.jpg" alt="Video Target Size" class="extension-icon">
@@ -1555,6 +1577,7 @@
             'window-snap': 'windowSnap',
             'video-target-size': 'ffmpegVideoCompression',
             'termi-notch': 'terminalNotch',
+            'camera': 'camera',
             'quickshare': 'quickshare',
             'notify-me': 'notificationHUD',
             'todo': 'todo',
@@ -1573,6 +1596,7 @@
             'window-snap': { icon: 'assets/icons/window-snap.jpg', title: 'Window Snap', category: 'Productivity', deepUrl: 'droppy://extension/window-snap', screenshot: 'assets/images/window-snap-screenshot.png', description: 'Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included.', features: ['Keyboard shortcuts', 'Custom snap areas', 'Multi-monitor support', 'Edge snapping', 'Remembers positions'] },
             'video-target-size': { icon: 'assets/icons/targeted-video-size.jpg', title: 'Video Target Size', category: 'Media', deepUrl: 'droppy://extension/video-target-size', screenshot: 'assets/images/video-target-size-screenshot.png', description: 'Compress videos to exact file sizes using FFmpeg two-pass encoding. Perfect for Discord, email, or social media limits.', features: ['Exact file size targeting', 'Two-pass encoding', 'H.264/AAC output', 'One-time FFmpeg install', 'Fast processing'] },
             'termi-notch': { icon: 'assets/icons/terminotch.jpg', title: 'Termi-Notch', category: 'Productivity', deepUrl: 'droppy://extension/termi-notch', screenshot: 'assets/images/terminal-notch-screenshot.png', description: 'Quick terminal access from your notch. Run commands instantly with a custom shortcut or by clicking the terminal icon in the expanded shelf.', features: ['Full terminal emulation', 'Custom keyboard shortcut', 'Quick command mode', 'Expanded mode for output', 'Open in Terminal.app'] },
+            'camera': { icon: 'assets/icons/snap-camera-v2.png', title: 'Snap! Camera', category: 'Productivity', deepUrl: 'droppy://extension/camera', screenshot: null, description: 'Adds a floating camera button below the shelf and opens a full camera preview with balanced padding.', features: ['Floating camera toggle button', 'Full preview mode in the notch shelf', 'Smooth low-latency startup', 'Consistent spacing with other shelf views'] },
 
             'quickshare': { icon: 'assets/icons/quickshare.jpg', title: 'Droppy Quickshare', category: 'Utilities', deepUrl: 'droppy://extension/quickshare', screenshot: 'assets/images/quickshare-screenshot.png', description: 'Upload files to the cloud and get instant shareable links via 0x0.st. Files auto-expire based on size (30-365 days). No account required.', features: ['Instant shareable links', 'Auto-expiring files', 'No account needed', 'Drag & drop upload', 'Built-in file manager'] },
             'notify-me': { icon: 'assets/icons/notification-hud.png', title: 'Notify me!', category: 'Productivity • Community', deepUrl: 'droppy://extension/notification-hud', screenshot: 'assets/images/notification-hud-screenshot.png', description: 'Capture macOS notifications and display them directly in the notch, like iPhone\'s Dynamic Island. Click to open the source app, swipe up to dismiss. A community extension by Valetivivek.', features: ['Display notifications in the notch', 'Show app icon and preview text', 'Click to open, swipe to dismiss', 'Per-app notification filtering', 'Requires Full Disk Access'] },

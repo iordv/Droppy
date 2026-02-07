@@ -27,6 +27,7 @@ struct ExtensionsShopView: View {
     private var isCaffeineInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled) }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
     private var isTodoInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.todoInstalled) }
+    private var isCameraInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.cameraInstalled) }
 
     var body: some View {
         ScrollView {
@@ -448,6 +449,21 @@ struct ExtensionsShopView: View {
                 AnyView(TerminalNotchInfoView(
                     installCount: extensionCounts["terminalNotch"],
                     rating: extensionRatings["terminalNotch"]
+                ))
+            },
+            ExtensionListItem(
+                id: "camera",
+                iconURL: "https://getdroppy.app/assets/icons/snap-camera-v2.png",
+                title: "Snap! Camera",
+                subtitle: "Live notch camera preview",
+                category: .productivity,
+                isInstalled: isCameraInstalled,
+                analyticsKey: "camera",
+                extensionType: .camera
+            ) {
+                AnyView(CameraInfoView(
+                    installCount: extensionCounts["camera"],
+                    rating: extensionRatings["camera"]
                 ))
             },
             ExtensionListItem(
