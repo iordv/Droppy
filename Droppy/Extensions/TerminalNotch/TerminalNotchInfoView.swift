@@ -9,6 +9,7 @@ import SwiftUI
 
 struct TerminalNotchInfoView: View {
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.terminalNotchExternalApp) private var terminalNotchExternalApp = PreferenceDefault.terminalNotchExternalApp
     @ObservedObject private var manager = TerminalNotchManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringAction = false
@@ -56,7 +57,7 @@ struct TerminalNotchInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .terminalNotch)
@@ -89,7 +90,7 @@ struct TerminalNotchInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -140,7 +141,7 @@ struct TerminalNotchInfoView: View {
             featureRow(icon: "terminal", text: "Full terminal emulation in the notch")
             featureRow(icon: "keyboard", text: "Customizable keyboard shortcut")
             featureRow(icon: "rectangle.expand.vertical", text: "Quick command & expanded modes")
-            featureRow(icon: "arrow.up.forward.app", text: "Open in Terminal.app anytime")
+            featureRow(icon: "arrow.up.forward.app", text: "Open in your terminal app anytime")
             
             // Screenshot
             CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/images/terminal-notch-screenshot.png")) { image in
@@ -155,7 +156,7 @@ struct TerminalNotchInfoView: View {
             } placeholder: {
                 // Placeholder with terminal preview
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .fill(Color.black.opacity(0.8))
+                    .fill(AdaptiveColors.panelBackgroundAuto)
                     .frame(height: 120)
                     .overlay(
                         VStack(alignment: .leading, spacing: 4) {
@@ -163,10 +164,10 @@ struct TerminalNotchInfoView: View {
                                 Text("$")
                                     .foregroundStyle(.green)
                                 Text("echo \"Hello, Droppy!\"")
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             }
                             Text("Hello, Droppy!")
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                         }
                         .font(.system(size: 12, design: .monospaced))
                         .padding(DroppySpacing.md)
@@ -197,7 +198,7 @@ struct TerminalNotchInfoView: View {
     
     private var settingsSection: some View {
         VStack(spacing: 16) {
-            // No terminal-specific settings - height is now fixed
+            terminalAppSection
             
             // Keyboard Shortcut Section
             VStack(spacing: 12) {
@@ -280,9 +281,48 @@ struct TerminalNotchInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
+    }
+
+    private var terminalAppSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Terminal App")
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            Text("Choose which app opens when you use \"Open in Terminal\".")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(TerminalNotchExternalApp.allCases) { app in
+                    SettingsSegmentButton(
+                        icon: app.icon,
+                        label: app.title,
+                        isSelected: terminalNotchExternalApp == app.rawValue,
+                        tileWidth: 82
+                    ) {
+                        terminalNotchExternalApp = app.rawValue
+                    }
+                }
+            }
+
+            let selectedTerminalApp = TerminalNotchExternalApp(rawValue: terminalNotchExternalApp) ?? .appleTerminal
+            if !selectedTerminalApp.isInstalled {
+                Text("\(selectedTerminalApp.title) is not installed. Droppy will fall back to Terminal.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(DroppySpacing.lg)
+        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+        )
     }
     
     // MARK: - Buttons

@@ -49,11 +49,11 @@ struct LicenseActivationView: View {
                 .padding(.vertical, sectionInset)
         }
         .frame(width: 430)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .overlay {
             if showConfetti {
@@ -89,6 +89,7 @@ struct LicenseActivationView: View {
                         title: "Droppy Licensed",
                         subtitle: "Activated on this Mac",
                         email: licenseManager.licensedEmail,
+                        deviceName: licenseManager.activatedDeviceName,
                         keyHint: normalizedHint(licenseManager.licenseKeyHint),
                         verifiedAt: licenseManager.lastVerifiedAt,
                         accentColor: .blue,

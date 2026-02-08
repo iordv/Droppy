@@ -260,7 +260,7 @@ struct BasketItemView: View {
                                 } else {
                                     // Native macOS icon (folders, zip, dmg, etc.) - matches grid view
                                     RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
-                                        .fill(Color.white.opacity(0.08))
+                                        .fill(AdaptiveColors.overlayAuto(0.08))
                                         .overlay(
                                             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                                                 .resizable()
@@ -313,7 +313,7 @@ struct BasketItemView: View {
                             SubtleScrollingText(
                                 text: item.name,
                                 font: .system(size: 13, weight: .medium),
-                                foregroundStyle: AnyShapeStyle(isSelected ? .white : .white.opacity(0.9)),
+                                foregroundStyle: AnyShapeStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto),
                                 maxWidth: listNameWidth,
                                 lineLimit: 1,
                                 alignment: .leading,
@@ -344,11 +344,11 @@ struct BasketItemView: View {
                             } else if item.isDirectory {
                                 Text(item.isPinned ? "Pinned Folder" : "Folder")
                                     .font(.system(size: 11))
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.9))
                             } else {
                                 Text(listFileSize)
                                     .font(.system(size: 11))
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.9))
                             }
                         }
                         // Text container: MUST truncate, never expand
@@ -360,17 +360,17 @@ struct BasketItemView: View {
                             if item.isDirectory {
                                 Text("FOLDER")
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.6))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.85) : AdaptiveColors.secondaryTextAuto)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
                             } else if !item.url.pathExtension.isEmpty {
                                 Text(item.url.pathExtension.uppercased())
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.6))
+                                    .foregroundStyle(isSelected ? .white.opacity(0.85) : AdaptiveColors.secondaryTextAuto)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
                             }
                         }
                         .fixedSize()  // Badge never shrinks
@@ -383,7 +383,7 @@ struct BasketItemView: View {
                         RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                             .fill(isSelected
                                   ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
-                                  : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                                  : AdaptiveColors.overlayAuto(isHovering ? 0.18 : 0.12))
                     )
                     .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
                 } else {
@@ -411,7 +411,7 @@ struct BasketItemView: View {
                         if isShakeAnimating {
                             ZStack {
                                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
                                     .frame(width: 44, height: 44)
                                     .shadow(radius: 4)
                                 Image(systemName: "checkmark.shield.fill")
@@ -586,7 +586,7 @@ struct BasketItemView: View {
                         } else {
                             // Native macOS icon (folders, zip, dmg, etc.) - matches grid view
                             RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
-                                .fill(Color.white.opacity(0.08))
+                                .fill(AdaptiveColors.overlayAuto(0.08))
                                 .overlay(
                                     Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
                                         .resizable()
@@ -639,7 +639,7 @@ struct BasketItemView: View {
                     SubtleScrollingText(
                         text: item.name,
                         font: .system(size: 13, weight: .medium),
-                        foregroundStyle: AnyShapeStyle(.white),
+                        foregroundStyle: AnyShapeStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto),
                         maxWidth: listNameWidth,
                         lineLimit: 1,
                         alignment: .leading,
@@ -669,11 +669,11 @@ struct BasketItemView: View {
                     } else if item.isDirectory {
                         Text(item.isPinned ? "Pinned Folder" : "Folder")
                             .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(isSelected ? .white.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.9))
                     } else {
                         Text(listFileSize)
                             .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(isSelected ? .white.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.9))
                     }
                 }
                 // Text container: MUST truncate, never expand
@@ -685,17 +685,17 @@ struct BasketItemView: View {
                     if item.isDirectory {
                         Text("FOLDER")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(isSelected ? .white.opacity(0.85) : AdaptiveColors.secondaryTextAuto)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.white.opacity(0.1)))
+                            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
                     } else if !item.url.pathExtension.isEmpty {
                         Text(item.url.pathExtension.uppercased())
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(isSelected ? .white.opacity(0.85) : AdaptiveColors.secondaryTextAuto)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.white.opacity(0.1)))
+                            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
                     }
                 }
                 .fixedSize()  // Badge never shrinks
@@ -708,7 +708,7 @@ struct BasketItemView: View {
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                     .fill(isSelected 
                           ? Color.blue.opacity(isHovering ? 1.0 : 0.8)
-                          : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                          : AdaptiveColors.overlayAuto(isHovering ? 0.18 : 0.12))
             )
             .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
         } else {
@@ -736,7 +736,7 @@ struct BasketItemView: View {
                 if isShakeAnimating {
                     ZStack {
                         RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
                             .frame(width: 44, height: 44)
                             .shadow(radius: 4)
                         Image(systemName: "checkmark.shield.fill")
@@ -1261,7 +1261,7 @@ struct BasketItemView: View {
                     withAnimation(DroppyAnimation.state) {
                         isPoofing = true
                     }
-                    OCRWindowController.shared.show(with: text)
+                    OCRWindowController.shared.presentExtractedText(text)
                 }
             } catch {
                 await MainActor.run {
@@ -1784,7 +1784,7 @@ private struct BasketItemContent: View {
                 .background {
                     if isSelected {
                         RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
-                            .fill(Color.white.opacity(0.15))
+                            .fill(AdaptiveColors.overlayAuto(0.15))
                             .padding(-4)
                     }
                 }
@@ -1829,7 +1829,7 @@ private struct BasketItemContent: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(item.isPinned ? Color.orange : Color.white.opacity(0.9))
+                                .fill(item.isPinned ? Color.orange : AdaptiveColors.overlayAuto(0.9))
                                 .frame(width: 18, height: 18)
                                 .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                             
@@ -1848,7 +1848,7 @@ private struct BasketItemContent: View {
             SubtleScrollingText(
                 text: item.name,
                 font: .system(size: 11),
-                foregroundStyle: AnyShapeStyle(.white),
+                foregroundStyle: AnyShapeStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto),
                 maxWidth: 64,
                 lineLimit: 1,
                 alignment: .center,
@@ -1910,7 +1910,7 @@ private struct AutoSelectTextField: NSViewRepresentable {
         textField.isBordered = false
         textField.drawsBackground = false
         textField.backgroundColor = .clear
-        textField.textColor = .white
+        textField.textColor = .labelColor
         textField.font = .systemFont(ofSize: 14, weight: .medium)
         textField.alignment = .left
         textField.focusRingType = .none
@@ -1997,7 +1997,7 @@ private struct RenameTooltipPopover: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
             
             AutoSelectTextField(
                 text: $text,
@@ -2029,5 +2029,13 @@ private struct RenameTooltipPopover: View {
         }
         .padding(14)
         .frame(width: 260)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.97))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                )
+        }
     }
 }

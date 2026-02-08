@@ -32,14 +32,16 @@ final class SnapPreviewWindow: NSWindow {
         
         // Set up SwiftUI content
         contentView = NSHostingView(rootView: SnapPreviewView()
-            .preferredColorScheme(.dark)) // Force dark mode always
+            )
     }
     
     /// Show preview at the given screen-coordinate frame (Y=0 at top)
-    /// Converts to Cocoa coordinates (Y=0 at bottom) for NSWindow
+    /// Converts to Cocoa coordinates (Y=0 at bottom) for NSWindow.
+    /// Pass duration <= 0 to keep preview visible until hidePreview() is called.
     func showPreview(at screenFrame: CGRect, duration: TimeInterval = 0.15) {
         // Cancel any pending fade out
         fadeOutWorkItem?.cancel()
+        fadeOutWorkItem = nil
         
         // Convert from screen coordinates (Y=0 at top) to Cocoa coordinates (Y=0 at bottom)
         let primaryScreen = NSScreen.screens.first
@@ -49,18 +51,18 @@ final class SnapPreviewWindow: NSWindow {
         
         // Position and size the window
         setFrame(cocoaFrame, display: true)
-        
-        // Snappy fade in
-        alphaValue = 0
-        orderFront(nil)
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.05
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            self.animator().alphaValue = 1
+
+        // Only play present animation when transitioning from hidden -> visible.
+        if !isVisible {
+            AppKitMotion.prepareForPresent(self, initialScale: 1.0)
+            orderFront(nil)
+            AppKitMotion.animateIn(self, initialScale: 1.0, duration: 0.08)
+        } else {
+            orderFront(nil)
         }
-        
-        // Schedule fade out
+
+        // Schedule fade-out only for timed previews (keyboard-triggered snap hints).
+        guard duration > 0 else { return }
         let workItem = DispatchWorkItem { [weak self] in
             self?.hidePreview()
         }
@@ -70,13 +72,14 @@ final class SnapPreviewWindow: NSWindow {
     
     /// Hide the preview with snappy fade animation
     func hidePreview() {
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.08
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            self.animator().alphaValue = 0
-        }, completionHandler: {
+        fadeOutWorkItem?.cancel()
+        fadeOutWorkItem = nil
+
+        guard isVisible else { return }
+        AppKitMotion.animateOut(self, targetScale: 1.0, duration: 0.1) {
             self.orderOut(nil)
-        })
+            AppKitMotion.resetPresentationState(self)
+        }
     }
 }
 

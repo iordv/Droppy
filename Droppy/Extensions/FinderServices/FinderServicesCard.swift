@@ -40,7 +40,7 @@ struct FinderExtensionCard: View {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
+                        Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundStyle(.secondary)

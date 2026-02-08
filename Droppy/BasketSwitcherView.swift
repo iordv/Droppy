@@ -84,7 +84,7 @@ struct BasketSwitcherView: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)
                     )
                     .shadow(color: .black.opacity(0.3), radius: 30, y: 10)
             )
@@ -148,7 +148,7 @@ struct BasketSelectionView: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)
                     )
                     .shadow(color: .black.opacity(0.3), radius: 30, y: 10)
             )
@@ -187,7 +187,7 @@ struct BasketSelectionCard: View {
                 if basket.basketState.items.isEmpty {
                     Image(systemName: "tray")
                         .font(.system(size: 28))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.82))
                 } else {
                     BasketStackPreviewView(items: basket.basketState.items)
                         .frame(width: 100, height: 70)
@@ -200,13 +200,13 @@ struct BasketSelectionCard: View {
                     Text("\(basket.basketState.items.count) item\(basket.basketState.items.count == 1 ? "" : "s")")
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.92))
                 }
 
                 Text("Click to open")
                     .font(.caption2)
                     .fontWeight(isHovered ? .semibold : .regular)
-                    .foregroundStyle(.white.opacity(isHovered ? 1.0 : 0.5))
+                    .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(isHovered ? 0.95 : 0.8))
             }
             .padding(.bottom, 10)
         }
@@ -234,25 +234,25 @@ struct NewBasketSelectionCard: View {
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(
                     isHovered
-                        ? .white
-                        : .white.opacity(0.6)
+                        ? AdaptiveColors.primaryTextAuto
+                        : AdaptiveColors.secondaryTextAuto.opacity(0.85)
                 )
             
             Text("New Basket")
                 .font(.callout)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(isHovered ? 1.0 : 0.7))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(isHovered ? 0.98 : 0.88))
         }
         .frame(width: 160, height: 180)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.white.opacity(isHovered ? 0.15 : 0.08))
+                .fill(AdaptiveColors.overlayAuto(isHovered ? 0.15 : 0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .strokeBorder(
                             style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
                         )
-                        .foregroundStyle(.white.opacity(isHovered ? 0.5 : 0.3))
+                        .foregroundStyle(AdaptiveColors.overlayAuto(isHovered ? 0.68 : 0.5))
                 )
         )
         .scaleEffect(isHovered ? 1.02 : 1.0)
@@ -277,26 +277,26 @@ struct NewBasketSwitcherCard: View {
             Image(systemName: "plus.circle.fill")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(
-                    Color.white.opacity(isDropTargeted ? 1.0 : (isHovered ? 1.0 : 0.7))
+                    AdaptiveColors.overlayAuto(isDropTargeted ? 1.0 : (isHovered ? 1.0 : 0.7))
                 )
             
             Text("New Basket")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundStyle(.white.opacity(isHovered || isDropTargeted ? 1.0 : 0.8))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(isHovered || isDropTargeted ? 0.98 : 0.88))
             
             Text(isDropTargeted ? "Release!" : "Drop to create")
                 .font(.caption2)
-                .foregroundStyle(.white.opacity(isDropTargeted ? 1.0 : (isHovered ? 0.8 : 0.5)))
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(isDropTargeted ? 0.95 : (isHovered ? 0.85 : 0.72)))
         }
         .frame(width: 160, height: 180)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(isDropTargeted ? 0.25 : (isHovered ? 0.15 : 0.1)))
+                .fill(AdaptiveColors.overlayAuto(isDropTargeted ? 0.25 : (isHovered ? 0.15 : 0.1)))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .strokeBorder(
-                            Color.white.opacity(isDropTargeted ? 1.0 : (isHovered ? 0.6 : 0.3)),
+                            AdaptiveColors.overlayAuto(isDropTargeted ? 1.0 : (isHovered ? 0.6 : 0.3)),
                             style: StrokeStyle(lineWidth: 2, dash: [8, 4])
                         )
                 )
@@ -373,13 +373,13 @@ struct BasketSwitcherCard: View {
                     Text("\(basketState.items.count) item\(basketState.items.count == 1 ? "" : "s")")
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.92))
                 }
 
                 Text(isDropTargeted ? "Release!" : "Drop here")
                     .font(.caption2)
                     .fontWeight(isDropTargeted ? .semibold : .regular)
-                    .foregroundStyle(.white.opacity(isDropTargeted ? 1.0 : (isHovered ? 0.8 : 0.5)))
+                    .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(isDropTargeted ? 0.95 : (isHovered ? 0.85 : 0.72)))
             }
             .padding(.bottom, 10)
         }
@@ -440,16 +440,16 @@ struct TrackedFolderSwitcherView: View {
                     } else {
                         Image(systemName: "doc.on.doc.fill")
                             .font(.system(size: 32))
-                            .foregroundStyle(.white.opacity(0.8))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.88))
                     }
                     
                     Text(filePreviewText)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     
                     Text("Select a basket to add")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.82))
                 }
                 .padding(.bottom, 8)
                 
@@ -479,7 +479,7 @@ struct TrackedFolderSwitcherView: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)
                     )
                     .shadow(color: .black.opacity(0.3), radius: 30, y: 10)
             )
@@ -540,12 +540,12 @@ private struct TrackedFolderBasketCard: View {
                         Text("\(basketState.items.count) item\(basketState.items.count == 1 ? "" : "s")")
                             .font(.caption2)
                             .fontWeight(.medium)
-                            .foregroundStyle(.white.opacity(0.8))
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.92))
                     }
 
                     Text("Tap to add here")
                         .font(.caption2)
-                        .foregroundStyle(.white.opacity(isHovered ? 0.8 : 0.5))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(isHovered ? 0.84 : 0.72))
                 }
                 .padding(.bottom, 10)
             }

@@ -20,14 +20,28 @@ struct CapsLockHUDView: View {
         HUDLayoutCalculator(screen: targetScreen ?? NSScreen.main ?? NSScreen.screens.first)
     }
     
-    /// Accent color based on Caps Lock state (matches battery green/white scheme)
+    /// Accent color based on Caps Lock state
     private var accentColor: Color {
-        capsLockManager.isCapsLockOn ? .green : .white
+        capsLockManager.isCapsLockOn
+            ? Color(red: 0.34, green: 0.92, blue: 0.60)
+            : .white.opacity(0.86)
     }
     
     /// Caps Lock icon - use filled variant when ON
     private var capsLockIcon: String {
         capsLockManager.isCapsLockOn ? "capslock.fill" : "capslock"
+    }
+    
+    private var statusText: String {
+        capsLockManager.isCapsLockOn ? "ON" : "OFF"
+    }
+    
+    private var statusBadgeFill: Color {
+        AdaptiveColors.overlayAuto(capsLockManager.isCapsLockOn ? 0.15 : 0.08)
+    }
+    
+    private var statusBadgeStroke: Color {
+        AdaptiveColors.overlayAuto(capsLockManager.isCapsLockOn ? 0.28 : 0.16)
     }
     
     var body: some View {
@@ -48,11 +62,7 @@ struct CapsLockHUDView: View {
                     
                     Spacer()
                     
-                    // On/Off text
-                    Text(capsLockManager.isCapsLockOn ? "On" : "Off")
-                        .font(.system(size: layout.labelFontSize, weight: .semibold))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
-                        .contentTransition(.interpolate)
+                    statusBadge(useAdjustedColor: true)
                 }
                 .padding(.horizontal, symmetricPadding)
                 .frame(height: layout.notchHeight)
@@ -83,11 +93,7 @@ struct CapsLockHUDView: View {
                     // Right wing: ON/OFF near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        Text(capsLockManager.isCapsLockOn ? "On" : "Off")
-                            .font(.system(size: layout.labelFontSize, weight: .semibold))
-                            .foregroundStyle(accentColor)
-                            .contentTransition(.interpolate)
-                            .animation(DroppyAnimation.notchState, value: capsLockManager.isCapsLockOn)
+                        statusBadge(useAdjustedColor: false)
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -95,6 +101,36 @@ struct CapsLockHUDView: View {
                 .frame(height: layout.notchHeight)
             }
         }
+        .animation(DroppyAnimation.notchState, value: capsLockManager.isCapsLockOn)
+    }
+    
+    @ViewBuilder
+    private func statusBadge(useAdjustedColor: Bool) -> some View {
+        let foregroundColor = useAdjustedColor
+            ? layout.adjustedColor(accentColor)
+            : accentColor
+        let badgeFontSize = max(layout.labelFontSize - 2, 10)
+        
+        HStack(spacing: 5) {
+            Circle()
+                .fill(foregroundColor.opacity(capsLockManager.isCapsLockOn ? 1 : 0.55))
+                .frame(width: 4, height: 4)
+            
+            Text(statusText)
+                .font(.system(size: badgeFontSize, weight: .semibold))
+                .foregroundStyle(foregroundColor)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(statusBadgeFill)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(statusBadgeStroke, lineWidth: 0.6)
+        )
+        .fixedSize()
     }
 }
 

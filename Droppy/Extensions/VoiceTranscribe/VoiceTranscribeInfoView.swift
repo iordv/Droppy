@@ -9,6 +9,7 @@ import SwiftUI
 
 struct VoiceTranscribeInfoView: View {
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.voiceTranscribeAutoCopyResult) private var autoCopyTranscriptionResult = PreferenceDefault.voiceTranscribeAutoCopyResult
     @ObservedObject private var manager = VoiceTranscribeManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringAction = false
@@ -55,7 +56,7 @@ struct VoiceTranscribeInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .voiceTranscribe)
@@ -88,7 +89,7 @@ struct VoiceTranscribeInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -281,12 +282,31 @@ struct VoiceTranscribeInfoView: View {
                     .menuStyle(.borderlessButton)
                 }
                 .padding(DroppySpacing.lg)
+
+                Divider().padding(.horizontal, 16)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-Copy Result")
+                            .font(.callout.weight(.medium))
+                        Text("Skip result window and copy transcription instantly")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $autoCopyTranscriptionResult)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                .padding(DroppySpacing.lg)
             }
             .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
 
@@ -373,7 +393,7 @@ struct VoiceTranscribeInfoView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                 )
             }
             
@@ -423,7 +443,7 @@ struct VoiceTranscribeInfoView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                 )
             }
         }
@@ -516,7 +536,7 @@ struct VoiceTranscribeInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
 

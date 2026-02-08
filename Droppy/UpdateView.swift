@@ -22,7 +22,12 @@ struct UpdateView: View {
         VStack(spacing: 0) {
             // Header with NotchFace
             VStack(spacing: 16) {
-                NotchFace(size: 60, isExcited: isUpToDate)
+                ZStack {
+                    Circle()
+                        .fill(AdaptiveColors.overlayAuto(0.08))
+                        .frame(width: 74, height: 74)
+                    NotchFace(size: 60, isExcited: isUpToDate)
+                }
                 
                 Text(isUpToDate ? "Droppy is up to date!" : "Update Available")
                     .font(.title2.bold())
@@ -55,13 +60,13 @@ struct UpdateView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color.white.opacity(0.02))
+                .background(AdaptiveColors.overlayAuto(0.02))
             }
-            .background(Color.white.opacity(0.03))
+            .background(AdaptiveColors.overlayAuto(0.03))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
             )
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
@@ -148,7 +153,7 @@ struct UpdateView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }

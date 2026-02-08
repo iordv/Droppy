@@ -93,7 +93,7 @@ struct AnimatedHUDToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
@@ -169,7 +169,7 @@ struct AnimatedHUDToggleWithSubtitle: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(isHovering && isEnabled ? 1.02 : 1.0)
@@ -239,7 +239,7 @@ struct AnimatedHUDToggleWithIconView<Icon: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(isHovering && isEnabled ? 1.02 : 1.0)
@@ -310,8 +310,8 @@ struct SettingsSegmentButton: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(controlActiveState == .key ? 0.14 : 0.10),
-                                    Color.white.opacity(0.04)
+                                    AdaptiveColors.overlayAuto(controlActiveState == .key ? 0.14 : 0.10),
+                                    AdaptiveColors.overlayAuto(0.04)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -322,7 +322,7 @@ struct SettingsSegmentButton: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(isSelected ? 0.08 : 0.04),
+                                    AdaptiveColors.overlayAuto(isSelected ? 0.08 : 0.04),
                                     Color.clear
                                 ],
                                 startPoint: .top,
@@ -341,14 +341,14 @@ struct SettingsSegmentButton: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                         .stroke(
-                            isSelected ? accentColor.opacity(0.95) : Color.white.opacity(0.12),
+                            isSelected ? accentColor.opacity(0.95) : AdaptiveColors.overlayAuto(0.12),
                             lineWidth: isSelected ? 1.8 : 1
                         )
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium - 1, style: .continuous)
                         .stroke(
-                            isSelected ? Color.white.opacity(0.22) : Color.white.opacity(0.05),
+                            isSelected ? AdaptiveColors.overlayAuto(0.22) : AdaptiveColors.overlayAuto(0.05),
                             lineWidth: 1
                         )
                         .padding(1)
@@ -435,8 +435,8 @@ struct SettingsSegmentButtonWithContent<Content: View>: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(controlActiveState == .key ? 0.14 : 0.10),
-                                    Color.white.opacity(0.04)
+                                    AdaptiveColors.overlayAuto(controlActiveState == .key ? 0.14 : 0.10),
+                                    AdaptiveColors.overlayAuto(0.04)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -447,7 +447,7 @@ struct SettingsSegmentButtonWithContent<Content: View>: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(isSelected ? 0.08 : 0.04),
+                                    AdaptiveColors.overlayAuto(isSelected ? 0.08 : 0.04),
                                     Color.clear
                                 ],
                                 startPoint: .top,
@@ -464,14 +464,14 @@ struct SettingsSegmentButtonWithContent<Content: View>: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                         .stroke(
-                            isSelected ? accentColor.opacity(0.95) : Color.white.opacity(0.12),
+                            isSelected ? accentColor.opacity(0.95) : AdaptiveColors.overlayAuto(0.12),
                             lineWidth: isSelected ? 1.8 : 1
                         )
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium - 1, style: .continuous)
                         .stroke(
-                            isSelected ? Color.white.opacity(0.22) : Color.white.opacity(0.05),
+                            isSelected ? AdaptiveColors.overlayAuto(0.22) : AdaptiveColors.overlayAuto(0.05),
                             lineWidth: 1
                         )
                         .padding(1)
@@ -631,7 +631,7 @@ struct VolumeAndBrightnessToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isEnabled ? AdaptiveColors.subtleBorderAuto : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
@@ -715,7 +715,7 @@ struct DisplayModeButton<Icon: View>: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
@@ -780,7 +780,7 @@ struct MediaPlayerToggleButton: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
@@ -836,7 +836,7 @@ struct LinkButton: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
@@ -919,7 +919,7 @@ struct AnimatedSubSettingToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)

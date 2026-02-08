@@ -24,7 +24,7 @@ final class OCRWindowController: NSObject {
         let contentView = OCRResultView(text: text) { [weak self] in
             self?.close()
         }
-        .preferredColorScheme(.dark) // Force dark mode always
+
         let hostingView = NSHostingView(rootView: contentView)
         
         let newWindow = NSPanel(
@@ -49,13 +49,7 @@ final class OCRWindowController: NSObject {
         
         newWindow.contentView = hostingView
         
-        // PREMIUM: Start scaled down and invisible for spring animation
-        newWindow.alphaValue = 0
-        if let contentView = newWindow.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0)
-            contentView.layer?.opacity = 0
-        }
+        AppKitMotion.prepareForPresent(newWindow, initialScale: 0.9)
         
         // Show - use deferred makeKey to avoid NotchWindow conflicts
         newWindow.orderFront(nil)
@@ -63,54 +57,33 @@ final class OCRWindowController: NSObject {
             NSApp.activate(ignoringOtherApps: true)
             newWindow.makeKeyAndOrderFront(nil)
         }
-        
-        // PREMIUM: CASpringAnimation for bouncy appear
-        if let layer = newWindow.contentView?.layer {
-            // Fade in (smooth like Quickshare)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.25  // Smooth fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (smooth like Quickshare)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 250  // Smooth spring (was 280)
-            scaleAnim.damping = 22
-            scaleAnim.initialVelocity = 6  // Gentler start
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window alpha (smooth like Quickshare)
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            newWindow.animator().alphaValue = 1.0
-        })
+        AppKitMotion.animateIn(newWindow, initialScale: 0.9, duration: 0.24)
         
         self.window = newWindow
+    }
+
+    func presentExtractedText(_ text: String) {
+        let shouldAutoCopy = UserDefaults.standard.preference(
+            AppPreferenceKey.ocrAutoCopyExtractedText,
+            default: PreferenceDefault.ocrAutoCopyExtractedText
+        )
+        let hasVisibleText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        if shouldAutoCopy && hasVisibleText {
+            close()
+            TextCopyFeedback.copyOCRText(text)
+        } else {
+            show(with: text)
+        }
     }
     
     func close() {
         guard let panel = window else { return }
-        
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.15
-            panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+
+        AppKitMotion.animateOut(panel, targetScale: 0.96, duration: 0.15) { [weak self] in
             panel.close()
+            AppKitMotion.resetPresentationState(panel)
             self?.window = nil
-        })
+        }
     }
 }

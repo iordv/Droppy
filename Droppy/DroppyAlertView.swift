@@ -101,13 +101,13 @@ struct DroppyAlertView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -140,7 +140,7 @@ struct DroppyAlertView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -187,7 +187,7 @@ class DroppyAlertController {
                 } : nil
             )
             
-            let hostingView = NSHostingView(rootView: alertView.preferredColorScheme(.dark)) // Force dark mode
+            let hostingView = NSHostingView(rootView: alertView)
             
             let panel = NSPanel(
                 contentRect: NSRect(x: 0, y: 0, width: 420, height: 150),

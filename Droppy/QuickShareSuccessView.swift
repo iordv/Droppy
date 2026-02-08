@@ -42,13 +42,13 @@ struct QuickShareSuccessView: View {
             if useTransparentBackground {
                 Rectangle().fill(.ultraThinMaterial)
             } else {
-                Color.black
+                AdaptiveColors.panelBackgroundAuto
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .animation(DroppyAnimation.basketTransition, value: isUploading)
     }
@@ -104,11 +104,11 @@ struct QuickShareSuccessView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
                 
                 // Animated progress bar
@@ -180,11 +180,11 @@ struct QuickShareSuccessView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
                 
                 // Copied feedback
@@ -331,7 +331,7 @@ struct QuickShareProgressBar: View {
             ZStack(alignment: .leading) {
                 // Background track
                 Capsule()
-                    .fill(Color.white.opacity(0.1))
+                    .fill(AdaptiveColors.overlayAuto(0.1))
                     .frame(height: 6)
                 
                 // Animated glow bar
@@ -434,7 +434,7 @@ final class QuickShareSuccessWindowController: NSObject, NSWindowDelegate {
                 }
             }
         )
-        .preferredColorScheme(.dark)
+        
         
         let hostingView = NSHostingView(rootView: contentView)
         

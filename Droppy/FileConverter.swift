@@ -327,33 +327,30 @@ class FileConverter {
         // Execute AppleScript
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                var error: NSDictionary?
-                if let appleScript = NSAppleScript(source: script) {
+                let errorDescription: String? = AppleScriptRuntime.execute {
+                    var error: NSDictionary?
+                    guard let appleScript = NSAppleScript(source: script) else {
+                        return "Failed to create AppleScript for \(app.rawValue)"
+                    }
                     appleScript.executeAndReturnError(&error)
-                    
-                    if let error = error {
-                        print("FileConverter: AppleScript error for \(app.rawValue): \(error)")
-                        // Fall back to LibreOffice
-                        Task {
-                            let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
-                            continuation.resume(returning: fallbackResult)
-                        }
-                        return
+                    return error.map { "\($0)" }
+                }
+
+                if let errorDescription {
+                    print("FileConverter: AppleScript error for \(app.rawValue): \(errorDescription)")
+                    Task {
+                        let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
+                        continuation.resume(returning: fallbackResult)
                     }
-                    
-                    // Verify the file was created
-                    if FileManager.default.fileExists(atPath: destinationURL.path) {
-                        print("FileConverter: Successfully converted to PDF via \(app.rawValue)")
-                        continuation.resume(returning: destinationURL)
-                    } else {
-                        print("FileConverter: \(app.rawValue) export completed but file not found")
-                        Task {
-                            let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
-                            continuation.resume(returning: fallbackResult)
-                        }
-                    }
+                    return
+                }
+
+                // Verify the file was created
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    print("FileConverter: Successfully converted to PDF via \(app.rawValue)")
+                    continuation.resume(returning: destinationURL)
                 } else {
-                    print("FileConverter: Failed to create AppleScript for \(app.rawValue)")
+                    print("FileConverter: \(app.rawValue) export completed but file not found")
                     Task {
                         let fallbackResult = await convertDocumentToPDFViaLibreOffice(from: sourceURL, to: destinationURL)
                         continuation.resume(returning: fallbackResult)

@@ -61,13 +61,13 @@ struct HUDSlider: View {
             if newMuted {
                 // When muting: delay color change so bar drains to 0 first (green -> empty -> red)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(DroppyAnimation.easeInOut(duration: 0.2)) {
                         displayedMuted = true
                     }
                 }
             } else {
                 // When unmuting: immediately show green (red -> green instantly, then bar fills)
-                withAnimation(.easeInOut(duration: 0.15)) {
+                withAnimation(DroppyAnimation.easeInOut(duration: 0.15)) {
                     displayedMuted = false
                 }
             }
@@ -91,7 +91,7 @@ struct HUDSlider: View {
                     .fill(trackColor)
                     .frame(height: trackHeight)
                     // PREMIUM: Smooth color transition for mute state
-                    .animation(.easeInOut(duration: 0.25), value: isMuted)
+                    .animation(DroppyAnimation.easeInOut(duration: 0.25), value: isMuted)
                 
                 // PREMIUM: Gradient fill with glow
                 if progress > 0 {
@@ -125,7 +125,7 @@ struct HUDSlider: View {
                         .shadow(color: fillColor.opacity(0.1 + (progress * 0.1)), radius: 5 + (progress * 3))
                         // PREMIUM: Smooth animation for both progress AND mute color transition
                         .animation(.interpolatingSpring(stiffness: 350, damping: 28), value: progress)
-                        .animation(.easeInOut(duration: 0.25), value: isMuted)
+                        .animation(DroppyAnimation.easeInOut(duration: 0.25), value: isMuted)
                 }
             }
             .frame(height: trackHeight)
@@ -271,6 +271,11 @@ struct MediaHUDView: View {
                 // SSOT: Use HUDLayoutCalculator for consistent padding across all modes/displays
                 let iconSize = layout.iconSize
                 let symmetricPadding = layout.symmetricPadding(for: iconSize)
+                let visualizerBarCount = 3
+                let visualizerBarWidth: CGFloat = 2.0
+                let visualizerSpacing: CGFloat = 1.5
+                let visualizerHeight: CGFloat = max(14, iconSize - 2)
+                let visualizerWidth = CGFloat(visualizerBarCount) * visualizerBarWidth + CGFloat(visualizerBarCount - 1) * visualizerSpacing
                 
                 ZStack {
                     // Title - truly centered in the island (both horizontally and vertically)
@@ -301,7 +306,7 @@ struct MediaHUDView: View {
                                         .aspectRatio(contentMode: .fill)
                                 } else {
                                     RoundedRectangle(cornerRadius: iconSize / 2)  // Circular to match pill-shaped DI edges
-                                        .fill(Color.white.opacity(0.2))
+                                        .fill(AdaptiveColors.overlayAuto(0.2))
                                         .overlay(
                                             Image(systemName: "music.note")
                                                 .font(.system(size: 10))
@@ -324,18 +329,18 @@ struct MediaHUDView: View {
                         if showVisualizer {
                             AudioSpectrumView(
                                 isPlaying: musicManager.isPlaying,
-                                barCount: 3,
-                                barWidth: 2.5,
-                                spacing: 2,
-                                height: 18,
+                                barCount: visualizerBarCount,
+                                barWidth: visualizerBarWidth,
+                                spacing: visualizerSpacing,
+                                height: visualizerHeight,
                                 color: visualizerColor,
                                 secondaryColor: enableGradientVisualizer ? visualizerSecondaryColor : nil,
                                 gradientMode: enableGradientVisualizer
                             )
-                                .frame(width: 3 * 2.5 + 2 * 2, height: 18)
+                                .frame(width: visualizerWidth, height: visualizerHeight)
                                 .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "spectrum"))
                         } else {
-                            Color.clear.frame(width: 3 * 2.5 + 2 * 2, height: 18)
+                            Color.clear.frame(width: visualizerWidth, height: visualizerHeight)
                         }
                     }
                     .padding(.horizontal, symmetricPadding)  // Same as vertical for symmetry
@@ -359,7 +364,7 @@ struct MediaHUDView: View {
                                         .aspectRatio(contentMode: .fill)
                                 } else {
                                     RoundedRectangle(cornerRadius: 5)  // ~25% of size for Apple-style rounded corners
-                                        .fill(Color.white.opacity(0.2))
+                                        .fill(AdaptiveColors.overlayAuto(0.2))
                                         .overlay(
                                             Image(systemName: "music.note")
                                                 .font(.system(size: 12))
@@ -395,7 +400,7 @@ struct MediaHUDView: View {
                             )
                                 .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "spectrum"))  // Visualizer morphing
                         } else {
-                            Color.clear.frame(width: 5 * 3 + 4 * 2, height: 20)
+                            Color.clear.frame(width: 5 * 2.3 + 4 * 1.5, height: 16)
                         }
                     }
                     .padding(.trailing, symmetricPadding)
@@ -409,7 +414,7 @@ struct MediaHUDView: View {
         // PREMIUM: Unified smooth animation for ALL transitions
         // This matches the morphing animation (.smooth(duration: 0.35)) for consistent feel
         .compositingGroup() // Unity Standard: animate as single layer
-        .animation(.smooth(duration: 0.35), value: isHovered)
+        .animation(DroppyAnimation.smooth(duration: 0.35, for: targetScreen), value: isHovered)
         .allowsHitTesting(true)
         .onTapGesture {
             withAnimation(DroppyAnimation.state) {
@@ -438,15 +443,15 @@ struct MiniAudioVisualizerBars: View {
         AudioSpectrumView(
             isPlaying: isPlaying,
             barCount: 5,
-            barWidth: 3,
-            spacing: 2,
-            height: 20,  // Match 20px icon standard
+            barWidth: 2.3,
+            spacing: 1.5,
+            height: 16,
             color: color,
             secondaryColor: secondaryColor,
             gradientMode: gradientMode,
             audioLevel: audioAnalyzer.audioLevel
         )
-        .frame(width: 5 * 3 + 4 * 2, height: 20)  // Match 20px icon standard
+        .frame(width: 5 * 2.3 + 4 * 1.5, height: 16)
         .onAppear { audioAnalyzer.startObserving() }
         .onDisappear { audioAnalyzer.stopObserving() }
     }
@@ -669,7 +674,7 @@ struct SubtleScrollingText: View {
         if animated {
             let progress = scrollOffset / max(1, textWidth)
             let duration = min(0.35, max(0.14, 0.12 + Double(progress) * 0.22))
-            withAnimation(.easeOut(duration: duration)) {
+            withAnimation(DroppyAnimation.easeOut(duration: duration)) {
                 scrollOffset = 0
             }
         } else {
@@ -693,7 +698,7 @@ struct SubtleScrollingText: View {
         
         let progress = scrollOffset / max(1, textWidth)
         let duration = min(0.4, max(0.18, 0.15 + Double(progress) * 0.25))
-        withAnimation(.easeOut(duration: duration)) {
+        withAnimation(DroppyAnimation.easeOut(duration: duration)) {
             scrollOffset = 0
         }
         
@@ -851,7 +856,7 @@ struct ProgressSlider: View {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         Capsule()
-                            .fill(Color.white.opacity(0.05))
+                            .fill(AdaptiveColors.overlayAuto(0.05))
                     )
                     // Concave lighting: shadow on top, highlight on bottom
                     .overlay(

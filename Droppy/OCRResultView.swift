@@ -88,6 +88,6 @@ struct OCRResultView: View {
         }
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
     }
 }

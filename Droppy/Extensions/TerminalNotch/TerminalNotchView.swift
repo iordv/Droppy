@@ -12,6 +12,7 @@ struct TerminalNotchView: View {
     @ObservedObject var manager: TerminalNotchManager
     var notchHeight: CGFloat = 0  // Physical notch height from parent (0 for Dynamic Island)
     var isExternalWithNotchStyle: Bool = false  // External display with curved notch style
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @FocusState private var isInputFocused: Bool
     
     /// Dynamic Island mode detection based on notchHeight
@@ -25,6 +26,32 @@ struct TerminalNotchView: View {
     /// - Island mode: 30pt on all 4 edges
     private var contentPadding: EdgeInsets {
         NotchLayoutConstants.contentEdgeInsets(notchHeight: notchHeight, isExternalWithNotchStyle: isExternalWithNotchStyle)
+    }
+
+    /// Keep built-in notch text white on black.
+    /// Only use adaptive foregrounds for external transparent-notch mode.
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && isExternalWithNotchStyle
+    }
+
+    private func textColor(_ whiteOpacity: Double = 1.0) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(whiteOpacity) : .white.opacity(whiteOpacity)
+    }
+
+    private func secondaryTextColor(_ whiteOpacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(whiteOpacity) : .white.opacity(whiteOpacity)
+    }
+
+    private func overlayColor(_ whiteOpacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(whiteOpacity) : .white.opacity(whiteOpacity)
+    }
+
+    private var inputChromeBackgroundOpacity: Double {
+        useAdaptiveForegrounds ? 0.95 : 0.12
+    }
+
+    private var inputChromeBorderOpacity: Double {
+        useAdaptiveForegrounds ? 1.0 : 0.16
     }
     
     /// Animated dash phase for marching ants effect on dotted outline
@@ -78,9 +105,6 @@ struct TerminalNotchView: View {
     /// Beautiful centered command input with dotted outline (shown before first command)
     private var initialCommandView: some View {
         ZStack {
-            // Dotted outline container with marching ants animation (like empty shelf)
-            // NOTE: Using strokeBorder instead of stroke to draw INSIDE the shape bounds,
-            // preventing the stroke from being clipped at content edges
             RoundedRectangle(cornerRadius: DroppyRadius.xxl + 2, style: .continuous)
                 .strokeBorder(
                     Color.green.opacity(0.4),
@@ -92,38 +116,37 @@ struct TerminalNotchView: View {
                     )
                 )
             
-            // Centered command input
             VStack(spacing: 12) {
                 // Terminal icon
                 Image(systemName: "terminal")
                     .font(.system(size: 24, weight: .light))
                     .foregroundStyle(.green.opacity(0.6))
-                
+
                 // Command input row with fixed frame to prevent shift
                 HStack(alignment: .center, spacing: 8) {
                     Text("$")
                         .font(.system(size: 16, weight: .bold, design: .monospaced))
                         .foregroundStyle(.green)
-                    
+
                     // Use ZStack with fixed frame to prevent any layout shift
                     ZStack(alignment: .leading) {
                         // Invisible sizing reference that never changes
                         Text("Enter command...")
                             .font(.system(size: 16, design: .monospaced))
                             .opacity(0)
-                        
+
                         // Placeholder text (only visible when empty and not focused)
                         if manager.commandText.isEmpty && !isInputFocused {
                             Text("Enter command...")
                                 .font(.system(size: 16, design: .monospaced))
-                                .foregroundStyle(.white.opacity(0.4))
+                                .foregroundStyle(secondaryTextColor(0.4))
                         }
-                        
+
                         // Actual text field with no placeholder (avoids SwiftUI's placeholder shift bug)
                         TextField("", text: $manager.commandText)
                             .textFieldStyle(.plain)
                             .font(.system(size: 16, design: .monospaced))
-                            .foregroundStyle(.white)
+                            .foregroundColor(textColor())
                             .focused($isInputFocused)
                             .onSubmit {
                                 manager.executeQuickCommand(manager.commandText)
@@ -137,7 +160,7 @@ struct TerminalNotchView: View {
                                 return .handled
                             }
                     }
-                    
+
                     // Placeholder for running indicator to prevent shift
                     if manager.isRunning {
                         ProgressView()
@@ -152,13 +175,17 @@ struct TerminalNotchView: View {
                 .droppyTextInputChrome(
                     cornerRadius: DroppyRadius.medium,
                     horizontalPadding: 16,
-                    verticalPadding: 10
+                    verticalPadding: 10,
+                    backgroundOpacity: inputChromeBackgroundOpacity,
+                    borderOpacity: inputChromeBorderOpacity,
+                    useAdaptiveColors: useAdaptiveForegrounds
                 )
             }
-            // Content padding inside the dotted outline
-            .padding(DroppySpacing.xxl)
+            .padding(.horizontal, DroppySpacing.lg)
+            .padding(.vertical, DroppySpacing.md)
         }
-        // Use SSOT for consistent padding across all expanded views
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        // Use SSOT for consistent outer padding across all expanded views
         .padding(contentPadding)
         // Start marching ants animation when view appears
         .onAppear {
@@ -184,10 +211,14 @@ struct TerminalNotchView: View {
                     .foregroundStyle(.green)
                 
                 // Command input
-                TextField("Enter command...", text: $manager.commandText)
+                TextField(
+                    "",
+                    text: $manager.commandText,
+                    prompt: Text("Enter command...").foregroundColor(secondaryTextColor(0.42))
+                )
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundColor(textColor())
                     .focused($isInputFocused)
                     .onSubmit {
                         manager.executeQuickCommand(manager.commandText)
@@ -211,18 +242,21 @@ struct TerminalNotchView: View {
             .droppyTextInputChrome(
                 cornerRadius: DroppyRadius.medium,
                 horizontalPadding: 12,
-                verticalPadding: 10
+                verticalPadding: 10,
+                backgroundOpacity: inputChromeBackgroundOpacity,
+                borderOpacity: inputChromeBorderOpacity,
+                useAdaptiveColors: useAdaptiveForegrounds
             )
             
             // Output preview (if any)
             if !manager.lastOutput.isEmpty {
                 Divider()
-                    .background(Color.white.opacity(0.1))
+                    .background(overlayColor(0.1))
                 
                 ScrollView {
                     Text(manager.lastOutput)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(secondaryTextColor(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled) // Allow text selection and copy
                 }
@@ -243,7 +277,7 @@ struct TerminalNotchView: View {
             HStack {
                 Text("Terminal")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(secondaryTextColor(0.6))
                 
                 Spacer()
                 
@@ -254,12 +288,12 @@ struct TerminalNotchView: View {
                 .buttonStyle(DroppyCircleButtonStyle(size: 24))
                 .help("Collapse to quick mode")
                 
-                // Open in Terminal.app
+                // Open in selected terminal app
                 Button(action: { manager.openInTerminalApp() }) {
                     Image(systemName: "arrow.up.forward.app")
                 }
                 .buttonStyle(DroppyCircleButtonStyle(size: 24))
-                .help("Open in Terminal.app")
+                .help("Open in \(manager.preferredExternalAppTitle)")
                 
                 // Close button
                 Button(action: { manager.hide() }) {
@@ -269,10 +303,10 @@ struct TerminalNotchView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(0.05))
+            .background(overlayColor(0.05))
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(overlayColor(0.1))
             
             // Terminal content area
             // This will be replaced with SwiftTerm's LocalProcessTerminalView
@@ -286,7 +320,7 @@ struct TerminalNotchView: View {
                                 Text("$")
                                     .foregroundStyle(.green)
                                 Text(cmd)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(textColor())
                             }
                             .font(.system(size: 13, design: .monospaced))
                         }
@@ -294,7 +328,7 @@ struct TerminalNotchView: View {
                         if !manager.lastOutput.isEmpty {
                             Text(manager.lastOutput)
                                 .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(secondaryTextColor(0.8))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,7 +344,7 @@ struct TerminalNotchView: View {
                     TextField("", text: $manager.commandText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(.white)
+                        .foregroundColor(textColor())
                         .focused($isInputFocused)
                         .onSubmit {
                             manager.executeQuickCommand(manager.commandText)
@@ -327,7 +361,10 @@ struct TerminalNotchView: View {
                 .droppyTextInputChrome(
                     cornerRadius: DroppyRadius.medium,
                     horizontalPadding: 12,
-                    verticalPadding: 10
+                    verticalPadding: 10,
+                    backgroundOpacity: inputChromeBackgroundOpacity,
+                    borderOpacity: inputChromeBorderOpacity,
+                    useAdaptiveColors: useAdaptiveForegrounds
                 )
             }
             .frame(height: 300)
@@ -347,7 +384,7 @@ struct TerminalNotchView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(overlayColor(0.1), lineWidth: 1)
             )
     }
 }

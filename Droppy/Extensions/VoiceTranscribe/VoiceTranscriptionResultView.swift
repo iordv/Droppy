@@ -38,7 +38,7 @@ final class VoiceTranscriptionResultController: NSObject {
         let contentView = VoiceTranscriptionResultView(text: text) { [weak self] in
             self?.hideWindow()
         }
-        .preferredColorScheme(.dark) // Force dark mode always
+
         let hostingView = NSHostingView(rootView: contentView)
         
         let newWindow = NSPanel(
@@ -198,7 +198,7 @@ struct VoiceTranscriptionResultView: View {
         }
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
     }
 }
 

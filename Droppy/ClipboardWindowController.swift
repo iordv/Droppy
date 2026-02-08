@@ -33,7 +33,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
                 self.resetWindowSize()
             }
         )
-        .preferredColorScheme(.dark) // Force dark mode always
+
         
         // Use NSHostingView like SettingsWindowController for native sidebar appearance
         let hostingView = NSHostingView(rootView: clipboardView)
@@ -84,7 +84,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
             height: 640
         )
         DispatchQueue.main.async {
-            window.setFrame(newRect, display: true, animate: true)
+            AppKitMotion.animateFrame(window, to: newRect, duration: 0.2)
         }
     }
     
@@ -128,14 +128,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         }
         
         isAnimating = true
-        window.alphaValue = 0
-        
-        // PREMIUM SPRING: Start scaled down for bouncy appear animation
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0) // More noticeable scale
-            contentView.layer?.opacity = 0
-        }
+        AppKitMotion.prepareForPresent(window, initialScale: 0.9)
         
         // ✅ Restore Focus to allow Keyboard Navigation (Arrows + Enter)
         // Use orderFront first, then async makeKey to ensure NotchWindow's canBecomeKey updates
@@ -151,43 +144,9 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         startClickMonitoring()
         
         print("⌨️ Droppy: Showing Clipboard Window")
-        
-        // PREMIUM: Use CASpringAnimation for true spring physics with visible overshoot
-        if let layer = window.contentView?.layer {
-            // Fade in (smooth like Quickshare)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.25  // Smooth fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (smooth like Quickshare)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 250  // Smooth spring (was 420)
-            scaleAnim.damping = 22
-            scaleAnim.initialVelocity = 6  // Gentler start
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window alpha (smooth like Quickshare)
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            window.animator().alphaValue = 1.0
-        }, completionHandler: { [weak self] in
+        AppKitMotion.animateIn(window, initialScale: 0.9, duration: 0.24) { [weak self] in
             self?.isAnimating = false
-        })
+        }
         
         // PREMIUM: Haptic confirms clipboard opened
         HapticFeedback.expand()
@@ -204,26 +163,14 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         
         isAnimating = true
         print("⌨️ Droppy: Fading Out Clipboard Window (Duration: 0.25s)...")
-        
-        // PREMIUM SPRING: Ensure layer backing for smooth animation
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-        }
-        
-        // PREMIUM SPRING ANIMATION: Scale down + fade out (snappier close)
-        let smoothCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.15  // Faster close (was 0.2)
-            context.timingFunction = smoothCurve
-            context.allowsImplicitAnimation = true
-            window.animator().alphaValue = 0
-            window.contentView?.layer?.transform = CATransform3DMakeScale(0.94, 0.94, 1.0)
-        }, completionHandler: { [weak self] in
+
+        AppKitMotion.animateOut(window, targetScale: 0.96, duration: 0.16) { [weak self] in
             self?.window?.orderOut(nil)
-            self?.window?.contentView?.layer?.transform = CATransform3DIdentity // Reset for next show
-            self?.window?.alphaValue = 1.0
+            if let window = self?.window {
+                AppKitMotion.resetPresentationState(window)
+            }
             self?.isAnimating = false
-        })
+        }
     }
     
     // MARK: - Click Monitoring (Auto-Close)
@@ -314,12 +261,12 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         isAnimating = true
         // Stop monitoring to prevent double-closes
         stopClickMonitoring()
-        
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.1
-            window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+
+        AppKitMotion.animateOut(window, targetScale: 0.97, duration: 0.12) { [weak self] in
             self?.window?.orderOut(nil)
+            if let window = self?.window {
+                AppKitMotion.resetPresentationState(window)
+            }
             self?.isAnimating = false
             
             // The Mirror Method (V12): Refined Sequence
@@ -349,7 +296,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
                     ClipboardManager.shared.paste(item: item)
                 }
             }
-        })
+        }
     }
     
     /// Batch paste multiple items (Issue #154)
@@ -366,12 +313,12 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         // Dismiss clipboard immediately
         isAnimating = true
         stopClickMonitoring()
-        
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.1
-            window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+
+        AppKitMotion.animateOut(window, targetScale: 0.97, duration: 0.12) { [weak self] in
             self?.window?.orderOut(nil)
+            if let window = self?.window {
+                AppKitMotion.resetPresentationState(window)
+            }
             self?.isAnimating = false
             
             // The Mirror Method (V12): Refined Sequence
@@ -390,7 +337,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
                     ClipboardManager.shared.paste(items: items)
                 }
             }
-        })
+        }
     }
 
     // Removed dead code: windowDidResignKey (Window is never Key now)

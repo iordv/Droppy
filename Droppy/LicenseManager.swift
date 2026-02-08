@@ -15,6 +15,7 @@ final class LicenseManager: ObservableObject {
     @Published private(set) var statusMessage: String
     @Published private(set) var licensedEmail: String
     @Published private(set) var licenseKeyHint: String
+    @Published private(set) var activatedDeviceName: String
     @Published private(set) var lastVerifiedAt: Date?
 
     var purchaseURL: URL? { configuration.purchaseURL }
@@ -39,6 +40,7 @@ final class LicenseManager: ObservableObject {
         self.statusMessage = enforcementEnabled ? "License not activated." : "License checks disabled."
         self.licensedEmail = ""
         self.licenseKeyHint = ""
+        self.activatedDeviceName = ""
         self.lastVerifiedAt = nil
 
         if enforcementEnabled {
@@ -59,6 +61,7 @@ final class LicenseManager: ObservableObject {
     @discardableResult
     func activate(licenseKey: String, email: String?) async -> Bool {
         guard requiresLicenseEnforcement else { return true }
+        guard !isChecking else { return false }
 
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmail = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -92,6 +95,12 @@ final class LicenseManager: ObservableObject {
             let keyHint = Self.keyHint(for: trimmedKey)
 
             guard keychainStore.storeLicenseKey(trimmedKey) else {
+                // We already incremented uses_count above, so roll it back if local persistence fails.
+                _ = try? await verifyLicense(
+                    licenseKey: trimmedKey,
+                    incrementUsesCount: false,
+                    decrementUsesCount: true
+                )
                 statusMessage = "License could not be saved to Keychain."
                 return false
             }
@@ -100,6 +109,7 @@ final class LicenseManager: ObservableObject {
                 isActive: true,
                 email: resolvedEmail,
                 keyHint: keyHint,
+                deviceName: Self.currentDeviceName(),
                 verifiedAt: Date(),
                 message: "License activated."
             )
@@ -112,12 +122,14 @@ final class LicenseManager: ObservableObject {
 
     func revalidateStoredLicense() async {
         guard requiresLicenseEnforcement else { return }
+        guard !isChecking else { return }
 
         guard let storedKey = keychainStore.fetchLicenseKey()?.nonEmpty else {
             setActivatedState(
                 isActive: false,
                 email: "",
                 keyHint: "",
+                deviceName: "",
                 verifiedAt: nil,
                 message: "License not activated.",
                 clearKeychain: false
@@ -135,6 +147,7 @@ final class LicenseManager: ObservableObject {
                     isActive: false,
                     email: "",
                     keyHint: "",
+                    deviceName: "",
                     verifiedAt: nil,
                     message: response.message?.nonEmpty ?? "License is no longer valid.",
                     clearKeychain: true
@@ -147,6 +160,7 @@ final class LicenseManager: ObservableObject {
                 isActive: true,
                 email: resolvedEmail,
                 keyHint: Self.keyHint(for: storedKey),
+                deviceName: Self.currentDeviceName(),
                 verifiedAt: Date(),
                 message: "License verified."
             )
@@ -166,6 +180,7 @@ final class LicenseManager: ObservableObject {
             isActive: false,
             email: "",
             keyHint: "",
+            deviceName: "",
             verifiedAt: nil,
             message: "License removed from this Mac.",
             clearKeychain: true
@@ -174,6 +189,7 @@ final class LicenseManager: ObservableObject {
 
     func deactivateCurrentDevice() async {
         guard requiresLicenseEnforcement else { return }
+        guard !isChecking else { return }
 
         guard let storedKey = keychainStore.fetchLicenseKey()?.nonEmpty else {
             deactivateLocally()
@@ -194,6 +210,7 @@ final class LicenseManager: ObservableObject {
                 isActive: false,
                 email: "",
                 keyHint: "",
+                deviceName: "",
                 verifiedAt: nil,
                 message: "License removed from this Mac.",
                 clearKeychain: true
@@ -203,6 +220,7 @@ final class LicenseManager: ObservableObject {
                 isActive: false,
                 email: "",
                 keyHint: "",
+                deviceName: "",
                 verifiedAt: nil,
                 message: "License removed locally. Re-activate and remove while online to release this seat.",
                 clearKeychain: true
@@ -213,6 +231,7 @@ final class LicenseManager: ObservableObject {
     private func restoreStoredState() {
         licensedEmail = defaults.string(forKey: AppPreferenceKey.gumroadLicenseEmail) ?? ""
         licenseKeyHint = defaults.string(forKey: AppPreferenceKey.gumroadLicenseKeyHint) ?? ""
+        activatedDeviceName = defaults.string(forKey: AppPreferenceKey.gumroadLicenseDeviceName) ?? ""
 
         if defaults.object(forKey: AppPreferenceKey.gumroadLicenseLastValidatedAt) != nil {
             let seconds = defaults.double(forKey: AppPreferenceKey.gumroadLicenseLastValidatedAt)
@@ -226,6 +245,10 @@ final class LicenseManager: ObservableObject {
         let storedActiveFlag = defaults.bool(forKey: AppPreferenceKey.gumroadLicenseActive)
 
         isActivated = hasStoredKey && (storedActiveFlag || !hasStoredActivationFlag)
+        if isActivated && activatedDeviceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            activatedDeviceName = Self.currentDeviceName()
+            defaults.set(activatedDeviceName, forKey: AppPreferenceKey.gumroadLicenseDeviceName)
+        }
         if isActivated {
             statusMessage = hasStoredActivationFlag ? "License active." : "Saved license found. Verifying..."
         } else {
@@ -237,6 +260,7 @@ final class LicenseManager: ObservableObject {
         isActive: Bool,
         email: String,
         keyHint: String,
+        deviceName: String,
         verifiedAt: Date?,
         message: String,
         clearKeychain: Bool = false,
@@ -251,12 +275,14 @@ final class LicenseManager: ObservableObject {
         isActivated = isActive
         licensedEmail = email
         licenseKeyHint = keyHint
+        activatedDeviceName = isActive ? (deviceName.nonEmpty ?? Self.currentDeviceName()) : ""
         lastVerifiedAt = verifiedAt
         statusMessage = message
 
         defaults.set(isActive, forKey: AppPreferenceKey.gumroadLicenseActive)
         defaults.set(email, forKey: AppPreferenceKey.gumroadLicenseEmail)
         defaults.set(keyHint, forKey: AppPreferenceKey.gumroadLicenseKeyHint)
+        defaults.set(activatedDeviceName, forKey: AppPreferenceKey.gumroadLicenseDeviceName)
 
         if let verifiedAt {
             defaults.set(verifiedAt.timeIntervalSince1970, forKey: AppPreferenceKey.gumroadLicenseLastValidatedAt)
@@ -284,8 +310,11 @@ final class LicenseManager: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 15
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "license_key", value: licenseKey),
@@ -371,6 +400,16 @@ final class LicenseManager: ObservableObject {
     private static func keyHint(for key: String) -> String {
         let suffix = String(key.suffix(4))
         return suffix.isEmpty ? "****" : "****\(suffix)"
+    }
+
+    private static func currentDeviceName() -> String {
+        if let localized = Host.current().localizedName?.nonEmpty {
+            return localized
+        }
+        if let host = ProcessInfo.processInfo.hostName.nonEmpty {
+            return host
+        }
+        return "This Mac"
     }
 }
 

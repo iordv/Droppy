@@ -581,7 +581,7 @@ final class FloatingBasketWindowController: NSObject {
         let targetFrame = NSRect(x: xPosition, y: yPosition, width: windowWidth, height: windowHeight)
         
         if let panel = basketWindow {
-            panel.animator().alphaValue = 1.0
+            panel.alphaValue = 1.0
             panel.setFrame(targetFrame, display: true)
             panel.orderFrontRegardless()
             DroppyState.shared.isBasketVisible = true
@@ -607,7 +607,7 @@ final class FloatingBasketWindowController: NSObject {
         // Defensive check: reuse existing hidden window IF it belongs to this controller
         // (Do NOT steal windows from other basket instances - multi-basket support)
         if let panel = basketWindow {
-            panel.animator().alphaValue = 1.0 // Ensure visible
+            panel.alphaValue = 1.0 // Ensure visible
             if atLastPosition && lastBasketFrame.width > 0 {
                 panel.setFrame(lastBasketFrame, display: true)
             } else {
@@ -684,7 +684,7 @@ final class FloatingBasketWindowController: NSObject {
         
         // Create SwiftUI view with this basket's state (fully independent)
         let basketView = FloatingBasketView(basketState: basketState, accentColor: accentColor)
-            .preferredColorScheme(.dark) // Force dark mode always
+
         let hostingView = NSHostingView(rootView: basketView)
         
         
@@ -715,50 +715,10 @@ final class FloatingBasketWindowController: NSObject {
         // Set visible FIRST to kick off view rendering
         DroppyState.shared.isBasketVisible = true
         
-        // Start invisible and scaled down for spring animation (matches shelf expandOpen)
-        panel.alphaValue = 0
-        if let contentView = panel.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0) // Start smaller for more pop
-        }
+        AppKitMotion.prepareForPresent(panel, initialScale: 0.88)
         panel.orderFrontRegardless()
         panel.makeKey() // Make key window so keyboard shortcuts work
-        
-        // PREMIUM: Spring animation with real overshoot for alive, playful feel
-        // Using CASpringAnimation for true spring physics
-        if let layer = panel.contentView?.layer {
-            // Fade in (smooth like Quickshare)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.25  // Smooth fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (smooth like Quickshare)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 250  // Smooth spring (was 420)
-            scaleAnim.damping = 22
-            scaleAnim.initialVelocity = 6  // Gentler start
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window itself (smooth like Quickshare)
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 1.0
-        }, completionHandler: nil)
+        AppKitMotion.animateIn(panel, initialScale: 0.88, duration: 0.22)
         
         basketWindow = panel
         lastBasketFrame = windowFrame  // Save position for tracked folder reopening
@@ -921,19 +881,9 @@ final class FloatingBasketWindowController: NSObject {
         
         // PREMIUM: Critically damped spring matching shelf expandClose (response: 0.45, damping: 1.0)
         // Faster, no-wobble collapse animation
-        if let contentView = panel.contentView {
-            contentView.wantsLayer = true
-        }
-        let criticallyDampedCurve = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)  // Ease-out for damped feel
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2  // Faster close (was 0.35)
-            context.timingFunction = criticallyDampedCurve
-            context.allowsImplicitAnimation = true
-            panel.animator().alphaValue = 0
-            panel.contentView?.layer?.transform = CATransform3DMakeScale(0.92, 0.92, 1.0)
-        }, completionHandler: { [weak self] in
+        AppKitMotion.animateOut(panel, targetScale: 0.95, duration: 0.2) { [weak self] in
             panel.orderOut(nil)
-            panel.contentView?.layer?.transform = CATransform3DIdentity // Reset for next show
+            AppKitMotion.resetPresentationState(panel)
             if let self = self {
                 Self.removeBasket(self) // Clean up from multi-basket tracking
                 self.basketWindow = nil
@@ -941,7 +891,7 @@ final class FloatingBasketWindowController: NSObject {
                 DroppyState.shared.isBasketTargeted = false
                 self.isShowingOrHiding = false
             }
-        })
+        }
     }
 
     /// Hides basket without destroying controller/state (used by multi-basket "eye" action).
@@ -961,26 +911,15 @@ final class FloatingBasketWindowController: NSObject {
         isInPeekMode = false
         isPeekAnimating = false
 
-        if let contentView = panel.contentView {
-            contentView.wantsLayer = true
-        }
-
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.18
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            context.allowsImplicitAnimation = true
-            panel.animator().alphaValue = 0
-            panel.contentView?.layer?.transform = CATransform3DMakeScale(0.94, 0.94, 1.0)
-        }, completionHandler: { [weak self] in
+        AppKitMotion.animateOut(panel, targetScale: 0.96, duration: 0.18) { [weak self] in
             guard let self else { return }
             panel.orderOut(nil)
-            panel.alphaValue = 1
-            panel.contentView?.layer?.transform = CATransform3DIdentity
+            AppKitMotion.resetPresentationState(panel)
             DroppyState.shared.isBasketVisible = Self.isAnyBasketVisible
             DroppyState.shared.isBasketTargeted = false
             self.isShowingOrHiding = false
 
-        })
+        }
     }
     
     // MARK: - Auto-Hide Peek Mode Methods (v5.3)
@@ -1148,19 +1087,12 @@ final class FloatingBasketWindowController: NSObject {
         isInPeekMode = true
         isPeekAnimating = true
         
-        // Fade out animation
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            context.allowsImplicitAnimation = true
-            
-            panel.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
+        AppKitMotion.animateOut(panel, targetScale: 0.97, duration: 0.22) { [weak self] in
             guard let self = self else { return }
             self.isPeekAnimating = false
             self.stopMouseTrackingMonitor()
             panel.orderOut(nil)
-            panel.alphaValue = 1  // Reset alpha for when it shows again
+            AppKitMotion.resetPresentationState(panel)  // Reset alpha for when it shows again
         }
     }
     

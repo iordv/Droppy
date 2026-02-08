@@ -102,6 +102,7 @@ struct LicenseSettingsSection: View {
             title: "Droppy License",
             subtitle: "Activated on this Mac",
             email: licenseManager.licensedEmail,
+            deviceName: licenseManager.activatedDeviceName,
             keyHint: normalized(licenseManager.licenseKeyHint),
             verifiedAt: licenseManager.lastVerifiedAt,
             accentColor: .blue,
@@ -216,11 +217,11 @@ struct LicenseSettingsSection: View {
             }
         }
         .padding(14)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
 

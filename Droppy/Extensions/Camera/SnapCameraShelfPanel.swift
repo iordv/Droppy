@@ -27,7 +27,7 @@ struct SnapCameraShelfPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
         .onAppear {
@@ -112,7 +112,7 @@ struct SnapCameraNotchView: View {
         .clipShape(RoundedRectangle(cornerRadius: previewCornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: previewCornerRadius, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
         .padding(contentPadding)

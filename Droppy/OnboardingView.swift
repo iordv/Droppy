@@ -52,6 +52,7 @@ struct OnboardingView: View {
     // Appearance
     @AppStorage(AppPreferenceKey.useDynamicIslandStyle) private var useDynamicIslandStyle = PreferenceDefault.useDynamicIslandStyle
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
     
     @State private var currentPage: OnboardingPage = .welcome
     @State private var isNextHovering = false
@@ -90,13 +91,13 @@ struct OnboardingView: View {
             if useTransparentBackground {
                 AnyView(Rectangle().fill(.ultraThinMaterial))
             } else {
-                AnyView(Color.black)
+                AnyView(AdaptiveColors.panelBackgroundAuto)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                .strokeBorder(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .overlay {
             if showConfetti {
@@ -200,7 +201,7 @@ struct OnboardingView: View {
             HStack(spacing: 6) {
                 ForEach(OnboardingPage.allCases, id: \.rawValue) { page in
                     Circle()
-                        .fill(page == currentPage ? Color.white : Color.white.opacity(0.25))
+                        .fill(page == currentPage ? Color.white : AdaptiveColors.overlayAuto(0.25))
                         .frame(width: page == currentPage ? 8 : 6, height: page == currentPage ? 8 : 6)
                         .animation(DroppyAnimation.hoverQuick, value: currentPage)
                 }
@@ -298,7 +299,7 @@ struct OnboardingView: View {
         case .extensions:
             ExtensionsContent()
         case .ready:
-            ReadyContent()
+            ReadyContent(disableAnalytics: $disableAnalytics)
         }
     }
 }
@@ -372,11 +373,11 @@ private struct WelcomeContent: View {
                     WelcomeFeatureRow(icon: "music.note", color: .green, text: "See Now Playing right in your menu bar")
                     WelcomeFeatureRow(icon: "wand.and.stars", color: .pink, text: "Auto-compress images and convert files", isLast: true)
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .frame(width: 380)
@@ -397,7 +398,7 @@ private struct WelcomeContent: View {
                                 action: { externalDisplayUseDynamicIsland = false }
                             ) {
                                 UShape()
-                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                             
@@ -407,7 +408,7 @@ private struct WelcomeContent: View {
                                 action: { externalDisplayUseDynamicIsland = true }
                             ) {
                                 Capsule()
-                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                         }
@@ -421,7 +422,7 @@ private struct WelcomeContent: View {
                                 action: { useDynamicIslandStyle = false }
                             ) {
                                 UShape()
-                                    .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                             
@@ -431,7 +432,7 @@ private struct WelcomeContent: View {
                                 action: { useDynamicIslandStyle = true }
                             ) {
                                 Capsule()
-                                    .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                         }
@@ -466,11 +467,11 @@ private struct WelcomeFeatureRow: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.white.opacity(0.02))
+        .background(AdaptiveColors.overlayAuto(0.02))
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle()
-                    .fill(Color.white.opacity(0.04))
+                    .fill(AdaptiveColors.overlayAuto(0.04))
                     .frame(height: 0.5)
             }
         }
@@ -617,17 +618,17 @@ private struct MediaContent: View {
                 
                 HStack(spacing: 8) {
                     HUDToggle(icon: "sun.max.fill", title: "Brightness", color: .yellow, isOn: $enableHUD, available: true)
-                    HUDToggle(icon: "battery.100.bolt", title: "Battery", color: .green, isOn: $enableBatteryHUD, available: true)
+                    HUDToggle(icon: "battery.100percent.bolt", title: "Battery", color: .green, isOn: $enableBatteryHUD, available: true, usesIOSBatteryGlyph: true)
                 }
                 
                 HStack(spacing: 8) {
                     HUDToggle(icon: "capslock.fill", title: "Caps Lock", color: .orange, isOn: $enableCapsLockHUD, available: true)
-                    HUDToggle(icon: "airpods", title: "AirPods", color: Color(hue: 0.58, saturation: 0.15, brightness: 0.65), isOn: $enableAirPodsHUD, available: true)
+                    HUDToggle(icon: "airpodspro", title: "AirPods", color: Color(hue: 0.58, saturation: 0.15, brightness: 0.65), isOn: $enableAirPodsHUD, available: true)
                 }
                 
                 HStack(spacing: 8) {
-                    HUDToggle(icon: "moon.fill", title: "Do Not Disturb", color: .purple, isOn: $enableDNDHUD, available: true)
-                    HUDToggle(icon: "arrow.down.circle.fill", title: "New Update", color: .blue, isOn: $enableUpdateHUD, available: true)
+                    HUDToggle(icon: "moon.fill", title: "Focus Mode", color: .purple, isOn: $enableDNDHUD, available: true)
+                    HUDToggle(icon: "arrow.down.circle.fill", title: "Droppy Updates", color: .blue, isOn: $enableUpdateHUD, available: true)
                 }
             }
             .frame(width: 400)
@@ -654,6 +655,7 @@ private struct HUDToggle: View {
     @Binding var isOn: Bool
     let available: Bool
     var secondaryColor: Color? = nil
+    var usesIOSBatteryGlyph: Bool = false
     
     @State private var isHovering = false
     
@@ -683,17 +685,31 @@ private struct HUDToggle: View {
                     RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.25), Color.clear],
+                                colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                                 startPoint: .top,
                                 endPoint: .center
                             )
                         )
                         .frame(width: 28, height: 28)
                     
-                    Image(systemName: icon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .droppyTextShadow()
+                    if usesIOSBatteryGlyph {
+                        IOSBatteryGlyph(
+                            level: 0.48,
+                            outerColor: Color(white: 0.62),
+                            innerColor: Color(red: 0.46, green: 0.96, blue: 0.56),
+                            terminalColor: Color(white: 0.62),
+                            chargingSegmentColor: Color(white: 0.58),
+                            isCharging: true,
+                            bodyWidth: 15,
+                            bodyHeight: 8
+                        )
+                        .frame(width: 16, height: 13)
+                    } else {
+                        Image(systemName: icon)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .droppyTextShadow()
+                    }
                 }
                 .opacity(available ? 1.0 : 0.5)
                 
@@ -720,11 +736,11 @@ private struct HUDToggle: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
-            .background(isHovering && available ? Color.white.opacity(0.06) : Color.white.opacity(0.04))
+            .background(isHovering && available ? AdaptiveColors.overlayAuto(0.06) : AdaptiveColors.overlayAuto(0.04))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn && available ? color.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                    .stroke(isOn && available ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.06), lineWidth: 1)
             )
         }
         .buttonStyle(DroppySelectableButtonStyle(isSelected: isOn && available))
@@ -748,7 +764,7 @@ private struct OnboardingMediaPreview: View {
                 .frame(width: hudWidth, height: notchHeight + 28)
                 .overlay(
                     NotchShape(bottomRadius: 14)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             VStack(spacing: 0) {
@@ -792,7 +808,7 @@ private struct OnboardingMediaPreview: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: DroppyRadius.micro)
-                            .fill(Color.white.opacity(0.12))
+                            .fill(AdaptiveColors.overlayAuto(0.12))
                         RoundedRectangle(cornerRadius: DroppyRadius.micro)
                             .fill(Color.green)
                             .frame(width: geo.size.width * progress)
@@ -910,11 +926,11 @@ private struct LockScreenToggle<Icon: View>: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Color.white.opacity(0.04))
+            .background(AdaptiveColors.overlayAuto(0.04))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? accentColor.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                    .stroke(isOn ? accentColor.opacity(0.3) : AdaptiveColors.overlayAuto(0.06), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
         }
@@ -965,11 +981,11 @@ private struct ExtensionsContent: View {
             .padding(.vertical, 20)
             .padding(.horizontal, 20)
             .frame(width: 420)
-            .background(Color.white.opacity(0.025))
+            .background(AdaptiveColors.overlayAuto(0.025))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
             )
             
             // Info card - also full width
@@ -1000,7 +1016,7 @@ private struct OnboardingExtensionIcon<T: ExtensionDefinition>: View {
     var body: some View {
         VStack(spacing: 6) {
             CachedAsyncImage(url: definition.iconURL) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
+                image.droppyExtensionIcon(contentMode: .fill)
             } placeholder: {
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                     .fill(definition.iconPlaceholderColor.opacity(0.15))
@@ -1023,6 +1039,7 @@ private struct OnboardingExtensionIcon<T: ExtensionDefinition>: View {
 // MARK: - Page 8: Ready
 
 private struct ReadyContent: View {
+    @Binding var disableAnalytics: Bool
     @State private var showCheckmark = false
     @State private var showGuide = false
     @State private var showRows: [Bool] = [false, false, false, false]
@@ -1079,13 +1096,21 @@ private struct ReadyContent: View {
                         .offset(x: showRows[3] ? 0 : -20)
                         .animation(DroppyAnimation.notchState.delay(0.7), value: showRows[3])
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
+            .frame(width: 420)
+
+            OnboardingToggle(
+                icon: "hand.raised.fill",
+                title: "Skip all analytics",
+                color: .orange,
+                isOn: $disableAnalytics
+            )
             .frame(width: 420)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -1142,7 +1167,7 @@ private struct GuideRow: View {
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle()
-                    .fill(Color.white.opacity(0.04))
+                    .fill(AdaptiveColors.overlayAuto(0.04))
                     .frame(height: 1)
                     .padding(.leading, 56)
             }
@@ -1185,7 +1210,7 @@ private struct FeatureChip: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.white.opacity(0.04))
+        .background(AdaptiveColors.overlayAuto(0.04))
         .clipShape(Capsule())
     }
 }

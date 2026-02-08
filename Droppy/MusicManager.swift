@@ -268,11 +268,19 @@ final class MusicManager: ObservableObject {
         
         // Execute synchronously on serial queue to check incognito status
         // Note: This still blocks caller but ensures thread safety
-        var error: NSDictionary?
         var result: String?
         appleScriptQueue.sync {
-            if let appleScript = NSAppleScript(source: script) {
-                result = appleScript.executeAndReturnError(&error).stringValue
+            result = AppleScriptRuntime.execute {
+                var error: NSDictionary?
+                guard let appleScript = NSAppleScript(source: script) else {
+                    return nil
+                }
+                let descriptor = appleScript.executeAndReturnError(&error)
+                if let error {
+                    print("MusicManager: AppleScript error: \(error)")
+                    return nil
+                }
+                return descriptor.stringValue
             }
         }
         if let result = result {
@@ -484,12 +492,16 @@ final class MusicManager: ObservableObject {
         // Use serial queue to prevent concurrent AppleScript execution
         // NSAppleScript is NOT thread-safe and concurrent calls crash the runtime
         appleScriptQueue.async {
-            var error: NSDictionary?
-            if let appleScript = NSAppleScript(source: source) {
-                appleScript.executeAndReturnError(&error)
-                if let error = error {
-                    print("MusicManager: AppleScript error: \(error)")
+            let errorDescription: String? = AppleScriptRuntime.execute {
+                var error: NSDictionary?
+                guard let appleScript = NSAppleScript(source: source) else {
+                    return "Failed to create AppleScript"
                 }
+                appleScript.executeAndReturnError(&error)
+                return error.map { "\($0)" }
+            }
+            if let errorDescription {
+                print("MusicManager: AppleScript error: \(errorDescription)")
             }
         }
     }
@@ -1677,26 +1689,33 @@ final class MusicManager: ObservableObject {
         // Use serial queue to prevent concurrent AppleScript execution
         // NSAppleScript is NOT thread-safe and concurrent calls crash the runtime
         appleScriptQueue.async { [weak self] in
-            var error: NSDictionary?
-            if let script = NSAppleScript(source: source) {
+            let (resultString, errorDescription): (String?, String?) = AppleScriptRuntime.execute {
+                var error: NSDictionary?
+                guard let script = NSAppleScript(source: source) else {
+                    return (nil, "Failed to create AppleScript")
+                }
                 let result = script.executeAndReturnError(&error)
-                
-                if let error = error {
-                    print("MusicManager: AppleScript error for \(appName): \(error)")
-                    // Fallback: just activate the app
-                    DispatchQueue.main.async {
-                        let targetBundleId = bundleId ?? self?.bundleIdentifier
-                        if let bundleId = targetBundleId {
-                            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                                NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
-                            } else if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
-                                app.activate()
-                            }
+                if let error {
+                    return (nil, "\(error)")
+                }
+                return (result.stringValue, nil)
+            }
+
+            if let errorDescription {
+                print("MusicManager: AppleScript error for \(appName): \(errorDescription)")
+                // Fallback: just activate the app
+                DispatchQueue.main.async {
+                    let targetBundleId = bundleId ?? self?.bundleIdentifier
+                    if let bundleId = targetBundleId {
+                        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                            NSWorkspace.shared.openApplication(at: url, configuration: .init(), completionHandler: nil)
+                        } else if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+                            app.activate()
                         }
                     }
-                } else {
-                    print("MusicManager: AppleScript result for \(appName): \(result.stringValue ?? "success")")
                 }
+            } else {
+                print("MusicManager: AppleScript result for \(appName): \(resultString ?? "success")")
             }
         }
     }

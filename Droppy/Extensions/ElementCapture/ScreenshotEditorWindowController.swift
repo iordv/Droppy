@@ -49,7 +49,7 @@ final class ScreenshotEditorWindowController {
                 self?.dismiss()
             }
         )
-        .preferredColorScheme(.dark)
+        
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         
         // Create hosting view with layer clipping for proper rounded corners
@@ -91,14 +91,9 @@ final class ScreenshotEditorWindowController {
         newWindow.center()
         
         // Show with animation
-        newWindow.alphaValue = 0
+        AppKitMotion.prepareForPresent(newWindow, initialScale: 0.94)
         newWindow.makeKeyAndOrderFront(nil)
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            newWindow.animator().alphaValue = 1
-        }
+        AppKitMotion.animateIn(newWindow, initialScale: 0.94, duration: 0.2)
         
         self.window = newWindow
         
@@ -107,10 +102,7 @@ final class ScreenshotEditorWindowController {
     }
     
     private func saveAndClose(_ image: NSImage) {
-        // Copy to clipboard
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.writeObjects([image])
+        copyImageToPasteboard(image)
         
         // Play sound
         NSSound.beep()
@@ -122,18 +114,40 @@ final class ScreenshotEditorWindowController {
         CapturePreviewWindowController.shared.show(with: image)
     }
     
+    private func copyImageToPasteboard(_ image: NSImage) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            let bitmapRep = NSBitmapImageRep(cgImage: cgImage)
+            pasteboard.declareTypes([.png, .tiff], owner: nil)
+            var wroteData = false
+            
+            if let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+                wroteData = pasteboard.setData(pngData, forType: .png) || wroteData
+            }
+            
+            if let tiffData = bitmapRep.tiffRepresentation {
+                wroteData = pasteboard.setData(tiffData, forType: .tiff) || wroteData
+            }
+            
+            if !wroteData {
+                pasteboard.writeObjects([image])
+            }
+            return
+        }
+        
+        pasteboard.writeObjects([image])
+    }
+    
     func dismiss() {
         guard let window = window else { return }
-        
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            window.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
+
+        AppKitMotion.animateOut(window, targetScale: 0.97, duration: 0.16) { [weak self] in
             DispatchQueue.main.async {
                 self?.cleanUp()
             }
-        })
+        }
     }
     
     private func cleanUp() {

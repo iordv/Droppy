@@ -68,7 +68,7 @@ struct FolderIcon: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(isPinned ? Color.orange : Color.white.opacity(0.9))
+                            .fill(isPinned ? Color.orange : AdaptiveColors.overlayAuto(0.9))
                             .frame(width: size * 0.4, height: size * 0.4)
                             .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                         

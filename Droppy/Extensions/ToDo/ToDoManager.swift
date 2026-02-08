@@ -8,6 +8,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import EventKit
+import AppKit
 
 
 
@@ -212,6 +213,13 @@ final class ToDoManager {
         )
     }
 
+    var isCalendarSyncEnabled: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.todoSyncCalendarEnabled,
+            default: PreferenceDefault.todoSyncCalendarEnabled
+        )
+    }
+
     func setRemindersSyncEnabled(_ enabled: Bool) {
         Task {
             if enabled {
@@ -224,6 +232,7 @@ final class ToDoManager {
                     } else {
                         self.availableReminderLists = []
                         self.removeExternalItems(for: .reminders)
+                        self.openRemindersPrivacySettings()
                     }
                 }
             } else {
@@ -232,6 +241,24 @@ final class ToDoManager {
                     self.availableReminderLists = []
                     self.removeExternalItems(for: .reminders)
                 }
+            }
+        }
+    }
+
+    func setCalendarSyncEnabled(_ enabled: Bool) {
+        Task { @MainActor in
+            if enabled {
+                let granted = await requestCalendarAccess()
+                UserDefaults.standard.set(granted, forKey: AppPreferenceKey.todoSyncCalendarEnabled)
+                if granted {
+                    self.syncExternalSourcesNow()
+                } else {
+                    self.removeExternalItems(for: .calendar)
+                    openCalendarPrivacySettings()
+                }
+            } else {
+                UserDefaults.standard.set(false, forKey: AppPreferenceKey.todoSyncCalendarEnabled)
+                self.removeExternalItems(for: .calendar)
             }
         }
     }
@@ -326,7 +353,7 @@ final class ToDoManager {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            guard self.isRemindersSyncEnabled else { return }
+            guard self.isRemindersSyncEnabled || self.isCalendarSyncEnabled else { return }
             self.eventStoreSyncDebounceWorkItem?.cancel()
             let workItem = DispatchWorkItem { [weak self] in
                 self?.syncExternalSourcesNow()
@@ -338,6 +365,7 @@ final class ToDoManager {
 
     private func syncExternalSources() async {
         var reminderPayloads: [ExternalTaskPayload] = []
+        var calendarPayloads: [ExternalTaskPayload] = []
 
         if isRemindersSyncEnabled {
             let granted = await requestRemindersAccess()
@@ -352,12 +380,28 @@ final class ToDoManager {
             }
         }
 
+        if isCalendarSyncEnabled {
+            let granted = await requestCalendarAccess()
+            if granted {
+                calendarPayloads = await fetchCalendarEvents()
+            } else {
+                await MainActor.run {
+                    UserDefaults.standard.set(false, forKey: AppPreferenceKey.todoSyncCalendarEnabled)
+                }
+            }
+        }
+
         await MainActor.run {
-            applyExternalSync(reminderPayloads: reminderPayloads)
+            applyExternalSync(reminderPayloads: reminderPayloads, calendarPayloads: calendarPayloads)
         }
     }
 
     private func requestRemindersAccess() async -> Bool {
+        await MainActor.run {
+            // Ensure the app is frontmost so macOS can present the privacy prompt.
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
         let status = EKEventStore.authorizationStatus(for: .reminder)
         if #available(macOS 14.0, *) {
             switch status {
@@ -392,6 +436,49 @@ final class ToDoManager {
         } catch {
             return false
         }
+    }
+
+    @MainActor
+    private func openRemindersPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    @MainActor
+    private func requestCalendarAccess() async -> Bool {
+        // Ensure the app is active so macOS can present the privacy prompt.
+        NSApp.activate(ignoringOtherApps: true)
+
+        let status = EKEventStore.authorizationStatus(for: .event)
+        switch status {
+        case .fullAccess:
+            return true
+        case .authorized:
+            return true
+        case .denied, .restricted:
+            return false
+        case .writeOnly, .notDetermined:
+            do {
+                if try await eventStore.requestFullAccessToEvents() {
+                    return true
+                }
+            } catch {
+                return EKEventStore.authorizationStatus(for: .event) == .fullAccess
+            }
+            return EKEventStore.authorizationStatus(for: .event) == .fullAccess
+        @unknown default:
+            return false
+        }
+    }
+
+    @MainActor
+    private func openCalendarPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 
     private func refreshReminderLists() async {
@@ -479,17 +566,51 @@ final class ToDoManager {
         }
     }
 
-    private func applyExternalSync(reminderPayloads: [ExternalTaskPayload]) {
+    private func fetchCalendarEvents() async -> [ExternalTaskPayload] {
+        let calendars = eventStore.calendars(for: .event)
+        guard !calendars.isEmpty else { return [] }
+
+        let now = Date()
+        let end = Calendar.current.date(byAdding: .day, value: 30, to: now) ?? now.addingTimeInterval(30 * 24 * 60 * 60)
+        let predicate = eventStore.predicateForEvents(withStart: now, end: end, calendars: calendars)
+        let events = eventStore.events(matching: predicate)
+
+        var seenIDs = Set<String>()
+        return events.compactMap { event in
+            guard event.endDate >= now else { return nil }
+            if event.status == .canceled { return nil }
+
+            let title = event.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { return nil }
+
+            let identifier = Self.calendarOccurrenceIdentifier(for: event)
+            guard seenIDs.insert(identifier).inserted else { return nil }
+
+            return ExternalTaskPayload(
+                source: .calendar,
+                identifier: identifier,
+                title: title,
+                dueDate: event.startDate,
+                isCompleted: false,
+                listIdentifier: event.calendar.calendarIdentifier,
+                listTitle: event.calendar.title,
+                listColorHex: Self.hexColor(from: event.calendar.cgColor)
+            )
+        }
+    }
+
+    private func applyExternalSync(reminderPayloads: [ExternalTaskPayload], calendarPayloads: [ExternalTaskPayload]) {
         let remindersEnabled = isRemindersSyncEnabled
+        let calendarEnabled = isCalendarSyncEnabled
 
         var payloadByKey: [String: ExternalTaskPayload] = [:]
-        for payload in reminderPayloads {
+        for payload in (reminderPayloads + calendarPayloads) {
             payloadByKey["\(payload.source.rawValue)::\(payload.identifier)"] = payload
         }
 
         for index in items.indices {
             guard let source = items[index].externalSource, let externalID = items[index].externalIdentifier else { continue }
-            let keepSource = source == .reminders && remindersEnabled
+            let keepSource = (source == .reminders && remindersEnabled) || (source == .calendar && calendarEnabled)
             guard keepSource else { continue }
 
             let key = "\(source.rawValue)::\(externalID)"
@@ -522,10 +643,10 @@ final class ToDoManager {
         }
 
         // Remove stale external items from enabled sources when they no longer exist upstream.
-        let activeKeys = Set(reminderPayloads.map { "\($0.source.rawValue)::\($0.identifier)" })
+        let activeKeys = Set((reminderPayloads + calendarPayloads).map { "\($0.source.rawValue)::\($0.identifier)" })
         items.removeAll { item in
             guard let source = item.externalSource, let externalID = item.externalIdentifier else { return false }
-            let sourceEnabled = source == .reminders && remindersEnabled
+            let sourceEnabled = (source == .reminders && remindersEnabled) || (source == .calendar && calendarEnabled)
             guard sourceEnabled else { return false }
             let key = "\(source.rawValue)::\(externalID)"
             return !activeKeys.contains(key)
@@ -533,6 +654,9 @@ final class ToDoManager {
 
         if !remindersEnabled {
             removeExternalItems(for: .reminders)
+        }
+        if !calendarEnabled {
+            removeExternalItems(for: .calendar)
         }
 
         saveItems()
@@ -558,6 +682,7 @@ final class ToDoManager {
     
     func toggleCompletion(for item: ToDoItem) {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[index].externalSource != .calendar else { return }
         
         withAnimation(.smooth) {
             items[index].isCompleted.toggle()
@@ -581,6 +706,7 @@ final class ToDoManager {
     
     func updatePriority(for item: ToDoItem, to priority: ToDoPriority) {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[index].externalSource != .calendar else { return }
         withAnimation {
             items[index].priority = priority
         }
@@ -591,6 +717,7 @@ final class ToDoManager {
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[index].externalSource != .calendar else { return }
         withAnimation(.smooth) {
             items[index].title = trimmed
         }
@@ -601,6 +728,7 @@ final class ToDoManager {
 
     func updateDueDate(for item: ToDoItem, to dueDate: Date?) {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[index].externalSource != .calendar else { return }
         withAnimation(.smooth) {
             items[index].dueDate = dueDate
         }
@@ -611,6 +739,7 @@ final class ToDoManager {
 
     func updateReminderList(for item: ToDoItem, to reminderListID: String?) {
         guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        guard items[index].externalSource != .calendar else { return }
 
         let selectedList = reminderListID.flatMap { reminderListOption(withID: $0) }
         withAnimation(.smooth) {
@@ -630,6 +759,7 @@ final class ToDoManager {
     }
     
     func removeItem(_ item: ToDoItem) {
+        guard item.externalSource != .calendar else { return }
         // If this task is synced from Apple apps, delete the upstream item too.
         // Keep undo local-only to avoid stale external identifiers re-disappearing on next sync.
         deleteExternalBacking(for: item)
@@ -716,20 +846,6 @@ final class ToDoManager {
             print("ToDoManager: No saved items loaded: \(error)")
         }
 
-        // Calendar sync is deprecated; keep existing tasks but detach their external backing.
-        var didDetachCalendarItems = false
-        for index in items.indices where items[index].externalSource == .calendar {
-            items[index].externalSource = nil
-            items[index].externalIdentifier = nil
-            items[index].externalListIdentifier = nil
-            items[index].externalListTitle = nil
-            items[index].externalListColorHex = nil
-            didDetachCalendarItems = true
-        }
-        if didDetachCalendarItems {
-            saveItems()
-            UserDefaults.standard.set(false, forKey: AppPreferenceKey.todoSyncCalendarEnabled)
-        }
     }
 
     private func loadSelectedReminderListIDs() {
@@ -854,6 +970,14 @@ final class ToDoManager {
             // Fallback to Date
             return $0.createdAt > $1.createdAt
         }
+    }
+
+    var upcomingCalendarItems: [ToDoItem] {
+        sortedItems.filter { $0.externalSource == .calendar && !$0.isCompleted }
+    }
+
+    var overviewTaskItems: [ToDoItem] {
+        sortedItems.filter { !($0.externalSource == .calendar && !$0.isCompleted) }
     }
     
     private func rank(_ p: ToDoPriority) -> Int {
@@ -1036,6 +1160,12 @@ final class ToDoManager {
         let green = Int(round(nsColor.greenComponent * 255))
         let blue = Int(round(nsColor.blueComponent * 255))
         return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+
+    private static func calendarOccurrenceIdentifier(for event: EKEvent) -> String {
+        let baseID = event.eventIdentifier ?? event.calendarItemIdentifier
+        let start = Int(event.startDate.timeIntervalSince1970)
+        return "\(baseID)::\(start)"
     }
 }
 
@@ -1462,7 +1592,7 @@ struct ToDoReminderListMentionTooltip: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Reminder list")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
 
             ForEach(options.prefix(6)) { option in
                 Button {
@@ -1471,10 +1601,10 @@ struct ToDoReminderListMentionTooltip: View {
                     HStack(spacing: 8) {
                         Image(systemName: "list.bullet")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(colorFromHex(option.colorHex) ?? Color.white.opacity(0.45))
+                            .foregroundStyle(colorFromHex(option.colorHex) ?? AdaptiveColors.overlayAuto(0.45))
                         Text(option.title)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                         if option.id == selectedID {
@@ -1486,6 +1616,10 @@ struct ToDoReminderListMentionTooltip: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(option.id == selectedID ? AdaptiveColors.overlayAuto(0.1) : Color.clear)
+                    )
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1493,6 +1627,14 @@ struct ToDoReminderListMentionTooltip: View {
         }
         .padding(14)
         .frame(width: 260)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                )
+        )
     }
 
     private func colorFromHex(_ hex: String?) -> Color? {

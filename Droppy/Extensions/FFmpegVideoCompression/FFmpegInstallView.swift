@@ -83,7 +83,7 @@ struct FFmpegInstallView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .ffmpegVideoCompression)
@@ -163,7 +163,7 @@ struct FFmpegInstallView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -312,7 +312,7 @@ struct FFmpegInstallView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -402,7 +402,7 @@ struct FFmpegInstallView: View {
                 .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .small))
             }
             .padding(DroppySpacing.md)
-            .background(Color.black.opacity(0.3))
+            .background(AdaptiveColors.overlayAuto(0.12))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.small)
@@ -437,7 +437,7 @@ struct FFmpegInstallView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     

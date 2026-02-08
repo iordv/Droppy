@@ -27,6 +27,8 @@ final class VolumeManager: NSObject, ObservableObject {
     @Published private(set) var isMuted: Bool = false
     @Published private(set) var lastChangeAt: Date = .distantPast
     @Published private(set) var lastChangeDisplayID: CGDirectDisplayID?
+    @Published private(set) var activeOutputDeviceName: String = ""
+    @Published private(set) var activeOutputDeviceType: ConnectedAirPods.DeviceType? = nil
     
     // MARK: - Configuration
     let visibleDuration: TimeInterval = 1.5
@@ -65,6 +67,22 @@ final class VolumeManager: NSObject, ObservableObject {
         // AppleScript fallback always works, so we always support volume control
         return true
     }
+
+    /// Device-aware icon used by volume HUDs.
+    /// Returns AirPods/headphones symbols when a supported output device is active.
+    func volumeHUDIcon(for value: CGFloat, isMuted: Bool) -> String {
+        if isMuted || value <= 0.0001 {
+            return "speaker.slash.fill"
+        }
+
+        if let deviceType = activeOutputDeviceType {
+            return deviceType.symbolName
+        }
+
+        if value < 0.33 { return "speaker.wave.1.fill" }
+        if value < 0.66 { return "speaker.wave.2.fill" }
+        return "speaker.wave.3.fill"
+    }
     
     // MARK: - Public Control API
     
@@ -90,6 +108,7 @@ final class VolumeManager: NSObject, ObservableObject {
     @MainActor func toggleMute(screenHint: NSScreen? = nil) {
         let deviceID = systemOutputDeviceID()
         let targetDisplayID = resolveHUDTargetDisplayID(screenHint: screenHint)
+        refreshOutputDeviceInfo(deviceID: deviceID)
         
         if deviceID == kAudioObjectUnknown {
             // Software mute fallback
@@ -108,6 +127,8 @@ final class VolumeManager: NSObject, ObservableObject {
     /// Set volume to absolute value (0.0 - 1.0)
     @MainActor func setAbsolute(_ value: Float32, screenHint: NSScreen? = nil) {
         let clamped = max(0, min(1, value))
+        let deviceID = systemOutputDeviceID()
+        refreshOutputDeviceInfo(deviceID: deviceID)
         let currentlyMuted = isMutedInternal()
         let previousVolume = rawVolume
         let targetDisplayID = resolveHUDTargetDisplayID(screenHint: screenHint)
@@ -158,6 +179,7 @@ final class VolumeManager: NSObject, ObservableObject {
     
     private func fetchCurrentVolume() {
         let deviceID = systemOutputDeviceID()
+        refreshOutputDeviceInfo(deviceID: deviceID)
         
         var fetchedVolume: Float32? = nil
         
@@ -581,6 +603,100 @@ final class VolumeManager: NSObject, ObservableObject {
                 self.isMuted = muted
             }
         }
+    }
+
+    private func refreshOutputDeviceInfo(deviceID: AudioObjectID) {
+        guard deviceID != kAudioObjectUnknown else {
+            DispatchQueue.main.async {
+                self.activeOutputDeviceName = ""
+                self.activeOutputDeviceType = nil
+            }
+            return
+        }
+
+        let deviceName = readDeviceName(deviceID: deviceID) ?? ""
+        var classifiedType = classifyPortableAudioDevice(from: deviceName)
+        
+        if classifiedType == nil && isBluetoothOutputDevice(deviceID: deviceID) {
+            // Unknown Bluetooth headset/earbuds model: still show a device icon.
+            classifiedType = .headphones
+        }
+
+        DispatchQueue.main.async {
+            self.activeOutputDeviceName = deviceName
+            self.activeOutputDeviceType = classifiedType
+        }
+    }
+
+    private func readDeviceName(deviceID: AudioObjectID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        guard AudioObjectHasProperty(deviceID, &address) else { return nil }
+
+        var unmanagedName: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = withUnsafeMutablePointer(to: &unmanagedName) { namePointer in
+            AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, namePointer)
+        }
+        guard status == noErr, let unmanagedName else { return nil }
+
+        // HAL string properties are returned as unretained CF objects.
+        let resolved = unmanagedName.takeUnretainedValue() as String
+        return resolved.isEmpty ? nil : resolved
+    }
+    
+    private func isBluetoothOutputDevice(deviceID: AudioObjectID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyTransportType,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        
+        guard AudioObjectHasProperty(deviceID, &address) else { return false }
+        
+        var transport: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transport)
+        guard status == noErr else { return false }
+        
+        return transport == kAudioDeviceTransportTypeBluetooth
+    }
+
+    private func classifyPortableAudioDevice(from deviceName: String) -> ConnectedAirPods.DeviceType? {
+        let name = deviceName.lowercased()
+        guard !name.isEmpty else { return nil }
+
+        if name.contains("airpods") {
+            if name.contains("max") { return .airpodsMax }
+            if name.contains("pro") { return .airpodsPro }
+            if name.contains("3") || name.contains("gen 3") || name.contains("third") { return .airpodsGen3 }
+            return .airpods
+        }
+
+        if name.contains("beats") || name.contains("powerbeats") || name.contains("studio buds") {
+            return .beats
+        }
+
+        if name.contains("buds") || name.contains("earbuds") || name.contains("earbud") ||
+            name.contains("galaxy buds") || name.contains("pixel buds") ||
+            name.contains("jabra") || name.contains("wf-") {
+            return .earbuds
+        }
+
+        if name.contains("headphone") || name.contains("headset") || name.contains("wh-") ||
+            name.contains("bose") || name.contains("quietcomfort") ||
+            name.contains("sennheiser") || name.contains("momentum") ||
+            name.contains("jbl") || name.contains("skullcandy") ||
+            name.contains("audio-technica") || name.contains("anker") ||
+            name.contains("soundcore") || name.contains("sony") {
+            return .headphones
+        }
+
+        return nil
     }
     
     private func resolveHUDTargetDisplayID(screenHint: NSScreen? = nil) -> CGDirectDisplayID? {

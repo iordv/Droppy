@@ -14,12 +14,12 @@ private struct LicenseCardChrome<Content: View>: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(white: 0.105))
+        .background(AdaptiveColors.panelBackgroundAuto)
         .overlay(alignment: .bottomTrailing) {
             // Watermark seal — slowly spins
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 80, weight: .thin))
-                .foregroundStyle(Color.white.opacity(0.025))
+                .foregroundStyle(AdaptiveColors.overlayAuto(0.025))
                 .rotationEffect(.degrees(sealRotation))
                 .offset(x: -12, y: -6)
                 .onAppear {
@@ -31,11 +31,11 @@ private struct LicenseCardChrome<Content: View>: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.09), lineWidth: 1)
+                .strokeBorder(AdaptiveColors.overlayAuto(0.09), lineWidth: 1)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.04), lineWidth: 0.5)
+                .strokeBorder(AdaptiveColors.overlayAuto(0.04), lineWidth: 0.5)
                 .padding(5)
         )
     }
@@ -71,6 +71,7 @@ struct LicenseIdentityCard: View {
     let title: String
     let subtitle: String
     let email: String
+    let deviceName: String?
     let keyHint: String?
     let verifiedAt: Date?
     var accentColor: Color = .blue
@@ -81,6 +82,7 @@ struct LicenseIdentityCard: View {
         title: String,
         subtitle: String,
         email: String,
+        deviceName: String? = nil,
         keyHint: String?,
         verifiedAt: Date?,
         accentColor: Color = .blue,
@@ -90,6 +92,7 @@ struct LicenseIdentityCard: View {
         self.title = title
         self.subtitle = subtitle
         self.email = email
+        self.deviceName = deviceName
         self.keyHint = keyHint
         self.verifiedAt = verifiedAt
         self.accentColor = accentColor
@@ -130,13 +133,17 @@ struct LicenseIdentityCard: View {
 
             // Divider
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(AdaptiveColors.overlayAuto(0.06))
                 .frame(height: 0.5)
                 .padding(.vertical, 10)
 
             // Info rows
             VStack(alignment: .leading, spacing: 7) {
                 LicenseInfoRow(label: "Email", value: nonEmpty(email) ?? "Not provided")
+                
+                if let deviceName = nonEmpty(deviceName) {
+                    LicenseInfoRow(label: "Device", value: deviceName)
+                }
 
                 if let keyHint = nonEmpty(keyHint) {
                     LicenseInfoRow(label: "Key", value: keyHint, mono: true)
@@ -201,7 +208,7 @@ struct LicenseLivePreviewCard: View {
 
             // Divider
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(AdaptiveColors.overlayAuto(0.06))
                 .frame(height: 0.5)
                 .padding(.vertical, 10)
 

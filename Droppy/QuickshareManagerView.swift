@@ -105,13 +105,13 @@ struct QuickshareManagerView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.02))
+            .background(AdaptiveColors.overlayAuto(0.02))
         }
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
         )
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
@@ -161,7 +161,7 @@ struct QuickshareManagerView: View {
         if useTransparentBackground {
             Rectangle().fill(.ultraThinMaterial)
         } else {
-            Color.black
+            AdaptiveColors.panelBackgroundAuto
         }
     }
     
@@ -259,7 +259,7 @@ struct QuickshareItemRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.filename)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 
@@ -299,12 +299,12 @@ struct QuickshareItemRow: View {
             if item.itemCount > 1 {
                 // Back cards (offset to show stacking) - squircle
                 RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(AdaptiveColors.overlayAuto(0.05))
                     .frame(width: 28, height: 28)
                     .offset(x: 3, y: -3)
                 
                 RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
+                    .fill(AdaptiveColors.overlayAuto(0.08))
                     .frame(width: 28, height: 28)
                     .offset(x: 1.5, y: -1.5)
             }
@@ -320,11 +320,11 @@ struct QuickshareItemRow: View {
                 // Fallback to system icon - squircle
                 ZStack {
                     RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(AdaptiveColors.overlayAuto(0.1))
                         .frame(width: 32, height: 32)
                     
                     Image(systemName: fileIcon)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto)
                         .font(.system(size: 14))
                 }
             }
@@ -336,7 +336,7 @@ struct QuickshareItemRow: View {
         RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
             .fill(isCopied
                   ? Color.green.opacity(isHovering ? 0.4 : 0.3)
-                  : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                  : AdaptiveColors.overlayAuto(isHovering ? 0.18 : 0.12))
     }
     
     private var fileIcon: String {
@@ -354,5 +354,4 @@ struct QuickshareItemRow: View {
 
 #Preview {
     QuickshareManagerView(onDismiss: {})
-        .preferredColorScheme(.dark)
 }

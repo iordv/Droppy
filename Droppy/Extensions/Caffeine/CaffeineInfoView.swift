@@ -56,7 +56,7 @@ struct CaffeineInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .caffeine)
@@ -85,7 +85,7 @@ struct CaffeineInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -225,7 +225,7 @@ struct CaffeineInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(caffeineManager.isActive ? Color.green.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(caffeineManager.isActive ? Color.green.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // Timers Grid
@@ -303,11 +303,11 @@ struct CaffeineInfoView: View {
                     }
                 }
             }
-            .background(Color.white.opacity(0.03))
+            .background(AdaptiveColors.overlayAuto(0.03))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
     }

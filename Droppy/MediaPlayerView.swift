@@ -116,10 +116,13 @@ enum InlineHUDType: Equatable {
     case battery
     case capsLock
     case focus
+    case airPods
+    case lockScreen
+    case update
     // Add new HUD types here
     
     /// Icon for this HUD type based on current value
-    func icon(for value: CGFloat) -> String {
+    func icon(for value: CGFloat, isCharging: Bool = false) -> String {
         switch self {
         case .volume:
             if value <= 0 { return "speaker.slash.fill" }
@@ -129,6 +132,7 @@ enum InlineHUDType: Equatable {
         case .brightness:
             return value < 0.5 ? "sun.min.fill" : "sun.max.fill"
         case .battery:
+            if isCharging { return "battery.100percent.bolt" }
             if value <= 0.1 { return "battery.0percent" }
             else if value <= 0.25 { return "battery.25percent" }
             else if value <= 0.5 { return "battery.50percent" }
@@ -138,6 +142,12 @@ enum InlineHUDType: Equatable {
             return value > 0 ? "capslock.fill" : "capslock"
         case .focus:
             return value > 0 ? "moon.fill" : "moon"
+        case .airPods:
+            return "airpodspro"
+        case .lockScreen:
+            return value > 0 ? "lock.fill" : "lock.open.fill"
+        case .update:
+            return "arrow.down.circle.fill"
         }
     }
     
@@ -149,6 +159,9 @@ enum InlineHUDType: Equatable {
         case .battery: return .green
         case .capsLock: return .white
         case .focus: return Color(red: 0.55, green: 0.35, blue: 0.95)
+        case .airPods: return Color(white: 0.92)
+        case .lockScreen: return .white
+        case .update: return Color(red: 0.41, green: 0.71, blue: 1.0)
         }
     }
     
@@ -165,6 +178,12 @@ enum InlineHUDType: Equatable {
             return value > 0 ? "On" : "Off"
         case .focus:
             return value > 0 ? "On" : "Off"
+        case .airPods:
+            return "Connected"
+        case .lockScreen:
+            return value > 0 ? "Locked" : "Unlocked"
+        case .update:
+            return "Update"
         }
     }
     
@@ -172,7 +191,7 @@ enum InlineHUDType: Equatable {
     var showsSlider: Bool {
         switch self {
         case .volume, .brightness, .battery: return true
-        case .capsLock, .focus: return false
+        case .capsLock, .focus, .airPods, .lockScreen, .update: return false
         }
     }
 }
@@ -202,16 +221,29 @@ struct MediaPlayerView: View {
     @ObservedObject private var batteryManager = BatteryManager.shared
     @ObservedObject private var capsLockManager = CapsLockManager.shared
     @ObservedObject private var dndManager = DNDManager.shared
+    var airPodsManager = AirPodsManager.shared  // @Observable - no wrapper needed
+    @ObservedObject private var lockScreenManager = LockScreenManager.shared
+    @ObservedObject private var updateChecker = UpdateChecker.shared
     
     // MARK: - Preferences
     @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
     @AppStorage(AppPreferenceKey.enableGradientVisualizer) private var enableGradientVisualizer = PreferenceDefault.enableGradientVisualizer
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDReplacement = PreferenceDefault.enableHUDReplacement
+    @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault.enableBatteryHUD
+    @AppStorage(AppPreferenceKey.enableCapsLockHUD) private var enableCapsLockHUD = PreferenceDefault.enableCapsLockHUD
+    @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
+    @AppStorage(AppPreferenceKey.enableLockScreenHUD) private var enableLockScreenHUD = PreferenceDefault.enableLockScreenHUD
+    @AppStorage(AppPreferenceKey.enableDNDHUD) private var enableDNDHUD = PreferenceDefault.enableDNDHUD
+    @AppStorage(AppPreferenceKey.enableUpdateHUD) private var enableUpdateHUD = PreferenceDefault.enableUpdateHUD
     
     // MARK: - Universal Inline HUD State
     // Handles all HUD types: volume, brightness, battery, caps lock, etc.
     @State private var inlineHUDType: InlineHUDType? = nil
     @State private var inlineHUDValue: CGFloat = 0.5
     @State private var inlineHUDMuted: Bool = false  // PREMIUM: Explicit mute state for volume
+    @State private var inlineHUDBatteryCharging: Bool = false
+    @State private var inlineHUDSymbolOverride: String? = nil
     @State private var inlineHUDHideWorkItem: DispatchWorkItem?
     
     /// Dominant color from album art for visualizer
@@ -223,6 +255,24 @@ struct MediaPlayerView: View {
     /// Secondary color from album art for gradient visualizer mode
     private var visualizerSecondaryColor: Color {
         musicManager.visualizerSecondaryColor
+    }
+
+    /// Keep physical-notch media text white on black.
+    /// Only adapt foregrounds for external transparent-notch mode.
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && isExternalWithNotchStyle
+    }
+
+    private func primaryText(_ opacity: Double = 1.0) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func secondaryText(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func overlayTone(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(opacity) : .white.opacity(opacity)
     }
     
     /// Compute estimated position at given date
@@ -300,7 +350,7 @@ struct MediaPlayerView: View {
                     HStack(spacing: 8) {
                         Text(elapsedTimeString(at: currentDate))
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(secondaryText(0.62))
                             .monospacedDigit()
                             .frame(width: 40, alignment: .leading)
                         
@@ -308,7 +358,7 @@ struct MediaPlayerView: View {
                         
                         Text(remainingTimeString())
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(secondaryText(0.62))
                             .monospacedDigit()
                             .frame(width: 40, alignment: .trailing)
                     }
@@ -324,7 +374,7 @@ struct MediaPlayerView: View {
                 .scaleEffect(contentAppeared ? 1.0 : 0.8, anchor: .top)
                 .blur(radius: contentAppeared ? 0 : 8)
                 .opacity(contentAppeared ? 1.0 : 0)
-                .animation(.smooth(duration: 0.35), value: contentAppeared)
+                .animation(DroppyAnimation.smoothContent, value: contentAppeared)
                 .onAppear {
                     // Immediate animation start - syncs with container notchTransition
                     contentAppeared = true
@@ -369,21 +419,47 @@ struct MediaPlayerView: View {
         // MARK: - Universal Inline HUD Observers
         // Uses local @ObservedObject references for snappy updates
         .onChange(of: volumeManager.lastChangeAt) { _, _ in
+            guard enableHUDReplacement else { return }
             // When muted, pass 0 so bar drains and percentage shows 0
             let volumeValue = volumeManager.isMuted ? 0.0 : CGFloat(volumeManager.rawVolume)
             triggerInlineHUD(.volume, value: volumeValue, muted: volumeManager.isMuted)
         }
         .onChange(of: brightnessManager.lastChangeAt) { _, _ in
+            guard enableHUDReplacement else { return }
             triggerInlineHUD(.brightness, value: CGFloat(brightnessManager.rawBrightness))
         }
         .onChange(of: batteryManager.lastChangeAt) { _, _ in
-            triggerInlineHUD(.battery, value: CGFloat(batteryManager.batteryLevel) / 100.0)
+            guard enableBatteryHUD else { return }
+            triggerInlineHUD(
+                .battery,
+                value: CGFloat(batteryManager.batteryLevel) / 100.0,
+                isCharging: batteryManager.isCharging || batteryManager.isPluggedIn
+            )
         }
         .onChange(of: capsLockManager.lastChangeAt) { _, _ in
+            guard enableCapsLockHUD else { return }
             triggerInlineHUD(.capsLock, value: capsLockManager.isCapsLockOn ? 1.0 : 0.0)
         }
+        .onChange(of: airPodsManager.lastConnectionAt) { _, _ in
+            guard enableAirPodsHUD, let connectedAirPods = airPodsManager.connectedAirPods else { return }
+            triggerInlineHUD(
+                .airPods,
+                value: max(0.01, CGFloat(connectedAirPods.batteryLevel) / 100.0),
+                symbolOverride: connectedAirPods.type.symbolName
+            )
+        }
+        .onChange(of: lockScreenManager.lastChangeAt) { _, _ in
+            guard enableLockScreenHUD else { return }
+            let isLocked = !lockScreenManager.isUnlocked
+            triggerInlineHUD(.lockScreen, value: isLocked ? 1.0 : 0.0)
+        }
         .onChange(of: dndManager.lastChangeAt) { _, _ in
+            guard enableDNDHUD else { return }
             triggerInlineHUD(.focus, value: dndManager.isDNDActive ? 1.0 : 0.0)
+        }
+        .onChange(of: updateChecker.updateAvailable) { _, isAvailable in
+            guard enableUpdateHUD, isAvailable else { return }
+            triggerInlineHUD(.update, value: 1.0)
         }
         // MARK: - Album Art Flip on Track Change (directional)
         .onChange(of: musicManager.songTitle) { _, _ in
@@ -450,7 +526,13 @@ struct MediaPlayerView: View {
     
     /// Trigger any inline HUD type in the media player
     /// Matches exact timing from NotchShelfView's triggerVolumeHUD
-    private func triggerInlineHUD(_ type: InlineHUDType, value: CGFloat, muted: Bool = false) {
+    private func triggerInlineHUD(
+        _ type: InlineHUDType,
+        value: CGFloat,
+        muted: Bool = false,
+        isCharging: Bool = false,
+        symbolOverride: String? = nil
+    ) {
         // Cancel any pending hide
         inlineHUDHideWorkItem?.cancel()
         
@@ -458,6 +540,8 @@ struct MediaPlayerView: View {
         inlineHUDType = type
         inlineHUDValue = value
         inlineHUDMuted = muted
+        inlineHUDBatteryCharging = isCharging
+        inlineHUDSymbolOverride = symbolOverride
         
         // Animate visibility on (same as regular HUD: spring 0.3, 0.7)
         withAnimation(DroppyAnimation.state) {
@@ -472,6 +556,9 @@ struct MediaPlayerView: View {
         case .battery: duration = batteryManager.visibleDuration
         case .capsLock: duration = capsLockManager.visibleDuration
         case .focus: duration = dndManager.visibleDuration
+        case .airPods: duration = airPodsManager.visibleDuration
+        case .lockScreen: duration = lockScreenManager.visibleDuration
+        case .update: duration = HUDManager.HUDType.update.defaultDuration
         }
         
         // Hide after duration (same as regular HUD: easeOut 0.3)
@@ -498,11 +585,11 @@ struct MediaPlayerView: View {
                             .aspectRatio(1, contentMode: .fill)
                     } else {
                         Rectangle()
-                            .fill(Color.white.opacity(0.1))
+                            .fill(AdaptiveColors.overlayAuto(0.1))
                             .overlay(
                                 Image(systemName: "music.note")
                                     .font(.system(size: 24))
-                                    .foregroundStyle(.white.opacity(0.4))
+                                    .foregroundStyle(secondaryText(0.58))
                             )
                     }
                 }
@@ -519,7 +606,7 @@ struct MediaPlayerView: View {
             // Subtle border highlight
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                    .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 0.5)
             )
             // Composite the entire view before applying shadow to prevent ghosting during animations
             .compositingGroup()
@@ -559,7 +646,7 @@ struct MediaPlayerView: View {
             if showTitle {
                 MarqueeText(text: songTitle, speed: 30)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(primaryText())
                     .frame(height: 20)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .clipped()
@@ -578,10 +665,10 @@ struct MediaPlayerView: View {
                     secondaryColor: enableGradientVisualizer ? visualizerSecondaryColor : nil,
                     gradientMode: enableGradientVisualizer
                 )
-                    .frame(width: 28, height: 18)
+                    .frame(width: 24, height: 16)
                     .fixedSize()
             } else {
-                Color.clear.frame(width: 28, height: 18)
+                Color.clear.frame(width: 24, height: 16)
             }
         }
         .frame(height: 20)
@@ -593,7 +680,7 @@ struct MediaPlayerView: View {
         let artistName = musicManager.artistName.isEmpty ? "—" : musicManager.artistName
         return MarqueeText(text: artistName, speed: 25)
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.white.opacity(0.6))
+            .foregroundStyle(secondaryText(0.72))
             .frame(height: 18)
     }
     
@@ -626,11 +713,11 @@ struct MediaPlayerView: View {
                                 .aspectRatio(1, contentMode: .fill)
                         } else {
                             Rectangle()
-                                .fill(Color.white.opacity(0.08))
+                                .fill(AdaptiveColors.overlayAuto(0.08))
                                 .overlay(
                                     Image(systemName: "music.note")
                                         .font(.system(size: 36))
-                                        .foregroundStyle(.white.opacity(0.3))
+                                        .foregroundStyle(secondaryText(0.5))
                                 )
                         }
                     }
@@ -653,7 +740,7 @@ struct MediaPlayerView: View {
                 // Subtle border highlight
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                        .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 0.5)
                 )
                 .compositingGroup()
                 .droppyCardShadow(opacity: 0.3)
@@ -687,7 +774,7 @@ struct MediaPlayerView: View {
         .scaleEffect(contentAppeared ? 1.0 : 0.8, anchor: .top)
         .blur(radius: contentAppeared ? 0 : 8)
         .opacity(contentAppeared ? 1.0 : 0)
-        .animation(.smooth(duration: 0.35), value: contentAppeared)
+        .animation(DroppyAnimation.smoothContent, value: contentAppeared)
     }
     
     // MARK: - Progress Slider
@@ -703,7 +790,7 @@ struct MediaPlayerView: View {
             ZStack(alignment: .leading) {
                 // Track background (simple, no mask/blur)
                 Capsule()
-                    .fill(Color.white.opacity(0.1))
+                    .fill(AdaptiveColors.overlayAuto(0.1))
                     .frame(height: trackHeight)
                 
                 // PREMIUM: Gradient fill with glow
@@ -725,7 +812,7 @@ struct MediaPlayerView: View {
                             Capsule()
                                 .stroke(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.4), .clear],
+                                        colors: [overlayTone(0.4), .clear],
                                         startPoint: .top,
                                         endPoint: .center
                                     ),
@@ -776,6 +863,7 @@ struct MediaPlayerView: View {
         
         // Spotify's signature green
         let spotifyGreen = Color(red: 0.11, green: 0.73, blue: 0.33)
+        let controlForeground = useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : Color.white
         
         // ZStack for morphing between controls and volume indicator
         ZStack {
@@ -800,20 +888,21 @@ struct MediaPlayerView: View {
                 // Center: Core playback controls
                 HStack(spacing: 32) {
                     // Previous
-                    MediaControlButton(icon: "backward.fill", size: 24) {
+                    MediaControlButton(icon: "backward.fill", size: 24, foregroundColor: controlForeground) {
                         musicManager.previousTrack()
                     }
                     
                     // Play/Pause (larger)
                     MediaControlButton(
                         icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
-                        size: 32
+                        size: 32,
+                        foregroundColor: controlForeground
                     ) {
                         musicManager.togglePlay()
                     }
                     
                     // Next
-                    MediaControlButton(icon: "forward.fill", size: 24) {
+                    MediaControlButton(icon: "forward.fill", size: 24, foregroundColor: controlForeground) {
                         musicManager.nextTrack()
                     }
                 }
@@ -839,7 +928,14 @@ struct MediaPlayerView: View {
             
             // MARK: - Universal Inline HUD (morphs in for any HUD type)
             if let hudType = inlineHUDType {
-                InlineHUDView(type: hudType, value: inlineHUDValue, isMuted: inlineHUDMuted)
+                InlineHUDView(
+                    type: hudType,
+                    value: inlineHUDValue,
+                    isMuted: inlineHUDMuted,
+                    isCharging: inlineHUDBatteryCharging,
+                    symbolOverride: inlineHUDSymbolOverride,
+                    useAdaptiveForegrounds: useAdaptiveForegrounds
+                )
                     .transition(DroppyAnimation.notchElementTransition)
             }
         }
@@ -857,6 +953,7 @@ struct MediaPlayerView: View {
         let appleMusic = musicManager.appleMusicController
         let spotifyGreen = Color(red: 0.11, green: 0.73, blue: 0.33)
         let appleMusicPink = Color(red: 0.98, green: 0.34, blue: 0.40)  // Apple Music accent
+        let controlForeground = useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : Color.white
         
         ZStack {
             // Compact centered controls
@@ -883,7 +980,13 @@ struct MediaPlayerView: View {
                 }
                 
                 // Previous (nudges left)
-                MediaControlButton(icon: "backward.fill", size: 18, tapPadding: 6, nudgeDirection: .left) {
+                MediaControlButton(
+                    icon: "backward.fill",
+                    size: 18,
+                    foregroundColor: controlForeground,
+                    tapPadding: 6,
+                    nudgeDirection: .left
+                ) {
                     musicManager.previousTrack()
                 }
                 
@@ -891,6 +994,7 @@ struct MediaPlayerView: View {
                 MediaControlButton(
                     icon: musicManager.isPlaying ? "pause.fill" : "play.fill",
                     size: 24,
+                    foregroundColor: controlForeground,
                     tapPadding: 6,
                     nudgeDirection: .none
                 ) {
@@ -898,7 +1002,13 @@ struct MediaPlayerView: View {
                 }
                 
                 // Next (nudges right)
-                MediaControlButton(icon: "forward.fill", size: 18, tapPadding: 6, nudgeDirection: .right) {
+                MediaControlButton(
+                    icon: "forward.fill",
+                    size: 18,
+                    foregroundColor: controlForeground,
+                    tapPadding: 6,
+                    nudgeDirection: .right
+                ) {
                     musicManager.nextTrack()
                 }
                 
@@ -940,7 +1050,14 @@ struct MediaPlayerView: View {
             
             // Inline HUD overlay
             if let hudType = inlineHUDType {
-                InlineHUDView(type: hudType, value: inlineHUDValue, isMuted: inlineHUDMuted)
+                InlineHUDView(
+                    type: hudType,
+                    value: inlineHUDValue,
+                    isMuted: inlineHUDMuted,
+                    isCharging: inlineHUDBatteryCharging,
+                    symbolOverride: inlineHUDSymbolOverride,
+                    useAdaptiveForegrounds: useAdaptiveForegrounds
+                )
                     .transition(DroppyAnimation.notchElementTransition)
             }
         }

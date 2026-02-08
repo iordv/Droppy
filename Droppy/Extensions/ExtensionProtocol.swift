@@ -46,6 +46,45 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var subtitle: String {
         definition?.subtitle ?? ""
     }
+
+    /// Whether the extension has been installed/configured enough to be considered available.
+    /// This drives UI labeling for "Set Up" vs "Manage" and toggle availability.
+    var isInstalledInSystem: Bool {
+        switch self {
+        case .aiBackgroundRemoval:
+            return AIInstallManager.shared.isInstalled
+        case .alfred:
+            return UserDefaults.standard.bool(forKey: "alfredTracked")
+        case .finder, .finderServices:
+            return UserDefaults.standard.bool(forKey: "finderTracked")
+        case .spotify:
+            return UserDefaults.standard.bool(forKey: "spotifyTracked")
+        case .appleMusic:
+            return !isRemoved
+        case .elementCapture:
+            return UserDefaults.standard.data(forKey: "elementCaptureShortcut") != nil
+        case .windowSnap:
+            return !WindowSnapManager.shared.shortcuts.isEmpty || WindowSnapManager.shared.pointerModeEnabled
+        case .voiceTranscribe:
+            return VoiceTranscribeManager.shared.isModelDownloaded
+        case .ffmpegVideoCompression:
+            return FFmpegInstallManager.shared.isInstalled
+        case .terminalNotch:
+            return TerminalNotchManager.shared.isInstalled
+        case .camera:
+            return UserDefaults.standard.bool(forKey: AppPreferenceKey.cameraInstalled)
+        case .quickshare:
+            return !isRemoved
+        case .notificationHUD:
+            return UserDefaults.standard.bool(forKey: AppPreferenceKey.notificationHUDInstalled)
+        case .caffeine:
+            return UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled)
+        case .menuBarManager:
+            return MenuBarManager.shared.isEnabled
+        case .todo:
+            return UserDefaults.standard.bool(forKey: AppPreferenceKey.todoInstalled)
+        }
+    }
     
     var category: String {
         definition?.category.rawValue ?? "Other"
@@ -77,7 +116,7 @@ enum ExtensionType: String, CaseIterable, Identifiable {
     var iconView: some View {
         if let def = definition {
             CachedAsyncImage(url: def.iconURL) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
+                image.droppyExtensionIcon(contentMode: .fill)
             } placeholder: {
                 Image(systemName: def.iconPlaceholder)
                     .font(.system(size: 32, weight: .medium))

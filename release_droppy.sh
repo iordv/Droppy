@@ -47,20 +47,30 @@ if [ -z "$1" ]; then
 fi
 
 VERSION="$1"
-NOTES_FILE="$2"
+NOTES_FILE="${2:-}"
+AUTO_APPROVE_FLAG="${3:-}"
 DMG_NAME="Droppy-$VERSION.dmg"
 
 header
 info "Preparing Release: ${GREEN}v$VERSION${RESET}"
 
+# Check Repos
+[ -d "$MAIN_REPO" ] || error "Main repo not found at $MAIN_REPO"
+[ -d "$TAP_REPO" ] || error "Tap repo not found at $TAP_REPO"
+cd "$MAIN_REPO" || error "Cannot enter main repo at $MAIN_REPO"
+
+# Validate version format early (X.Y.Z)
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    error "Version must follow semantic format X.Y.Z (received: $VERSION)"
+fi
+
 # Ensure git is clean
 if [ -n "$(git status --porcelain)" ]; then
     error "Git working directory is not clean. Commit or stash first."
 fi
-
-# Check Repos
-[ -d "$MAIN_REPO" ] || error "Main repo not found at $MAIN_REPO"
-[ -d "$TAP_REPO" ] || error "Tap repo not found at $TAP_REPO"
+if [ -n "$(git -C "$TAP_REPO" status --porcelain)" ]; then
+    error "Homebrew tap working directory is not clean. Commit or stash first."
+fi
 
 # Update Release Notes
 if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
@@ -81,7 +91,6 @@ if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
     # Update centralized version.js
     sed -i '' "s/version: '[^']*'/version: '$VERSION'/" docs/assets/js/version.js
     sed -i '' "s/Droppy-[0-9]*\.[0-9]*\.[0-9]*\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
-    sed -i '' "s/Droppy-[0-9]*\.[0-9]*\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
 else
     warning "No valid notes file provided. Skipping doc updates."
 fi
@@ -209,7 +218,99 @@ fi
 # Code Signing
 info "Signing Application"
 APP_PATH="$APP_BUILD_PATH/Build/Products/Release/Droppy.app"
+SOURCE_INFO_PLIST="$MAIN_REPO/Droppy/Info.plist"
+APP_INFO_PLIST="$APP_PATH/Contents/Info.plist"
+RESOURCE_INFO_PLIST="$APP_PATH/Contents/Resources/Info.plist"
 SIGNING_IDENTITY="Developer ID Application: Jordy Spruit"
+
+# Ensure release bundle includes all privacy and license metadata from source Info.plist.
+info "Syncing App Metadata"
+METADATA_KEYS=(
+    NSAppleEventsUsageDescription
+    NSBluetoothAlwaysUsageDescription
+    NSCameraUsageDescription
+    NSMicrophoneUsageDescription
+    NSRemindersUsageDescription
+    NSRemindersFullAccessUsageDescription
+    NSCalendarsUsageDescription
+    NSCalendarsFullAccessUsageDescription
+    GumroadProductID
+    GumroadProductPermalink
+    GumroadPurchaseURL
+)
+
+[ -f "$SOURCE_INFO_PLIST" ] || error "Source Info.plist missing at $SOURCE_INFO_PLIST"
+[ -f "$APP_INFO_PLIST" ] || error "Built app Info.plist missing at $APP_INFO_PLIST"
+
+read_plist_value() {
+    local plist_path="$1"
+    local key="$2"
+    /usr/libexec/PlistBuddy -c "Print :$key" "$plist_path" 2>/dev/null || true
+}
+
+sync_metadata_keys() {
+    local target_plist="$1"
+    local key source_value
+    [ -f "$target_plist" ] || return 0
+
+    for key in "${METADATA_KEYS[@]}"; do
+        source_value="$(read_plist_value "$SOURCE_INFO_PLIST" "$key")"
+        if [ -n "$source_value" ]; then
+            plutil -replace "$key" -string "$source_value" "$target_plist"
+        fi
+    done
+}
+
+validate_required_app_keys() {
+    local target_plist="$1"
+    local key product_id product_permalink
+
+    for key in NSRemindersUsageDescription NSCalendarsUsageDescription GumroadPurchaseURL; do
+        /usr/libexec/PlistBuddy -c "Print :$key" "$target_plist" >/dev/null 2>&1 || error "Missing required key $key in $target_plist"
+    done
+
+    product_id="$(read_plist_value "$target_plist" "GumroadProductID")"
+    product_permalink="$(read_plist_value "$target_plist" "GumroadProductPermalink")"
+    if [ -z "$product_id" ] && [ -z "$product_permalink" ]; then
+        error "Missing Gumroad product configuration in $target_plist (need GumroadProductID or GumroadProductPermalink)"
+    fi
+}
+
+validate_dmg_bundle_metadata() {
+    local dmg_path="$1"
+    local mount_dir dmg_app_info dmg_purchase_url
+
+    mount_dir="$(mktemp -d /tmp/droppy-dmg-XXXX)"
+    if ! hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_path" >/dev/null; then
+        rmdir "$mount_dir" 2>/dev/null || true
+        error "Failed to mount $dmg_path for metadata verification"
+    fi
+
+    dmg_app_info="$mount_dir/Droppy.app/Contents/Info.plist"
+    if [ ! -f "$dmg_app_info" ]; then
+        hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
+        rmdir "$mount_dir" 2>/dev/null || true
+        error "Droppy.app Info.plist missing inside $dmg_path"
+    fi
+
+    validate_required_app_keys "$dmg_app_info"
+
+    dmg_purchase_url="$(read_plist_value "$dmg_app_info" "GumroadPurchaseURL")"
+    if [ -n "$GUMROAD_PURCHASE_URL" ] && [ "$dmg_purchase_url" != "$GUMROAD_PURCHASE_URL" ]; then
+        hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
+        rmdir "$mount_dir" 2>/dev/null || true
+        error "DMG purchase URL mismatch. Expected $GUMROAD_PURCHASE_URL but found $dmg_purchase_url"
+    fi
+
+    hdiutil detach "$mount_dir" >/dev/null 2>&1 || error "Failed to detach DMG mount after verification"
+    rmdir "$mount_dir" 2>/dev/null || true
+}
+
+sync_metadata_keys "$APP_INFO_PLIST"
+sync_metadata_keys "$RESOURCE_INFO_PLIST"
+validate_required_app_keys "$APP_INFO_PLIST"
+GUMROAD_PURCHASE_URL="$(read_plist_value "$APP_INFO_PLIST" "GumroadPurchaseURL")"
+step "App metadata synced and validated"
 
 # Sign all nested components first (helpers, frameworks)
 find "$APP_PATH/Contents" -name "*.dylib" -o -name "*.framework" | while read -r item; do
@@ -241,6 +342,10 @@ npx create-dmg "$APP_PATH" . --overwrite 2>/dev/null || error "DMG creation fail
 # Rename to our versioned name
 mv "Droppy $VERSION.dmg" "$DMG_NAME" 2>/dev/null || mv Droppy*.dmg "$DMG_NAME" 2>/dev/null
 
+# Validate final packaged app metadata before signing/publishing.
+validate_dmg_bundle_metadata "$DMG_NAME"
+step "DMG metadata validated"
+
 # Sign the DMG too
 codesign --force --sign "$SIGNING_IDENTITY" "$DMG_NAME" || error "DMG signing failed"
 step "Signed DMG"
@@ -250,13 +355,15 @@ info "Notarizing with Apple"
 step "Submitting to Apple notary service..."
 
 # Submit for notarization (uses stored credentials "Droppy-Notarize")
-xcrun notarytool submit "$DMG_NAME" --keychain-profile "Droppy-Notarize" --wait || {
-    warning "Notarization failed - DMG will show Gatekeeper warning"
-    warning "To fix: run 'xcrun notarytool store-credentials Droppy-Notarize' first"
-}
+if ! xcrun notarytool submit "$DMG_NAME" --keychain-profile "Droppy-Notarize" --wait; then
+    error "Notarization failed. Configure credentials with 'xcrun notarytool store-credentials Droppy-Notarize'."
+fi
 
 # Staple the notarization ticket to the DMG
-xcrun stapler staple "$DMG_NAME" 2>/dev/null && step "Notarization ticket stapled" || warning "Stapling failed"
+if ! xcrun stapler staple "$DMG_NAME" 2>/dev/null; then
+    error "Stapling failed. Refusing to publish unstapled DMG."
+fi
+step "Notarization ticket stapled"
 
 success "$DMG_NAME created and notarized"
 
@@ -275,11 +382,14 @@ CASK_CONTENT="cask \"droppy\" do
   desc \"Drag and drop file shelf for macOS\"
   homepage \"https://github.com/iordv/Droppy\"
 
+  auto_updates true
+
   app \"Droppy.app\"
 
   postflight do
     system_command \"/usr/bin/xattr\",
-      args: [\"-rd\", \"com.apple.quarantine\", \"#{appdir}/Droppy.app\"],
+      args: [\"-d\", \"com.apple.quarantine\", \"#{appdir}/Droppy.app\"],
+      must_succeed: false,
       sudo: false
   end
 
@@ -319,7 +429,7 @@ step "Cask files written and verified for v$VERSION"
 info "Finalizing Git Repositories"
 
 # Confirm
-if [ "$3" == "-y" ] || [ "$3" == "--yes" ]; then
+if [ "$AUTO_APPROVE_FLAG" == "-y" ] || [ "$AUTO_APPROVE_FLAG" == "--yes" ]; then
     REPLY="y"
 else
     echo -e "\n${BOLD}Review Pending Changes:${RESET}"
@@ -334,7 +444,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Main Repo Commit
     cd "$MAIN_REPO"
     step "Pushing Main Repo..."
-    git pull origin main --quiet
+    git pull --ff-only origin main --quiet
     git rm --ignore-unmatch Droppy*.dmg Droppy*.zip --quiet 2>/dev/null || true
     git add "$DMG_NAME"
     git add .
@@ -347,8 +457,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     cd "$TAP_REPO"
     step "Pushing Tap Repo..."
     git fetch origin --quiet
-    git reset --hard origin/main --quiet
-    echo "$CASK_CONTENT" > "Casks/droppy.rb" # Rewrite after reset
+    git checkout main --quiet
+    git pull --ff-only origin main --quiet
+    echo "$CASK_CONTENT" > "Casks/droppy.rb"
     
     # Verify cask contains correct version in URL (guard against variable corruption)
     if ! grep -q "v$VERSION/$DMG_NAME" "Casks/droppy.rb"; then
@@ -358,7 +469,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     git add .
     git commit -m "Update Droppy to v$VERSION" --quiet || warning "No changes to commit in tap repo"
-    git push --force origin HEAD:main --quiet
+    git push origin HEAD:main --quiet
 
     # GitHub Release
     info "Creating GitHub Release"
@@ -366,7 +477,14 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     # Append installation instructions to notes
     TEMP_NOTES=$(mktemp)
-    cat "$NOTES_FILE" > "$TEMP_NOTES"
+    if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
+        cat "$NOTES_FILE" > "$TEMP_NOTES"
+    else
+        cat > "$TEMP_NOTES" << FALLBACK_NOTES
+## What's New
+- Release v$VERSION
+FALLBACK_NOTES
+    fi
     cat >> "$TEMP_NOTES" << INSTALL_FOOTER
 
 ---
@@ -383,13 +501,18 @@ Download \`Droppy-$VERSION.dmg\` below, open it, and drag Droppy to Applications
 \`\`\`bash
 brew install --cask iordv/tap/droppy
 \`\`\`
+
+## License
+
+Buy a license on Gumroad: $GUMROAD_PURCHASE_URL  
+Already purchased? Open Droppy and click **Activate License**.
 INSTALL_FOOTER
     
     gh release create "v$VERSION" "$DMG_NAME" --title "v$VERSION" --notes-file "$TEMP_NOTES"
     rm -f "$TEMP_NOTES"
     
     echo -e "\n${GREEN}✨ RELEASE COMPLETE! ✨${RESET}"
-    echo -e "Users can now update with: ${CMD}brew upgrade droppy${RESET}\n"
+    echo -e "Users can now update with: ${CYAN}brew upgrade --cask droppy${RESET}\n"
 else
     warning "Release cancelled. Changes pending locally."
 fi

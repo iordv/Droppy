@@ -7,33 +7,128 @@
 //
 
 import SwiftUI
+import Combine
+
+/// Shared lock HUD animator so lock-screen and regular notch surfaces
+/// stay in the same visual state during handoff.
+@MainActor
+final class LockScreenHUDAnimator: ObservableObject {
+    static let shared = LockScreenHUDAnimator()
+
+    @Published private(set) var showUnlockIcon = false
+    @Published private(set) var lockScale: CGFloat = 1.0
+    @Published private(set) var lockOpacity: Double = 1.0
+
+    private var sequenceTask: Task<Void, Never>?
+    private(set) var visualEvent: LockScreenManager.LockEvent = .unlocked
+
+    private init() {
+        applyUnlockedStatic()
+    }
+
+    func transition(to event: LockScreenManager.LockEvent, animated: Bool = true) {
+        sequenceTask?.cancel()
+
+        switch event {
+        case .none:
+            applyLockedStatic(event: .none)
+        case .locked:
+            if animated && visualEvent == .unlocked {
+                runLockSequence()
+            } else {
+                applyLockedStatic(event: .locked)
+            }
+        case .unlocked:
+            if animated && visualEvent == .locked {
+                runUnlockSequence()
+            } else {
+                applyUnlockedStatic()
+            }
+        }
+    }
+
+    private func runUnlockSequence() {
+        applyLockedStatic(event: .locked)
+        visualEvent = .unlocked
+
+        sequenceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Flip to unlock icon early with a gentle, premium settle.
+            try? await Task.sleep(nanoseconds: 35_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.82, blendDuration: 0)) {
+                self.showUnlockIcon = true
+                self.lockScale = 1.015
+            }
+
+            try? await Task.sleep(nanoseconds: 110_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.12)) {
+                self.lockScale = 0.99
+            }
+
+            try? await Task.sleep(nanoseconds: 85_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.9, blendDuration: 0)) {
+                self.lockScale = 1.0
+            }
+        }
+    }
+
+    private func runLockSequence() {
+        applyUnlockedStatic()
+        visualEvent = .locked
+
+        sequenceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            try? await Task.sleep(nanoseconds: 90_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0)) {
+                self.showUnlockIcon = false
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.12)) {
+                self.lockScale = 1.04
+            }
+
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.12)) {
+                self.lockScale = 1.0
+            }
+        }
+    }
+
+    private func applyLockedStatic(event: LockScreenManager.LockEvent) {
+        showUnlockIcon = false
+        lockScale = 1.0
+        lockOpacity = 1.0
+        visualEvent = event
+    }
+
+    private func applyUnlockedStatic() {
+        showUnlockIcon = true
+        lockScale = 1.0
+        lockOpacity = 1.0
+        visualEvent = .unlocked
+    }
+}
 
 /// Compact Lock Screen HUD that sits inside the notch
 /// Shows just the lock icon with smooth unlock animation like iPhone
 struct LockScreenHUDView: View {
-    @ObservedObject var lockScreenManager: LockScreenManager
+    @ObservedObject private var animator = LockScreenHUDAnimator.shared
     let hudWidth: CGFloat     // Total HUD width
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
+    var symbolOverride: String? = nil  // Optional fixed symbol for transition snapshots
     
     /// Centralized layout calculator - Single Source of Truth
     private var layout: HUDLayoutCalculator {
         HUDLayoutCalculator(screen: targetScreen ?? NSScreen.main ?? NSScreen.screens.first)
-    }
-    
-    // Animation states
-    @State private var showUnlockAnim = false
-    @State private var showLockAnim = false
-    @State private var lockScale: CGFloat = 1.0
-    @State private var lockOpacity: Double = 1.0
-    
-    /// Whether we're unlocked
-    private var isUnlocked: Bool {
-        lockScreenManager.lastEvent == .unlocked
-    }
-    
-    /// Whether we're locked
-    private var isLocked: Bool {
-        lockScreenManager.lastEvent == .locked
     }
     
     var body: some View {
@@ -44,7 +139,7 @@ struct LockScreenHUDView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: layout.notchHeight)
             } else {
-                // NOTCH MODE: Icon on left wing only
+                // NOTCH MODE: Two wings separated by the notch space
                 let iconSize = layout.iconSize
                 let symmetricPadding = layout.symmetricPadding(for: iconSize)
                 let wingWidth = layout.wingWidth(for: hudWidth)
@@ -62,111 +157,41 @@ struct LockScreenHUDView: View {
                     Spacer()
                         .frame(width: layout.notchWidth)
                     
-                    // Right wing: Empty
+                    // Right wing: Empty (icon only HUD)
                     Spacer()
                         .frame(width: wingWidth)
                 }
                 .frame(height: layout.notchHeight)
             }
         }
-        .onAppear {
-            if isUnlocked {
-                triggerUnlockAnimation()
-            } else if isLocked {
-                triggerLockAnimation()
-            }
-        }
-        .onChange(of: lockScreenManager.lastEvent) { _, newEvent in
-            if newEvent == .unlocked {
-                triggerUnlockAnimation()
-            } else if newEvent == .locked {
-                triggerLockAnimation()
-            }
-        }
     }
     
     /// The animated lock icon view with realistic unlock physics
+    @ViewBuilder
     private var lockIconView: some View {
         let iconSize = layout.iconSize
+        let symbolName = symbolOverride ?? (animator.showUnlockIcon ? "lock.open.fill" : "lock.fill")
+        let showsUnlockedVisual = symbolOverride == "lock.open.fill" || (symbolOverride == nil && animator.showUnlockIcon)
+        let baseIcon = Image(systemName: symbolName)
+            .font(.system(size: iconSize, weight: .semibold))
+            .foregroundStyle(.white)
         
-        return ZStack {
-            // Unlocked state (lock.open.fill) - swoops in from above
-            Image(systemName: "lock.open.fill")
-                .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(.white)
-                .opacity(showUnlockAnim ? 1 : 0)
-                .scaleEffect(showUnlockAnim ? 1.0 : 0.6)
-                .offset(y: showUnlockAnim ? 0 : -4)
-                .rotationEffect(.degrees(showUnlockAnim ? 0 : -15))
-            
-            // Locked state (lock.fill) - shown when locking or as default
-            Image(systemName: "lock.fill")
-                .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(.white)
-                .opacity(showUnlockAnim ? 0 : lockOpacity)
-                .scaleEffect(showUnlockAnim ? 0.7 : lockScale)
-                .rotationEffect(.degrees(showUnlockAnim ? 10 : 0))
-        }
-        .frame(width: iconSize + 2, height: iconSize + 2)
-    }
-    
-    /// Trigger the smooth multi-phase unlock animation
-    private func triggerUnlockAnimation() {
-        // Reset all states
-        showUnlockAnim = false
-        showLockAnim = false
-        lockScale = 1.0
-        lockOpacity = 1.0
-        
-        // Phase 1: Quick "trying to unlock" shake (subtle)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            withAnimation(.easeInOut(duration: 0.08)) {
-                lockScale = 1.05
-            }
-        }
-        
-        // Phase 2: Return and slight compress (like pressing)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) {
-            withAnimation(.easeInOut(duration: 0.06)) {
-                lockScale = 0.95
-            }
-        }
-        
-        // Phase 3: The unlock! Smooth spring transition
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.65, blendDuration: 0)) {
-                showUnlockAnim = true
-            }
-        }
-    }
-    
-    /// Trigger the lock animation (closing lock)
-    private func triggerLockAnimation() {
-        // Reset states - start from unlocked
-        showUnlockAnim = true
-        showLockAnim = false
-        lockScale = 1.0
-        lockOpacity = 1.0
-        
-        // Phase 1: Snap the lock closed with a satisfying animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6, blendDuration: 0)) {
-                showUnlockAnim = false
-            }
-        }
-        
-        // Phase 2: Slight bounce/settle
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                lockScale = 1.1
-            }
-        }
-        
-        // Phase 3: Return to normal
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                lockScale = 1.0
-            }
+        if symbolOverride == nil {
+            baseIcon
+                .contentTransition(.symbolEffect(.replace.byLayer))
+                .animation(.spring(response: 0.32, dampingFraction: 0.75), value: symbolName)
+                .opacity(animator.lockOpacity)
+                .scaleEffect(animator.lockScale)
+                .offset(y: showsUnlockedVisual ? -0.8 : 0)
+                .rotationEffect(.degrees(showsUnlockedVisual ? -3 : 0))
+                .frame(width: iconSize + 2, height: iconSize + 2)
+        } else {
+            baseIcon
+                .opacity(animator.lockOpacity)
+                .scaleEffect(animator.lockScale)
+                .offset(y: showsUnlockedVisual ? -0.8 : 0)
+                .rotationEffect(.degrees(showsUnlockedVisual ? -3 : 0))
+                .frame(width: iconSize + 2, height: iconSize + 2)
         }
     }
 }
@@ -175,7 +200,6 @@ struct LockScreenHUDView: View {
     ZStack {
         Color.black
         LockScreenHUDView(
-            lockScreenManager: LockScreenManager.shared,
             hudWidth: 300
         )
     }

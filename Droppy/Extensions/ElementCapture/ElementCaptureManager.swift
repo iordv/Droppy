@@ -1034,7 +1034,7 @@ final class ElementCaptureManager: ObservableObject {
                     let text = try await OCRService.shared.performOCR(on: nsImage)
                     if !text.isEmpty {
                         await MainActor.run {
-                            OCRWindowController.shared.show(with: text)
+                            OCRWindowController.shared.presentExtractedText(text)
                         }
                         playScreenshotSound()
                         print("[ElementCapture] OCR completed successfully")
@@ -1240,23 +1240,62 @@ final class ElementCaptureManager: ObservableObject {
             throw CaptureError.noElement
         }
         
-        print("[ElementCapture] Capture: global=\(rect), relative=\(relativeRect), display=\(displayWidth)x\(displayHeight)")
+        // Derive scale from CGDisplay mode (logical points -> physical pixels).
+        // This is more reliable than SCDisplay dimension assumptions on scaled displays.
+        let fallbackScale = max(targetScreen.backingScaleFactor, 1.0)
+        var scaleX = fallbackScale
+        var scaleY = fallbackScale
         
-        // Calculate pixel dimensions (Retina scaling) - use target screen's scale
-        let scale = targetScreen.backingScaleFactor
-        let pixelWidth = max(1, Int(relativeRect.width * scale))
-        let pixelHeight = max(1, Int(relativeRect.height * scale))
+        if let mode = CGDisplayCopyDisplayMode(targetDisplayID) {
+            let modeWidth = max(CGFloat(mode.width), 1)
+            let modeHeight = max(CGFloat(mode.height), 1)
+            let modeScaleX = CGFloat(mode.pixelWidth) / modeWidth
+            let modeScaleY = CGFloat(mode.pixelHeight) / modeHeight
+            if modeScaleX.isFinite && modeScaleX > 0 { scaleX = modeScaleX }
+            if modeScaleY.isFinite && modeScaleY > 0 { scaleY = modeScaleY }
+        }
+        
+        // Align to integral pixel boundaries before capture to avoid soft sampling blur.
+        var pixelRect = CGRect(
+            x: relativeRect.origin.x * scaleX,
+            y: relativeRect.origin.y * scaleY,
+            width: relativeRect.width * scaleX,
+            height: relativeRect.height * scaleY
+        ).integral
+        
+        let displayPixelBounds = CGRect(x: 0, y: 0, width: displayWidth, height: displayHeight)
+        pixelRect = pixelRect.intersection(displayPixelBounds)
+        
+        guard pixelRect.width >= 1 && pixelRect.height >= 1 else {
+            print("[ElementCapture] SAFETY: Pixel-aligned rect is invalid: \(pixelRect)")
+            throw CaptureError.noElement
+        }
+        
+        let sourceRect = CGRect(
+            x: pixelRect.origin.x / scaleX,
+            y: pixelRect.origin.y / scaleY,
+            width: pixelRect.width / scaleX,
+            height: pixelRect.height / scaleY
+        )
+        
+        let pixelWidth = max(1, Int(pixelRect.width))
+        let pixelHeight = max(1, Int(pixelRect.height))
+        
+        print("[ElementCapture] Capture: global=\(rect), relative=\(relativeRect), source=\(sourceRect), pixels=\(pixelWidth)x\(pixelHeight), scale=\(String(format: "%.3f", scaleX))x\(String(format: "%.3f", scaleY))")
         
         // Configure capture
         let filter = SCContentFilter(display: display, excludingWindows: [])
         
         let config = SCStreamConfiguration()
-        config.sourceRect = relativeRect
+        config.sourceRect = sourceRect
         config.width = pixelWidth
         config.height = pixelHeight
         config.scalesToFit = false
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.showsCursor = false
+        if #available(macOS 14.0, *) {
+            config.captureResolution = .best
+        }
         
         // Capture
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
@@ -1264,11 +1303,24 @@ final class ElementCaptureManager: ObservableObject {
     }
     
     private func copyToClipboard(_ image: CGImage) {
-        let nsImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
-        
+        let bitmapRep = NSBitmapImageRep(cgImage: image)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([nsImage])
+        pasteboard.declareTypes([.png, .tiff], owner: nil)
+        var wroteData = false
+        
+        if let pngData = bitmapRep.representation(using: .png, properties: [:]) {
+            wroteData = pasteboard.setData(pngData, forType: .png) || wroteData
+        }
+        
+        if let tiffData = bitmapRep.tiffRepresentation {
+            wroteData = pasteboard.setData(tiffData, forType: .tiff) || wroteData
+        }
+        
+        if !wroteData {
+            let fallbackImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+            pasteboard.writeObjects([fallbackImage])
+        }
     }
     
     private func playScreenshotSound() {
@@ -1537,7 +1589,7 @@ final class CapturePreviewWindowController {
                 }
             }
         )
-        .preferredColorScheme(.dark) // Force dark mode always
+
         
         // Fixed size for consistent appearance
         let contentSize = NSSize(width: 280, height: 220)
@@ -1620,6 +1672,3 @@ final class CapturePreviewWindowController {
 }
 
 // MARK: - Capture Preview View (Styled like Basket)
-
-
-

@@ -408,52 +408,51 @@ final class SpotifyController {
         // Use serial queue to prevent concurrent AppleScript execution  
         // NSAppleScript is NOT thread-safe and concurrent calls crash the runtime
         appleScriptQueue.async {
-            var error: NSDictionary?
-            
-            guard let script = NSAppleScript(source: source) else {
-                print("SpotifyController: Failed to create AppleScript")
-                DispatchQueue.main.async { completion(nil) }
-                return
-            }
-            
-            let result = script.executeAndReturnError(&error)
-            
-            if let error = error {
-                print("SpotifyController: AppleScript error: \(error)")
-                DispatchQueue.main.async { completion(nil) }
-                return
-            }
-            
-            // Parse result based on descriptor type
-            let parsed: Any?
-            switch result.descriptorType {
-            case typeTrue:
-                parsed = true
-            case typeFalse:
-                parsed = false
-            case typeIEEE64BitFloatingPoint:
-                // Handle double/float (player position returns this!)
-                parsed = result.doubleValue
-            case typeIEEE32BitFloatingPoint:
-                // Handle 32-bit float
-                let floatBytes = result.data
-                if floatBytes.count >= 4 {
-                    var value: Float = 0
-                    _ = withUnsafeMutableBytes(of: &value) { floatBytes.copyBytes(to: $0) }
-                    parsed = Double(value)
-                } else {
-                    parsed = 0.0
+            let parsed: Any? = AppleScriptRuntime.execute {
+                var error: NSDictionary?
+
+                guard let script = NSAppleScript(source: source) else {
+                    print("SpotifyController: Failed to create AppleScript")
+                    return nil
                 }
-            case typeSInt32:
-                parsed = Int(result.int32Value)
-            case typeSInt64:
-                // Handle 64-bit integer
-                parsed = result.int32Value // Best we can do
-            default:
-                // Try string as fallback
-                parsed = result.stringValue
+
+                let result = script.executeAndReturnError(&error)
+
+                if let error = error {
+                    print("SpotifyController: AppleScript error: \(error)")
+                    return nil
+                }
+
+                // Parse result based on descriptor type
+                switch result.descriptorType {
+                case typeTrue:
+                    return true
+                case typeFalse:
+                    return false
+                case typeIEEE64BitFloatingPoint:
+                    // Handle double/float (player position returns this!)
+                    return result.doubleValue
+                case typeIEEE32BitFloatingPoint:
+                    // Handle 32-bit float
+                    let floatBytes = result.data
+                    if floatBytes.count >= 4 {
+                        var value: Float = 0
+                        _ = withUnsafeMutableBytes(of: &value) { floatBytes.copyBytes(to: $0) }
+                        return Double(value)
+                    } else {
+                        return 0.0
+                    }
+                case typeSInt32:
+                    return Int(result.int32Value)
+                case typeSInt64:
+                    // Handle 64-bit integer
+                    return result.int32Value // Best we can do
+                default:
+                    // Try string as fallback
+                    return result.stringValue
+                }
             }
-            
+
             DispatchQueue.main.async { completion(parsed) }
         }
     }

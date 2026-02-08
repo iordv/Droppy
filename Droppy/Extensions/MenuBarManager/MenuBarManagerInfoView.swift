@@ -60,7 +60,7 @@ struct MenuBarManagerInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .menuBarManager)
@@ -93,7 +93,7 @@ struct MenuBarManagerInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -200,7 +200,7 @@ struct MenuBarManagerInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -359,7 +359,7 @@ struct MenuBarManagerInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -386,7 +386,7 @@ struct MenuBarManagerInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isSelected ? Color.blue : Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(isSelected ? Color.blue : AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

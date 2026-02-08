@@ -29,6 +29,7 @@ struct NotchHUDView: View {
     let hudWidth: CGFloat     // Total HUD width (passed from parent)
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     var onValueChange: ((CGFloat) -> Void)?
+    @ObservedObject private var volumeManager = VolumeManager.shared
     
     /// SSOT: Use HUDLayoutCalculator for consistent padding across all HUDs
     private var layout: HUDLayoutCalculator {
@@ -70,6 +71,15 @@ struct NotchHUDView: View {
     private var wingWidth: CGFloat {
         (hudWidth - notchWidth) / 2
     }
+
+    private func iconSymbol(for value: CGFloat) -> String {
+        switch hudType {
+        case .volume, .mute:
+            return volumeManager.volumeHUDIcon(for: value, isMuted: isMuted || hudType == .mute)
+        case .brightness, .backlight:
+            return hudType.icon(for: value)
+        }
+    }
     
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
@@ -85,7 +95,7 @@ struct NotchHUDView: View {
                     let iconScale = 0.85 + (value * 0.30)
                     
                     // Volume: White icon | Brightness: Yellow icon
-                    Image(systemName: hudType.icon(for: value))
+                    Image(systemName: iconSymbol(for: value))
                         .font(.system(size: iconSize, weight: .semibold))
                         .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : .white)
                         .contentTransition(.symbolEffect(.replace.byLayer))
@@ -120,7 +130,7 @@ struct NotchHUDView: View {
                         let iconScale = 0.85 + (value * 0.30)
                         
                         // Volume: White icon | Brightness: Yellow icon
-                        Image(systemName: hudType.icon(for: value))
+                        Image(systemName: iconSymbol(for: value))
                             .font(.system(size: iconSize, weight: .semibold))
                             .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : .white)
                             .contentTransition(.symbolEffect(.replace.byLayer))
@@ -176,11 +186,21 @@ struct HUDOverlayView: View {
     var onValueChange: ((CGFloat) -> Void)?
     
     @State private var animatedValue: CGFloat = 0
+    @ObservedObject private var volumeManager = VolumeManager.shared
+    
+    private func iconSymbol(for value: CGFloat) -> String {
+        switch hudType {
+        case .volume, .mute:
+            return volumeManager.volumeHUDIcon(for: value, isMuted: hudType == .mute || value <= 0.0001)
+        case .brightness, .backlight:
+            return hudType.icon(for: value)
+        }
+    }
     
     var body: some View {
         HStack(spacing: 14) {
             // Icon with dynamic symbol
-            Image(systemName: hudType.icon(for: value))
+            Image(systemName: iconSymbol(for: value))
                 .font(.system(size: HUDLayoutCalculator.dynamicIslandIconSize, weight: .semibold))
                 .foregroundStyle(.white)
                 .contentTransition(.interpolate)

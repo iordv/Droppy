@@ -16,6 +16,7 @@ struct ToDoShelfBar: View {
     var manager: ToDoManager
     @Binding var isListExpanded: Bool
     var notchHeight: CGFloat = 0  // Height of physical notch to clear
+    var useAdaptiveForegroundsForTransparentNotch: Bool = false
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
 
     @State private var inputText: String = ""
@@ -26,6 +27,10 @@ struct ToDoShelfBar: View {
     @State private var isInputBarHovered = false
     @State private var activeListMentionQuery: String?
     @State private var showingMentionPicker = false
+
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && useAdaptiveForegroundsForTransparentNotch
+    }
 
     private enum Layout {
         static let internalBottomPadding: CGFloat = 0
@@ -73,7 +78,8 @@ struct ToDoShelfBar: View {
                         withAnimation {
                             manager.showUndoToast = false
                         }
-                    }
+                    },
+                    useAdaptiveColors: useAdaptiveForegrounds
                 )
                 .padding(undoToastPadding)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -81,11 +87,15 @@ struct ToDoShelfBar: View {
         }
         .overlay(alignment: .top) {
             if manager.showCleanupToast {
-                ToDoCleanupToast(count: manager.cleanupCount) {
-                    withAnimation(.smooth(duration: 0.25)) {
-                        manager.showCleanupToast = false
-                    }
-                }
+                ToDoCleanupToast(
+                    count: manager.cleanupCount,
+                    onDismiss: {
+                        withAnimation(.smooth(duration: 0.25)) {
+                            manager.showCleanupToast = false
+                        }
+                    },
+                    useAdaptiveColors: useAdaptiveForegrounds
+                )
                 .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -95,8 +105,10 @@ struct ToDoShelfBar: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showUndoToast)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showCleanupToast)
         .onAppear {
-            if manager.isRemindersSyncEnabled {
+            if manager.isRemindersSyncEnabled || manager.isCalendarSyncEnabled {
                 manager.syncExternalSourcesNow()
+            }
+            if manager.isRemindersSyncEnabled {
                 manager.refreshReminderListsNow()
             }
         }
@@ -110,7 +122,7 @@ struct ToDoShelfBar: View {
             manager.isShelfListExpanded = expanded
             NotchWindowController.shared.forceRecalculateAllWindowSizes()
             guard expanded else { return }
-            if manager.isRemindersSyncEnabled {
+            if manager.isRemindersSyncEnabled || manager.isCalendarSyncEnabled {
                 manager.syncExternalSourcesNow()
             }
         }
@@ -147,12 +159,18 @@ struct ToDoShelfBar: View {
         .frame(height: Layout.inputBarHeight)
         .background(
             Capsule()
-                .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.95))
+                .fill(
+                    useAdaptiveForegrounds
+                        ? AdaptiveColors.buttonBackgroundAuto.opacity(0.95)
+                        : Color.white.opacity(0.12)
+                )
         )
         .overlay(
             Capsule()
                 .strokeBorder(
-                    AdaptiveColors.subtleBorderAuto.opacity(isInputBarHovered ? 1.4 : 1.0),
+                    useAdaptiveForegrounds
+                        ? AdaptiveColors.subtleBorderAuto.opacity(isInputBarHovered ? 1.4 : 1.0)
+                        : Color.white.opacity(isInputBarHovered ? 0.2 : 0.14),
                     lineWidth: 1
                 )
         )
@@ -251,6 +269,7 @@ struct ToDoShelfBar: View {
             onEditingChanged: { isEditing in
                 manager.isEditingText = isEditing
             },
+            useAdaptiveColors: useAdaptiveForegrounds,
             highlightSpansProvider: { text in
                 let dateSpans = ToDoInputIntelligence.detectedDateRanges(in: text).map {
                     ToDoTextHighlightSpan(range: $0, style: .detectedDate)
@@ -294,6 +313,8 @@ struct ToDoShelfBar: View {
                     Text(incompleteCountLabel)
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .monospacedDigit()
+                        // Keep badge numbers white for strong contrast on the blue pill,
+                        // including external transparent-notch mode.
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -305,7 +326,11 @@ struct ToDoShelfBar: View {
                 Image(systemName: isListExpanded ? "chevron.down" : "checklist")
                     .font(.system(size: 12, weight: .semibold))
                     .frame(width: 12, height: 12)
-                    .foregroundStyle(isListExpanded ? .white : .white.opacity(0.6))
+                    .foregroundStyle(
+                        isListExpanded
+                            ? .white
+                            : (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto : .white.opacity(0.6))
+                    )
                     .contentTransition(.symbolEffect(.replace))
             }
             .padding(.horizontal, Layout.sideControlContentPadding)
@@ -313,7 +338,11 @@ struct ToDoShelfBar: View {
             .frame(height: Layout.sideControlHeight)
             .background(
                 Capsule()
-                    .fill(isListExpanded ? Color.blue.opacity(0.8) : AdaptiveColors.buttonBackgroundAuto)
+                    .fill(
+                        isListExpanded
+                            ? Color.blue.opacity(0.8)
+                            : (useAdaptiveForegrounds ? AdaptiveColors.buttonBackgroundAuto : Color.white.opacity(0.12))
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -335,19 +364,61 @@ struct ToDoShelfBar: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     // CRITICAL FIX: Use VStack instead of LazyVStack to prevent NSGenericException layout loops during drag
                     VStack(alignment: .leading, spacing: 1) {
-                        ForEach(manager.sortedItems, id: \.id) { item in
-                            TaskRow(
-                                item: item,
-                                manager: manager,
-                                reminderListOptions: reminderListMenuOptions
-                            )
-                                .id("\(item.id)-\(item.isCompleted)-\(item.priority.rawValue)")
-                            
-                            // Subtle separator
-                            if item.id != manager.sortedItems.last?.id {
+                        if !overviewTaskItems.isEmpty {
+                            ForEach(Array(overviewTaskItems.enumerated()), id: \.element.id) { index, item in
+                                TaskRow(
+                                    item: item,
+                                    manager: manager,
+                                    reminderListOptions: reminderListMenuOptions,
+                                    useAdaptiveForegrounds: useAdaptiveForegrounds
+                                )
+                                    .id("\(item.id)-\(item.isCompleted)-\(item.priority.rawValue)")
+
+                                if index < overviewTaskItems.count - 1 {
+                                    Divider()
+                                        .background(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.06) : Color.white.opacity(0.06))
+                                        .padding(.horizontal, 24)
+                                }
+                            }
+                        }
+
+                        if !upcomingCalendarItems.isEmpty {
+                            if !overviewTaskItems.isEmpty {
                                 Divider()
-                                    .background(Color.white.opacity(0.06))
-                                    .padding(.horizontal, 24)
+                                    .background(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.08) : Color.white.opacity(0.08))
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 4)
+                            }
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text("Upcoming Events")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundStyle(
+                                useAdaptiveForegrounds
+                                    ? AdaptiveColors.secondaryTextAuto.opacity(0.85)
+                                    : .white.opacity(0.72)
+                            )
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 4)
+
+                            ForEach(Array(upcomingCalendarItems.enumerated()), id: \.element.id) { index, item in
+                                TaskRow(
+                                    item: item,
+                                    manager: manager,
+                                    reminderListOptions: reminderListMenuOptions,
+                                    useAdaptiveForegrounds: useAdaptiveForegrounds
+                                )
+                                    .id("\(item.id)-\(item.isCompleted)-\(item.priority.rawValue)")
+
+                                if index < upcomingCalendarItems.count - 1 {
+                                    Divider()
+                                        .background(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.06) : Color.white.opacity(0.06))
+                                        .padding(.horizontal, 24)
+                                }
                             }
                         }
                     }
@@ -377,13 +448,15 @@ struct ToDoShelfBar: View {
             // Subtle icon with gradient
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.04))
+                    .fill(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.04) : Color.white.opacity(0.04))
                     .frame(width: 36, height: 36)
                 Image(systemName: "checklist")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.white.opacity(0.3), .white.opacity(0.15)],
+                            colors: useAdaptiveForegrounds
+                                ? [AdaptiveColors.secondaryTextAuto.opacity(0.55), AdaptiveColors.secondaryTextAuto.opacity(0.28)]
+                                : [.white.opacity(0.3), .white.opacity(0.15)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -391,7 +464,7 @@ struct ToDoShelfBar: View {
             }
             Text("no_tasks_yet")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.75) : .white.opacity(0.3))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -403,8 +476,8 @@ struct ToDoShelfBar: View {
             colors: useTransparentBackground
                 ? [
                     Color.clear,
-                    Color.white.opacity(0.03),
-                    Color.white.opacity(0.07)
+                    (useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.03) : Color.white.opacity(0.03)),
+                    (useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.07) : Color.white.opacity(0.07))
                 ]
                 : [
                     Color.clear,
@@ -573,7 +646,29 @@ struct ToDoStableTextField: NSViewRepresentable {
     let placeholder: String
     let onSubmit: () -> Void
     let onEditingChanged: (Bool) -> Void
+    var useAdaptiveColors: Bool = false
     var highlightSpansProvider: ((String) -> [ToDoTextHighlightSpan])? = nil
+
+    fileprivate var resolvedPrimaryTextColor: NSColor {
+        if useAdaptiveColors {
+            return NSColor.labelColor.withAlphaComponent(0.92)
+        }
+        return NSColor.white.withAlphaComponent(0.9)
+    }
+
+    fileprivate var resolvedPlaceholderTextColor: NSColor {
+        if useAdaptiveColors {
+            return NSColor.secondaryLabelColor.withAlphaComponent(0.82)
+        }
+        return NSColor.white.withAlphaComponent(0.5)
+    }
+
+    fileprivate var resolvedUnderlineColor: NSColor {
+        if useAdaptiveColors {
+            return NSColor.secondaryLabelColor.withAlphaComponent(0.85)
+        }
+        return NSColor.white.withAlphaComponent(0.6)
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -586,7 +681,7 @@ struct ToDoStableTextField: NSViewRepresentable {
         textField.drawsBackground = false
         textField.focusRingType = .none
         textField.font = .systemFont(ofSize: 13, weight: .medium)
-        textField.textColor = NSColor.white.withAlphaComponent(0.9)
+        textField.textColor = resolvedPrimaryTextColor
         textField.cell?.lineBreakMode = .byTruncatingTail
         textField.cell?.usesSingleLineMode = true
         textField.cell?.wraps = false
@@ -596,7 +691,7 @@ struct ToDoStableTextField: NSViewRepresentable {
         textField.placeholderAttributedString = NSAttributedString(
             string: placeholder,
             attributes: [
-                .foregroundColor: NSColor.white.withAlphaComponent(0.5),
+                .foregroundColor: resolvedPlaceholderTextColor,
                 .font: NSFont.systemFont(ofSize: 13, weight: .medium)
             ]
         )
@@ -607,6 +702,15 @@ struct ToDoStableTextField: NSViewRepresentable {
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
+        nsView.textColor = resolvedPrimaryTextColor
+        nsView.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .foregroundColor: resolvedPlaceholderTextColor,
+                .font: NSFont.systemFont(ofSize: 13, weight: .medium)
+            ]
+        )
+        context.coordinator.syncEditorAppearance(on: nsView)
         context.coordinator.applyHighlight(to: nsView)
     }
 
@@ -629,6 +733,7 @@ struct ToDoStableTextField: NSViewRepresentable {
             if let field = notification.object as? NSTextField,
                let editor = field.currentEditor() as? NSTextView {
                 installRoundedBadgeLayoutManagerIfNeeded(on: editor)
+                syncEditorAppearance(on: field)
             }
             parent.onEditingChanged(true)
         }
@@ -648,14 +753,18 @@ struct ToDoStableTextField: NSViewRepresentable {
         func applyHighlight(to field: NSTextField) {
             guard let provider = parent.highlightSpansProvider else { return }
             let text = field.stringValue
-            guard !text.isEmpty else { return }
+            let baseAttributes: [NSAttributedString.Key: Any] = [
+                .foregroundColor: parent.resolvedPrimaryTextColor,
+                .font: NSFont.systemFont(ofSize: 13, weight: .medium)
+            ]
+
+            guard !text.isEmpty else {
+                syncEditorAppearance(on: field)
+                return
+            }
 
             let attributed = NSMutableAttributedString(string: text)
             let fullRange = NSRange(location: 0, length: (text as NSString).length)
-            let baseAttributes: [NSAttributedString.Key: Any] = [
-                .foregroundColor: NSColor.white.withAlphaComponent(0.9),
-                .font: NSFont.systemFont(ofSize: 13, weight: .medium)
-            ]
             attributed.setAttributes(baseAttributes, range: fullRange)
 
             let spans = provider(text)
@@ -665,15 +774,21 @@ struct ToDoStableTextField: NSViewRepresentable {
                     switch span.style {
                     case .detectedDate:
                         attributed.addAttributes([
-                            .foregroundColor: NSColor.white.withAlphaComponent(0.95),
-                            .toDoBadgeColor: NSColor.white.withAlphaComponent(0.18),
-                            .font: NSFont.systemFont(ofSize: 13, weight: .semibold)
+                            .foregroundColor: parent.useAdaptiveColors
+                                ? parent.resolvedPrimaryTextColor
+                                : NSColor.white.withAlphaComponent(0.95),
+                            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+                            .underlineStyle: NSUnderlineStyle.single.rawValue,
+                            .underlineColor: parent.resolvedUnderlineColor
                         ], range: nsRange)
                     case .listMentionToken:
                         attributed.addAttributes([
-                            .foregroundColor: NSColor.white.withAlphaComponent(0.95),
-                            .toDoBadgeColor: NSColor.white.withAlphaComponent(0.14),
-                            .font: NSFont.systemFont(ofSize: 13, weight: .semibold)
+                            .foregroundColor: parent.useAdaptiveColors
+                                ? parent.resolvedPrimaryTextColor
+                                : NSColor.white.withAlphaComponent(0.95),
+                            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+                            .underlineStyle: NSUnderlineStyle.single.rawValue,
+                            .underlineColor: parent.resolvedUnderlineColor
                         ], range: nsRange)
                     }
                 }
@@ -685,10 +800,24 @@ struct ToDoStableTextField: NSViewRepresentable {
                 let selectedRange = editor.selectedRange()
                 editor.textStorage?.setAttributedString(attributed)
                 editor.selectedRange = selectedRange
+                syncEditorAppearance(on: field)
             } else {
                 field.attributedStringValue = attributed
             }
             isApplyingHighlight = false
+        }
+
+        func syncEditorAppearance(on field: NSTextField) {
+            guard let editor = field.currentEditor() as? NSTextView else { return }
+
+            let textColor = parent.resolvedPrimaryTextColor
+            editor.textColor = textColor
+            editor.insertionPointColor = textColor
+
+            var typingAttributes = editor.typingAttributes
+            typingAttributes[.foregroundColor] = textColor
+            typingAttributes[.font] = NSFont.systemFont(ofSize: 13, weight: .medium)
+            editor.typingAttributes = typingAttributes
         }
 
         private func installRoundedBadgeLayoutManagerIfNeeded(on editor: NSTextView) {
@@ -750,7 +879,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Due date")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
 
             HStack(spacing: 8) {
                 quickPresetButton("Today") { setPreset(daysFromToday: 0) }
@@ -763,7 +892,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
                 stepButton("chevron.left") { shiftDays(-1) }
                 Text(resolvedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -773,11 +902,11 @@ private struct ToDoDueDatePopoverContentLocal: View {
             .frame(height: 30)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.9))
+                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.98))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
             )
 
             HStack(spacing: 8) {
@@ -795,7 +924,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .onSubmit {
                     applyTypedTime()
@@ -808,12 +937,12 @@ private struct ToDoDueDatePopoverContentLocal: View {
                         Circle()
                             .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.95))
                             .overlay(
-                                Circle().stroke(Color.white.opacity(0.16), lineWidth: 1)
+                                Circle().stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
                             )
                             .frame(width: 22, height: 22)
                         Image(systemName: "xmark")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.75))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                     }
                 }
                 .buttonStyle(.plain)
@@ -826,11 +955,11 @@ private struct ToDoDueDatePopoverContentLocal: View {
             .frame(height: 30)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.9))
+                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.98))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
             )
 
             HStack(spacing: 10) {
@@ -845,6 +974,16 @@ private struct ToDoDueDatePopoverContentLocal: View {
         }
         .padding(isEmbedded ? 0 : 14)
         .frame(width: isEmbedded ? nil : 260)
+        .background {
+            if !isEmbedded {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(AdaptiveColors.panelBackgroundAuto)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                    )
+            }
+        }
         .onAppear {
             manualTimeText = formatTime(resolvedDate)
             setInteractingPopover?(true)
@@ -866,7 +1005,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .frame(height: 22)
@@ -876,7 +1015,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -886,7 +1025,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                 .frame(width: 20, height: 20)
                 .background(
                     Circle()
@@ -985,6 +1124,7 @@ private struct TaskRow: View {
     let item: ToDoItem
     let manager: ToDoManager
     let reminderListOptions: [ToDoReminderListOption]
+    let useAdaptiveForegrounds: Bool
     @State private var isHovering = false
     @State private var isEditing = false
     @State private var editText = ""
@@ -992,63 +1132,92 @@ private struct TaskRow: View {
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
-            // Checkbox - premium circular toggle with smooth animations
-            Button {
-                HapticFeedback.medium.perform()
-                withAnimation(DroppyAnimation.stateEmphasis) {
-                    manager.toggleCompletion(for: item)
-                }
-            } label: {
+            if isCalendarEvent {
                 ZStack {
-                    // Invisible hit area for reliable clicking
                     Circle()
-                        .fill(Color.clear)
-                        .frame(width: 28, height: 28)
-
-                    // Outer ring
-                    Circle()
-                        .stroke(checkboxBorderColor, lineWidth: 1.5)
+                        .fill(calendarEventTint.opacity(0.2))
                         .frame(width: 16, height: 16)
-
-                    // Fill circle when completed - with subtle glow
-                    if item.isCompleted {
-                        Circle()
-                            .fill(Color.green.opacity(0.85))
-                            .frame(width: 16, height: 16)
-                            .shadow(color: Color.green.opacity(0.3), radius: 4)
-
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                    } else if isHovering {
-                        // Subtle fill on hover to indicate clickability
-                        Circle()
-                            .fill(Color.white.opacity(0.08))
-                            .frame(width: 14, height: 14)
-                    }
+                    Image(systemName: "calendar")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(calendarEventTint.opacity(0.95))
                 }
-                .contentShape(Circle())
+                .frame(width: 28, height: 28)
+                .help("Calendar event")
+            } else {
+                // Checkbox - premium circular toggle with smooth animations
+                Button {
+                    HapticFeedback.medium.perform()
+                    withAnimation(DroppyAnimation.stateEmphasis) {
+                        manager.toggleCompletion(for: item)
+                    }
+                } label: {
+                    ZStack {
+                        // Invisible hit area for reliable clicking
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 28, height: 28)
+
+                        // Outer ring
+                        Circle()
+                            .stroke(checkboxBorderColor, lineWidth: 1.5)
+                            .frame(width: 16, height: 16)
+
+                        // Fill circle when completed - with subtle glow
+                        if item.isCompleted {
+                            Circle()
+                                .fill(Color.green.opacity(0.85))
+                                .frame(width: 16, height: 16)
+                                .shadow(color: Color.green.opacity(0.3), radius: 4)
+
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else if isHovering {
+                            // Subtle fill on hover to indicate clickability
+                            Circle()
+                                .fill(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.08) : Color.white.opacity(0.08))
+                                .frame(width: 14, height: 14)
+                        }
+                    }
+                    .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.isCompleted ? String(localized: "action.mark_incomplete") : String(localized: "action.mark_complete"))
+                .animation(DroppyAnimation.bounce, value: item.isCompleted)
+                .animation(DroppyAnimation.hoverQuick, value: isHovering)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(item.isCompleted ? String(localized: "action.mark_incomplete") : String(localized: "action.mark_complete"))
-            .animation(DroppyAnimation.bounce, value: item.isCompleted)
-            .animation(DroppyAnimation.hoverQuick, value: isHovering)
 
             // Title with strikethrough animation - color based on priority
             Text(item.title)
-                .font(.system(size: 13, weight: item.isCompleted ? .regular : .medium))
-                .strikethrough(item.isCompleted, color: .white.opacity(0.4))
-                .foregroundStyle(item.isCompleted ? .white.opacity(0.35) : .white.opacity(0.9))
+                .font(.system(size: 13, weight: isCalendarEvent ? .semibold : (item.isCompleted ? .regular : .medium)))
+                .strikethrough(
+                    item.isCompleted,
+                    color: useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.45) : .white.opacity(0.4)
+                )
+                .foregroundStyle(
+                    item.isCompleted
+                        ? (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.55) : .white.opacity(0.35))
+                        : (isCalendarEvent
+                            ? calendarEventTint.opacity(0.95)
+                            : (useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.95) : .white.opacity(0.9)))
+                )
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(DroppyAnimation.state, value: item.isCompleted)
 
             if item.externalSource != nil {
                 HStack(spacing: 4) {
-                    Image(systemName: "applelogo")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.48))
-                        .help(externalIconHelp)
+                    if isCalendarEvent {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(calendarEventTint.opacity(0.95))
+                            .help(externalIconHelp)
+                    } else {
+                        Image(systemName: "applelogo")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.48))
+                            .help(externalIconHelp)
+                    }
                     if let reminderListColor {
                         Image(systemName: "list.bullet.circle.fill")
                             .font(.system(size: 10, weight: .semibold))
@@ -1060,18 +1229,22 @@ private struct TaskRow: View {
 
             if let dueDate = item.dueDate, !item.isCompleted {
                 HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                    if dueDateHasTime(dueDate) {
+                    Image(systemName: isCalendarEvent ? "clock" : "calendar")
+                    if dueDateHasTime(dueDate) && !isCalendarEvent {
                         Image(systemName: "bell.fill")
                     }
                     Text(formattedDueDateText(dueDate))
                 }
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(
+                    isCalendarEvent
+                        ? calendarEventTint.opacity(0.92)
+                        : (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.92) : .white.opacity(0.7))
+                )
             }
 
             // Priority indicator (only for non-normal, non-completed)
-            if item.priority != .normal && !item.isCompleted {
+            if item.priority != .normal && !item.isCompleted && !isCalendarEvent {
                 Circle()
                     .fill(item.priority.color)
                     .frame(width: 6, height: 6)
@@ -1079,40 +1252,52 @@ private struct TaskRow: View {
                     .transition(.scale.combined(with: .opacity))
             }
 
-            // Delete button with expanded hit area
-            Button {
-                HapticFeedback.delete()
-                withAnimation(DroppyAnimation.itemInsertion) {
-                    manager.removeItem(item)
-                }
-            } label: {
-                ZStack {
-                    // Invisible hit area
-                    Circle()
-                        .fill(Color.clear)
-                        .frame(width: 28, height: 28)
+            if !isCalendarEvent {
+                // Delete button with expanded hit area
+                Button {
+                    HapticFeedback.delete()
+                    withAnimation(DroppyAnimation.itemInsertion) {
+                        manager.removeItem(item)
+                    }
+                } label: {
+                    ZStack {
+                        // Invisible hit area
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 28, height: 28)
 
-                    Circle()
-                        .fill(isHovering ? Color.red.opacity(0.15) : Color.clear)
-                        .frame(width: 20, height: 20)
+                        Circle()
+                            .fill(isHovering ? Color.red.opacity(0.15) : Color.clear)
+                            .frame(width: 20, height: 20)
 
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isHovering ? .red : .white.opacity(0.25))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(
+                                isHovering
+                                    ? .red
+                                    : (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.75) : .white.opacity(0.25))
+                            )
+                    }
+                    .contentShape(Circle())
                 }
-                .contentShape(Circle())
+                .buttonStyle(.plain)
+                .opacity(isHovering ? 1 : 0.5)
+                .accessibilityLabel(String(localized: "action.delete_task"))
+                .animation(DroppyAnimation.hoverQuick, value: isHovering)
             }
-            .buttonStyle(.plain)
-            .opacity(isHovering ? 1 : 0.5)
-            .accessibilityLabel(String(localized: "action.delete_task"))
-            .animation(DroppyAnimation.hoverQuick, value: isHovering)
         }
         .padding(.horizontal, DroppySpacing.md)
         .padding(.vertical, 6)
         .contentShape(Rectangle()) // Full width hit testing
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isHovering ? AdaptiveColors.hoverBackgroundAuto.opacity(0.65) : Color.clear)
+                .fill(
+                    isCalendarEvent
+                        ? calendarEventTint.opacity(isHovering ? 0.16 : 0.1)
+                        : (isHovering
+                            ? (useAdaptiveForegrounds ? AdaptiveColors.hoverBackgroundAuto.opacity(0.65) : Color.white.opacity(0.12))
+                            : Color.clear)
+                )
         )
         .onHover { hovering in
             if hovering { HapticFeedback.hover() }
@@ -1123,12 +1308,17 @@ private struct TaskRow: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(String(localized: "action.edit"))
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                 
                 TextField(String(localized: "task_title"), text: $editText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .medium))
-                    .droppyTextInputChrome()
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
+                    .droppyTextInputChrome(
+                        backgroundOpacity: 1.0,
+                        borderOpacity: 1.0,
+                        useAdaptiveColors: true
+                    )
                     .onSubmit {
                         let trimmed = editText.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
@@ -1178,78 +1368,85 @@ private struct TaskRow: View {
             manager.isInteractingWithPopover = false
         }
         .contextMenu {
-            Button {
-                editText = item.title
-                editDueDate = item.dueDate
-                isEditing = true
-            } label: {
-                Label(String(localized: "action.edit"), systemImage: "pencil")
-            }
-            .keyboardShortcut("e", modifiers: [.command])
-            Divider()
-
-            Button {
-                HapticFeedback.medium.perform()
-                withAnimation(DroppyAnimation.state) {
-                    manager.updatePriority(for: item, to: .high)
+            if isCalendarEvent {
+                Label("Calendar events are read-only", systemImage: "calendar.badge.clock")
+                if let listTitle = item.externalListTitle, !listTitle.isEmpty {
+                    Label(listTitle, systemImage: "calendar")
                 }
-            } label: {
-                Label(String(localized: "priority.high"), systemImage: "exclamationmark.circle.fill")
-            }
-            Button {
-                HapticFeedback.medium.perform()
-                withAnimation(DroppyAnimation.state) {
-                    manager.updatePriority(for: item, to: .medium)
+            } else {
+                Button {
+                    editText = item.title
+                    editDueDate = item.dueDate
+                    isEditing = true
+                } label: {
+                    Label(String(localized: "action.edit"), systemImage: "pencil")
                 }
-            } label: {
-                Label(String(localized: "priority.medium"), systemImage: "exclamationmark.circle")
-            }
-            Button {
-                HapticFeedback.medium.perform()
-                withAnimation(DroppyAnimation.state) {
-                    manager.updatePriority(for: item, to: .normal)
-                }
-            } label: {
-                Label(String(localized: "priority.normal"), systemImage: "circle")
-            }
-
-            if !reminderListOptions.isEmpty {
+                .keyboardShortcut("e", modifiers: [.command])
                 Divider()
-                Menu {
-                    ForEach(reminderListOptions) { list in
-                        Button {
-                            HapticFeedback.medium.perform()
-                            manager.updateReminderList(for: item, to: list.id)
-                        } label: {
-                            Label(
-                                list.title,
-                                systemImage: item.externalListIdentifier == list.id ? "checkmark.circle.fill" : "circle"
-                            )
-                        }
-                    }
 
-                    Divider()
-                    Button {
-                        HapticFeedback.medium.perform()
-                        manager.updateReminderList(for: item, to: nil)
-                    } label: {
-                        Label(
-                            "Default List",
-                            systemImage: item.externalListIdentifier == nil ? "checkmark.circle.fill" : "circle"
-                        )
+                Button {
+                    HapticFeedback.medium.perform()
+                    withAnimation(DroppyAnimation.state) {
+                        manager.updatePriority(for: item, to: .high)
                     }
                 } label: {
-                    Label("Reminder List", systemImage: "list.bullet.rectangle")
+                    Label(String(localized: "priority.high"), systemImage: "exclamationmark.circle.fill")
                 }
-            }
-            Divider()
-            Button(role: .destructive) {
-                HapticFeedback.delete()
-                withAnimation(DroppyAnimation.itemInsertion) {
-                    manager.removeItem(item)
+                Button {
+                    HapticFeedback.medium.perform()
+                    withAnimation(DroppyAnimation.state) {
+                        manager.updatePriority(for: item, to: .medium)
+                    }
+                } label: {
+                    Label(String(localized: "priority.medium"), systemImage: "exclamationmark.circle")
                 }
-            } label: {
-                Label(String(localized: "action.delete"), systemImage: "trash")
+                Button {
+                    HapticFeedback.medium.perform()
+                    withAnimation(DroppyAnimation.state) {
+                        manager.updatePriority(for: item, to: .normal)
+                    }
+                } label: {
+                    Label(String(localized: "priority.normal"), systemImage: "circle")
+                }
+
+                if !reminderListOptions.isEmpty {
+                    Divider()
+                    Menu {
+                        ForEach(reminderListOptions) { list in
+                            Button {
+                                HapticFeedback.medium.perform()
+                                manager.updateReminderList(for: item, to: list.id)
+                            } label: {
+                                Label(
+                                    list.title,
+                                    systemImage: item.externalListIdentifier == list.id ? "checkmark.circle.fill" : "circle"
+                                )
+                            }
+                        }
+
+                        Divider()
+                        Button {
+                            HapticFeedback.medium.perform()
+                            manager.updateReminderList(for: item, to: nil)
+                        } label: {
+                            Label(
+                                "Default List",
+                                systemImage: item.externalListIdentifier == nil ? "checkmark.circle.fill" : "circle"
+                            )
+                        }
+                    } label: {
+                        Label("Reminder List", systemImage: "list.bullet.rectangle")
+                    }
+                }
+                Divider()
+                Button(role: .destructive) {
+                    HapticFeedback.delete()
+                    withAnimation(DroppyAnimation.itemInsertion) {
+                        manager.removeItem(item)
+                    }
+                } label: {
+                    Label(String(localized: "action.delete"), systemImage: "trash")
+                }
             }
         }
     }
@@ -1258,7 +1455,10 @@ private struct TaskRow: View {
         if item.isCompleted {
             return Color.green.opacity(0.8)
         }
-        return item.priority == .normal ? .white.opacity(0.3) : item.priority.color.opacity(0.7)
+        if item.priority == .normal {
+            return useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.5) : .white.opacity(0.3)
+        }
+        return item.priority.color.opacity(0.7)
     }
 
     private var externalIconHelp: String {
@@ -1273,7 +1473,8 @@ private struct TaskRow: View {
     }
 
     private var reminderListColor: Color? {
-        colorFromHex(item.externalListColorHex)
+        guard !isCalendarEvent else { return nil }
+        return colorFromHex(item.externalListColorHex)
     }
 
     private var reminderListHelp: String {
@@ -1312,6 +1513,14 @@ private struct TaskRow: View {
         }
         return formatter.string(from: date)
     }
+
+    private var isCalendarEvent: Bool {
+        item.externalSource == .calendar
+    }
+
+    private var calendarEventTint: Color {
+        colorFromHex(item.externalListColorHex) ?? .blue
+    }
 }
 
 private extension ToDoShelfBar {
@@ -1320,7 +1529,11 @@ private extension ToDoShelfBar {
     }
 
     var incompleteCount: Int {
-        manager.items.reduce(0) { $0 + ($1.isCompleted ? 0 : 1) }
+        manager.items.reduce(0) { count, item in
+            guard !item.isCompleted else { return count }
+            guard item.externalSource != .calendar else { return count }
+            return count + 1
+        }
     }
 
     var incompleteCountLabel: String {
@@ -1345,6 +1558,14 @@ private extension ToDoShelfBar {
     var emptyStateTopPadding: CGFloat {
         let undoInset = shouldLiftUndoToast ? Layout.undoToastEmptyStateClearance : 0
         return undoInset
+    }
+
+    var overviewTaskItems: [ToDoItem] {
+        manager.overviewTaskItems
+    }
+
+    var upcomingCalendarItems: [ToDoItem] {
+        manager.upcomingCalendarItems
     }
 }
 

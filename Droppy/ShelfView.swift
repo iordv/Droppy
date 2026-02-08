@@ -33,7 +33,7 @@ struct ShelfView: View {
             state.deselectAll()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .dropDestination(for: URL.self) { urls, _ in
             withAnimation(DroppyAnimation.transition) {
                 state.addItems(from: urls)

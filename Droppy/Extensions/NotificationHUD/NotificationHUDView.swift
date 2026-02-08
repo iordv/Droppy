@@ -17,6 +17,7 @@ struct NotificationHUDView: View {
     var manager: NotificationHUDManager
     let hudWidth: CGFloat
     var targetScreen: NSScreen? = nil
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
 
     @State private var isHovering = false
     @State private var isPressed = false
@@ -50,6 +51,24 @@ struct NotificationHUDView: View {
     /// Whether notification is expanded to show full content
     private var isExpanded: Bool {
         manager.currentNotification != nil || manager.isExpanded || isHovering
+    }
+
+    /// Keep built-in notch HUD text white on black.
+    /// Only adapt foregrounds for external transparent-notch mode.
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && isExternalWithNotchStyle
+    }
+
+    private func primaryText(_ opacity: Double = 1.0) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func secondaryText(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func overlayTone(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(opacity) : .white.opacity(opacity)
     }
 
     var body: some View {
@@ -159,7 +178,7 @@ struct NotificationHUDView: View {
                     if let notification = manager.currentNotification {
                         Text(notification.appName)
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(secondaryText(0.72))
                     }
 
                     Spacer()
@@ -167,21 +186,21 @@ struct NotificationHUDView: View {
                     if let notification = manager.currentNotification {
                         Text(timeAgo(notification.timestamp))
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.4))
+                            .foregroundStyle(secondaryText(0.56))
                     }
                 }
 
                 if let notification = manager.currentNotification {
                     Text(notification.displayTitle)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(primaryText())
                         .lineLimit(1)
                 }
 
                 if manager.showPreview, let body = manager.currentNotification?.body, !body.isEmpty {
                     Text(body)
                         .font(.system(size: 13))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(secondaryText(0.82))
                         .lineLimit(1)  // Truncate with ellipsis
                 }
             }
@@ -195,7 +214,7 @@ struct NotificationHUDView: View {
                 if isHovering {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(secondaryText(0.7))
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -221,7 +240,7 @@ struct NotificationHUDView: View {
                     if let notification = manager.currentNotification {
                         Text(notification.appName)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(secondaryText(0.66))
                     }
                     
                     Spacer()
@@ -229,16 +248,16 @@ struct NotificationHUDView: View {
                     if let notification = manager.currentNotification {
                         Text(timeAgo(notification.timestamp))
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.4))
+                            .foregroundStyle(secondaryText(0.56))
                     }
                     
                     if manager.queueCount > 1 {
                         Text("+\(manager.queueCount - 1)")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(secondaryText(0.72))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(.white.opacity(0.15)))
+                            .background(Capsule().fill(overlayTone(0.15)))
                     }
                 }
                 
@@ -246,7 +265,7 @@ struct NotificationHUDView: View {
                 if let notification = manager.currentNotification {
                     Text(notification.displayTitle)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(primaryText())
                         .lineLimit(1)
                 }
                 
@@ -260,7 +279,7 @@ struct NotificationHUDView: View {
                     if !displayText.isEmpty && manager.showPreview {
                         Text(displayText)
                             .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.65))
+                            .foregroundStyle(secondaryText(0.78))
                             .lineLimit(1)
                     }
                 }
@@ -271,7 +290,7 @@ struct NotificationHUDView: View {
             if isHovering {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(secondaryText(0.6))
                     .transition(.scale.combined(with: .opacity))
             }
         }
@@ -327,7 +346,7 @@ struct NotificationHUDView: View {
                 .droppyCardShadow(opacity: 0.3)
                 .overlay(
                     RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                        .stroke(AdaptiveColors.overlayAuto(0.1), lineWidth: 0.5)
                 )
         } else {
             ZStack {
@@ -344,11 +363,11 @@ struct NotificationHUDView: View {
                 if let name = manager.currentNotification?.appName, !name.isEmpty {
                     Text(String(name.prefix(1)).uppercased())
                         .font(.system(size: size * 0.6, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(primaryText())
                 } else {
                     Image(systemName: "bell.badge.fill")
                         .font(.system(size: size * 0.5, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(primaryText())
                 }
             }
             .droppyCardShadow(opacity: 0.3)
@@ -359,13 +378,13 @@ struct NotificationHUDView: View {
         HStack(spacing: 3) {
             ForEach(0..<min(manager.queueCount, 4), id: \.self) { index in
                 Circle()
-                    .fill(index == 0 ? Color.white : Color.white.opacity(0.4))
+                    .fill(index == 0 ? primaryText() : overlayTone(0.4))
                     .frame(width: 5, height: 5)
             }
             if manager.queueCount > 4 {
                 Text("+\(manager.queueCount - 4)")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(secondaryText(0.68))
             }
         }
     }

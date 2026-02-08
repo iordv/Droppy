@@ -64,5 +64,9 @@
 	<string>Droppy needs Reminders access to sync reminder items into your Reminders tasks.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Droppy needs full Reminders access to keep Reminders tasks synced with Apple Reminders changes.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Droppy needs Calendar access to show upcoming events in your task overview.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Droppy needs full Calendar access to keep upcoming events synced in your task overview.</string>
 </dict>
 </plist>

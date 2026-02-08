@@ -38,6 +38,10 @@ struct InlineHUDView: View {
     let type: InlineHUDType
     let value: CGFloat
     var isMuted: Bool = false  // PREMIUM: Explicit mute state from VolumeManager
+    var isCharging: Bool = false  // Battery charging state for modern battery glyphs
+    var symbolOverride: String? = nil
+    var useAdaptiveForegrounds: Bool = false
+    @ObservedObject private var volumeManager = VolumeManager.shared
     
     /// Animation trigger value for CapsLock/Focus (boolean-based)
     private var boolTrigger: Bool {
@@ -47,6 +51,16 @@ struct InlineHUDView: View {
     /// Whether to show muted state (explicit mute OR value is 0)
     private var shouldShowMuted: Bool {
         type == .volume && (isMuted || value <= 0)
+    }
+
+    private var iconSymbol: String {
+        if type == .volume {
+            return volumeManager.volumeHUDIcon(for: value, isMuted: shouldShowMuted)
+        }
+        if let symbolOverride {
+            return symbolOverride
+        }
+        return type.icon(for: value, isCharging: type == .battery && isCharging)
     }
     
     /// PREMIUM: Delayed mute state for drain-then-color effect
@@ -63,9 +77,22 @@ struct InlineHUDView: View {
         case .volume:
             return Color(red: 0.2, green: 0.9, blue: 0.4)   // Bright green
         case .battery:
-            return Color(red: 0.2, green: 0.9, blue: 0.4)   // Bright green (same as volume)
+            if value <= 0.2 && !isCharging {
+                return Color(red: 1.0, green: 0.33, blue: 0.40)  // iOS-like low battery red
+            }
+            return isCharging
+                ? Color(red: 0.46, green: 0.96, blue: 0.56)
+                : Color(red: 0.2, green: 0.9, blue: 0.4)
         case .capsLock, .focus:
-            return type.accentColor
+            return value > 0
+                ? type.accentColor
+                : AdaptiveColors.secondaryTextAuto.opacity(0.85)
+        case .airPods:
+            return Color(white: 0.92)
+        case .lockScreen:
+            return Color(white: 0.9)
+        case .update:
+            return Color(red: 0.41, green: 0.71, blue: 1.0)
         }
     }
     
@@ -77,56 +104,98 @@ struct InlineHUDView: View {
         switch type {
         case .brightness:
             return Color(red: 0.35, green: 0.3, blue: 0.05)  // Dark faded yellow
-        case .volume, .battery:
+        case .volume:
             return Color(red: 0.08, green: 0.25, blue: 0.12)  // Dark faded green
+        case .battery:
+            if value <= 0.2 && !isCharging {
+                return Color(red: 0.35, green: 0.2, blue: 0.08)  // Dark amber track
+            }
+            return Color(red: 0.08, green: 0.25, blue: 0.12)
         case .capsLock, .focus:
-            return Color.white.opacity(0.1)
+            return AdaptiveColors.overlayAuto(0.1)
+        case .airPods, .lockScreen, .update:
+            return AdaptiveColors.overlayAuto(0.1)
         }
     }
     
-    /// PREMIUM: Icon color (white for volume, yellow for brightness)
+    /// Consistent icon tint across all expanded HUD variants
     private var iconColor: Color {
         switch type {
         case .brightness:
             return Color(red: 1.0, green: 0.85, blue: 0.0)
-        case .volume:
-            return .white  // Volume icon is always white
-        default:
-            return type.accentColor
+        case .volume, .battery, .capsLock, .focus, .airPods, .lockScreen, .update:
+            return useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white
         }
     }
-    
+
+    private var batteryOuterColor: Color {
+        if isCharging {
+            return Color(white: 0.62)
+        }
+        if value <= 0.2 {
+            return Color(red: 0.62, green: 0.12, blue: 0.18)
+        }
+        return Color(red: 0.16, green: 0.48, blue: 0.24)
+    }
+
+    private var batteryInnerColor: Color {
+        if isCharging {
+            return Color(red: 0.46, green: 0.96, blue: 0.56)
+        }
+        if value <= 0.2 {
+            return Color(red: 1.0, green: 0.33, blue: 0.40)
+        }
+        return Color(red: 0.46, green: 0.93, blue: 0.52)
+    }
+
+    private var batteryTerminalColor: Color {
+        if isCharging {
+            return Color(white: 0.62)
+        }
+        if value <= 0.2 {
+            return Color(red: 0.68, green: 0.14, blue: 0.20)
+        }
+        return Color(red: 0.20, green: 0.56, blue: 0.28)
+    }
+
+    private var batteryChargingSegmentColor: Color {
+        Color(white: 0.58)
+    }
+
     var body: some View {
-        // Equal spacing: Icon (32px) | 10px | Slider | 10px | Text (32px)
+        // Equal spacing: Icon | 10px | Slider/state | 10px | Value text (when applicable)
         HStack(spacing: 10) {
-            // Icon with smooth symbol transition - matches regular HUD animations
             Group {
                 switch type {
                 case .capsLock, .focus:
                     // Toggle-based: bounce.up with downUp transition (same as CapsLock/DND HUDs)
-                    Image(systemName: type.icon(for: value))
+                    Image(systemName: iconSymbol)
                         .symbolEffect(.bounce.up, value: boolTrigger)
                         .contentTransition(.symbolEffect(.replace.byLayer.downUp))
                 case .battery:
-                    // State-based: bounce on charging (same as Battery HUD)
-                    Image(systemName: type.icon(for: value))
-                        .symbolEffect(.bounce, value: value)
-                        .contentTransition(.symbolEffect(.replace.byLayer))
-                case .volume:
-                    // Volume: White icon (slider is colored)
-                    Image(systemName: type.icon(for: value))
-                        .foregroundStyle(.white)
-                        .contentTransition(.symbolEffect(.replace.byLayer))
-                case .brightness:
-                    // Brightness: Yellow icon
-                    Image(systemName: type.icon(for: value))
-                        .foregroundStyle(Color(red: 1.0, green: 0.85, blue: 0.0))
+                    IOSBatteryGlyph(
+                        level: value,
+                        outerColor: batteryOuterColor,
+                        innerColor: batteryInnerColor,
+                        terminalColor: batteryTerminalColor,
+                        chargingSegmentColor: batteryChargingSegmentColor,
+                        isCharging: isCharging,
+                        bodyWidth: 21,
+                        bodyHeight: 12
+                    )
+                case .lockScreen:
+                    Image(systemName: iconSymbol)
+                        .symbolEffect(.bounce.up, value: boolTrigger)
+                        .contentTransition(.symbolEffect(.replace.byLayer.downUp))
+                case .volume, .brightness, .airPods, .update:
+                    Image(systemName: iconSymbol)
                         .contentTransition(.symbolEffect(.replace.byLayer))
                 }
             }
             .font(.system(size: 18, weight: .semibold))
-            .frame(width: 32, alignment: .trailing) // Same width as text for symmetry
-            .animation(DroppyAnimation.notchState, value: type.icon(for: value))
+            .foregroundStyle(iconColor)
+            .frame(width: 32, alignment: .trailing)
+            .animation(DroppyAnimation.notchState, value: iconSymbol)
             
             // Slider (visual only) - PREMIUM: New colored slider with smooth mute transition
             if type.showsSlider {
@@ -162,7 +231,10 @@ struct InlineHUDView: View {
                                     Capsule()
                                         .stroke(
                                             LinearGradient(
-                                                colors: [.white.opacity(0.4), .clear],
+                                                colors: [
+                                                    useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.4) : .white.opacity(0.4),
+                                                    .clear
+                                                ],
                                                 startPoint: .top,
                                                 endPoint: .center
                                             ),
@@ -181,20 +253,43 @@ struct InlineHUDView: View {
                     .animation(.interpolatingSpring(stiffness: 350, damping: 28), value: value)
                 }
                 .frame(height: 28)
+                
+                // PREMIUM: Animated percentage text with rolling number effect
+                Text("\(Int(max(0, min(1, value)) * 100))")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(
+                        useAdaptiveForegrounds
+                            ? AdaptiveColors.primaryTextAuto.opacity(0.88)
+                            : .white.opacity(0.85)
+                    )
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .frame(width: 32, alignment: .leading)
+                    .contentTransition(.numericText(value: Double(Int(value * 100))))
+                    .animation(DroppyAnimation.state, value: Int(value * 100))
+            } else {
+                let isOn = value > 0
+                Text(type.displayText(for: value).uppercased())
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(
+                        useAdaptiveForegrounds
+                            ? AdaptiveColors.primaryTextAuto.opacity(0.9)
+                            : .white.opacity(0.88)
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(isOn ? fillColor.opacity(0.2) : AdaptiveColors.overlayAuto(0.08))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(isOn ? fillColor.opacity(0.45) : AdaptiveColors.overlayAuto(0.22), lineWidth: 0.8)
+                    )
             }
-            
-            // PREMIUM: Animated percentage text with rolling number effect
-            Text("\(Int(max(0, min(1, value)) * 100))")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.85))
-                .monospacedDigit()
-                .lineLimit(1)
-                .frame(width: 32, alignment: .leading)
-                .contentTransition(.numericText(value: Double(Int(value * 100))))
-                .animation(DroppyAnimation.state, value: Int(value * 100))
         }
         // Match width of center controls
-        .frame(width: type.showsSlider ? 160 : 80)
+        .frame(width: type.showsSlider ? 170 : 116)
         // PREMIUM: Delayed mute color transition - bar drains first, then color changes
         .onChange(of: shouldShowMuted) { _, newMuted in
             if newMuted {
@@ -233,15 +328,15 @@ struct AudioVisualizerBars: View {
         AudioSpectrumView(
             isPlaying: isPlaying,
             barCount: 5,
-            barWidth: 2,  // v21.69: Thinner bars (was 3pt)
-            spacing: 2,
-            height: 20,
+            barWidth: 2.1,
+            spacing: 1.7,
+            height: 18,
             color: color,
             secondaryColor: secondaryColor,
             gradientMode: gradientMode,
             audioLevel: audioAnalyzer.audioLevel
         )
-        .frame(width: 5 * 2 + 4 * 2, height: 20) // 5 bars * 2px + 4 gaps * 2px = 18px
+        .frame(width: 5 * 2.1 + 4 * 1.7, height: 18)
         .onAppear { audioAnalyzer.startObserving() }
         .onDisappear { audioAnalyzer.stopObserving() }
     }
@@ -336,6 +431,7 @@ struct AppleMusicBadge: View {
 struct MediaControlButton: View {
     let icon: String
     let size: CGFloat
+    var foregroundColor: Color = .white
     var tapPadding: CGFloat = 16
     var nudgeDirection: NudgeDirection = .none
     let action: () -> Void
@@ -355,7 +451,7 @@ struct MediaControlButton: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: size, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(foregroundColor)
                 .frame(width: size + tapPadding, height: size + tapPadding)
                 .contentShape(Rectangle())
                 .contentTransition(.symbolEffect(.replace))
@@ -459,7 +555,7 @@ struct SpotifyControlButton: View {
             .frame(width: tapTargetSize, height: tapTargetSize)
             .background(
                 Circle()
-                    .fill(isActive ? accentColor.opacity(0.15) : Color.white.opacity(isHovering ? 0.08 : 0))
+                    .fill(isActive ? accentColor.opacity(0.15) : AdaptiveColors.overlayAuto(isHovering ? 0.08 : 0))
             )
             .contentShape(Circle())
         }

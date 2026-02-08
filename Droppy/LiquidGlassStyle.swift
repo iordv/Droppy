@@ -13,6 +13,7 @@ private struct DroppyTextInputChromeModifier: ViewModifier {
     let verticalPadding: CGFloat
     let backgroundOpacity: Double
     let borderOpacity: Double
+    let useAdaptiveColors: Bool
 
     func body(content: Content) -> some View {
         content
@@ -20,11 +21,20 @@ private struct DroppyTextInputChromeModifier: ViewModifier {
             .padding(.vertical, verticalPadding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(backgroundOpacity))
+                    .fill(
+                        useAdaptiveColors
+                            ? AdaptiveColors.buttonBackgroundAuto.opacity(backgroundOpacity)
+                            : Color.white.opacity(backgroundOpacity)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(AdaptiveColors.subtleBorderAuto.opacity(borderOpacity), lineWidth: 1)
+                    .strokeBorder(
+                        useAdaptiveColors
+                            ? AdaptiveColors.subtleBorderAuto.opacity(borderOpacity)
+                            : Color.white.opacity(borderOpacity),
+                        lineWidth: 1
+                    )
             )
     }
 }
@@ -58,7 +68,7 @@ struct LiquidGlassStyle: ViewModifier {
             // 2. The "Tint" (Volume)
             .background(
                 shape
-                    .fill(Color.white.opacity(isConcave ? 0.05 : 0.12))
+                    .fill(AdaptiveColors.overlayAuto(isConcave ? 0.05 : 0.12))
             )
             
             // 3. The Specular Rim (Lighting)
@@ -104,7 +114,8 @@ extension View {
         horizontalPadding: CGFloat = 12,
         verticalPadding: CGFloat = 10,
         backgroundOpacity: Double = 0.95,
-        borderOpacity: Double = 1.0
+        borderOpacity: Double = 1.0,
+        useAdaptiveColors: Bool = true
     ) -> some View {
         modifier(
             DroppyTextInputChromeModifier(
@@ -112,7 +123,8 @@ extension View {
                 horizontalPadding: horizontalPadding,
                 verticalPadding: verticalPadding,
                 backgroundOpacity: backgroundOpacity,
-                borderOpacity: borderOpacity
+                borderOpacity: borderOpacity,
+                useAdaptiveColors: useAdaptiveColors
             )
         )
     }

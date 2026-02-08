@@ -72,10 +72,10 @@ struct ConnectedAirPods: Equatable {
     typealias AirPodsType = DeviceType
 }
 
-/// AirPods connection HUD mimicking iPhone's popup animation
-/// - Slow, elegant 3D Y-axis rotation
-/// - Scale-up entrance with spring bounce
-/// - Battery levels fade in after rotation starts
+/// AirPods connection HUD with premium, stable motion
+/// - No icon spinning (avoids flat/paper look on SF Symbols)
+/// - Depth from layered lighting + shadow
+/// - Smooth spring entrance with subtle breathing
 struct AirPodsHUDView: View {
     let airPods: ConnectedAirPods
     let hudWidth: CGFloat
@@ -86,10 +86,12 @@ struct AirPodsHUDView: View {
         HUDLayoutCalculator(screen: targetScreen ?? NSScreen.main ?? NSScreen.screens.first)
     }
     
-    // Animation states - iPhone-style timing
-    @State private var rotationAngle: Double = 0
+    // Animation states
     @State private var iconScale: CGFloat = 0.4
     @State private var iconOpacity: CGFloat = 0
+    @State private var iconLift: CGFloat = 5
+    @State private var iconBreathingScale: CGFloat = 0.98
+    @State private var iconSheenOpacity: CGFloat = 0.2
     @State private var batteryOpacity: CGFloat = 0
     @State private var batteryScale: CGFloat = 0.8
     @State private var ringProgress: CGFloat = 0
@@ -114,7 +116,7 @@ struct AirPodsHUDView: View {
             }
         }
         .onAppear {
-            startIPhoneStyleAnimation()
+            startPremiumConnectionAnimation()
         }
     }
     
@@ -181,25 +183,50 @@ struct AirPodsHUDView: View {
         .frame(height: layout.notchHeight)
     }
     
-    // MARK: - AirPods Icon (iPhone-style 3D rotation)
+    // MARK: - AirPods Icon (premium depth, no rotation)
     
     @ViewBuilder
     private func airPodsIconView(size: CGFloat) -> some View {
-        Image(systemName: airPods.type.symbolName)
-            .font(.system(size: size, weight: .medium))
-            .foregroundStyle(.white)
-            // iPhone-style slow 3D rotation around Y-axis
-            .rotation3DEffect(
-                .degrees(rotationAngle),
-                axis: (x: 0, y: 1, z: 0),
-                anchor: .center,
-                anchorZ: 0,
-                perspective: 0.3
-            )
-            .frame(width: size, height: size)
-            // Scale and opacity entrance
-            .scaleEffect(iconScale)
-            .opacity(iconOpacity)
+        ZStack {
+            // Soft depth pass behind the main glyph
+            Image(systemName: airPods.type.symbolName)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(.black.opacity(0.28))
+                .offset(x: 1.1, y: 1.6)
+                .blur(radius: 0.2)
+
+            // Main glyph
+            Image(systemName: airPods.type.symbolName)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.98),
+                            .white.opacity(0.85)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            // Specular highlight pass to fake depth on SF symbol
+            Image(systemName: airPods.type.symbolName)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white.opacity(0.9), .white.opacity(0.1), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blendMode(.screen)
+                .opacity(iconSheenOpacity)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: .black.opacity(0.28), radius: 3, y: 2)
+        .scaleEffect(iconScale * iconBreathingScale)
+        .offset(y: iconLift)
+        .opacity(iconOpacity)
     }
     
     // MARK: - Battery Ring
@@ -209,7 +236,7 @@ struct AirPodsHUDView: View {
         ZStack {
             // Background ring
             Circle()
-                .stroke(Color.white.opacity(0.15), lineWidth: 3)
+                .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 3)
             
             // Progress ring
             Circle()
@@ -234,35 +261,25 @@ struct AirPodsHUDView: View {
         .scaleEffect(batteryScale)
     }
     
-    // MARK: - iPhone-Style Animation Sequence (BUTTERY SMOOTH)
+    // MARK: - Premium Connection Animation (BUTTERY SMOOTH)
     
-    private func startIPhoneStyleAnimation() {
-        // === PHASE 1: Icon appears with premium spring ===
-        // Using premium-style interactiveSpring for buttery smoothness
+    private func startPremiumConnectionAnimation() {
+        // Phase 1: icon settles in with spring and slight lift
         withAnimation(.interactiveSpring(response: 0.5, dampingFraction: 0.7, blendDuration: 0)) {
             iconScale = 1.0
             iconOpacity = 1.0
+            iconLift = 0
         }
         
-        // === PHASE 2: Start slow 3D rotation with wobble ===
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            // Initial full rotation - slower and more elegant
-            withAnimation(.timingCurve(0.25, 0.1, 0.25, 1, duration: 4.0)) {
-                rotationAngle = 360
-            }
-            
-            // After full rotation, gentle continuous wobble (premium iOS feel)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                withAnimation(
-                    .interactiveSpring(response: 2.5, dampingFraction: 0.3, blendDuration: 0)
-                    .repeatForever(autoreverses: true)
-                ) {
-                    rotationAngle = 375
-                }
+        // Phase 2: subtle breathing + sheen pulse (no spinning)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                iconBreathingScale = 1.02
+                iconSheenOpacity = 0.45
             }
         }
         
-        // === PHASE 3: Battery info fades in with bounce ===
+        // Phase 3: battery info fades in with bounce
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             withAnimation(.interactiveSpring(response: 0.4, dampingFraction: 0.65, blendDuration: 0)) {
                 batteryOpacity = 1.0
@@ -270,7 +287,7 @@ struct AirPodsHUDView: View {
             }
         }
         
-        // === PHASE 4: Battery ring fills with smooth curve ===
+        // Phase 4: ring fills smoothly
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.interactiveSpring(response: 0.8, dampingFraction: 0.85, blendDuration: 0)) {
                 ringProgress = CGFloat(airPods.batteryLevel) / 100

@@ -67,20 +67,28 @@ final class VoiceRecordingWindowController {
         panel.isMovableByWindowBackground = true
         
         let contentView = NSHostingView(rootView: VoiceRecordingOverlayView(controller: self)
-            .preferredColorScheme(.dark)) // Force dark mode always
+            )
         panel.contentView = contentView
         
         window = panel
+        AppKitMotion.prepareForPresent(panel, initialScale: 0.94)
         panel.makeKeyAndOrderFront(nil)
+        AppKitMotion.animateIn(panel, initialScale: 0.94, duration: 0.2)
         isVisible = true
         
         print("VoiceTranscribe: Recording window shown")
     }
     
     func hideWindow() {
-        window?.close()
+        guard let panel = window else { return }
         window = nil
         isVisible = false
+
+        AppKitMotion.animateOut(panel, targetScale: 0.97, duration: 0.14) {
+            panel.orderOut(nil)
+            panel.close()
+            AppKitMotion.resetPresentationState(panel)
+        }
         
         print("VoiceTranscribe: Recording window hidden")
     }
@@ -151,7 +159,7 @@ struct VoiceRecordingOverlayView: View {
             }
         }
         .padding(padding)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -192,7 +200,7 @@ struct VoiceRecordingOverlayView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                 )
             }
             
@@ -213,7 +221,7 @@ struct VoiceRecordingOverlayView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // Stop button (full width, Droppy hover style)
@@ -254,7 +262,7 @@ struct VoiceRecordingOverlayView: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                     )
             }
             
@@ -295,7 +303,7 @@ struct VoiceRecordingOverlayView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // AI badge

@@ -668,8 +668,7 @@ final class VoiceTranscribeManager: ObservableObject {
                 
                 print("VoiceTranscribe: Transcription complete - \(result.text.count) chars")
                 
-                // Show result window (works for both regular and invisi-record mode)
-                VoiceTranscriptionResultController.shared.showResult()
+                presentTranscriptionResult()
                 
                 // Reset to idle so new recordings can start
                 state = .idle
@@ -778,7 +777,7 @@ final class VoiceTranscribeManager: ObservableObject {
                 transcriptionResult = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 print("VoiceTranscribe: File transcription complete - \(transcriptionResult.count) chars: '\(transcriptionResult.prefix(100))...'")
                 
-                VoiceTranscriptionResultController.shared.showResult()
+                presentTranscriptionResult()
                 state = .idle
             } else {
                 print("VoiceTranscribe: No transcription results returned")
@@ -794,6 +793,23 @@ final class VoiceTranscribeManager: ObservableObject {
         
         // Clean up temp file (NOT the original)
         try? FileManager.default.removeItem(at: tempWavURL)
+    }
+
+    private func presentTranscriptionResult() {
+        guard !transcriptionResult.isEmpty else { return }
+
+        let shouldAutoCopy = UserDefaults.standard.preference(
+            AppPreferenceKey.voiceTranscribeAutoCopyResult,
+            default: PreferenceDefault.voiceTranscribeAutoCopyResult
+        )
+
+        if shouldAutoCopy {
+            VoiceTranscriptionResultController.shared.hideWindow()
+            TextCopyFeedback.copyTranscriptionText(transcriptionResult)
+            discardRecording()
+        } else {
+            VoiceTranscriptionResultController.shared.show(with: transcriptionResult)
+        }
     }
     
     /// Convert audio file to WAV format required by WhisperKit (16kHz, mono, 16-bit PCM)

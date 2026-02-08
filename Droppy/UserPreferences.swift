@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 // MARK: - Preference Keys (Single Source of Truth)
 
@@ -41,6 +42,8 @@ enum AppPreferenceKey {
     
     // MARK: - Media Player
     static let showMediaPlayer = "showMediaPlayer"
+    static let enableMouseSwipeMediaSwitch = "enableMouseSwipeMediaSwitch"  // Allow mouse wheel gesture for media/shelf switch
+    static let mouseSwipeMediaSwitchModifier = "mouseSwipeMediaSwitchModifier"  // "option", "shift", "control"
     static let autoFadeMediaHUD = "autoFadeMediaHUD"
     static let autofadeDefaultDelay = "autofadeDefaultDelay"  // Default delay in seconds
     static let autofadeAppRulesEnabled = "autofadeAppRulesEnabled"  // Enable app-specific rules
@@ -87,6 +90,7 @@ enum AppPreferenceKey {
     static let alwaysCopyOnDrag = "alwaysCopyOnDrag"
     static let enablePowerFolders = "enablePowerFolders"
     static let enableQuickActions = "enableQuickActions"
+    static let quickActionsMailApp = "quickActionsMailApp"  // "systemDefault", "appleMail", "outlook"
     static let enableTrackedFolders = "enableTrackedFolders"
     static let enableMultiBasket = "enableMultiBasket"  // Allow spawning multiple baskets simultaneously
     static let basketSwitcherShortcut = "basketSwitcherShortcut"  // Custom shortcut to show basket switcher
@@ -101,7 +105,6 @@ enum AppPreferenceKey {
     // MARK: - UI Elements
     static let showClipboardButton = "showClipboardButton"
     static let showContextMenuOpenClipboard = "showContextMenuOpenClipboard"
-    static let showOpenShelfIndicator = "showOpenShelfIndicator"
     static let showDropIndicator = "showDropIndicator"  // Legacy
     static let enableIdleFace = "enableIdleFace"
     static let enableHapticFeedback = "enableHapticFeedback"
@@ -118,14 +121,25 @@ enum AppPreferenceKey {
     static let gumroadLicenseActive = "gumroadLicenseActive"
     static let gumroadLicenseEmail = "gumroadLicenseEmail"
     static let gumroadLicenseKeyHint = "gumroadLicenseKeyHint"
+    static let gumroadLicenseDeviceName = "gumroadLicenseDeviceName"
     static let gumroadLicenseLastValidatedAt = "gumroadLicenseLastValidatedAt"
+    static let disableAnalytics = "disableAnalytics"
     
     // MARK: - Extension: Element Capture
     static let editorBlurStrength = "elementCapture_blurStrength"  // Blur intensity (5-30, lower = stronger pixelation)
+    static let ocrAutoCopyExtractedText = "ocr_autoCopyExtractedText"  // Auto-copy OCR results and skip result window
+
+    // MARK: - Extension: Window Snap
+    static let windowSnapPointerModeEnabled = "windowSnap_pointerModeEnabled"
+    static let windowSnapMoveModifierMask = "windowSnap_moveModifierMask"
+    static let windowSnapResizeModifierMask = "windowSnap_resizeModifierMask"
+    static let windowSnapBringToFrontWhenHandling = "windowSnap_bringToFrontWhenHandling"
+    static let windowSnapResizeMode = "windowSnap_resizeMode"
     
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = "terminalNotch_installed"
     static let terminalNotchEnabled = "terminalNotch_enabled"  // Whether to show in HUD section
+    static let terminalNotchExternalApp = "terminalNotch_externalApp"  // Which app opens for full terminal
 
     // MARK: - Extension: Camera
     static let cameraInstalled = "camera_installed"
@@ -148,6 +162,9 @@ enum AppPreferenceKey {
     static let todoSyncCalendarEnabled = "todo_syncCalendarEnabled"
     static let todoSyncRemindersEnabled = "todo_syncRemindersEnabled"
     static let todoSyncRemindersListIDs = "todo_syncRemindersListIDs"  // JSON array of selected reminder list identifiers
+    
+    // MARK: - Extension: Voice Transcribe
+    static let voiceTranscribeAutoCopyResult = "voiceTranscribe_autoCopyResult"  // Auto-copy transcription and skip result window
     
     // MARK: - Extension: Video Compression (Legacy - migrated to Smart Export)
     static let compressionAutoSaveToFolder = "compressionAutoSaveToFolder"
@@ -200,6 +217,8 @@ enum PreferenceDefault {
     
     // MARK: - Media Player
     static let showMediaPlayer = true
+    static let enableMouseSwipeMediaSwitch = false
+    static let mouseSwipeMediaSwitchModifier = "option"
     static let autoFadeMediaHUD = true
     static let autofadeDefaultDelay: Double = 5.0  // 5 seconds default
     static let autofadeAppRulesEnabled = false  // App-specific rules disabled by default
@@ -217,7 +236,7 @@ enum PreferenceDefault {
     static let enableBatteryHUD = true
     static let enableCapsLockHUD = true
     static let enableAirPodsHUD = true
-    static let enableLockScreenHUD = false  // DISABLED: Lock screen features causing issues, will debug later
+    static let enableLockScreenHUD = true  // Safe: uses separate-window architecture, main notch never delegated to SkyLight
     static let enableDNDHUD = false  // Requires Full Disk Access
     static let enableUpdateHUD = true  // Show HUD when update is available
     static let mediaControlTargetMode = "mainMacBook"  // Keep behavior focused on built-in display by default
@@ -246,6 +265,7 @@ enum PreferenceDefault {
     static let alwaysCopyOnDrag = false  // Off by default (standard macOS behavior), advanced users enable for protection
     static let enablePowerFolders = true
     static let enableQuickActions = false  // Advanced feature, opt-in
+    static let quickActionsMailApp = "systemDefault"
     static let enableTrackedFolders = false  // Advanced feature, opt-in
     static let enableMultiBasket = true  // Multi-basket by default for spawning multiple simultaneous baskets
     
@@ -259,7 +279,6 @@ enum PreferenceDefault {
     // MARK: - UI Elements
     static let showClipboardButton = false
     static let showContextMenuOpenClipboard = true
-    static let showOpenShelfIndicator = true
     static let showDropIndicator = true  // Legacy
     static let enableIdleFace = true
     static let reorderLongPressDuration: Double = 1.0  // 1 second hold to activate reorder mode
@@ -274,14 +293,25 @@ enum PreferenceDefault {
     static let gumroadLicenseActive = false
     static let gumroadLicenseEmail = ""
     static let gumroadLicenseKeyHint = ""
+    static let gumroadLicenseDeviceName = ""
     static let gumroadLicenseLastValidatedAt: Double = 0
+    static let disableAnalytics = false
     
     // MARK: - Extension: Element Capture
     static let editorBlurStrength: Double = 10  // 10x10 pixelation (lower = stronger blur)
+    static let ocrAutoCopyExtractedText = false
+
+    // MARK: - Extension: Window Snap
+    static let windowSnapPointerModeEnabled = false
+    static let windowSnapMoveModifierMask = NSEvent.ModifierFlags.control.rawValue
+    static let windowSnapResizeModifierMask = NSEvent.ModifierFlags.option.rawValue
+    static let windowSnapBringToFrontWhenHandling = true
+    static let windowSnapResizeMode = "closestCorner"
     
     // MARK: - Extension: Terminal Notch
     static let terminalNotchInstalled = false
     static let terminalNotchEnabled = true  // Enabled by default when installed
+    static let terminalNotchExternalApp = "appleTerminal"
 
     // MARK: - Extension: Camera
     static let cameraInstalled = false
@@ -304,6 +334,9 @@ enum PreferenceDefault {
     static let todoSyncCalendarEnabled = false
     static let todoSyncRemindersEnabled = false
     static let todoSyncRemindersListIDs = "[]"
+    
+    // MARK: - Extension: Voice Transcribe
+    static let voiceTranscribeAutoCopyResult = false
     
     // MARK: - Extension: Video Compression (Legacy)
     static let compressionAutoSaveToFolder = false

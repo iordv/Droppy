@@ -58,52 +58,12 @@ class RenameWindowController: NSObject, NSWindowDelegate {
         // Center on screen
         window.center()
         
-        // PREMIUM: Start scaled down and invisible for spring animation
-        window.alphaValue = 0
-        if let contentView = window.contentView {
-            contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0)
-            contentView.layer?.opacity = 0
-        }
+        AppKitMotion.prepareForPresent(window, initialScale: 0.9)
         
         // Show and activate
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-        
-        // PREMIUM: CASpringAnimation for bouncy appear
-        if let layer = window.contentView?.layer {
-            // Fade in (smooth like Quickshare)
-            let fadeAnim = CABasicAnimation(keyPath: "opacity")
-            fadeAnim.fromValue = 0
-            fadeAnim.toValue = 1
-            fadeAnim.duration = 0.25  // Smooth fade
-            fadeAnim.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            fadeAnim.fillMode = .forwards
-            fadeAnim.isRemovedOnCompletion = false
-            layer.add(fadeAnim, forKey: "fadeIn")
-            layer.opacity = 1
-            
-            // Scale with spring overshoot (smooth like Quickshare)
-            let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.85
-            scaleAnim.toValue = 1.0
-            scaleAnim.mass = 1.0
-            scaleAnim.stiffness = 250  // Smooth spring (was 280)
-            scaleAnim.damping = 22
-            scaleAnim.initialVelocity = 6  // Gentler start
-            scaleAnim.duration = scaleAnim.settlingDuration
-            scaleAnim.fillMode = .forwards
-            scaleAnim.isRemovedOnCompletion = false
-            layer.add(scaleAnim, forKey: "scaleSpring")
-            layer.transform = CATransform3DIdentity
-        }
-        
-        // Fade window alpha (smooth like Quickshare)
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            window.animator().alphaValue = 1.0
-        })
+        AppKitMotion.animateIn(window, initialScale: 0.9, duration: 0.22)
         
         // PREMIUM: Haptic confirms rename window opened
         HapticFeedback.expand()
@@ -115,14 +75,22 @@ class RenameWindowController: NSObject, NSWindowDelegate {
     }
     
     func close() {
-        // Hide window immediately for responsive feel
-        window.orderOut(nil)
-        onRename = nil
-        
-        // Clear content view asynchronously to avoid priority inversion
-        // (user-interactive thread waiting on default QoS cleanup)
-        DispatchQueue.main.async { [weak self] in
-            self?.window.contentView = nil
+        guard window.isVisible else {
+            onRename = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.window.contentView = nil
+            }
+            return
+        }
+
+        AppKitMotion.animateOut(window, targetScale: 0.97, duration: 0.12) { [weak self] in
+            guard let self else { return }
+            self.window.orderOut(nil)
+            AppKitMotion.resetPresentationState(self.window)
+            self.onRename = nil
+            DispatchQueue.main.async {
+                self.window.contentView = nil
+            }
         }
     }
     

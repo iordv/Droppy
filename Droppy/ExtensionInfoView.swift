@@ -17,12 +17,17 @@ struct ExtensionInfoView: View {
     var rating: AnalyticsService.ExtensionRating?
     
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
     @Environment(\.dismiss) private var dismiss
     @State private var isHoveringAction = false
     @State private var isHoveringClose = false
     @State private var showReviewsSheet = false
     
     @State private var isHoveringReviews = false
+    
+    private var isInstalled: Bool {
+        extensionType.isInstalledInSystem
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -54,7 +59,7 @@ struct ExtensionInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: extensionType)
@@ -76,37 +81,45 @@ struct ExtensionInfoView: View {
             
             // Stats row: installs + rating + category badge
             HStack(spacing: 12) {
-                // Installs
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
-                        .font(.caption.weight(.medium))
-                }
-                .foregroundStyle(.secondary)
-                
-                // Rating (clickable)
-                Button {
-                    showReviewsSheet = true
-                } label: {
+                if !disableAnalytics {
+                    // Installs
                     HStack(spacing: 3) {
-                        Image(systemName: "star.fill")
+                        Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 12))
-                            .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
-                            Text(String(format: "%.1f", r.averageRating))
-                                .font(.caption.weight(.medium))
-                            Text("(\(r.ratingCount))")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        } else {
-                            Text("–")
-                                .font(.caption.weight(.medium))
-                        }
+                        Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
+                            .font(.caption.weight(.medium))
                     }
                     .foregroundStyle(.secondary)
+                    
+                    // Rating (clickable)
+                    Button {
+                        showReviewsSheet = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.yellow)
+                            if let r = rating, r.ratingCount > 0 {
+                                Text(String(format: "%.1f", r.averageRating))
+                                    .font(.caption.weight(.medium))
+                                Text("(\(r.ratingCount))")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            } else {
+                                Text("–")
+                                    .font(.caption.weight(.medium))
+                            }
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
                 }
-                .buttonStyle(DroppySelectableButtonStyle(isSelected: false))
+                
+                if disableAnalytics {
+                    Text("Analytics off")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.tertiary)
+                }
                 
                 // Category badge
                 Text(extensionType.category)
@@ -118,6 +131,22 @@ struct ExtensionInfoView: View {
                         Capsule()
                             .fill(extensionType.categoryColor.opacity(0.15))
                     )
+
+                Text(isInstalled ? "Installed" : "Needs Setup")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isInstalled ? .green : .orange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill((isInstalled ? Color.green : Color.orange).opacity(0.15))
+                    )
+            }
+            
+            if disableAnalytics {
+                Text("Install/download stats and reviews are hidden.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             
             // Subtitle
@@ -202,7 +231,7 @@ struct ExtensionInfoView: View {
                     AnalyticsService.shared.trackExtensionActivation(extensionId: extensionType.rawValue)
                     action()
                 } label: {
-                    Text(shortActionText)
+                    Text(primaryActionText)
                 }
                 .buttonStyle(DroppyAccentButtonStyle(color: extensionType.categoryColor, size: .small))
             }
@@ -213,17 +242,30 @@ struct ExtensionInfoView: View {
         .padding(DroppySpacing.lg)
     }
     
-    private var shortActionText: String {
+    private var primaryActionText: String {
+        if !isInstalled {
+            switch extensionType {
+            case .spotify, .appleMusic:
+                return "Set Up"
+            case .finder, .finderServices, .windowSnap, .voiceTranscribe, .elementCapture, .terminalNotch, .camera, .notificationHUD, .caffeine, .menuBarManager, .todo:
+                return "Set Up"
+            case .quickshare:
+                return "Enable"
+            case .aiBackgroundRemoval, .ffmpegVideoCompression, .alfred:
+                return "Install"
+            }
+        }
+        
         switch extensionType {
-        case .aiBackgroundRemoval: return "Install"
-        case .alfred: return "Install"
-        case .finder, .finderServices: return "Configure"
-        case .spotify: return "Connect"
-        case .appleMusic: return "Connect"
+        case .aiBackgroundRemoval: return "Manage"
+        case .alfred: return "Reinstall"
+        case .finder, .finderServices: return "Open Settings"
+        case .spotify: return "Open Spotify"
+        case .appleMusic: return "Open Music"
         case .elementCapture: return "Configure"
         case .windowSnap: return "Configure"
         case .voiceTranscribe: return "Configure"
-        case .ffmpegVideoCompression: return "Install"
+        case .ffmpegVideoCompression: return "Manage"
         case .terminalNotch: return "Configure"
         case .camera: return "Configure"
         case .quickshare: return "Manage"
@@ -284,4 +326,3 @@ struct ExtensionInfoView: View {
         print("Action")
     }
 }
-

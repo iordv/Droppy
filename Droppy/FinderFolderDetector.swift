@@ -27,19 +27,23 @@ enum FinderFolderDetector {
         end tell
         """
         
-        guard let appleScript = NSAppleScript(source: script) else {
-            return nil
+        let path: String? = AppleScriptRuntime.execute {
+            guard let appleScript = NSAppleScript(source: script) else {
+                return nil
+            }
+
+            var error: NSDictionary?
+            let result = appleScript.executeAndReturnError(&error)
+
+            if let errorInfo = error {
+                print("[FinderFolderDetector] AppleScript error: \(errorInfo)")
+                return nil
+            }
+
+            return result.stringValue
         }
-        
-        var error: NSDictionary?
-        let result = appleScript.executeAndReturnError(&error)
-        
-        if let errorInfo = error {
-            print("[FinderFolderDetector] AppleScript error: \(errorInfo)")
-            return nil
-        }
-        
-        guard let path = result.stringValue, !path.isEmpty else {
+
+        guard let path, !path.isEmpty else {
             return nil
         }
         

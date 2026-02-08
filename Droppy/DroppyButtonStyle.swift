@@ -31,6 +31,7 @@ private struct DroppyPillButtonContent: View {
     let showChevron: Bool
     
     @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
     
     private var horizontalPadding: CGFloat {
         switch size {
@@ -60,24 +61,28 @@ private struct DroppyPillButtonContent: View {
         HStack(spacing: 4) {
             configuration.label
                 .font(.system(size: fontSize, weight: .medium))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(labelColor)
             
             if showChevron {
                 Image(systemName: "chevron.right")
                     .font(.system(size: fontSize - 3, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(chevronColor)
             }
         }
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
         .background(
             Capsule()
-                .fill(Color.white.opacity(backgroundOpacity))
+                .fill(AdaptiveColors.overlayAuto(backgroundOpacity))
+        )
+        .overlay(
+            Capsule()
+                .stroke(AdaptiveColors.overlayAuto(borderOpacity), lineWidth: 1)
         )
         .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-        .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        .animation(DroppyAnimation.hoverQuick, value: configuration.isPressed)
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
+            withAnimation(DroppyAnimation.hover) {
                 isHovering = hovering
             }
         }
@@ -85,12 +90,52 @@ private struct DroppyPillButtonContent: View {
     }
     
     private var backgroundOpacity: Double {
+        if !isEnabled {
+            return 0.12
+        }
         if configuration.isPressed {
-            return 0.22
+            return 0.24
         } else if isHovering {
             return 0.18
         } else {
-            return 0.12
+            return 0.14
+        }
+    }
+
+    private var borderOpacity: Double {
+        if !isEnabled {
+            return 0.09
+        }
+        if configuration.isPressed {
+            return 0.18
+        } else if isHovering {
+            return 0.14
+        } else {
+            return 0.10
+        }
+    }
+
+    private var labelColor: Color {
+        if !isEnabled {
+            return AdaptiveColors.secondaryTextAuto.opacity(0.88)
+        }
+        if configuration.isPressed {
+            return AdaptiveColors.primaryTextAuto
+        } else if isHovering {
+            return AdaptiveColors.primaryTextAuto.opacity(0.95)
+        } else {
+            return AdaptiveColors.primaryTextAuto.opacity(0.92)
+        }
+    }
+
+    private var chevronColor: Color {
+        if !isEnabled {
+            return AdaptiveColors.secondaryTextAuto.opacity(0.78)
+        }
+        if isHovering {
+            return AdaptiveColors.primaryTextAuto.opacity(0.85)
+        } else {
+            return AdaptiveColors.secondaryTextAuto.opacity(0.85)
         }
     }
 }
@@ -131,6 +176,7 @@ private struct DroppyCircleButtonContent: View {
     let solidFill: Color?
     
     @State private var isHovering = false
+    @Environment(\.isEnabled) private var isEnabled
     
     // Use solid fill when provided, otherwise use semi-transparent white
     private var buttonFill: Color {
@@ -138,10 +184,19 @@ private struct DroppyCircleButtonContent: View {
             // Solid fill mode: adjust opacity slightly for hover/press states
             return solid.opacity(configuration.isPressed ? 0.9 : (isHovering ? 0.95 : 1.0))
         }
-        return Color.white.opacity(backgroundOpacity)
+        return AdaptiveColors.overlayAuto(backgroundOpacity)
     }
     
     private var borderOpacity: Double {
+        if useTransparent {
+            if configuration.isPressed {
+                return 0.34
+            } else if isHovering {
+                return 0.24
+            } else {
+                return 0.16
+            }
+        }
         if configuration.isPressed {
             return 0.3
         } else if isHovering {
@@ -150,11 +205,23 @@ private struct DroppyCircleButtonContent: View {
             return 0.08
         }
     }
+
+    private var foregroundColor: Color {
+        // Transparent mode should always adapt to the current appearance.
+        if useTransparent {
+            return isEnabled ? AdaptiveColors.primaryTextAuto.opacity(0.92) : AdaptiveColors.secondaryTextAuto.opacity(0.65)
+        }
+        // Notch/floating buttons pass a solid fill and should keep white glyphs.
+        if solidFill != nil {
+            return .white.opacity(0.85)
+        }
+        return isEnabled ? AdaptiveColors.primaryTextAuto.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.65)
+    }
     
     var body: some View {
         configuration.label
             .font(.system(size: size * 0.4, weight: .bold))
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(foregroundColor)
             .frame(width: size, height: size)
             .background(
                 Group {
@@ -170,12 +237,12 @@ private struct DroppyCircleButtonContent: View {
             )
             .overlay(
                 // Border only in transparent mode (matches basket buttons)
-                useTransparent ? Circle().stroke(Color.white.opacity(borderOpacity), lineWidth: 1) : nil
+                useTransparent ? Circle().stroke(AdaptiveColors.overlayAuto(borderOpacity), lineWidth: 1) : nil
             )
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .animation(DroppyAnimation.hoverQuick, value: configuration.isPressed)
             .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
+                withAnimation(DroppyAnimation.hover) {
                     isHovering = hovering
                 }
             }
@@ -183,12 +250,15 @@ private struct DroppyCircleButtonContent: View {
     }
     
     private var backgroundOpacity: Double {
+        if !isEnabled {
+            return 0.08
+        }
         if configuration.isPressed {
-            return 0.22
+            return 0.24
         } else if isHovering {
             return 0.18
         } else {
-            return 0.12
+            return 0.14
         }
     }
 }
@@ -252,12 +322,12 @@ private struct DroppyAccentButtonContent: View {
             )
             .overlay(
                 Capsule()
-                    .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .animation(DroppyAnimation.hoverQuick, value: configuration.isPressed)
             .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
+                withAnimation(DroppyAnimation.hover) {
                     isHovering = hovering
                 }
             }
@@ -319,7 +389,7 @@ private struct DroppyToggleButtonContent: View {
             )
             .scaleEffect(configuration.isPressed ? 0.95 : (isHovering ? 1.02 : 1.0))
             .animation(DroppyAnimation.hover, value: configuration.isPressed)
-            .animation(.easeOut(duration: 0.15), value: isHovering)
+            .animation(DroppyAnimation.hover, value: isHovering)
             .onHover { hovering in
                 isHovering = hovering
             }
@@ -340,7 +410,7 @@ private struct DroppyToggleButtonContent: View {
         if isOn {
             return accentColor.opacity(configuration.isPressed ? 0.35 : (isHovering ? 0.30 : 0.25))
         } else {
-            return Color.white.opacity(configuration.isPressed ? 0.18 : (isHovering ? 0.14 : 0.10))
+            return AdaptiveColors.overlayAuto(configuration.isPressed ? 0.18 : (isHovering ? 0.14 : 0.10))
         }
     }
     
@@ -348,7 +418,7 @@ private struct DroppyToggleButtonContent: View {
         if isOn {
             return accentColor.opacity(0.6)
         } else {
-            return Color.white.opacity(isHovering ? 0.25 : 0.15)
+            return AdaptiveColors.overlayAuto(isHovering ? 0.25 : 0.15)
         }
     }
 }
@@ -380,9 +450,9 @@ private struct DroppySelectableButtonContent: View {
     var body: some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(isSelected ? 1.0 : (isHovering ? 0.9 : 0.7))
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-            .animation(.easeOut(duration: 0.15), value: isHovering)
+            .opacity(isSelected ? 1.0 : (isHovering ? 0.98 : 0.9))
+            .animation(DroppyAnimation.hover, value: configuration.isPressed)
+            .animation(DroppyAnimation.hover, value: isHovering)
             .onHover { hovering in
                 isHovering = hovering
             }
@@ -414,7 +484,7 @@ private struct DroppyCardButtonContent: View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : (isHovering ? 1.01 : 1.0))
             .animation(DroppyAnimation.hover, value: configuration.isPressed)
-            .animation(.easeOut(duration: 0.2), value: isHovering)
+            .animation(DroppyAnimation.state, value: isHovering)
             .onHover { hovering in
                 isHovering = hovering
             }
@@ -452,10 +522,10 @@ private struct DroppySidebarButtonContent: View {
                 Capsule()
                     .fill(backgroundColor)
             )
-            .foregroundStyle(isSelected ? .white : .white.opacity(0.8))
+            .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto.opacity(0.9))
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-            .animation(.easeOut(duration: 0.15), value: isHovering)
+            .animation(DroppyAnimation.hoverQuick, value: configuration.isPressed)
+            .animation(DroppyAnimation.hover, value: isHovering)
             .onHover { hovering in
                 isHovering = hovering
             }
@@ -466,11 +536,11 @@ private struct DroppySidebarButtonContent: View {
         if isSelected {
             return isHovering ? .blue : .blue.opacity(0.8)
         } else if configuration.isPressed {
-            return Color.white.opacity(0.22)
+            return AdaptiveColors.overlayAuto(0.22)
         } else if isHovering {
-            return Color.white.opacity(0.18)
+            return AdaptiveColors.overlayAuto(0.18)
         } else {
-            return Color.white.opacity(0.12)
+            return AdaptiveColors.overlayAuto(0.12)
         }
     }
 }
@@ -506,8 +576,8 @@ private struct DroppyDestructiveCircleButtonContent: View {
                 .foregroundColor(.white)
         }
         .scaleEffect(configuration.isPressed ? 0.9 : (isHovering ? 1.1 : 1.0))
-        .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-        .animation(.easeOut(duration: 0.15), value: isHovering)
+        .animation(DroppyAnimation.hover, value: configuration.isPressed)
+        .animation(DroppyAnimation.hover, value: isHovering)
         .onHover { hovering in
             isHovering = hovering
         }

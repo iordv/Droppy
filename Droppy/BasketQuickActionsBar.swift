@@ -26,7 +26,7 @@ struct BasketQuickActionsBar: View {
     
     // Colors based on transparency mode
     private var buttonFill: Color {
-        useTransparentBackground ? Color.white.opacity(0.12) : Color.black
+        useTransparentBackground ? AdaptiveColors.overlayAuto(0.12) : Color.black
     }
     @State private var isBarAreaTargeted = false  // Track when drag is over the bar area (between buttons)
     
@@ -42,7 +42,7 @@ struct BasketQuickActionsBar: View {
             // This eliminates the race condition where the capsule appears after expansion
             // When collapsed: small area around bolt. When expanded: full bar area.
             Capsule()
-                .fill(Color.white.opacity(0.001)) // Nearly invisible but captures events
+                .fill(AdaptiveColors.overlayAuto(0.001)) // Nearly invisible but captures events
                 .frame(
                     width: isExpanded ? expandedBarWidth : buttonSize + 16,
                     height: buttonSize + 8
@@ -86,16 +86,16 @@ struct BasketQuickActionsBar: View {
                 
                 // Collapsed: Zap button
                 Circle()
-                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
                     .frame(width: buttonSize, height: buttonSize)
                     .overlay(
                         Circle()
-                            .stroke(Color.white.opacity(isBoltTargeted ? 0.3 : (useTransparentBackground ? 0.12 : 0.06)), lineWidth: 1)
+                            .stroke(AdaptiveColors.overlayAuto(isBoltTargeted ? 0.3 : (useTransparentBackground ? 0.12 : 0.06)), lineWidth: 1)
                     )
                     .overlay(
                         Image(systemName: "bolt.fill")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(.white.opacity(isBoltTargeted ? 1.0 : 0.85))
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(isBoltTargeted ? 1.0 : 0.85))
                     )
                     .opacity(isExpanded ? 0 : 1)
                     .scaleEffect(isExpanded ? 0.92 : (isBoltTargeted ? 1.15 : 1.0))
@@ -185,7 +185,7 @@ struct BasketQuickActionsBar: View {
     
     private func shareViaMail(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-        NSSharingService(named: .composeEmail)?.perform(withItems: urls)
+        _ = MailHelper.composeEmail(with: urls)
         basketState.ownerController?.hideBasketPreservingState()
             ?? FloatingBasketWindowController.shared.hideBasket(preserveState: true)
     }
@@ -226,17 +226,17 @@ struct QuickDropActionButton: View {
             shareAction(urls)
         }) {
             Circle()
-                .fill(useTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                .fill(useTransparent ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
                 .frame(width: size, height: size)
                 .overlay(
                     // Border matches basket style exactly
                     Circle()
-                        .stroke(Color.white.opacity(borderOpacity), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(borderOpacity), lineWidth: 1)
                 )
                 .overlay(
                     Image(systemName: actionType.icon)
                         .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.88))
                 )
                 // Grow when file dragged over
                 .scaleEffect(isTargeted ? 1.18 : (isHovering ? 1.05 : 1.0))

@@ -29,7 +29,7 @@ struct ToDoView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.secondary)
                         .frame(width: 24, height: 24)
-                        .background(Color.white.opacity(0.1))
+                        .background(AdaptiveColors.overlayAuto(0.1))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -54,7 +54,7 @@ struct ToDoView: View {
                             .frame(width: 10, height: 10)
                             .shadow(color: manager.newItemPriority.color.opacity(0.8), radius: 6, x: 0, y: 0)
                             .overlay(
-                                Circle().stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                Circle().stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 1)
                             )
                     }
                 }
@@ -153,22 +153,61 @@ struct ToDoView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 1) {
-                        ForEach(manager.sortedItems) { item in
-                            ToDoRow(
-                                item: item,
-                                manager: manager,
-                                reminderListOptions: reminderListMenuOptions
-                            )
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .top).combined(with: .opacity),
-                                    removal: .move(edge: .trailing).combined(with: .opacity)
-                                ))
-                            
-                            // Subtle separator
-                            if item.id != manager.sortedItems.last?.id {
+                        if !overviewTaskItems.isEmpty {
+                            ForEach(Array(overviewTaskItems.enumerated()), id: \.element.id) { index, item in
+                                ToDoRow(
+                                    item: item,
+                                    manager: manager,
+                                    reminderListOptions: reminderListMenuOptions
+                                )
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: .top).combined(with: .opacity),
+                                        removal: .scale(scale: 0.98).combined(with: .opacity)
+                                    ))
+
+                                if index < overviewTaskItems.count - 1 {
+                                    Divider()
+                                        .background(AdaptiveColors.overlayAuto(0.06))
+                                        .padding(.horizontal, 24)
+                                }
+                            }
+                        }
+
+                        if !upcomingCalendarItems.isEmpty {
+                            if !overviewTaskItems.isEmpty {
                                 Divider()
-                                    .background(Color.white.opacity(0.06))
-                                    .padding(.horizontal, 24)
+                                    .background(AdaptiveColors.overlayAuto(0.08))
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 4)
+                            }
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar.badge.clock")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text("Upcoming Events")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Spacer(minLength: 0)
+                            }
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.85))
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 4)
+
+                            ForEach(Array(upcomingCalendarItems.enumerated()), id: \.element.id) { index, item in
+                                ToDoRow(
+                                    item: item,
+                                    manager: manager,
+                                    reminderListOptions: reminderListMenuOptions
+                                )
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: .top).combined(with: .opacity),
+                                        removal: .scale(scale: 0.98).combined(with: .opacity)
+                                    ))
+
+                                if index < upcomingCalendarItems.count - 1 {
+                                    Divider()
+                                        .background(AdaptiveColors.overlayAuto(0.06))
+                                        .padding(.horizontal, 24)
+                                }
                             }
                         }
                     }
@@ -224,8 +263,10 @@ struct ToDoView: View {
         .onAppear {
             manager.isVisible = true
             isInputFocused = true
-            if manager.isRemindersSyncEnabled {
+            if manager.isRemindersSyncEnabled || manager.isCalendarSyncEnabled {
                 manager.syncExternalSourcesNow()
+            }
+            if manager.isRemindersSyncEnabled {
                 manager.refreshReminderListsNow()
             }
         }
@@ -302,6 +343,14 @@ struct ToDoView: View {
         guard manager.isRemindersSyncEnabled else { return [] }
         return manager.availableReminderLists
     }
+
+    private var overviewTaskItems: [ToDoItem] {
+        manager.overviewTaskItems
+    }
+
+    private var upcomingCalendarItems: [ToDoItem] {
+        manager.upcomingCalendarItems
+    }
 }
 
 private struct ToDoDueDateCircleButtonView: View {
@@ -314,7 +363,7 @@ private struct ToDoDueDateCircleButtonView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 14, height: 14)
-                .foregroundStyle(hasDueDate ? Color.blue : Color.white.opacity(0.65))
+                .foregroundStyle(hasDueDate ? Color.blue : AdaptiveColors.overlayAuto(0.65))
                 .frame(width: 28, height: 28, alignment: .center)
                 .contentShape(Rectangle())
         }
@@ -335,7 +384,7 @@ private struct ToDoDueDatePopoverContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Due date")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
 
             HStack(spacing: 8) {
                 quickPresetButton("Today") { setPreset(daysFromToday: 0) }
@@ -348,7 +397,7 @@ private struct ToDoDueDatePopoverContentView: View {
                 stepButton("chevron.left") { shiftDays(-1) }
                 Text(resolvedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -358,11 +407,11 @@ private struct ToDoDueDatePopoverContentView: View {
             .frame(height: 30)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.9))
+                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.98))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
             )
 
             HStack(spacing: 8) {
@@ -380,7 +429,7 @@ private struct ToDoDueDatePopoverContentView: View {
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .onSubmit {
                     applyTypedTime()
@@ -393,12 +442,12 @@ private struct ToDoDueDatePopoverContentView: View {
                         Circle()
                             .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.95))
                             .overlay(
-                                Circle().stroke(Color.white.opacity(0.16), lineWidth: 1)
+                                Circle().stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
                             )
                             .frame(width: 22, height: 22)
                         Image(systemName: "xmark")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.75))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                     }
                 }
                 .buttonStyle(.plain)
@@ -411,11 +460,11 @@ private struct ToDoDueDatePopoverContentView: View {
             .frame(height: 30)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.9))
+                    .fill(AdaptiveColors.buttonBackgroundAuto.opacity(0.98))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
             )
 
             HStack(spacing: 10) {
@@ -430,6 +479,16 @@ private struct ToDoDueDatePopoverContentView: View {
         }
         .padding(isEmbedded ? 0 : 14)
         .frame(width: isEmbedded ? nil : 260)
+        .background {
+            if !isEmbedded {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(AdaptiveColors.panelBackgroundAuto)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                    )
+            }
+        }
         .onAppear {
             manualTimeText = formatTime(resolvedDate)
             setInteractingPopover?(true)
@@ -451,7 +510,7 @@ private struct ToDoDueDatePopoverContentView: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .frame(height: 22)
@@ -461,7 +520,7 @@ private struct ToDoDueDatePopoverContentView: View {
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -471,7 +530,7 @@ private struct ToDoDueDatePopoverContentView: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                 .frame(width: 20, height: 20)
                 .background(
                     Circle()
@@ -573,28 +632,45 @@ struct ToDoRow: View {
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
-            // Checkbox
-            Button(action: {
-                HapticFeedback.medium.perform()
-                manager.toggleCompletion(for: item)
-            }) {
+            if isCalendarEvent {
                 ZStack {
-                    // Hit area
-                    Color.clear.frame(width: 24, height: 24)
-
-                    Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(item.isCompleted ? Color(nsColor: NSColor(calibratedRed: 0.4, green: 0.8, blue: 0.6, alpha: 1.0)) : (item.priority == .normal ? .secondary : item.priority.color))
-                        .font(.system(size: 16))
+                    Circle()
+                        .fill(calendarEventTint.opacity(0.2))
+                        .frame(width: 18, height: 18)
+                    Image(systemName: "calendar")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(calendarEventTint.opacity(0.95))
                 }
+                .frame(width: 24, height: 24)
+                .help("Calendar event")
+            } else {
+                // Checkbox
+                Button(action: {
+                    HapticFeedback.medium.perform()
+                    manager.toggleCompletion(for: item)
+                }) {
+                    ZStack {
+                        // Hit area
+                        Color.clear.frame(width: 24, height: 24)
+
+                        Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(item.isCompleted ? Color(nsColor: NSColor(calibratedRed: 0.4, green: 0.8, blue: 0.6, alpha: 1.0)) : (item.priority == .normal ? .secondary : item.priority.color))
+                            .font(.system(size: 16))
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.isCompleted ? String(localized: "action.mark_incomplete") : String(localized: "action.mark_complete"))
+                .accessibilityHint("Toggles completion for \(item.title)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(item.isCompleted ? String(localized: "action.mark_incomplete") : String(localized: "action.mark_complete"))
-            .accessibilityHint("Toggles completion for \(item.title)")
             // Title - color based on priority
             Text(item.title)
-                .font(.system(size: 13, weight: item.isCompleted ? .regular : .medium))
+                .font(.system(size: 13, weight: isCalendarEvent ? .semibold : (item.isCompleted ? .regular : .medium)))
                 .strikethrough(item.isCompleted)
-                .foregroundColor(item.isCompleted ? .secondary : (item.priority == .normal ? .primary : item.priority.color))
+                .foregroundColor(
+                    item.isCompleted
+                        ? .secondary
+                        : (isCalendarEvent ? calendarEventTint : (item.priority == .normal ? .primary : item.priority.color))
+                )
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -602,10 +678,17 @@ struct ToDoRow: View {
             HStack(spacing: 8) {
                 if item.externalSource != nil {
                     HStack(spacing: 4) {
-                        Image(systemName: "applelogo")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.48))
-                            .help(externalIconHelp)
+                        if isCalendarEvent {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(calendarEventTint.opacity(0.95))
+                                .help(externalIconHelp)
+                        } else {
+                            Image(systemName: "applelogo")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.85))
+                                .help(externalIconHelp)
+                        }
                         if let reminderListColor {
                             Image(systemName: "list.bullet.circle.fill")
                                 .font(.system(size: 10, weight: .semibold))
@@ -617,35 +700,41 @@ struct ToDoRow: View {
 
                 if let dueDate = item.dueDate, !item.isCompleted {
                     HStack(spacing: 4) {
-                        Image(systemName: "calendar")
-                        if dueDateHasTime(dueDate) {
+                        Image(systemName: isCalendarEvent ? "clock" : "calendar")
+                        if dueDateHasTime(dueDate) && !isCalendarEvent {
                             Image(systemName: "bell.fill")
                         }
                         Text(formattedDueDateText(dueDate))
                     }
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(
+                        isCalendarEvent
+                            ? calendarEventTint.opacity(0.92)
+                            : AdaptiveColors.secondaryTextAuto.opacity(0.92)
+                    )
                 }
 
                 // Priority Indicator (only if not normal or completed)
-                if item.priority != .normal && !item.isCompleted {
+                if item.priority != .normal && !item.isCompleted && !isCalendarEvent {
                     Image(systemName: item.priority.icon)
                         .foregroundColor(item.priority.color)
                         .font(.caption)
                 }
-                
-                Button(action: {
-                    HapticFeedback.delete()
-                    manager.removeItem(item)
-                }) {
-                    Image(systemName: "trash")
-                        .foregroundColor(isHovering ? .red.opacity(0.8) : .secondary.opacity(0.3))
-                        .font(.system(size: 10))
+
+                if !isCalendarEvent {
+                    Button(action: {
+                        HapticFeedback.delete()
+                        manager.removeItem(item)
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(isHovering ? .red.opacity(0.8) : .secondary.opacity(0.3))
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(isHovering ? 1.0 : 0.0) // Keep layout space, fade in
+                    .animation(.easeInOut(duration: 0.2), value: isHovering)
+                    .accessibilityLabel(String(localized: "action.delete_task"))
                 }
-                .buttonStyle(.plain)
-                .opacity(isHovering ? 1.0 : 0.0) // Keep layout space, fade in
-                .animation(.easeInOut(duration: 0.2), value: isHovering)
-                .accessibilityLabel(String(localized: "action.delete_task"))
             }
         }
         .padding(.horizontal, DroppySpacing.md)
@@ -653,7 +742,11 @@ struct ToDoRow: View {
         .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isHovering ? Color.white.opacity(0.08) : Color.clear)
+                .fill(
+                    isCalendarEvent
+                        ? calendarEventTint.opacity(isHovering ? 0.14 : 0.08)
+                        : (isHovering ? AdaptiveColors.overlayAuto(0.08) : Color.clear)
+                )
         )
         .padding(.horizontal, DroppySpacing.sm)
         // Removed vertical padding of 2
@@ -667,12 +760,17 @@ struct ToDoRow: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(String(localized: "action.edit"))
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                 
                 TextField(String(localized: "task_title"), text: $editText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, weight: .medium))
-                    .droppyTextInputChrome()
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
+                    .droppyTextInputChrome(
+                        backgroundOpacity: 1.0,
+                        borderOpacity: 1.0,
+                        useAdaptiveColors: true
+                    )
                     .onSubmit {
                         let trimmed = editText.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
@@ -722,78 +820,85 @@ struct ToDoRow: View {
             manager.isInteractingWithPopover = false
         }
         .contextMenu {
-            Button {
-                editText = item.title
-                editDueDate = item.dueDate
-                isEditing = true
-            } label: {
-                Label(String(localized: "action.edit"), systemImage: "pencil")
-            }
-            .keyboardShortcut("e", modifiers: [.command])
-            Divider()
-
-            // Priority changing
-            Button {
-                HapticFeedback.medium.perform()
-                manager.updatePriority(for: item, to: .high)
-            } label: {
-                Label(String(localized: "priority.high"), systemImage: "exclamationmark.circle.fill")
-            }
-            .keyboardShortcut("1", modifiers: [.command])
-
-            Button {
-                HapticFeedback.medium.perform()
-                manager.updatePriority(for: item, to: .medium)
-            } label: {
-                Label(String(localized: "priority.medium"), systemImage: "exclamationmark.circle")
-            }
-            .keyboardShortcut("2", modifiers: [.command])
-
-            Button {
-                HapticFeedback.medium.perform()
-                manager.updatePriority(for: item, to: .normal)
-            } label: {
-                Label(String(localized: "priority.normal"), systemImage: "circle")
-            }
-            .keyboardShortcut("3", modifiers: [.command])
-
-            if !reminderListOptions.isEmpty {
+            if isCalendarEvent {
+                Label("Calendar events are read-only", systemImage: "calendar.badge.clock")
+                if let listTitle = item.externalListTitle, !listTitle.isEmpty {
+                    Label(listTitle, systemImage: "calendar")
+                }
+            } else {
+                Button {
+                    editText = item.title
+                    editDueDate = item.dueDate
+                    isEditing = true
+                } label: {
+                    Label(String(localized: "action.edit"), systemImage: "pencil")
+                }
+                .keyboardShortcut("e", modifiers: [.command])
                 Divider()
-                Menu {
-                    ForEach(reminderListOptions) { list in
+
+                // Priority changing
+                Button {
+                    HapticFeedback.medium.perform()
+                    manager.updatePriority(for: item, to: .high)
+                } label: {
+                    Label(String(localized: "priority.high"), systemImage: "exclamationmark.circle.fill")
+                }
+                .keyboardShortcut("1", modifiers: [.command])
+
+                Button {
+                    HapticFeedback.medium.perform()
+                    manager.updatePriority(for: item, to: .medium)
+                } label: {
+                    Label(String(localized: "priority.medium"), systemImage: "exclamationmark.circle")
+                }
+                .keyboardShortcut("2", modifiers: [.command])
+
+                Button {
+                    HapticFeedback.medium.perform()
+                    manager.updatePriority(for: item, to: .normal)
+                } label: {
+                    Label(String(localized: "priority.normal"), systemImage: "circle")
+                }
+                .keyboardShortcut("3", modifiers: [.command])
+
+                if !reminderListOptions.isEmpty {
+                    Divider()
+                    Menu {
+                        ForEach(reminderListOptions) { list in
+                            Button {
+                                HapticFeedback.medium.perform()
+                                manager.updateReminderList(for: item, to: list.id)
+                            } label: {
+                                Label(
+                                    list.title,
+                                    systemImage: item.externalListIdentifier == list.id ? "checkmark.circle.fill" : "circle"
+                                )
+                            }
+                        }
+
+                        Divider()
                         Button {
                             HapticFeedback.medium.perform()
-                            manager.updateReminderList(for: item, to: list.id)
+                            manager.updateReminderList(for: item, to: nil)
                         } label: {
                             Label(
-                                list.title,
-                                systemImage: item.externalListIdentifier == list.id ? "checkmark.circle.fill" : "circle"
+                                "Default List",
+                                systemImage: item.externalListIdentifier == nil ? "checkmark.circle.fill" : "circle"
                             )
                         }
-                    }
-
-                    Divider()
-                    Button {
-                        HapticFeedback.medium.perform()
-                        manager.updateReminderList(for: item, to: nil)
                     } label: {
-                        Label(
-                            "Default List",
-                            systemImage: item.externalListIdentifier == nil ? "checkmark.circle.fill" : "circle"
-                        )
+                        Label("Reminder List", systemImage: "list.bullet.rectangle")
                     }
-                } label: {
-                    Label("Reminder List", systemImage: "list.bullet.rectangle")
                 }
-            }
 
-            Divider()
+                Divider()
 
-            Button(role: .destructive) {
-                HapticFeedback.delete()
-                manager.removeItem(item)
-            } label: {
-                Label(String(localized: "action.delete"), systemImage: "trash")
+                Button(role: .destructive) {
+                    HapticFeedback.delete()
+                    manager.removeItem(item)
+                } label: {
+                    Label(String(localized: "action.delete"), systemImage: "trash")
+                }
             }
         }
     }
@@ -810,7 +915,8 @@ struct ToDoRow: View {
     }
 
     private var reminderListColor: Color? {
-        colorFromHex(item.externalListColorHex)
+        guard !isCalendarEvent else { return nil }
+        return colorFromHex(item.externalListColorHex)
     }
 
     private var reminderListHelp: String {
@@ -848,5 +954,13 @@ struct ToDoRow: View {
             formatter.setLocalizedDateFormatFromTemplate("d MMM yyyy")
         }
         return formatter.string(from: date)
+    }
+
+    private var isCalendarEvent: Bool {
+        item.externalSource == .calendar
+    }
+
+    private var calendarEventTint: Color {
+        colorFromHex(item.externalListColorHex) ?? Color.blue
     }
 }

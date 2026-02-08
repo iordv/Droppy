@@ -421,7 +421,7 @@ final class DroppyState {
                 NotchLayoutConstants.floatingButtonGap +
                 islandCompensation +
                 controlHeight +
-                12
+                20  // Bottom headroom - prevents clipping
             height += floatingControlsReserve
         }
         

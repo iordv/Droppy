@@ -35,7 +35,7 @@ struct FinderServicesSetupView: View {
         }
         .frame(width: 340)  // Same width as AIInstallView
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
         .droppyFloatingShadow()
     }
@@ -159,7 +159,7 @@ struct FinderServicesSetupSheetView: View {
         }
         .frame(width: 340)  // Same width as AIInstallView
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipped()  // Same as AIInstallView
     }
     
@@ -282,7 +282,7 @@ final class FinderServicesSetupWindowController: NSObject, NSWindowDelegate {
             let view = FinderServicesSetupView {
                 self.close()
             }
-            .preferredColorScheme(.dark) // Force dark mode always
+
             let hostingView = NSHostingView(rootView: view)
             
             // Create the window - exact same style as sheet presentation

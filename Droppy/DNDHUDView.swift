@@ -20,14 +20,20 @@ struct DNDHUDView: View {
         HUDLayoutCalculator(screen: targetScreen ?? NSScreen.main ?? NSScreen.screens.first)
     }
     
-    /// Accent color: purple when Focus ON, white when OFF
+    /// Accent color: violet when Focus ON, softened white when OFF
     private var accentColor: Color {
-        dndManager.isDNDActive ? Color(red: 0.55, green: 0.35, blue: 0.95) : .white
+        dndManager.isDNDActive
+            ? Color(red: 0.58, green: 0.40, blue: 0.96)
+            : .white.opacity(0.86)
     }
     
     /// Focus icon - use filled variant when ON
     private var focusIcon: String {
         dndManager.isDNDActive ? "moon.fill" : "moon"
+    }
+    
+    private var statusText: String {
+        dndManager.isDNDActive ? "On" : "Off"
     }
     
     var body: some View {
@@ -48,11 +54,7 @@ struct DNDHUDView: View {
                     
                     Spacer()
                     
-                    // On/Off text
-                    Text(dndManager.isDNDActive ? "On" : "Off")
-                        .font(.system(size: layout.labelFontSize, weight: .semibold))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
-                        .contentTransition(.interpolate)
+                    statusIndicator(useAdjustedColor: true)
                 }
                 .padding(.horizontal, symmetricPadding)
                 .frame(height: layout.notchHeight)
@@ -83,11 +85,7 @@ struct DNDHUDView: View {
                     // Right wing: ON/OFF near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        Text(dndManager.isDNDActive ? "On" : "Off")
-                            .font(.system(size: layout.labelFontSize, weight: .semibold))
-                            .foregroundStyle(accentColor)
-                            .contentTransition(.interpolate)
-                            .animation(DroppyAnimation.notchState, value: dndManager.isDNDActive)
+                        statusIndicator(useAdjustedColor: false)
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -95,6 +93,25 @@ struct DNDHUDView: View {
                 .frame(height: layout.notchHeight)
             }
         }
+        .animation(DroppyAnimation.notchState, value: dndManager.isDNDActive)
+    }
+    
+    @ViewBuilder
+    private func statusIndicator(useAdjustedColor: Bool) -> some View {
+        let foregroundColor = useAdjustedColor
+            ? layout.adjustedColor(accentColor)
+            : accentColor
+        let badgeFontSize = max(layout.labelFontSize - 1, 10)
+        
+        HStack(spacing: 5) {
+            Circle()
+                .fill(foregroundColor.opacity(dndManager.isDNDActive ? 1 : 0.6))
+                .frame(width: 4, height: 4)
+            Text(statusText)
+                .font(.system(size: badgeFontSize, weight: .semibold))
+                .foregroundStyle(foregroundColor)
+        }
+        .fixedSize()
     }
 }
 

@@ -138,7 +138,7 @@ struct SettingsSidebarItem: View {
                 // Title
                 Text(tab.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .white : Color.white.opacity(0.85))
+                    .foregroundColor(isSelected ? AdaptiveColors.primaryTextAuto : AdaptiveColors.primaryTextAuto.opacity(0.92))
                 
                 Spacer()
             }
@@ -149,7 +149,7 @@ struct SettingsSidebarItem: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
+            withAnimation(DroppyAnimation.hover) {
                 isHovering = hovering
             }
         }
@@ -166,7 +166,7 @@ struct SettingsSidebarItem: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -186,10 +186,10 @@ struct SettingsSidebarItem: View {
         if isSelected {
             // Squircle selection (like Dynamic Island)
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.15))
+                .fill(AdaptiveColors.overlayAuto(0.18))
         } else if isHovering {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+                .fill(AdaptiveColors.overlayAuto(0.10))
         } else {
             Color.clear
         }
@@ -266,7 +266,7 @@ struct SettingsSidebar: View {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.25), Color.clear],
+                                colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                                 startPoint: .top,
                                 endPoint: .center
                             )
@@ -281,7 +281,7 @@ struct SettingsSidebar: View {
                 
                 Text("Updates")
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Color.white.opacity(0.85))
+                    .foregroundColor(AdaptiveColors.primaryTextAuto.opacity(0.92))
                 
                 Spacer()
             }
@@ -303,9 +303,9 @@ struct SettingsSidebarLinkStyle: ButtonStyle {
         configuration.label
             .background(hoverBackground)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .animation(DroppyAnimation.hoverQuick, value: configuration.isPressed)
             .onHover { hovering in
-                withAnimation(.easeOut(duration: 0.15)) {
+                withAnimation(DroppyAnimation.hover) {
                     isHovering = hovering
                 }
             }
@@ -315,7 +315,7 @@ struct SettingsSidebarLinkStyle: ButtonStyle {
     private var hoverBackground: some View {
         if isHovering {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+                .fill(AdaptiveColors.overlayAuto(0.08))
         } else {
             Color.clear
         }

@@ -207,5 +207,5 @@ struct QuickshareSettingsContent: View {
         QuickshareSettingsContent()
     }
     .frame(width: 500)
-    .preferredColorScheme(.dark)
+    
 }

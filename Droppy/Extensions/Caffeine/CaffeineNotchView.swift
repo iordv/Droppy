@@ -13,6 +13,7 @@ struct CaffeineNotchView: View {
     var isExternalWithNotchStyle: Bool = false
     
     @AppStorage(AppPreferenceKey.caffeineMode) private var caffeineMode = PreferenceDefault.caffeineMode
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     // Layout helpers
     private var contentPadding: EdgeInsets {
@@ -21,6 +22,24 @@ struct CaffeineNotchView: View {
     
     private let minutePresets: [CaffeineDuration] = [.minutes(15), .minutes(30)]
     private let hourPresets: [CaffeineDuration] = [.hours(1), .hours(2), .hours(3), .hours(4), .hours(5)]
+
+    /// Keep built-in physical notch controls white-on-black.
+    /// Only adapt foregrounds on external transparent notch mode.
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && isExternalWithNotchStyle
+    }
+
+    private func primaryText(_ opacity: Double = 1.0) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func secondaryText(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(opacity) : .white.opacity(opacity)
+    }
+
+    private func overlayTone(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(opacity) : .white.opacity(opacity)
+    }
     
     var body: some View {
         // Simple layout like NotificationHUDView - HStack + SSOT padding
@@ -33,16 +52,16 @@ struct CaffeineNotchView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(manager.isActive ? .orange.opacity(0.2) : .white.opacity(0.05))
+                            .fill(manager.isActive ? .orange.opacity(0.2) : overlayTone(0.05))
                             .frame(width: 44, height: 44)
                             .overlay(
                                 Circle()
-                                    .stroke(manager.isActive ? .orange : .white.opacity(0.1), lineWidth: 2)
+                                    .stroke(manager.isActive ? .orange : overlayTone(0.1), lineWidth: 2)
                             )
                         
                         Image(systemName: manager.isActive ? "eyes" : "eyes")
                             .font(.system(size: 20))
-                            .foregroundStyle(manager.isActive ? .orange : .white.opacity(0.8))
+                            .foregroundStyle(manager.isActive ? .orange : primaryText(0.82))
                             .contentTransition(.symbolEffect(.replace))
                     }
                 }
@@ -51,13 +70,13 @@ struct CaffeineNotchView: View {
                 Text(statusText)
                     .font(.system(size: statusText == "∞" ? 22 : 11, weight: .medium, design: .monospaced))
                     .offset(y: statusText == "∞" ? -3 : 0)
-                    .foregroundStyle(manager.isActive ? .orange : .white.opacity(0.5))
+                    .foregroundStyle(manager.isActive ? .orange : secondaryText(0.62))
                     .animation(.smooth, value: statusText)
             }
             .frame(width: 60)
             
             Divider()
-                .background(Color.white.opacity(0.15))
+                .background(overlayTone(0.15))
                 .frame(height: 50)
             
             // Timer Controls
@@ -67,7 +86,8 @@ struct CaffeineNotchView: View {
                     ForEach(minutePresets, id: \.displayName) { duration in
                         CaffeineTimerButton(
                             duration: duration,
-                            isActive: manager.isActive && manager.currentDuration == duration
+                            isActive: manager.isActive && manager.currentDuration == duration,
+                            useAdaptiveForegrounds: useAdaptiveForegrounds
                         ) {
                             selectDuration(duration)
                         }
@@ -79,7 +99,8 @@ struct CaffeineNotchView: View {
                     ForEach(hourPresets, id: \.displayName) { duration in
                         CaffeineTimerButton(
                             duration: duration,
-                            isActive: manager.isActive && manager.currentDuration == duration
+                            isActive: manager.isActive && manager.currentDuration == duration,
+                            useAdaptiveForegrounds: useAdaptiveForegrounds
                         ) {
                             selectDuration(duration)
                         }
@@ -129,6 +150,7 @@ struct CaffeineNotchView: View {
 struct CaffeineTimerButton: View {
     let duration: CaffeineDuration
     let isActive: Bool
+    var useAdaptiveForegrounds: Bool = false
     let action: () -> Void
     
     @State private var isHovering = false
@@ -137,16 +159,31 @@ struct CaffeineTimerButton: View {
         Button(action: action) {
             Text(duration.shortLabel)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? .black : .white)
+                .foregroundStyle(
+                    isActive
+                        ? .black
+                        : (useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white)
+                )
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
                 .background(
                     Capsule()
-                        .fill(isActive ? Color.orange : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                        .fill(
+                            isActive
+                                ? Color.orange
+                                : (useAdaptiveForegrounds
+                                   ? AdaptiveColors.overlayAuto(isHovering ? 0.18 : 0.12)
+                                   : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                        )
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(isActive ? 0 : 0.1), lineWidth: 1)
+                        .stroke(
+                            useAdaptiveForegrounds
+                                ? AdaptiveColors.overlayAuto(isActive ? 0 : 0.1)
+                                : Color.white.opacity(isActive ? 0 : 0.1),
+                            lineWidth: 1
+                        )
                 )
                 .scaleEffect(isHovering ? 1.02 : 1.0)
                 .animation(DroppyAnimation.hoverQuick, value: isHovering)

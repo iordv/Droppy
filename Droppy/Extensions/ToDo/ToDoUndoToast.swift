@@ -10,16 +10,21 @@ import SwiftUI
 struct ToDoUndoToast: View {
     var onUndo: () -> Void
     var onDismiss: () -> Void
+    var useAdaptiveColors: Bool = true
     
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "trash.fill")
                 .font(.system(size: 11))
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(
+                    useAdaptiveColors
+                        ? AdaptiveColors.secondaryTextAuto.opacity(0.85)
+                        : .white.opacity(0.8)
+                )
             
             Text("task_deleted")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(useAdaptiveColors ? AdaptiveColors.primaryTextAuto : .white)
             
             Spacer()
             
@@ -36,7 +41,11 @@ struct ToDoUndoToast: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(
+                        useAdaptiveColors
+                            ? AdaptiveColors.secondaryTextAuto.opacity(0.5)
+                            : .white.opacity(0.4)
+                    )
             }
             .buttonStyle(.plain)
         }
@@ -59,6 +68,7 @@ struct ToDoUndoToast: View {
 struct ToDoCleanupToast: View {
     let count: Int
     var onDismiss: () -> Void
+    var useAdaptiveColors: Bool = true
     
     private var message: String {
         String.localizedStringWithFormat(String(localized: "tasks_cleaned_up %lld"), Int64(count))
@@ -72,7 +82,11 @@ struct ToDoCleanupToast: View {
             
             Text(message)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(
+                    useAdaptiveColors
+                        ? AdaptiveColors.primaryTextAuto.opacity(0.9)
+                        : .white.opacity(0.9)
+                )
                 .lineLimit(1)
             
             Button {
@@ -80,7 +94,11 @@ struct ToDoCleanupToast: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(
+                        useAdaptiveColors
+                            ? AdaptiveColors.secondaryTextAuto.opacity(0.55)
+                            : .white.opacity(0.45)
+                    )
             }
             .buttonStyle(.plain)
         }

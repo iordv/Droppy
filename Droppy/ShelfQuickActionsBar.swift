@@ -32,7 +32,7 @@ struct ShelfQuickActionsBar: View {
         ZStack {
             // Transparent hit area background - captures drags between buttons
             Capsule()
-                .fill(Color.white.opacity(0.001)) // Nearly invisible but captures events
+                .fill(AdaptiveColors.overlayAuto(0.001)) // Nearly invisible but captures events
                 .frame(width: barWidth, height: buttonSize + 8)
                 // Track when drag is over the bar area
                 .onDrop(of: [UTType.fileURL, UTType.image, UTType.movie, UTType.data], isTargeted: $isBarAreaTargeted) { _ in
@@ -51,23 +51,23 @@ struct ShelfQuickActionsBar: View {
                 ShelfQuickActionButton(actionType: .airdrop, useTransparent: useTransparent, shareAction: shareViaAirDrop)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.itemInsertion),
-                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
+                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.hover)
                     ))
                 ShelfQuickActionButton(actionType: .messages, useTransparent: useTransparent, shareAction: shareViaMessages)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.itemInsertion.delay(0.03)),
-                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
+                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.hover)
                     ))
                 ShelfQuickActionButton(actionType: .mail, useTransparent: useTransparent, shareAction: shareViaMail)
                     .transition(.asymmetric(
                         insertion: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.itemInsertion.delay(0.06)),
-                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
+                        removal: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.hover)
                     ))
                 if isQuickshareEnabled {
                     ShelfQuickActionButton(actionType: .quickshare, useTransparent: useTransparent, shareAction: quickShareTo0x0)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.itemInsertion.delay(0.09)),
-                            removal: .scale(scale: 0.5).combined(with: .opacity).animation(.easeOut(duration: 0.15))
+                            removal: .scale(scale: 0.5).combined(with: .opacity).animation(DroppyAnimation.hover)
                         ))
                 }
             }
@@ -89,7 +89,7 @@ struct ShelfQuickActionsBar: View {
     
     private func shareViaMail(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-        NSSharingService(named: .composeEmail)?.perform(withItems: urls)
+        _ = MailHelper.composeEmail(with: urls)
     }
     
     /// Droppy Quickshare - uploads files to 0x0.st and copies shareable link to clipboard
@@ -130,12 +130,21 @@ struct ShelfQuickActionButton: View {
                 .frame(width: size, height: size)
                 .overlay(
                     Circle()
-                        .stroke(Color.white.opacity(borderOpacity), lineWidth: 1)
+                        .stroke(
+                            useTransparent
+                                ? AdaptiveColors.overlayAuto(borderOpacity)
+                                : Color.white.opacity(borderOpacity),
+                            lineWidth: 1
+                        )
                 )
                 .overlay(
                     Image(systemName: actionType.icon)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(
+                            useTransparent
+                                ? AdaptiveColors.primaryTextAuto.opacity(0.88)
+                                : .white.opacity(0.85)
+                        )
                 )
                 .scaleEffect(isTargeted ? 1.18 : (isHovering ? 1.05 : 1.0))
                 .animation(DroppyAnimation.hoverBouncy, value: isTargeted)

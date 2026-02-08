@@ -242,7 +242,7 @@ struct ClipboardManagerView: View {
                     }
             }
         }
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .frame(minWidth: 1040, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
         .background(pasteShortcutButton)
         .background(navigationShortcutButtons)
@@ -362,11 +362,11 @@ struct ClipboardManagerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+            .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
             )
             .droppyCardShadow()
             .padding(.bottom, 24)
@@ -1169,7 +1169,7 @@ struct FlaggedGridItemView: View {
                 // Icon/Thumbnail - squircle like ClipboardItemRow
                 ZStack {
                     RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(AdaptiveColors.overlayAuto(0.1))
                         .frame(width: 32, height: 32)
                     
                     // Show cached thumbnail for images and files, icon for others
@@ -1181,7 +1181,7 @@ struct FlaggedGridItemView: View {
                             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous))
                     } else {
                         itemIcon
-                            .foregroundStyle(.white)
+                            .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto)
                             .font(.system(size: 12))
                     }
                 }
@@ -1206,12 +1206,12 @@ struct FlaggedGridItemView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.title)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto.opacity(0.95))
                         .lineLimit(1)
                     
                     Text(item.date, style: .time)
                         .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isSelected ? .white.opacity(0.9) : AdaptiveColors.secondaryTextAuto.opacity(0.9))
                 }
                 
                 Spacer()
@@ -1295,7 +1295,7 @@ struct ClipboardItemRow: View {
             // Icon/Thumbnail - smaller and shows real image for images
             ZStack {
                 RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(AdaptiveColors.overlayAuto(0.1))
                     .frame(width: 32, height: 32)
                 
                 // Show cached thumbnail for images and files, icon for others
@@ -1307,7 +1307,7 @@ struct ClipboardItemRow: View {
                         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous))
                 } else {
                     Image(systemName: iconName(for: item.type))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto)
                         .font(.system(size: 12))
                 }
             }
@@ -1334,7 +1334,7 @@ struct ClipboardItemRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 
@@ -1387,7 +1387,7 @@ struct ClipboardItemRow: View {
                       ? Color.blue.opacity(isHovering ? 1.0 : 0.8) 
                       : item.isFlagged
                           ? Color.red.opacity(isHovering ? 0.22 : 0.15)
-                          : Color.white.opacity(isHovering ? 0.18 : 0.12))
+                          : AdaptiveColors.overlayAuto(isHovering ? 0.18 : 0.12))
         )
         .foregroundStyle(isSelected ? .white : .primary)
         .scaleEffect(isHovering && !isSelected ? 1.02 : 1.0)
@@ -1461,13 +1461,18 @@ private struct ClipboardRenamePopover: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
             
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14, weight: .medium))
                 .focused($isFocused)
-                .droppyTextInputChrome()
+                .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.95))
+                .droppyTextInputChrome(
+                    backgroundOpacity: 0.95,
+                    borderOpacity: 1.0,
+                    useAdaptiveColors: true
+                )
                 .onSubmit {
                     onSave()
                 }
@@ -1493,6 +1498,14 @@ private struct ClipboardRenamePopover: View {
         }
         .padding(14)
         .frame(width: 260)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.97))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                )
+        }
         .onAppear {
             DispatchQueue.main.async {
                 isFocused = true
@@ -1712,7 +1725,7 @@ struct ClipboardPreviewView: View {
                         TextEditor(text: $editedContent)
                             .font(.system(.body, design: .monospaced))
                             .scrollContentBackground(.hidden)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             .droppyTextInputChrome(
                                 cornerRadius: DroppyRadius.ml,
                                 horizontalPadding: 10,
@@ -1740,7 +1753,7 @@ struct ClipboardPreviewView: View {
                                 
                                 Text(truncatedContent)
                                     .font(.body)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                                     .padding()
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .textSelection(.enabled)
@@ -1753,7 +1766,7 @@ struct ClipboardPreviewView: View {
                         TextEditor(text: $editedContent)
                             .font(.system(.body, design: .monospaced))
                             .scrollContentBackground(.hidden)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             .droppyTextInputChrome(
                                 cornerRadius: DroppyRadius.ml,
                                 horizontalPadding: 10,
@@ -1790,7 +1803,7 @@ struct ClipboardPreviewView: View {
                                         let text = try await OCRService.shared.performOCR(on: nsImg)
                                         await MainActor.run {
                                             isExtractingText = false
-                                            OCRWindowController.shared.show(with: text)
+                                            OCRWindowController.shared.presentExtractedText(text)
                                         }
                                     } catch {
                                         await MainActor.run {
@@ -1913,7 +1926,7 @@ struct ClipboardPreviewView: View {
                                             HStack(spacing: 6) {
                                                 ForEach(0..<documentPageCount, id: \.self) { index in
                                                     Circle()
-                                                        .fill(index == currentPageIndex ? Color.white : Color.white.opacity(0.3))
+                                                        .fill(index == currentPageIndex ? AdaptiveColors.primaryTextAuto : AdaptiveColors.overlayAuto(0.3))
                                                         .frame(width: 6, height: 6)
                                                         .scaleEffect(index == currentPageIndex ? 1.2 : 1.0)
                                                         .animation(DroppyAnimation.hover, value: currentPageIndex)
@@ -1974,7 +1987,7 @@ struct ClipboardPreviewView: View {
                             VStack(spacing: 4) {
                                 Text(URL(fileURLWithPath: path).lastPathComponent)
                                     .font(.headline)
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                                     .multilineTextAlignment(.center)
                                 Text(path)
                                     .font(.caption)
@@ -2025,7 +2038,7 @@ struct ClipboardPreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .fill(isEditing ? AdaptiveColors.buttonBackgroundAuto.opacity(0.95) : Color.white.opacity(0.05))
+                    .fill(isEditing ? AdaptiveColors.buttonBackgroundAuto.opacity(0.95) : AdaptiveColors.overlayAuto(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
@@ -2088,7 +2101,7 @@ struct ClipboardPreviewView: View {
                             } else if isSavingFile {
                                 ProgressView()
                                     .controlSize(.small)
-                                    .tint(.white)
+                                    .tint(AdaptiveColors.primaryTextAuto)
                             } else {
                                 Image(systemName: "square.and.arrow.down")
                                     .transition(.scale.combined(with: .opacity))
@@ -2118,7 +2131,7 @@ struct ClipboardPreviewView: View {
                     }
                 } label: {
                     Image(systemName: item.isFavorite ? "star.fill" : "star")
-                        .foregroundStyle(item.isFavorite ? .yellow : .white.opacity(0.8))
+                        .foregroundStyle(item.isFavorite ? .yellow : AdaptiveColors.primaryTextAuto.opacity(0.85))
                         .symbolEffect(.bounce, value: starAnimationTrigger)
                 }
                 .buttonStyle(DroppyCircleButtonStyle(size: 40))
@@ -2141,7 +2154,7 @@ struct ClipboardPreviewView: View {
                     }
                 } label: {
                     Image(systemName: item.isFlagged ? "flag.fill" : "flag")
-                        .foregroundStyle(item.isFlagged ? .red : .white.opacity(0.8))
+                        .foregroundStyle(item.isFlagged ? .red : AdaptiveColors.primaryTextAuto.opacity(0.85))
                         .symbolEffect(.bounce, value: flagAnimationTrigger)
                 }
                 .buttonStyle(DroppyCircleButtonStyle(size: 40))
@@ -2154,7 +2167,7 @@ struct ClipboardPreviewView: View {
                     } label: {
                         ZStack {
                             Image(systemName: "tag")
-                                .foregroundStyle(item.tagId != nil ? (manager.getTag(by: item.tagId)?.color ?? .cyan) : .white.opacity(0.8))
+                                .foregroundStyle(item.tagId != nil ? (manager.getTag(by: item.tagId)?.color ?? .cyan) : AdaptiveColors.primaryTextAuto.opacity(0.85))
                         }
                     }
                     .buttonStyle(DroppyCircleButtonStyle(size: 40))
@@ -2185,7 +2198,7 @@ struct ClipboardPreviewView: View {
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background(item.tagId == tag.id ? Color.white.opacity(0.1) : Color.clear)
+                                    .background(item.tagId == tag.id ? AdaptiveColors.overlayAuto(0.1) : Color.clear)
                                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
@@ -2408,10 +2421,9 @@ nonisolated private func rtfToAttributedString(_ data: Data) throws -> Attribute
         }
     }
     
-    // Force white color for visibility on dark background
-    // We remove existing foreground color and enforce white
+    // Normalize text color for readability across light and dark appearances.
     mutable.enumerateAttribute(.foregroundColor, in: NSRange(location: 0, length: mutable.length), options: []) { value, range, _ in
-        mutable.addAttribute(.foregroundColor, value: NSColor.white, range: range)
+        mutable.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
     }
     
     // Remove background color to ensure transparency (avoid White on White)
@@ -2464,7 +2476,7 @@ struct ZoomedDocumentPreviewSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(fileName)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto)
                         .lineLimit(1)
                     
                     if pageCount > 1 {
@@ -2605,7 +2617,7 @@ struct ZoomedDocumentPreviewSheet: View {
                                     // Zoom level indicator
                                     Text("\(Int(zoomScale * 100))%")
                                         .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.white.opacity(0.8))
+                                        .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                         .monospacedDigit()
                                         .frame(width: 44)
                                     
@@ -2679,7 +2691,7 @@ struct ZoomedDocumentPreviewSheet: View {
                         HStack(spacing: 8) {
                             ForEach(0..<pageCount, id: \.self) { index in
                                 Circle()
-                                    .fill(index == currentPage ? Color.white : Color.white.opacity(0.3))
+                                    .fill(index == currentPage ? AdaptiveColors.primaryTextAuto : AdaptiveColors.overlayAuto(0.3))
                                     .frame(width: 8, height: 8)
                                     .scaleEffect(index == currentPage ? 1.3 : 1.0)
                                     .animation(DroppyAnimation.hover, value: currentPage)
@@ -2693,7 +2705,7 @@ struct ZoomedDocumentPreviewSheet: View {
                     } else {
                         Text("\(currentPage + 1) / \(pageCount)")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.8))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                             .monospacedDigit()
                     }
                     
@@ -2781,7 +2793,7 @@ struct ZoomedDocumentPreviewSheet: View {
             .padding(.bottom, 24)
         }
         .frame(minWidth: 700, minHeight: 600)
-        .background(Color.black.opacity(0.95))
+        .background(AdaptiveColors.panelBackgroundAuto)
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.leftArrow) {
@@ -2870,8 +2882,7 @@ struct ZoomedDocumentPreviewSheet: View {
                 await MainActor.run {
                     isPerformingOCR = false
                     if !ocrResult.isEmpty {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(ocrResult, forType: .string)
+                        TextCopyFeedback.copyOCRText(ocrResult)
                         ocrCopiedText = ocrResult
                         showOCRSuccess = true
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
@@ -2957,7 +2968,7 @@ struct MultiSelectPreviewView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(Capsule().fill(Color.white.opacity(0.12)))
+            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.12)))
 
             
             Spacer()
@@ -3027,18 +3038,18 @@ struct StackedCardView: View {
             // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .fill(Color.white.opacity(0.15))
+                    .fill(AdaptiveColors.overlayAuto(0.15))
                     .frame(width: 48, height: 48)
                 
                 Image(systemName: iconName(for: item.type))
                     .font(.system(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
             }
             
             // Title
             Text(item.title)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.9))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .frame(width: 100)
@@ -3133,7 +3144,7 @@ struct URLPreviewCard: View {
                                 .clipped()
                         } else {
                             Rectangle()
-                                .fill(Color.white.opacity(0.05))
+                                .fill(AdaptiveColors.overlayAuto(0.05))
                                 .frame(height: isDirectImage ? 200 : 120)
                                 .overlay {
                                     Image(systemName: isDirectImage ? "photo" : "link")
@@ -3142,7 +3153,7 @@ struct URLPreviewCard: View {
                                 }
                         }
                     }
-                    .background(Color.black.opacity(0.2))
+                    .background(AdaptiveColors.overlayAuto(0.2))
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
                     
                     MetadataInfoStrip(
@@ -3198,7 +3209,7 @@ struct MetadataInfoStrip: View {
                         Image(systemName: "globe")
                             .font(.system(size: 20))
                             .foregroundStyle(.secondary)
-                            .background(Color.white.opacity(0.05))
+                            .background(AdaptiveColors.overlayAuto(0.05))
                     }
                 }
                 .frame(width: 32, height: 32)
@@ -3208,12 +3219,12 @@ struct MetadataInfoStrip: View {
                     if let title = title {
                         Text(title)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             .lineLimit(2)
                     } else if isDirectImage, let url = URL(string: item.content ?? "") {
                         Text(url.lastPathComponent)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AdaptiveColors.primaryTextAuto)
                             .lineLimit(1)
                     }
                     
@@ -3225,7 +3236,7 @@ struct MetadataInfoStrip: View {
             }
             .padding(.bottom, 4)
             
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(AdaptiveColors.overlayAuto(0.1))
             
             // Domain Area
             HStack {
@@ -3244,7 +3255,7 @@ struct MetadataInfoStrip: View {
             .padding(.top, 4)
         }
         .padding(DroppySpacing.lg)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
     }
 }
@@ -3255,15 +3266,15 @@ struct URLTypeBadge: View {
     var body: some View {
         Text(isDirectImage ? "Image Link" : "Website")
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(AdaptiveColors.primaryTextAuto)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(.ultraThinMaterial)
-            .background(Color.black.opacity(0.4))
+            .background(AdaptiveColors.overlayAuto(0.2))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.25), lineWidth: 1)
             )
             .droppyCardShadow()
     }
@@ -3356,7 +3367,12 @@ struct TagFilterPopover: View {
             }
         }
         .frame(width: 200)
-        .background(.ultraThinMaterial)
+        .background(AdaptiveColors.panelBackgroundOpaqueStyle)
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+        )
     }
 }
 
@@ -3365,7 +3381,6 @@ struct TagFilterPopover: View {
 struct TagManagementSheet: View {
     @ObservedObject var manager: ClipboardManager
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     @State private var newTagName = ""
     @State private var selectedColorIndex = 0
@@ -3565,8 +3580,12 @@ struct TagManagementSheet: View {
             .padding(DroppySpacing.lg)
         }
         .frame(width: 340, height: 630)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color(white: 0.1)))
+        .background(AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+        )
     }
     
     private func addTag() {
@@ -3685,11 +3704,11 @@ struct TagRowView: View {
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(Color.white.opacity(isHovering || isEditing ? 0.08 : 0.04))
+                .fill(AdaptiveColors.overlayAuto(isHovering || isEditing ? 0.08 : 0.04))
         )
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(isHovering || isEditing ? 0.1 : 0.05), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(isHovering || isEditing ? 0.1 : 0.05), lineWidth: 1)
         )
         .contentShape(Capsule())
         .onHover { hovering in

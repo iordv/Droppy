@@ -26,7 +26,9 @@ struct HighAlertHUDView: View {
     
     /// Accent color based on High Alert state
     private var accentColor: Color {
-        isActive ? .orange : .white.opacity(0.5)
+        isActive
+            ? Color(red: 1.0, green: 0.62, blue: 0.26)
+            : .white.opacity(0.78)
     }
     
     /// Display text - shows timer when active, "Inactive" when not
@@ -67,11 +69,7 @@ struct HighAlertHUDView: View {
                     
                     Spacer()
                     
-                    // Timer/Status text
-                    Text(statusText)
-                        .font(.system(size: textSize, weight: .semibold, design: isActive && statusText != "∞" ? .monospaced : .default))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
-                        .contentTransition(.numericText())
+                    statusIndicator(useAdjustedColor: true)
                 }
                 .padding(.horizontal, symmetricPadding)
                 .frame(height: layout.notchHeight)
@@ -102,10 +100,7 @@ struct HighAlertHUDView: View {
                     // Right wing: Timer near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        Text(statusText)
-                            .font(.system(size: textSize, weight: .semibold, design: isActive && statusText != "∞" ? .monospaced : .default))
-                            .foregroundStyle(accentColor)
-                            .contentTransition(.numericText())
+                        statusIndicator(useAdjustedColor: false)
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -113,6 +108,27 @@ struct HighAlertHUDView: View {
                 .frame(height: layout.notchHeight)
             }
         }
+        .animation(DroppyAnimation.notchState, value: isActive)
+        .animation(DroppyAnimation.notchState, value: statusText)
+    }
+    
+    @ViewBuilder
+    private func statusIndicator(useAdjustedColor: Bool) -> some View {
+        let foregroundColor = useAdjustedColor
+            ? layout.adjustedColor(accentColor)
+            : accentColor
+        
+        HStack(spacing: 6) {
+            Circle()
+                .fill(foregroundColor.opacity(isActive ? 1 : 0.6))
+                .frame(width: 4, height: 4)
+            Text(statusText)
+                .font(.system(size: textSize, weight: .semibold, design: isActive && statusText != "∞" ? .monospaced : .default))
+                .foregroundStyle(foregroundColor)
+                .contentTransition(.numericText())
+                .monospacedDigit()
+        }
+        .fixedSize()
     }
 }
 

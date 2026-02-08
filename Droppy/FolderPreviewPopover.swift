@@ -96,7 +96,7 @@ struct FolderPreviewPopover: View {
             .padding(.vertical, 8)
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(AdaptiveColors.overlayAuto(0.1))
             
             if contents.isEmpty {
                 Text("Empty folder")
@@ -142,7 +142,7 @@ struct FolderPreviewPopover: View {
             // Selection info (if items selected)
             if !selectedItems.isEmpty {
                 Divider()
-                    .background(Color.white.opacity(0.1))
+                    .background(AdaptiveColors.overlayAuto(0.1))
                 
                 HStack(spacing: 4) {
                     Text("\(selectedItems.count) selected")
@@ -172,7 +172,7 @@ struct FolderPreviewPopover: View {
             }
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(AdaptiveColors.overlayAuto(0.1))
             
             // Footer: Open Folder button
             Button {
@@ -203,7 +203,7 @@ struct FolderPreviewPopover: View {
         .droppyFloatingShadow()
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
         )
         .onHover { hovering in
             isHovering = hovering

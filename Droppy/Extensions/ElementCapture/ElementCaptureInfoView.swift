@@ -75,7 +75,7 @@ struct ElementCaptureInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .onAppear {
             loadShortcuts()
@@ -114,7 +114,7 @@ struct ElementCaptureInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -231,7 +231,7 @@ struct ElementCaptureInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -296,7 +296,7 @@ struct ElementCaptureInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -352,7 +352,7 @@ struct ElementCaptureInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
         .padding(DroppySpacing.lg)
@@ -360,7 +360,7 @@ struct ElementCaptureInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -423,7 +423,7 @@ struct ElementCaptureInfoView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -459,7 +459,7 @@ struct ElementCaptureInfoView: View {
                                         .font(.headline)
                                 }
                                 
-                                Text("Extract text from any selected area using Apple's on-device OCR. Recognized text is copied to clipboard.")
+                                Text("Extract text from any selected area using Apple's on-device OCR.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

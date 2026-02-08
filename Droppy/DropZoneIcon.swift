@@ -18,12 +18,13 @@ struct DropZoneIcon: View {
     let type: IconType
     let size: CGFloat
     let isActive: Bool  // Whether files are currently hovering over
+    var useAdaptiveForegrounds: Bool = false
     
     var body: some View {
         iconContent
             .frame(width: size, height: size)
             .scaleEffect(isActive ? 1.08 : 1.0)
-            .opacity(isActive ? 1.0 : 0.5)
+            .opacity(isActive ? 1.0 : (useAdaptiveForegrounds ? 0.8 : 0.5))
             .animation(DroppyAnimation.expandOpen, value: isActive)
     }
     
@@ -37,14 +38,14 @@ struct DropZoneIcon: View {
             Image(systemName: "tray.and.arrow.down.fill")
                 .font(.system(size: iconSize, weight: .medium))
                 .foregroundStyle(shelfGradient)
-                .symbolRenderingMode(.hierarchical)
+                .symbolRenderingMode(.monochrome)
             
         case .airDrop:
             // Real AirDrop-style icon (matches settings tooltip)
             Image(systemName: "airplayaudio")
                 .font(.system(size: iconSize, weight: .medium))
                 .foregroundStyle(airDropGradient)
-                .symbolRenderingMode(.hierarchical)
+                .symbolRenderingMode(.monochrome)
         }
     }
     
@@ -57,8 +58,8 @@ struct DropZoneIcon: View {
     private var shelfGradient: LinearGradient {
         LinearGradient(
             colors: isActive 
-                ? [Color.white, Color(red: 0.85, green: 0.92, blue: 1.0)]
-                : [Color.white.opacity(0.8), Color.white.opacity(0.5)],
+                ? activeShelfGradientColors
+                : idleGradientColors,
             startPoint: .top,
             endPoint: .bottom
         )
@@ -67,11 +68,44 @@ struct DropZoneIcon: View {
     private var airDropGradient: LinearGradient {
         LinearGradient(
             colors: isActive
-                ? [Color.white, Color(red: 0.7, green: 0.88, blue: 1.0)]
-                : [Color.white.opacity(0.8), Color.white.opacity(0.5)],
+                ? activeAirDropGradientColors
+                : idleGradientColors,
             startPoint: .top,
             endPoint: .bottom
         )
+    }
+
+    private var activeShelfGradientColors: [Color] {
+        if useAdaptiveForegrounds {
+            return [
+                Color.blue.opacity(0.95),
+                AdaptiveColors.primaryTextAuto.opacity(0.9)
+            ]
+        }
+        return [Color.white, Color(red: 0.85, green: 0.92, blue: 1.0)]
+    }
+
+    private var activeAirDropGradientColors: [Color] {
+        if useAdaptiveForegrounds {
+            return [
+                Color.cyan.opacity(0.92),
+                AdaptiveColors.primaryTextAuto.opacity(0.88)
+            ]
+        }
+        return [Color.white, Color(red: 0.7, green: 0.88, blue: 1.0)]
+    }
+
+    private var idleGradientColors: [Color] {
+        if useAdaptiveForegrounds {
+            return [
+                AdaptiveColors.primaryTextAuto.opacity(0.78),
+                AdaptiveColors.secondaryTextAuto.opacity(0.46)
+            ]
+        }
+        return [
+            Color.white.opacity(0.78),
+            Color.white.opacity(0.46)
+        ]
     }
 }
 

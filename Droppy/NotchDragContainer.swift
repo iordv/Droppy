@@ -28,6 +28,26 @@ class NotchDragContainer: NSView {
     /// Track if current drag is valid (for Power Folders restriction)
     private var currentDragIsValid: Bool = true
 
+    private func activeDisplayID() -> CGDirectDisplayID? {
+        if let notchWindow = self.window as? NotchWindow {
+            if notchWindow.targetDisplayID != 0 {
+                return notchWindow.targetDisplayID
+            }
+            return notchWindow.notchScreen?.displayID
+        }
+        return nil
+    }
+
+    private func isExpandedOnTargetDisplay() -> Bool {
+        guard let displayID = activeDisplayID() else { return DroppyState.shared.isExpanded }
+        return DroppyState.shared.isExpanded(for: displayID)
+    }
+
+    private func isHoveringOnTargetDisplay() -> Bool {
+        guard let displayID = activeDisplayID() else { return DroppyState.shared.isMouseHovering }
+        return DroppyState.shared.isHovering(for: displayID)
+    }
+
     
     
     
@@ -88,8 +108,8 @@ class NotchDragContainer: NSView {
             return
         }
         
-        let isExpanded = DroppyState.shared.isExpanded
-        let isHovering = DroppyState.shared.isMouseHovering
+        let isExpanded = isExpandedOnTargetDisplay()
+        let isHovering = isHoveringOnTargetDisplay()
         let isDragging = DragMonitor.shared.isDragging
         let isActive = isExpanded || isHovering || isDragging
         
@@ -186,8 +206,8 @@ class NotchDragContainer: NSView {
         stateObservationActive = true
         
         withObservationTracking {
-            _ = DroppyState.shared.isExpanded
-            _ = DroppyState.shared.isMouseHovering
+            _ = DroppyState.shared.expandedDisplayID
+            _ = DroppyState.shared.hoveringDisplayID
         } onChange: {
             DispatchQueue.main.async { [weak self] in
                 self?.updateTrackingAreas()
@@ -204,7 +224,7 @@ class NotchDragContainer: NSView {
     // to prevent blocking interaction with Settings, Clipboard, etc.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         // Only accept first mouse when shelf is expanded (has items to interact with)
-        guard DroppyState.shared.isExpanded else {
+        guard isExpandedOnTargetDisplay() else {
             return false
         }
         
@@ -261,7 +281,7 @@ class NotchDragContainer: NSView {
         
         // Only handle clicks when user is already hovering (intentional interaction)
         // This ensures we don't block clicks that should pass through to other apps
-        guard DroppyState.shared.isMouseHovering else {
+        guard isHoveringOnTargetDisplay() else {
             super.mouseDown(with: event)
             return
         }
@@ -283,8 +303,13 @@ class NotchDragContainer: NSView {
         
         // Toggle the shelf expansion for THIS specific screen
         let displayID = notchWindow.targetDisplayID
+        let animationScreen = notchWindow.notchScreen
         DispatchQueue.main.async {
-            withAnimation(DroppyAnimation.transition) {
+            let isExpandedOnTarget = DroppyState.shared.isExpanded(for: displayID)
+            let animation = isExpandedOnTarget
+                ? DroppyAnimation.expandClose(for: animationScreen)
+                : DroppyAnimation.expandOpen(for: animationScreen)
+            withAnimation(animation) {
                 DroppyState.shared.toggleShelfExpansion(for: displayID)
             }
         }
@@ -304,7 +329,7 @@ class NotchDragContainer: NSView {
         let localPoint = convert(point, from: nil)
         
         // 2. Check current state
-        let isExpanded = DroppyState.shared.isExpanded
+        let isExpanded = isExpandedOnTargetDisplay()
         let isDragging = DragMonitor.shared.isDragging || DroppyState.shared.isDropTargeted
         
         // 3. Define the active interaction area
@@ -350,7 +375,7 @@ class NotchDragContainer: NSView {
                   let screen = notchWindow.notchScreen else { return nil }
             
             // Use expanded notch area (wider and taller to catch media player HUD)
-            let centerX = screen.frame.origin.x + screen.frame.width / 2
+            let centerX = screen.notchAlignedCenterX
             let dragHitWidth: CGFloat = 400  // Generous width for drag targeting
             let dragHitHeight: CGFloat = 100 // Generous height to catch media player
             
@@ -366,13 +391,13 @@ class NotchDragContainer: NSView {
             
             // When expanded, also accept drags over the expanded shelf area
             // Use notchScreen for multi-monitor support
-            if DroppyState.shared.isExpanded {
+            if isExpandedOnTargetDisplay() {
                 guard let notchWindow = self.window as? NotchWindow,
                       let screen = notchWindow.notchScreen else { return nil }
 
                 let expandedWidth: CGFloat = 450
                 // Use global coordinates
-                let centerX = screen.frame.origin.x + screen.frame.width / 2
+                let centerX = screen.notchAlignedCenterX
                 let xMin = centerX - expandedWidth / 2
                 let xMax = centerX + expandedWidth / 2
 
@@ -400,7 +425,7 @@ class NotchDragContainer: NSView {
         //    Height <= 44 to stay within standard menu bar height.
         // 2. "Hovering" state: If user triggered hover, expand area to include the "Open Shelf" button so they can click it.
         
-        let isHovering = DroppyState.shared.isMouseHovering
+        let isHovering = isHoveringOnTargetDisplay()
         
         if isHovering {
             // PRECISE HOVER HIT AREA (v6.5.1):
@@ -452,7 +477,7 @@ class NotchDragContainer: NSView {
                                      y: windowFrame.origin.y + dragLocation.y)
         
         // Use generous hit area matching hitTest logic
-        let centerX = screen.frame.origin.x + screen.frame.width / 2
+        let centerX = screen.notchAlignedCenterX
         let dragHitWidth: CGFloat = 400  // Generous width for drag targeting
         let dragHitHeight: CGFloat = 100 // Generous height to catch media player
         
@@ -480,7 +505,7 @@ class NotchDragContainer: NSView {
         // Calculate expanded shelf bounds (same logic as hitTest)
         // Use global coordinates
         let expandedWidth: CGFloat = 450
-        let centerX = screen.frame.origin.x + screen.frame.width / 2
+        let centerX = screen.notchAlignedCenterX
         let xMin = centerX - expandedWidth / 2
         let xMax = centerX + expandedWidth / 2
 
@@ -520,7 +545,7 @@ class NotchDragContainer: NSView {
         }
 
         let overNotch = isDragOverNotch(sender)
-        let isExpanded = DroppyState.shared.isExpanded
+        let isExpanded = isExpandedOnTargetDisplay()
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
         
         // Accept drags over the notch OR over the expanded shelf area
@@ -548,8 +573,9 @@ class NotchDragContainer: NSView {
             // Get the display ID from the notch window's screen
             if let notchWindow = self.window as? NotchWindow,
                let displayID = notchWindow.notchScreen?.displayID {
+                let animationScreen = notchWindow.notchScreen
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.transition) {
+                    withAnimation(DroppyAnimation.expandOpen(for: animationScreen)) {
                         DroppyState.shared.expandShelf(for: displayID)
                         DroppyState.shared.isDropTargeted = true
                         DroppyState.shared.dropTargetDisplayID = displayID  // Track which screen
@@ -561,8 +587,9 @@ class NotchDragContainer: NSView {
             // Also track which screen for multi-monitor expand fix
             if let notchWindow = self.window as? NotchWindow,
                let displayID = notchWindow.notchScreen?.displayID {
+                let animationScreen = notchWindow.notchScreen
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.state) {
+                    withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
                         DroppyState.shared.isDropTargeted = true
                         DroppyState.shared.dropTargetDisplayID = displayID  // Track which screen
                     }
@@ -577,7 +604,7 @@ class NotchDragContainer: NSView {
         if !currentDragIsValid { return [] }
         
         let overNotch = isDragOverNotch(sender)
-        let isExpanded = DroppyState.shared.isExpanded
+        let isExpanded = isExpandedOnTargetDisplay()
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
         
         DispatchQueue.main.async {
@@ -585,8 +612,9 @@ class NotchDragContainer: NSView {
             // - Over notch and not expanded (collapsed state trigger)
             // - Over expanded shelf area (expanded state drop zone)
             let shouldBeTargeted = (overNotch && !isExpanded) || overExpandedArea
+            let animationScreen = (self.window as? NotchWindow)?.notchScreen
             if DroppyState.shared.isDropTargeted != shouldBeTargeted {
-                withAnimation(DroppyAnimation.state) {
+                withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
                     DroppyState.shared.isDropTargeted = shouldBeTargeted
                 }
             }
@@ -599,8 +627,9 @@ class NotchDragContainer: NSView {
     
     override func draggingExited(_ sender: NSDraggingInfo?) {
         // Remove highlight state
+        let animationScreen = (self.window as? NotchWindow)?.notchScreen
         DispatchQueue.main.async {
-            withAnimation(DroppyAnimation.state) {
+            withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
                 DroppyState.shared.isDropTargeted = false
                 DroppyState.shared.dropTargetDisplayID = nil
             }
@@ -616,8 +645,9 @@ class NotchDragContainer: NSView {
     
     override func draggingEnded(_ sender: NSDraggingInfo) {
         // Ensure highlight state is removed
+        let animationScreen = (self.window as? NotchWindow)?.notchScreen
         DispatchQueue.main.async {
-            withAnimation(DroppyAnimation.state) {
+            withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
                 DroppyState.shared.isDropTargeted = false
                 DroppyState.shared.dropTargetDisplayID = nil
             }
@@ -631,7 +661,7 @@ class NotchDragContainer: NSView {
         // Respect validity check
         if !currentDragIsValid { return false }
         
-        let isExpanded = DroppyState.shared.isExpanded
+        let isExpanded = isExpandedOnTargetDisplay()
         let overNotch = isDragOverNotch(sender)
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
         
@@ -677,7 +707,10 @@ class NotchDragContainer: NSView {
                 let savedFiles = await MailHelper.shared.exportSelectedEmails(to: dropLocation)
                 
                 if !savedFiles.isEmpty {
-                    withAnimation(DroppyAnimation.transition) {
+                    let animationScreen = targetDisplayID.flatMap { displayID in
+                        NSScreen.screens.first(where: { $0.displayID == displayID })
+                    }
+                    withAnimation(DroppyAnimation.expandOpen(for: animationScreen)) {
                         DroppyState.shared.addItems(from: savedFiles)
                         if let displayID = targetDisplayID {
                             DroppyState.shared.expandShelf(for: displayID)
@@ -735,7 +768,10 @@ class NotchDragContainer: NSView {
                     successCount += 1
                     print("📦 Shelf: Successfully received \(fileURL.lastPathComponent)")
                     DispatchQueue.main.async {
-                        withAnimation(DroppyAnimation.transition) {
+                        let animationScreen = targetDisplayID.flatMap { displayID in
+                            NSScreen.screens.first(where: { $0.displayID == displayID })
+                        }
+                        withAnimation(DroppyAnimation.expandOpen(for: animationScreen)) {
                             DroppyState.shared.addItems(from: [fileURL])
                             if let displayID = targetDisplayID {
                                 DroppyState.shared.expandShelf(for: displayID)

@@ -191,7 +191,7 @@ struct DroppyMenuContent: View {
                     Button {
                         SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
                     } label: {
-                        Label("Configure Shortcuts...", systemImage: "keyboard")
+                        Label("Configure Window Snap...", systemImage: "keyboard")
                     }
                 } label: {
                     Label("Window Snap", systemImage: "rectangle.split.2x1")
@@ -282,10 +282,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppPreferenceKey.showMediaPlayer: PreferenceDefault.showMediaPlayer,
             AppPreferenceKey.enableClipboard: PreferenceDefault.enableClipboard,
             AppPreferenceKey.enableMultiBasket: PreferenceDefault.enableMultiBasket,
+            AppPreferenceKey.quickActionsMailApp: PreferenceDefault.quickActionsMailApp,
             AppPreferenceKey.gumroadLicenseActive: PreferenceDefault.gumroadLicenseActive,
             AppPreferenceKey.gumroadLicenseEmail: PreferenceDefault.gumroadLicenseEmail,
             AppPreferenceKey.gumroadLicenseKeyHint: PreferenceDefault.gumroadLicenseKeyHint,
+            AppPreferenceKey.gumroadLicenseDeviceName: PreferenceDefault.gumroadLicenseDeviceName,
             AppPreferenceKey.gumroadLicenseLastValidatedAt: PreferenceDefault.gumroadLicenseLastValidatedAt,
+            AppPreferenceKey.terminalNotchExternalApp: PreferenceDefault.terminalNotchExternalApp,
+            AppPreferenceKey.disableAnalytics: PreferenceDefault.disableAnalytics,
+            AppPreferenceKey.windowSnapPointerModeEnabled: PreferenceDefault.windowSnapPointerModeEnabled,
+            AppPreferenceKey.windowSnapMoveModifierMask: PreferenceDefault.windowSnapMoveModifierMask,
+            AppPreferenceKey.windowSnapResizeModifierMask: PreferenceDefault.windowSnapResizeModifierMask,
+            AppPreferenceKey.windowSnapBringToFrontWhenHandling: PreferenceDefault.windowSnapBringToFrontWhenHandling,
+            AppPreferenceKey.windowSnapResizeMode: PreferenceDefault.windowSnapResizeMode,
         ])
         
         
@@ -362,9 +371,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stopLicensedFeatures()
             ClipboardManager.shared.stopMonitoring()
             SettingsWindowController.shared.close()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                LicenseWindowController.shared.show()
-            }
+            LicenseWindowController.shared.show()
         }
     }
 
@@ -466,17 +473,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AirPodsManager.shared.startMonitoring()
             }
 
-            // 5. Lock Screen Media Widget - DISABLED
-            // DISABLED: Lock screen features (Skylight API and window recreation) causing serious issues.
-            // Force-disable for ALL users regardless of previous settings.
-            // The code is preserved but will not run until issues are resolved.
-            UserDefaults.standard.set(false, forKey: AppPreferenceKey.enableLockScreenHUD)
-            UserDefaults.standard.set(false, forKey: AppPreferenceKey.enableLockScreenMediaWidget)
-            // let lockScreenMediaEnabled = UserDefaults.standard.bool(forKey: AppPreferenceKey.enableLockScreenMediaWidget)
-            // if lockScreenMediaEnabled {
-            //     print("🔒 Droppy: Initializing Lock Screen Media Widget")
-            //     LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
-            // }
+            // 5. Lock Screen Features
+            // Lock HUD: Shows lock/unlock animation in the notch + dedicated SkyLight window on lock screen
+            // Uses separate-window architecture — main notch window is NEVER delegated to SkyLight
+            let lockScreenHUDEnabled = UserDefaults.standard.preference(
+                AppPreferenceKey.enableLockScreenHUD,
+                default: PreferenceDefault.enableLockScreenHUD
+            )
+            if lockScreenHUDEnabled {
+                print("🔒 Droppy: Starting Lock Screen HUD")
+                LockScreenManager.shared.enable()
+            }
+            
+            // Lock Screen Media Widget: Shows music controls on lock screen (separate feature)
+            let lockScreenMediaEnabled = UserDefaults.standard.preference(
+                AppPreferenceKey.enableLockScreenMediaWidget,
+                default: PreferenceDefault.enableLockScreenMediaWidget
+            )
+            if lockScreenMediaEnabled {
+                print("🔒 Droppy: Initializing Lock Screen Media Widget")
+                LockScreenMediaPanelManager.shared.configure(musicManager: MusicManager.shared)
+            }
 
             // 6. Tracked Folders (monitors folders for new files)
             let folderObservationEnabled = UserDefaults.standard.bool(forKey: AppPreferenceKey.enableTrackedFolders)

@@ -167,6 +167,7 @@ struct ScreenshotEditorView: View {
                         // Background image
                         Image(nsImage: originalImage)
                             .resizable()
+                            .interpolation(.high)
                             .aspectRatio(contentMode: .fit)
                             .frame(width: scaledSize.width, height: scaledSize.height)
                         
@@ -205,11 +206,11 @@ struct ScreenshotEditorView: View {
                     canvasSize = scaledSize
                 }
             }
-            .background(useTransparentBackground ? Color.clear : Color.black)
+            .background(useTransparentBackground ? Color.clear : AdaptiveColors.panelBackgroundAuto)
         }
         .frame(minWidth: 600, idealWidth: 800, maxWidth: .infinity)
         .frame(minHeight: 400, idealHeight: 600, maxHeight: .infinity)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color(white: 0.10)))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .sheet(isPresented: $showingTextInput) {
             textInputSheet
@@ -362,9 +363,9 @@ struct ScreenshotEditorView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(AdaptiveColors.primaryTextAuto.opacity(0.85))
                         .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.12))
+                        .background(AdaptiveColors.overlayAuto(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .menuStyle(.borderlessButton)
@@ -387,9 +388,9 @@ struct ScreenshotEditorView: View {
         .background(
             ZStack {
                 if useTransparentBackground {
-                    Color.white.opacity(0.06)
+                    AdaptiveColors.overlayAuto(0.06)
                 } else {
-                    Color(white: 0.08)
+                    AdaptiveColors.buttonBackgroundAuto
                 }
                 WindowDragView()
             }
@@ -430,7 +431,7 @@ struct ScreenshotEditorView: View {
             
             Text("\(Int(zoomScale * 100))%")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.white.opacity(0.6))
+                .foregroundColor(AdaptiveColors.secondaryTextAuto)
                 .frame(width: 40)
             
             Button(action: { zoomScale = min(4.0, zoomScale + 0.25) }) {
@@ -477,7 +478,7 @@ struct ScreenshotEditorView: View {
                         .frame(width: 18, height: 18)
                         .overlay(
                             Circle()
-                                .stroke(selectedColor == color ? Color.white : Color.clear, lineWidth: 2)
+                                .stroke(selectedColor == color ? AdaptiveColors.primaryTextAuto : Color.clear, lineWidth: 2)
                         )
                         .scaleEffect(selectedColor == color ? 1.1 : 1.0)
                         .animation(.easeOut(duration: 0.1), value: selectedColor)
@@ -495,7 +496,7 @@ struct ScreenshotEditorView: View {
                         strokeWidth = width
                     } label: {
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(strokeWidth == width ? Color.yellow : Color.white.opacity(0.5))
+                            .fill(strokeWidth == width ? Color.yellow : AdaptiveColors.overlayAuto(0.5))
                             .frame(width: 22, height: width + 4)
                     }
                     .buttonStyle(.plain)
@@ -525,9 +526,9 @@ struct ScreenshotEditorView: View {
             } label: {
                 Image(systemName: "textformat")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(selectedTool == .text ? .yellow : .white.opacity(0.7))
+                    .foregroundColor(selectedTool == .text ? .yellow : AdaptiveColors.primaryTextAuto.opacity(0.75))
                     .frame(width: 28, height: 28)
-                    .background(Color.white.opacity(0.08))
+                    .background(AdaptiveColors.overlayAuto(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
             .menuStyle(.borderlessButton)
@@ -543,27 +544,24 @@ struct ScreenshotEditorView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
         }
-        .background(useTransparentBackground ? Color.white.opacity(0.04) : Color(white: 0.06))
+        .background(useTransparentBackground ? AdaptiveColors.overlayAuto(0.04) : AdaptiveColors.buttonBackgroundAuto)
     }
     
     private var toolbarDivider: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.1))
+            .fill(AdaptiveColors.overlayAuto(0.1))
             .frame(width: 1, height: 22)
     }
     
     // MARK: - Output Functions
     
     private func saveToFile() {
-        let annotatedImage = renderAnnotatedImage()
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png]
         savePanel.nameFieldStringValue = "Screenshot.png"
         
         if savePanel.runModal() == .OK, let url = savePanel.url {
-            if let tiffData = annotatedImage.tiffRepresentation,
-               let bitmap = NSBitmapImageRep(data: tiffData),
-               let pngData = bitmap.representation(using: .png, properties: [:]) {
+            if let pngData = renderAnnotatedPNGData() {
                 try? pngData.write(to: url)
             }
         }
@@ -571,11 +569,8 @@ struct ScreenshotEditorView: View {
     
     private func shareViaQuickshare() {
         guard !ExtensionType.quickshare.isRemoved else { return }
-        let annotatedImage = renderAnnotatedImage()
         // Use Droppy's quickshare
-        if let tiffData = annotatedImage.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData),
-           let pngData = bitmap.representation(using: .png, properties: [:]) {
+        if let pngData = renderAnnotatedPNGData() {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("screenshot_\(UUID().uuidString).png")
             try? pngData.write(to: tempURL)
             // Use DroppyQuickshare to upload
@@ -585,11 +580,8 @@ struct ScreenshotEditorView: View {
     }
     
     private func addToShelf() {
-        let annotatedImage = renderAnnotatedImage()
         // Save to temp file and add to shelf
-        if let tiffData = annotatedImage.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData),
-           let pngData = bitmap.representation(using: .png, properties: [:]) {
+        if let pngData = renderAnnotatedPNGData() {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("screenshot_\(UUID().uuidString).png")
             try? pngData.write(to: tempURL)
             // Directly add to shelf
@@ -599,11 +591,8 @@ struct ScreenshotEditorView: View {
     }
     
     private func addToBasket() {
-        let annotatedImage = renderAnnotatedImage()
         // Save to temp file and add to basket
-        if let tiffData = annotatedImage.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData),
-           let pngData = bitmap.representation(using: .png, properties: [:]) {
+        if let pngData = renderAnnotatedPNGData() {
             let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("screenshot_\(UUID().uuidString).png")
             try? pngData.write(to: tempURL)
             FloatingBasketWindowController.addItemsFromExternalSource([tempURL])
@@ -666,7 +655,7 @@ struct ScreenshotEditorView: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.08))
+                        .background(AdaptiveColors.overlayAuto(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     }
                     .menuStyle(.borderlessButton)
@@ -709,7 +698,7 @@ struct ScreenshotEditorView: View {
             .padding(DroppySpacing.lg)
         }
         .frame(width: 320)
-        .background(Color(white: 0.08))
+        .background(AdaptiveColors.panelBackgroundAuto)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
     
@@ -933,22 +922,76 @@ struct ScreenshotEditorView: View {
     // MARK: - Rendering
     
     private func renderAnnotatedImage() -> NSImage {
-        let size = originalImage.size
-        let image = NSImage(size: size)
-        
-        image.lockFocus()
-        
-        // Draw original image
-        originalImage.draw(in: NSRect(origin: .zero, size: size))
-        
-        // Draw annotations
-        for annotation in annotations {
-            drawAnnotation(annotation, in: size)
+        guard let bitmap = renderAnnotatedBitmap() else {
+            return originalImage
         }
         
-        image.unlockFocus()
-        
+        let image = NSImage(size: bitmap.size)
+        image.addRepresentation(bitmap)
         return image
+    }
+    
+    private func renderAnnotatedPNGData() -> Data? {
+        guard let bitmap = renderAnnotatedBitmap() else { return nil }
+        return bitmap.representation(using: .png, properties: [:])
+    }
+    
+    private func renderAnnotatedBitmap() -> NSBitmapImageRep? {
+        let renderSize = sourcePixelSize()
+        let renderWidth = max(1, Int(renderSize.width.rounded(.toNearestOrAwayFromZero)))
+        let renderHeight = max(1, Int(renderSize.height.rounded(.toNearestOrAwayFromZero)))
+        
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: renderWidth,
+            pixelsHigh: renderHeight,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return nil
+        }
+        
+        bitmap.size = originalImage.size
+        
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            return nil
+        }
+        
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        
+        let renderRect = NSRect(origin: .zero, size: renderSize)
+        
+        // Draw original image at full pixel resolution.
+        originalImage.draw(in: renderRect, from: .zero, operation: .copy, fraction: 1.0)
+        
+        // Draw annotations on top in the same pixel coordinate space.
+        for annotation in annotations {
+            drawAnnotation(annotation, in: renderSize)
+        }
+        
+        NSGraphicsContext.restoreGraphicsState()
+        return bitmap
+    }
+    
+    private func sourcePixelSize() -> NSSize {
+        if let bitmapRep = originalImage.representations
+            .compactMap({ $0 as? NSBitmapImageRep })
+            .max(by: { ($0.pixelsWide * $0.pixelsHigh) < ($1.pixelsWide * $1.pixelsHigh) }) {
+            return NSSize(width: bitmapRep.pixelsWide, height: bitmapRep.pixelsHigh)
+        }
+        
+        if let cgImage = originalImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return NSSize(width: cgImage.width, height: cgImage.height)
+        }
+        
+        return originalImage.size
     }
     
     private func drawAnnotation(_ annotation: Annotation, in size: NSSize) {

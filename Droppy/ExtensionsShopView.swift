@@ -9,6 +9,7 @@ struct ExtensionsShopView: View {
     @State private var extensionCounts: [String: Int] = [:]
     @State private var extensionRatings: [String: AnalyticsService.ExtensionRating] = [:]
     @State private var refreshTrigger = UUID() // Force view refresh
+    @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
     
     // MARK: - Installed State Checks
     private var isAIInstalled: Bool { AIInstallManager.shared.isInstalled }
@@ -43,6 +44,30 @@ struct ExtensionsShopView: View {
         .id(refreshTrigger)
         .onAppear {
             Task {
+                guard !disableAnalytics else {
+                    extensionCounts = [:]
+                    extensionRatings = [:]
+                    return
+                }
+                async let countsTask = AnalyticsService.shared.fetchExtensionCounts()
+                async let ratingsTask = AnalyticsService.shared.fetchExtensionRatings()
+                
+                if let counts = try? await countsTask {
+                    extensionCounts = counts
+                }
+                if let ratings = try? await ratingsTask {
+                    extensionRatings = ratings
+                }
+            }
+        }
+        .onChange(of: disableAnalytics) { _, isDisabled in
+            if isDisabled {
+                extensionCounts = [:]
+                extensionRatings = [:]
+                return
+            }
+
+            Task {
                 async let countsTask = AnalyticsService.shared.fetchExtensionCounts()
                 async let ratingsTask = AnalyticsService.shared.fetchExtensionRatings()
                 
@@ -72,7 +97,7 @@ struct ExtensionsShopView: View {
                     
                     Text("Featured Extensions")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 }
                 
                 Spacer()
@@ -220,11 +245,11 @@ struct ExtensionsShopView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "square.grid.2x2.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                     
                     Text("All Extensions")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 }
                 
                 Spacer()
@@ -258,11 +283,11 @@ struct ExtensionsShopView: View {
                     }
                 }
             }
-            .background(Color.white.opacity(0.03))
+            .background(AdaptiveColors.overlayAuto(0.03))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
     }
@@ -621,6 +646,51 @@ struct FeaturedExtensionCard<DetailView: View>: View {
     
     @State private var showSheet = false
     @State private var isHovering = false
+
+    private var titleColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var subtitleColor: Color {
+        AdaptiveColors.secondaryTextAuto
+    }
+
+    private var statTextColor: Color {
+        AdaptiveColors.secondaryTextAuto.opacity(0.82)
+    }
+
+    private var actionTextColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var actionBackgroundColor: Color {
+        accentColor.opacity(0.24)
+    }
+
+    private var screenshotOpacity: Double {
+        0.2
+    }
+
+    private var screenshotFade: LinearGradient {
+        return LinearGradient(
+            stops: [
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.98), location: 0.0),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.94), location: 0.45),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.72), location: 0.65),
+                .init(color: Color.clear, location: 1.0)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private var cardBackground: LinearGradient {
+        return LinearGradient(
+            colors: [AdaptiveColors.panelBackgroundAuto, AdaptiveColors.overlayAuto(0.04)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
     var body: some View {
         Button {
@@ -645,19 +715,10 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                             }
                         }
                     }
-                    .opacity(0.25)  // Very dark/faded
+                    .opacity(screenshotOpacity)
                     
                     // Gradient fade from left to blend the screenshot
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black, location: 0.0),
-                            .init(color: Color.black, location: 0.4),
-                            .init(color: Color.black.opacity(0.8), location: 0.6),
-                            .init(color: Color.clear, location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    screenshotFade
                 }
                 
                 // Content overlay
@@ -674,29 +735,29 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                         // Title
                         Text(title)
                             .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(titleColor)
                         
                         // Subtitle
                         Text(subtitle)
                             .font(.system(size: 13))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(subtitleColor)
                         
                         Spacer()
                         
-                        // Get/Open Button
+                        // Setup/Manage Button
                         HStack(spacing: 12) {
-                            Text(isInstalled ? "Open" : "Get")
+                            Text(isInstalled ? "Manage" : "Set Up")
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(actionTextColor)
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 8)
                                 .background(
                                     RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
-                                        .fill(accentColor.opacity(0.4))
+                                        .fill(actionBackgroundColor)
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                        .stroke(AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
                                 )
                             
                             if let count = installCount, count > 0 {
@@ -706,7 +767,7 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                                     Text("\(count)")
                                         .font(.caption2.weight(.medium))
                                 }
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(statTextColor)
                             }
                         }
                     }
@@ -715,12 +776,10 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                     
                     // Icon
                     CachedAsyncImage(url: URL(string: iconURL)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                        image.droppyExtensionIcon(contentMode: .fill)
                     } placeholder: {
                         RoundedRectangle(cornerRadius: DroppyRadius.large)
-                            .fill(Color.white.opacity(0.1))
+                            .fill(AdaptiveColors.overlayAuto(0.1))
                     }
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous))
@@ -729,11 +788,11 @@ struct FeaturedExtensionCard<DetailView: View>: View {
                 .padding(DroppySpacing.xl)
             }
             .frame(height: 160)
-            .background(Color.black)
+            .background(cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.01 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
@@ -764,6 +823,39 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
     
     @State private var showSheet = false
     @State private var isHovering = false
+
+    private var titleColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var subtitleColor: Color {
+        AdaptiveColors.secondaryTextAuto
+    }
+
+    private var featureColor: Color {
+        AdaptiveColors.primaryTextAuto.opacity(0.88)
+    }
+
+    private var screenshotFade: LinearGradient {
+        return LinearGradient(
+            stops: [
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.98), location: 0.0),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.94), location: 0.45),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.72), location: 0.65),
+                .init(color: Color.clear, location: 1.0)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private var cardBackground: LinearGradient {
+        return LinearGradient(
+            colors: [AdaptiveColors.panelBackgroundAuto, AdaptiveColors.overlayAuto(0.04)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
     var body: some View {
         Button {
@@ -788,19 +880,10 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                             }
                         }
                     }
-                    .opacity(0.25)
+                    .opacity(0.2)
                     
                     // Gradient fade from left
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black, location: 0.0),
-                            .init(color: Color.black, location: 0.4),
-                            .init(color: Color.black.opacity(0.8), location: 0.6),
-                            .init(color: Color.clear, location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    screenshotFade
                 }
                 
                 // Content overlay
@@ -810,7 +893,7 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                         HStack(spacing: 6) {
                             Text(title)
                                 .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(titleColor)
                             
                             if isNew {
                                 Text("New")
@@ -825,23 +908,23 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                         // Subtitle
                         Text(subtitle)
                             .font(.system(size: 13))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(subtitleColor)
                         
                         // Feature badges
                         HStack(spacing: 8) {
                             ForEach(features, id: \.self) { feature in
                                 Text(feature)
                                     .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.8))
+                                    .foregroundStyle(featureColor)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(
                                         Capsule()
-                                            .fill(Color.white.opacity(0.1))
+                                            .fill(AdaptiveColors.overlayAuto(0.08))
                                     )
                                     .overlay(
                                         Capsule()
-                                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                            .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
                                     )
                             }
                         }
@@ -851,12 +934,10 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                     
                     // Icon
                     CachedAsyncImage(url: URL(string: iconURL)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
+                        image.droppyExtensionIcon(contentMode: .fill)
                     } placeholder: {
                         RoundedRectangle(cornerRadius: DroppyRadius.large)
-                            .fill(Color.white.opacity(0.1))
+                            .fill(AdaptiveColors.overlayAuto(0.1))
                     }
                     .frame(width: 64, height: 64)
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
@@ -865,11 +946,11 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
                 .padding(DroppySpacing.xl)
             }
             .frame(height: 120)
-            .background(Color.black)
+            .background(cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.01 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
@@ -903,6 +984,35 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
     
     @State private var showSheet = false
     @State private var isHovering = false
+
+    private var titleColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var subtitleColor: Color {
+        AdaptiveColors.secondaryTextAuto
+    }
+
+    private var screenshotFade: LinearGradient {
+        return LinearGradient(
+            stops: [
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.98), location: 0.0),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.94), location: 0.4),
+                .init(color: AdaptiveColors.panelBackgroundAuto.opacity(0.72), location: 0.65),
+                .init(color: Color.clear, location: 1.0)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    private var cardBackground: LinearGradient {
+        return LinearGradient(
+            colors: [AdaptiveColors.panelBackgroundAuto, AdaptiveColors.overlayAuto(0.04)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
     var body: some View {
         Button {
@@ -927,19 +1037,10 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                             }
                         }
                     }
-                    .opacity(0.2)  // Very dark/faded
+                    .opacity(0.16)
                     
                     // Gradient fade from left
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.black, location: 0.0),
-                            .init(color: Color.black, location: 0.35),
-                            .init(color: Color.black.opacity(0.7), location: 0.55),
-                            .init(color: Color.clear, location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+                    screenshotFade
                 }
                 
                 // Content overlay
@@ -950,11 +1051,9 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                         
                         if let iconURL, let iconURLValue = URL(string: iconURL) {
                             CachedAsyncImage(url: iconURLValue) { image in
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                image.droppyExtensionIcon(contentMode: .fill)
                             } placeholder: {
-                                Circle().fill(Color.white.opacity(0.1))
+                                Circle().fill(AdaptiveColors.overlayAuto(0.1))
                             }
                             .frame(width: 36, height: 36)
                             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
@@ -969,7 +1068,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                                 .droppyCardShadow(opacity: 0.3)
                         } else {
                             Circle()
-                                .fill(Color.white.opacity(0.1))
+                                .fill(AdaptiveColors.overlayAuto(0.1))
                                 .frame(width: 36, height: 36)
                         }
                     }
@@ -980,7 +1079,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                     HStack(spacing: 5) {
                         Text(title)
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(titleColor)
                             .lineLimit(1)
                         
                         if isNew {
@@ -996,7 +1095,7 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                     // Subtitle
                     Text(subtitle)
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(subtitleColor)
                         .lineLimit(1)
                 }
                 .padding(DroppySpacing.mdl)
@@ -1007,12 +1106,12 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                         HStack {
                             Text(category)
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
                                     Capsule()
-                                        .fill(accentColor)
+                                        .fill(accentColor.opacity(0.25))
                                 )
                                 .droppyCardShadow(opacity: 0.3)
                             Spacer()
@@ -1023,11 +1122,11 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 110)
-            .background(Color.black)
+            .background(cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hoverBouncy, value: isHovering)
@@ -1066,12 +1165,10 @@ struct CompactExtensionRow<DetailView: View>: View {
                 // Icon
                 if let urlString = iconURL, let url = URL(string: urlString) {
                     CachedAsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
+                        image.droppyExtensionIcon(contentMode: .fit)
                     } placeholder: {
                         RoundedRectangle(cornerRadius: DroppyRadius.ms)
-                            .fill(Color.white.opacity(0.1))
+                            .fill(AdaptiveColors.overlayAuto(0.1))
                     }
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
@@ -1084,7 +1181,7 @@ struct CompactExtensionRow<DetailView: View>: View {
                         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
                 } else {
                     RoundedRectangle(cornerRadius: DroppyRadius.ms)
-                        .fill(Color.white.opacity(0.1))
+                        .fill(AdaptiveColors.overlayAuto(0.1))
                         .frame(width: 44, height: 44)
                 }
                 
@@ -1116,8 +1213,8 @@ struct CompactExtensionRow<DetailView: View>: View {
                 
                 Spacer()
                 
-                // Get/Open Button
-                Text(isInstalled ? "Open" : "Get")
+                // Setup/Manage Button
+                Text(isInstalled ? "Manage" : "Set Up")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
@@ -1128,12 +1225,12 @@ struct CompactExtensionRow<DetailView: View>: View {
                     )
                     .overlay(
                         Capsule()
-                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                            .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                     )
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(isHovering ? Color.white.opacity(0.03) : Color.clear)
+            .background(isHovering ? AdaptiveColors.overlayAuto(0.03) : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(DroppyCardButtonStyle())
@@ -1181,7 +1278,7 @@ struct CategoryPillButton: View {
             }
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isSelected ? AdaptiveColors.overlayAuto(0.15) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
         .buttonStyle(DroppySelectableButtonStyle(isSelected: isSelected))
@@ -1203,14 +1300,14 @@ struct ExtensionCardStyle: ViewModifier {
         if isHovering {
             return accentColor.opacity(0.7)
         } else {
-            return Color.white.opacity(0.1)
+            return AdaptiveColors.overlayAuto(0.1)
         }
     }
     
     func body(content: Content) -> some View {
         content
             .padding(DroppySpacing.lg)
-            .background(Color.white.opacity(0.05))
+            .background(AdaptiveColors.overlayAuto(0.05))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
@@ -1236,7 +1333,7 @@ struct AIExtensionCardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(DroppySpacing.lg)
-            .background(Color.white.opacity(0.05))
+            .background(AdaptiveColors.overlayAuto(0.05))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
@@ -1247,7 +1344,7 @@ struct AIExtensionCardStyle: ViewModifier {
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ))
-                            : AnyShapeStyle(Color.white.opacity(0.1)),
+                            : AnyShapeStyle(AdaptiveColors.overlayAuto(0.1)),
                         lineWidth: 1
                     )
             )
@@ -1329,7 +1426,7 @@ struct AIBackgroundRemovalSettingsRow: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 CachedAsyncImage(url: URL(string: "https://getdroppy.app/assets/icons/ai-bg.jpg")) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
+                    image.droppyExtensionIcon(contentMode: .fill)
                 } placeholder: {
                     Image(systemName: "brain.head.profile").font(.system(size: 24)).foregroundStyle(.blue)
                 }
@@ -1343,7 +1440,7 @@ struct AIBackgroundRemovalSettingsRow: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
             }
             
             VStack(alignment: .leading, spacing: 4) {

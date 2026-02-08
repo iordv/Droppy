@@ -49,7 +49,7 @@ struct PremiumSettingsIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -89,7 +89,7 @@ struct NowPlayingIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.30), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.30), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -321,7 +321,7 @@ struct VolumeHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight + 28)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // HUD content - laid out exactly like real NotchHUDView
@@ -407,7 +407,7 @@ struct MediaPlayerPreview: View {
                 .frame(width: hudWidth, height: notchHeight + 28)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // HUD content - laid out exactly like real MediaHUDView
@@ -483,7 +483,7 @@ struct ClipboardPreview: View {
             
             // Divider between flagged and regular
             Rectangle()
-                .fill(Color.white.opacity(0.1))
+                .fill(AdaptiveColors.overlayAuto(0.1))
                 .frame(height: 1)
                 .padding(.horizontal, 4)
             
@@ -493,11 +493,11 @@ struct ClipboardPreview: View {
             ClipboardMockRow(icon: "photo", title: "Screenshot.png", subtitle: "Finder • 10:35", isSelected: false, showStar: true, useTransparentBackground: useTransparentBackground)
         }
         .padding(DroppySpacing.sm)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                .strokeBorder(Color.white.opacity(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
+                .strokeBorder(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
         )
         .frame(width: 240)
         .frame(maxWidth: .infinity)
@@ -515,12 +515,12 @@ private struct ClipboardMockGridItem: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .foregroundStyle(.white)
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .font(.system(size: 10))
             
             Text(title)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
                 .lineLimit(1)
             
             Spacer(minLength: 0)
@@ -554,11 +554,11 @@ private struct ClipboardMockRow: View {
             // Icon in squircle - matches real 32x32 squircle
             ZStack {
                 RoundedRectangle(cornerRadius: DroppyRadius.sm, style: .continuous)
-                    .fill(Color.white.opacity(useTransparentBackground ? 0.14 : 0.1))
+                    .fill(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.14 : 0.1))
                     .frame(width: 24, height: 24)
                 
                 Image(systemName: icon)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto)
                     .font(.system(size: 10))
             }
             
@@ -566,7 +566,7 @@ private struct ClipboardMockRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(isSelected ? .white : AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                 
                 Text(subtitle)
@@ -589,7 +589,7 @@ private struct ClipboardMockRow: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(isSelected
                       ? Color.blue.opacity(useTransparentBackground ? 0.72 : 0.8)
-                      : Color.white.opacity(useTransparentBackground ? 0.16 : 0.12))
+                      : AdaptiveColors.overlayAuto(useTransparentBackground ? 0.16 : 0.12))
         )
     }
 }
@@ -609,13 +609,14 @@ struct BatteryHUDPreview: View {
     
     private var batteryIcon: String {
         if isCharging {
-            return "battery.100.bolt"
+            return "battery.100percent.bolt"
         } else {
             switch batteryLevel {
-            case 0...24: return "battery.25"
-            case 25...49: return "battery.50"
-            case 50...74: return "battery.75"
-            default: return "battery.100"
+            case 0...10: return "battery.0percent"
+            case 11...25: return "battery.25percent"
+            case 26...50: return "battery.50percent"
+            case 51...75: return "battery.75percent"
+            default: return "battery.100percent"
             }
         }
     }
@@ -634,7 +635,7 @@ struct BatteryHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // Wings: Battery (left) | Camera Gap | Percentage (right)
@@ -719,7 +720,7 @@ struct CapsLockHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // Wings: Caps Lock (left) | Camera Gap | ON/OFF (right)
@@ -771,8 +772,9 @@ struct CapsLockHUDPreview: View {
 
 /// AirPods HUD Preview - shows stylized AirPods with battery indicator
 struct AirPodsHUDPreview: View {
-    @State private var rotation: Double = 0
-    @State private var animationTimer: Timer?
+    @State private var iconLift: CGFloat = 2
+    @State private var iconBreathingScale: CGFloat = 0.98
+    @State private var iconSheenOpacity: CGFloat = 0.2
     
     // Match real notch dimensions
     private let hudWidth: CGFloat = 280
@@ -789,18 +791,39 @@ struct AirPodsHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // Wings: AirPods icon (left) | Camera Gap | Battery (right)
             HStack(spacing: 0) {
-                // Left wing - AirPods icon with subtle rotation
+                // Left wing - AirPods icon with depth (no rotation)
                 HStack {
                     Spacer(minLength: 0)
-                    Image(systemName: "airpodspro")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.white)
-                        .rotation3DEffect(.degrees(rotation), axis: (x: 0, y: 1, z: 0))
+                    ZStack {
+                        Image(systemName: "airpodspro")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.black.opacity(0.28))
+                            .offset(x: 0.8, y: 1.2)
+
+                        Image(systemName: "airpodspro")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white.opacity(0.95))
+
+                        Image(systemName: "airpodspro")
+                            .font(.system(size: 18))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.9), .white.opacity(0.1), .clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .blendMode(.screen)
+                            .opacity(iconSheenOpacity)
+                    }
+                    .scaleEffect(iconBreathingScale)
+                    .offset(y: iconLift)
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                     Spacer(minLength: 0)
                 }
                 .frame(width: wingWidth)
@@ -823,13 +846,11 @@ struct AirPodsHUDPreview: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
         .onAppear {
-            // Subtle rotation animation
-            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                rotation = 15
+            iconLift = 0
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                iconBreathingScale = 1.02
+                iconSheenOpacity = 0.45
             }
-        }
-        .onDisappear {
-            animationTimer?.invalidate()
         }
     }
 }
@@ -854,7 +875,7 @@ struct LockScreenHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // Wings: Lock icon (left) | Camera Gap | Status (right)
@@ -926,7 +947,7 @@ struct FocusModeHUDPreview: View {
                 .frame(width: hudWidth, height: notchHeight)
                 .overlay(
                     NotchShape(bottomRadius: 16)
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
                 )
             
             // Wings: Moon icon (left) | Camera Gap | ON/OFF (right)
@@ -990,12 +1011,12 @@ struct FloatingBasketPreview: View {
         ZStack {
             // Background follows current style mode
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
             
             VStack(spacing: 0) {
                 // Drag handle - matches BasketDragHandle (44x5 capsule)
                 Capsule()
-                    .fill(Color.white.opacity(0.22))
+                    .fill(AdaptiveColors.overlayAuto(0.22))
                     .frame(width: 36, height: 4)
                     .padding(.top, 8)
                 
@@ -1004,18 +1025,18 @@ struct FloatingBasketPreview: View {
                     // X close button - matches DroppyCircleButtonStyle (CIRCLE)
                     Image(systemName: "xmark")
                         .font(.system(size: buttonSize * 0.4, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.82))
                         .frame(width: buttonSize, height: buttonSize)
-                        .background(Circle().fill(Color.white.opacity(useTransparentBackground ? 0.18 : 0.12)))
+                        .background(Circle().fill(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.18 : 0.12)))
                     
                     Spacer()
                     
                     // Chevron menu button - matches DroppyCircleButtonStyle (CIRCLE)
                     Image(systemName: "chevron.down")
                         .font(.system(size: buttonSize * 0.4, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.82))
                         .frame(width: buttonSize, height: buttonSize)
-                        .background(Circle().fill(Color.white.opacity(useTransparentBackground ? 0.18 : 0.12)))
+                        .background(Circle().fill(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.18 : 0.12)))
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 6)
@@ -1040,14 +1061,14 @@ struct FloatingBasketPreview: View {
                         .font(.system(size: 13, weight: .medium))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.62))
                 }
-                .foregroundStyle(.white.opacity(0.8))
+                .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.86))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .background(
                     Capsule()
-                        .fill(Color.white.opacity(useTransparentBackground ? 0.18 : 0.12))
+                        .fill(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.18 : 0.12))
                 )
                 .padding(.bottom, 12)
             }
@@ -1056,7 +1077,7 @@ struct FloatingBasketPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Color.white.opacity(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
         )
         .droppyCardShadow()
         .frame(maxWidth: .infinity)
@@ -1135,7 +1156,7 @@ struct PeekPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -1190,7 +1211,7 @@ struct PeekPreview: View {
                         .font(.system(size: 8 * miniBasketScale, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 16 * miniBasketScale, height: 16 * miniBasketScale)
-                        .background(Color.white.opacity(0.1))
+                        .background(AdaptiveColors.overlayAuto(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 14 * miniBasketScale, style: .continuous))
                 }
                 
@@ -1209,7 +1230,7 @@ struct PeekPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20 * miniBasketScale, style: .continuous)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.25), radius: 8 * miniBasketScale, x: 0, y: 4 * miniBasketScale)
     }
@@ -1282,7 +1303,7 @@ private struct MiniFileItem: View {
                 .font(.system(size: 22 * scale))
                 .foregroundStyle(color)
                 .frame(width: 44 * scale, height: 44 * scale)
-                .background(Color.white.opacity(0.08))
+                .background(AdaptiveColors.overlayAuto(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 14 * scale, style: .continuous))
             
             Text(name)
@@ -1305,7 +1326,7 @@ private struct MockFileItem: View {
                 .font(.system(size: 22))
                 .foregroundStyle(color)
                 .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.08))
+                .background(AdaptiveColors.overlayAuto(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             
             Text(name)
@@ -1329,17 +1350,17 @@ struct NotchShelfPreview: View {
     var body: some View {
         ZStack {
             NotchShape(bottomRadius: 40)
-                .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
                 .overlay(
                     NotchShape(bottomRadius: 40)
-                        .stroke(Color.white.opacity(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.22 : 0.15), lineWidth: 1)
                 )
             
             // Real empty shelf drop zone styling: dashed rounded rectangle + centered icon
             ZStack {
                 RoundedRectangle(cornerRadius: DroppyRadius.jumbo + 2, style: .continuous)
                     .strokeBorder(
-                        Color.white.opacity(useTransparentBackground ? 0.2 : 0.16),
+                        AdaptiveColors.overlayAuto(useTransparentBackground ? 0.2 : 0.16),
                         style: StrokeStyle(
                             lineWidth: 1.5,
                             lineCap: .round,
@@ -1348,7 +1369,12 @@ struct NotchShelfPreview: View {
                         )
                     )
                 
-                DropZoneIcon(type: .shelf, size: 44, isActive: false)
+                DropZoneIcon(
+                    type: .shelf,
+                    size: 44,
+                    isActive: false,
+                    useAdaptiveForegrounds: true
+                )
             }
             .padding(contentInsets)
         }
@@ -1379,7 +1405,7 @@ private struct MockShelfItem: View {
             .font(.system(size: 18))
             .foregroundStyle(color)
             .frame(width: 36, height: 36)
-            .background(Color.white.opacity(0.08))
+            .background(AdaptiveColors.overlayAuto(0.08))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
     }
 }
@@ -1407,7 +1433,7 @@ struct OpenShelfIndicatorPreview: View {
                 .fill(Color.black)
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 1)
                 )
                 .droppyCardShadow()
         )
@@ -1433,7 +1459,7 @@ struct DropIndicatorPreview: View {
                     .fill(Color.black)
                     .overlay(
                         RoundedRectangle(cornerRadius: DroppyRadius.xxl, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 1)
                     )
                     .droppyCardShadow()
             )
@@ -1520,7 +1546,7 @@ struct VolumeHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1550,6 +1576,7 @@ struct VolumeHUDIcon: View {
 /// Compact animated battery icon for settings rows
 struct BatteryHUDIcon: View {
     @State private var isCharging = true
+    @State private var level: CGFloat = 0.48
     @State private var animationTimer: Timer?
     
     var body: some View {
@@ -1571,22 +1598,31 @@ struct BatteryHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
                 )
                 .frame(width: 40, height: 40)
             
-            Image(systemName: isCharging ? "battery.100.bolt" : "battery.75")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
-                .symbolEffect(.pulse, options: .repeating, isActive: isCharging)
-                .droppyTextShadow()
+            IOSBatteryGlyph(
+                level: level,
+                outerColor: isCharging ? Color(white: 0.62) : Color(red: 0.16, green: 0.48, blue: 0.24),
+                innerColor: isCharging ? Color(red: 0.46, green: 0.96, blue: 0.56) : Color(red: 0.46, green: 0.93, blue: 0.52),
+                terminalColor: isCharging ? Color(white: 0.62) : Color(red: 0.20, green: 0.56, blue: 0.28),
+                chargingSegmentColor: Color(white: 0.58),
+                isCharging: isCharging,
+                bodyWidth: 23,
+                bodyHeight: 12
+            )
+            .frame(width: 24, height: 18)
         }
         .onAppear {
             animationTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-                withAnimation { isCharging.toggle() }
+                withAnimation {
+                    isCharging.toggle()
+                    level = isCharging ? 0.48 : 0.78
+                }
             }
         }
         .onDisappear {
@@ -1623,7 +1659,7 @@ struct CapsLockHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1670,7 +1706,7 @@ struct AirPodsHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.35), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.35), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1709,7 +1745,7 @@ struct LockScreenHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1761,7 +1797,7 @@ struct FocusModeHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1817,7 +1853,7 @@ struct UpdateHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1867,7 +1903,7 @@ struct NotificationHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1924,7 +1960,7 @@ struct TerminalHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )
@@ -1981,7 +2017,7 @@ struct HighAlertHUDIcon: View {
             RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [Color.white.opacity(0.25), Color.clear],
+                        colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                         startPoint: .top,
                         endPoint: .center
                     )

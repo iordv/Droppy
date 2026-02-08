@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct WindowSnapCard: View {
-    @State private var hasShortcuts = false
+    @State private var hasConfiguration = false
     @State private var showInfoSheet = false
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
@@ -38,7 +38,7 @@ struct WindowSnapCard: View {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 10))
-                        Text("\(installCount ?? 0)")
+                        Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundStyle(.secondary)
@@ -59,14 +59,14 @@ struct WindowSnapCard: View {
                     .foregroundStyle(.secondary)
                     
                     // Category badge - shows "Installed" if configured
-                    Text(hasShortcuts ? "Installed" : "Productivity")
+                    Text(hasConfiguration ? "Installed" : "Productivity")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(hasShortcuts ? .green : .secondary)
+                        .foregroundStyle(hasConfiguration ? .green : .secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
                             Capsule()
-                                .fill(hasShortcuts ? Color.green.opacity(0.15) : AdaptiveColors.subtleBorderAuto)
+                                .fill(hasConfiguration ? Color.green.opacity(0.15) : AdaptiveColors.subtleBorderAuto)
                         )
                 }
             }
@@ -77,7 +77,7 @@ struct WindowSnapCard: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                 
-                Text("Snap windows to halves, quarters, and thirds with keyboard shortcuts.")
+                Text("Pointer-first + keyboard snapping with live edge/corner zones.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -88,7 +88,7 @@ struct WindowSnapCard: View {
             
             // Status row
             HStack {
-                if hasShortcuts {
+                if hasConfiguration {
                     HStack(spacing: 4) {
                         Circle()
                             .fill(Color.green)
@@ -120,11 +120,17 @@ struct WindowSnapCard: View {
     }
     
     private func loadShortcuts() {
-        // Check if any shortcuts are configured
+        // Check if either keyboard shortcuts or pointer mode are configured.
+        let pointerEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.windowSnapPointerModeEnabled,
+            default: PreferenceDefault.windowSnapPointerModeEnabled
+        )
         if let data = UserDefaults.standard.data(forKey: "windowSnapShortcuts"),
            let decoded = try? JSONDecoder().decode([String: SavedShortcut].self, from: data),
            !decoded.isEmpty {
-            hasShortcuts = true
+            hasConfiguration = true
+            return
         }
+        hasConfiguration = pointerEnabled
     }
 }

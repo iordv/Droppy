@@ -9,6 +9,7 @@ struct NotchItemView: View {
     let state: DroppyState
     @Binding var renamingItemId: UUID?
     let onRemove: () -> Void
+    var useAdaptiveForegroundsForTransparentNotch: Bool = false
     
     @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
     
@@ -287,6 +288,7 @@ struct NotchItemView: View {
             item: item,
             state: state,
             onRemove: onRemove,
+            useAdaptiveForegrounds: useAdaptiveForegroundsForTransparentNotch,
             thumbnail: thumbnail,
             isHovering: isHovering,
             isConverting: isConverting,
@@ -810,7 +812,7 @@ struct NotchItemView: View {
                     withAnimation(DroppyAnimation.state) {
                         isPoofing = true
                     }
-                    OCRWindowController.shared.show(with: text)
+                    OCRWindowController.shared.presentExtractedText(text)
                 }
             } catch {
                 await MainActor.run {
@@ -1340,6 +1342,7 @@ private struct NotchItemContent: View {
     let item: DroppedItem
     let state: DroppyState
     let onRemove: () -> Void
+    let useAdaptiveForegrounds: Bool
     let thumbnail: NSImage?
     let isHovering: Bool
     let isConverting: Bool
@@ -1370,6 +1373,14 @@ private struct NotchItemContent: View {
         if isSelected { return Color.accentColor }
         return Color.clear
     }
+
+    private var primaryTextColor: Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white
+    }
+
+    private func overlayTone(_ opacity: Double) -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(opacity) : Color.white.opacity(opacity)
+    }
     
     var body: some View {
         VStack(spacing: 4) {
@@ -1397,7 +1408,7 @@ private struct NotchItemContent: View {
                 .background {
                     if isSelected {
                         RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
-                            .fill(Color.white.opacity(0.15))
+                            .fill(overlayTone(0.15))
                             .padding(-4)
                     }
                 }
@@ -1407,7 +1418,7 @@ private struct NotchItemContent: View {
                     if isConverting || isExtractingText || isCompressing || isUnzipping || isCreatingZIP {
                         ProgressView()
                             .scaleEffect(0.6)
-                            .tint(.white)
+                            .tint(primaryTextColor)
                     }
                 }
                 .overlay {
@@ -1427,7 +1438,10 @@ private struct NotchItemContent: View {
                     Button(action: onRemove) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(.white, .gray.opacity(0.8))
+                            .foregroundStyle(
+                                primaryTextColor,
+                                useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.8) : .gray.opacity(0.8)
+                            )
                     }
                     .buttonStyle(.borderless)
                     .offset(x: 4, y: 2) // Keep within bounds
@@ -1442,13 +1456,13 @@ private struct NotchItemContent: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(item.isPinned ? Color.orange : Color.white.opacity(0.9))
+                                .fill(item.isPinned ? Color.orange : overlayTone(0.9))
                                 .frame(width: 18, height: 18)
                                 .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                             
                             Image(systemName: item.isPinned ? "pin.slash.fill" : "pin.fill")
                                 .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(item.isPinned ? .white : .orange)
+                                .foregroundStyle(item.isPinned ? .white : (useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .orange))
                         }
                     }
                     .buttonStyle(.borderless)
@@ -1460,7 +1474,7 @@ private struct NotchItemContent: View {
             // FINDER-STYLE: Label with pill selection background
             Text(item.name)
                 .font(.system(size: 11))
-                .foregroundColor(.white)
+                .foregroundStyle(primaryTextColor)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .frame(width: 64)
@@ -1529,7 +1543,7 @@ private struct AutoSelectTextField: NSViewRepresentable {
         textField.isBordered = false
         textField.drawsBackground = false
         textField.backgroundColor = .clear
-        textField.textColor = .white
+        textField.textColor = .labelColor
         textField.font = .systemFont(ofSize: 14, weight: .medium)
         textField.alignment = .left
         textField.focusRingType = .none
@@ -1601,7 +1615,7 @@ private struct RenameTooltipPopover: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
             
             AutoSelectTextField(
                 text: $text,
@@ -1633,5 +1647,13 @@ private struct RenameTooltipPopover: View {
         }
         .padding(14)
         .frame(width: 260)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.97))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(AdaptiveColors.subtleBorderAuto.opacity(0.9), lineWidth: 1)
+                )
+        }
     }
 }

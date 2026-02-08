@@ -229,6 +229,43 @@ enum SnapAction: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum WindowSnapResizeMode: String, CaseIterable, Identifiable, Codable {
+    case classic
+    case closestCorner
+
+    var id: String { rawValue }
+}
+
+private enum WindowSnapInteractionType {
+    case move
+    case resize
+}
+
+private enum WindowSnapResizeCorner {
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+}
+
+private struct WindowSnapDragState {
+    let type: WindowSnapInteractionType
+    let window: AXUIElement
+    let appPID: pid_t
+    let initialFrame: CGRect
+    let initialMousePoint: CGPoint  // Screen coordinates (Y=0 at top)
+    let resizeCorner: WindowSnapResizeCorner?
+    var activeSnapAction: SnapAction?
+    var activeSnapFrame: CGRect?
+}
+
+private struct WindowSnapPointerTarget {
+    let window: AXUIElement
+    let app: NSRunningApplication?
+    let bundleID: String?
+    let pid: pid_t
+}
+
 // MARK: - Window Snap Manager
 
 @MainActor
@@ -244,6 +281,13 @@ final class WindowSnapManager: ObservableObject {
     
     private var hotkeyMonitors: [SnapAction: GlobalHotKey] = [:]  // Carbon-based for reliability
     private var savedWindowFrames: [pid_t: CGRect] = [:]  // For restore functionality
+    private var pointerDownMonitor: Any?
+    private var pointerDragMonitor: Any?
+    private var pointerUpMonitor: Any?
+    private var pointerFlagsMonitor: Any?
+    private var dragState: WindowSnapDragState?
+    private var lastDragUpdateAt: TimeInterval = 0
+    private var defaultsObserver: NSObjectProtocol?
     
     // Cycle behavior tracking (Rectangle-style repeated shortcut cycling)
     private var lastSnapAction: SnapAction?
@@ -254,13 +298,85 @@ final class WindowSnapManager: ObservableObject {
     // Animation duration for smooth spring animation
     private let animationDuration: TimeInterval = 0.3
     private let animationSteps: Int = 30
-    
+    private let pointerFrameInterval: TimeInterval = 1.0 / 120.0
+    private let edgeSnapThreshold: CGFloat = 44
+    private let edgeSnapStickyInset: CGFloat = 22
+    private let minResizeWidth: CGFloat = 360
+    private let minResizeHeight: CGFloat = 240
+
     private let shortcutsKey = "windowSnapShortcuts"
+    private let excludedAppsKey = "windowSnapExcludedApps"
     
     // MARK: - Initialization
     
     private init() {
-        // Empty - shortcuts loaded via loadAndStartMonitoring after app launch
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshPointerMonitoring()
+            }
+        }
+    }
+
+    deinit {
+        if let defaultsObserver {
+            NotificationCenter.default.removeObserver(defaultsObserver)
+        }
+    }
+
+    var pointerModeEnabled: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.windowSnapPointerModeEnabled,
+            default: PreferenceDefault.windowSnapPointerModeEnabled
+        )
+    }
+
+    var bringToFrontWhenHandling: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.windowSnapBringToFrontWhenHandling,
+            default: PreferenceDefault.windowSnapBringToFrontWhenHandling
+        )
+    }
+
+    var resizeMode: WindowSnapResizeMode {
+        let raw = UserDefaults.standard.preference(
+            AppPreferenceKey.windowSnapResizeMode,
+            default: PreferenceDefault.windowSnapResizeMode
+        )
+        return WindowSnapResizeMode(rawValue: raw) ?? .closestCorner
+    }
+
+    var moveModifierMask: UInt {
+        let value = UserDefaults.standard.object(forKey: AppPreferenceKey.windowSnapMoveModifierMask) as? NSNumber
+        return value?.uintValue ?? PreferenceDefault.windowSnapMoveModifierMask
+    }
+
+    var resizeModifierMask: UInt {
+        let value = UserDefaults.standard.object(forKey: AppPreferenceKey.windowSnapResizeModifierMask) as? NSNumber
+        return value?.uintValue ?? PreferenceDefault.windowSnapResizeModifierMask
+    }
+
+    var excludedAppBundleIDs: Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: excludedAppsKey),
+              let decoded = try? JSONDecoder().decode(Set<String>.self, from: data) else {
+            return []
+        }
+        return decoded
+    }
+
+    func updateExcludedApp(_ bundleID: String, excluded: Bool) {
+        var updated = excludedAppBundleIDs
+        if excluded {
+            updated.insert(bundleID)
+        } else {
+            updated.remove(bundleID)
+        }
+        if let encoded = try? JSONEncoder().encode(updated) {
+            UserDefaults.standard.set(encoded, forKey: excludedAppsKey)
+        }
     }
     
     // DEBUG: Write to file for debugging
@@ -289,16 +405,29 @@ final class WindowSnapManager: ObservableObject {
             return
         }
         
+        // Ensure we don't accumulate stale monitors on repeated boots/enables.
+        stopMonitoringAllShortcuts()
+        shortcuts.removeAll()
+
         debugLog("[WindowSnap] Extension is enabled, loading shortcuts...")
         loadShortcuts()
         debugLog("[WindowSnap] Loaded \(shortcuts.count) shortcuts from UserDefaults")
+
+        refreshPointerMonitoring()
         
         if !shortcuts.isEmpty {
             startMonitoringAllShortcuts()
             debugLog("[WindowSnap] Monitoring started for \(shortcuts.count) shortcuts")
         } else {
             debugLog("[WindowSnap] No shortcuts configured, not starting monitors")
+            refreshEnabledState()
         }
+    }
+
+    /// Re-evaluate runtime monitor state from latest preferences.
+    func refreshConfiguration() {
+        refreshPointerMonitoring()
+        refreshEnabledState()
     }
     
     // MARK: - Public API
@@ -408,13 +537,9 @@ final class WindowSnapManager: ObservableObject {
             lastSnapTime = now
         }
         
-        // Show Magnet-style preview overlay, then snap
-        SnapPreviewWindow.shared.showPreview(at: targetFrame, duration: 0.2)
-        
-        // Brief delay for visual feedback, then snap
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [self] in
-            setWindowFrame(window, frame: targetFrame)
-        }
+        // Keep preview hint, but commit snap immediately for reliable behavior.
+        SnapPreviewWindow.shared.showPreview(at: targetFrame, duration: 0.12)
+        setWindowFrame(window, frame: targetFrame)
         
         print("[WindowSnap] Executed action: \(action.title) on \(targetScreen.localizedName)")
     }
@@ -425,7 +550,8 @@ final class WindowSnapManager: ObservableObject {
         stopMonitoringShortcut(for: action)
         
         if let shortcut = shortcut {
-            shortcuts[action] = shortcut
+            let sanitized = sanitizedShortcut(shortcut)
+            shortcuts[action] = sanitized
             startMonitoringShortcut(for: action)
         } else {
             shortcuts.removeValue(forKey: action)
@@ -503,6 +629,7 @@ final class WindowSnapManager: ObservableObject {
     // MARK: - Shortcut Persistence
     
     private func loadShortcuts() {
+        shortcuts.removeAll()
         print("[WindowSnap] loadShortcuts: Reading from key '\(shortcutsKey)'")
         
         guard let data = UserDefaults.standard.data(forKey: shortcutsKey) else {
@@ -521,8 +648,9 @@ final class WindowSnapManager: ObservableObject {
         
         for (key, shortcut) in decoded {
             if let action = SnapAction(rawValue: key) {
-                shortcuts[action] = shortcut
-                print("[WindowSnap] loadShortcuts: Loaded \(action.title) -> keyCode=\(shortcut.keyCode), modifiers=\(shortcut.modifiers)")
+                let sanitized = sanitizedShortcut(shortcut)
+                shortcuts[action] = sanitized
+                print("[WindowSnap] loadShortcuts: Loaded \(action.title) -> keyCode=\(sanitized.keyCode), modifiers=\(sanitized.modifiers)")
             } else {
                 print("[WindowSnap] loadShortcuts: Unknown action key '\(key)'")
             }
@@ -567,15 +695,17 @@ final class WindowSnapManager: ObservableObject {
         for (action, _) in shortcuts {
             startMonitoringShortcut(for: action)
         }
-        isEnabled = true
         print("[WindowSnap] Started monitoring \(shortcuts.count) shortcuts")
+        refreshPointerMonitoring()
+        refreshEnabledState()
     }
     
     func stopMonitoringAllShortcuts() {
         for action in SnapAction.allCases {
             stopMonitoringShortcut(for: action)
         }
-        isEnabled = false
+        stopPointerMonitoring()
+        refreshEnabledState()
     }
     
     private func startMonitoringShortcut(for action: SnapAction) {
@@ -598,13 +728,501 @@ final class WindowSnapManager: ObservableObject {
             self.executeAction(action)
         }
         
-        isEnabled = true
+        refreshEnabledState()
     }
     
     private func stopMonitoringShortcut(for action: SnapAction) {
         hotkeyMonitors.removeValue(forKey: action)  // GlobalHotKey deinit handles unregistration
+        refreshEnabledState()
     }
-    
+
+    private func refreshEnabledState() {
+        isEnabled = !hotkeyMonitors.isEmpty || pointerMonitorsAreActive
+    }
+
+    private var shouldStartPointerMonitoring: Bool {
+        pointerModeEnabled && !ExtensionType.windowSnap.isRemoved
+    }
+
+    private var pointerMonitorsAreActive: Bool {
+        pointerDownMonitor != nil ||
+        pointerDragMonitor != nil ||
+        pointerUpMonitor != nil ||
+        pointerFlagsMonitor != nil
+    }
+
+    private func refreshPointerMonitoring() {
+        if shouldStartPointerMonitoring {
+            startPointerMonitoring()
+        } else {
+            stopPointerMonitoring()
+        }
+    }
+
+    private func sanitizedShortcut(_ shortcut: SavedShortcut) -> SavedShortcut {
+        let allowed: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+        let normalized = NSEvent.ModifierFlags(rawValue: shortcut.modifiers).intersection(allowed)
+        return SavedShortcut(keyCode: shortcut.keyCode, modifiers: normalized.rawValue)
+    }
+
+    private func startPointerMonitoring() {
+        guard shouldStartPointerMonitoring else {
+            stopPointerMonitoring()
+            return
+        }
+
+        guard pointerDownMonitor == nil else {
+            refreshEnabledState()
+            return
+        }
+
+        pointerDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            let location = event.locationInWindow
+            let modifiers = event.modifierFlags
+            Task { @MainActor [weak self] in
+                self?.handlePointerMouseDown(location: location, modifiers: modifiers)
+            }
+        }
+
+        refreshEnabledState()
+    }
+
+    private func startPointerSessionMonitoring() {
+        guard shouldStartPointerMonitoring else { return }
+
+        if pointerDragMonitor == nil {
+            pointerDragMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
+                let location = event.locationInWindow
+                let modifiers = event.modifierFlags
+                Task { @MainActor [weak self] in
+                    self?.handlePointerMouseDragged(location: location, modifiers: modifiers)
+                }
+            }
+        }
+
+        if pointerUpMonitor == nil {
+            pointerUpMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.handlePointerMouseUp()
+                }
+            }
+        }
+
+        if pointerFlagsMonitor == nil {
+            pointerFlagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+                let modifiers = event.modifierFlags
+                Task { @MainActor [weak self] in
+                    self?.handlePointerFlagsChanged(modifiers: modifiers)
+                }
+            }
+        }
+
+        refreshEnabledState()
+    }
+
+    private func stopPointerSessionMonitoring() {
+        if let monitor = pointerDragMonitor { NSEvent.removeMonitor(monitor) }
+        if let monitor = pointerUpMonitor { NSEvent.removeMonitor(monitor) }
+        if let monitor = pointerFlagsMonitor { NSEvent.removeMonitor(monitor) }
+
+        pointerDragMonitor = nil
+        pointerUpMonitor = nil
+        pointerFlagsMonitor = nil
+        refreshEnabledState()
+    }
+
+    private func stopPointerMonitoring() {
+        if let monitor = pointerDownMonitor { NSEvent.removeMonitor(monitor) }
+        pointerDownMonitor = nil
+        stopPointerSessionMonitoring()
+        dragState = nil
+        SnapPreviewWindow.shared.hidePreview()
+        refreshEnabledState()
+    }
+
+    private func handlePointerMouseDown(location _: CGPoint, modifiers: NSEvent.ModifierFlags) {
+        guard shouldStartPointerMonitoring else { return }
+
+        let normalizedModifiers = normalizedModifierFlags(modifiers)
+        guard let interaction = interactionType(for: normalizedModifiers) else { return }
+
+        guard checkAccessibilityPermission() else {
+            showPermissionAlert()
+            return
+        }
+
+        let pointer = convertAppKitPointToScreenPoint(NSEvent.mouseLocation)
+        guard let target = resolvePointerTarget(at: pointer) else { return }
+
+        if let bundleID = target.bundleID {
+            if bundleID == Bundle.main.bundleIdentifier || excludedAppBundleIDs.contains(bundleID) {
+                return
+            }
+        }
+
+        if bringToFrontWhenHandling {
+            _ = target.app?.activate()
+        }
+
+        guard let initialFrame = getWindowFrame(target.window) else { return }
+        let resizeCorner = interaction == .resize ? resolvedResizeCorner(for: initialFrame, pointer: pointer) : nil
+
+        dragState = WindowSnapDragState(
+            type: interaction,
+            window: target.window,
+            appPID: target.pid,
+            initialFrame: initialFrame,
+            initialMousePoint: pointer,
+            resizeCorner: resizeCorner,
+            activeSnapAction: nil,
+            activeSnapFrame: nil
+        )
+
+        startPointerSessionMonitoring()
+        savedWindowFrames[target.pid] = initialFrame
+        lastDragUpdateAt = 0
+    }
+
+    private func handlePointerMouseDragged(location _: CGPoint, modifiers: NSEvent.ModifierFlags) {
+        guard var state = dragState, shouldStartPointerMonitoring else { return }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastDragUpdateAt < pointerFrameInterval { return }
+        lastDragUpdateAt = now
+
+        let normalizedModifiers = normalizedModifierFlags(modifiers)
+        guard modifiersMatch(normalizedModifiers, for: state.type) else {
+            finishDragSession(commitSnap: true)
+            return
+        }
+
+        let currentPointer = convertAppKitPointToScreenPoint(NSEvent.mouseLocation)
+        let delta = CGPoint(
+            x: currentPointer.x - state.initialMousePoint.x,
+            y: currentPointer.y - state.initialMousePoint.y
+        )
+
+        let proposedFrame: CGRect
+        switch state.type {
+        case .move:
+            proposedFrame = CGRect(
+                x: state.initialFrame.origin.x + delta.x,
+                y: state.initialFrame.origin.y + delta.y,
+                width: state.initialFrame.width,
+                height: state.initialFrame.height
+            )
+        case .resize:
+            proposedFrame = resizedFrame(
+                from: state.initialFrame,
+                corner: state.resizeCorner ?? .bottomRight,
+                delta: delta
+            )
+        }
+
+        if state.type == .move, let screen = screenForScreenPoint(currentPointer) {
+            if let snapAction = detectSnapAction(at: currentPointer, on: screen) {
+                let snapFrame = snapAction.targetFrame(for: screen)
+                if state.activeSnapAction != snapAction || state.activeSnapFrame != snapFrame {
+                    SnapPreviewWindow.shared.showPreview(at: snapFrame, duration: 0)
+                }
+                state.activeSnapAction = snapAction
+                state.activeSnapFrame = snapFrame
+            } else if let activeAction = state.activeSnapAction,
+                      isPointerWithinStickySnapZone(pointer: currentPointer, on: screen, action: activeAction) {
+                // Keep current preview/action while pointer jitters near the same edge/corner.
+            } else {
+                if state.activeSnapAction != nil {
+                    SnapPreviewWindow.shared.hidePreview()
+                }
+                state.activeSnapAction = nil
+                state.activeSnapFrame = nil
+            }
+        } else {
+            // Resizing should not also edge-snap; keep behavior deterministic.
+            if state.activeSnapAction != nil {
+                SnapPreviewWindow.shared.hidePreview()
+            }
+            state.activeSnapAction = nil
+            state.activeSnapFrame = nil
+        }
+
+        if state.type == .move {
+            setWindowPosition(state.window, position: proposedFrame.origin)
+        } else {
+            setWindowFrame(state.window, frame: proposedFrame)
+        }
+        dragState = state
+    }
+
+    private func handlePointerMouseUp() {
+        guard dragState != nil else { return }
+        finishDragSession(commitSnap: true)
+    }
+
+    private func handlePointerFlagsChanged(modifiers: NSEvent.ModifierFlags) {
+        guard let state = dragState else { return }
+        let normalizedModifiers = normalizedModifierFlags(modifiers)
+        if !modifiersMatch(normalizedModifiers, for: state.type) {
+            finishDragSession(commitSnap: true)
+        }
+    }
+
+    private func finishDragSession(commitSnap: Bool) {
+        guard let state = dragState else {
+            stopPointerSessionMonitoring()
+            return
+        }
+
+        if commitSnap, let snapFrame = state.activeSnapFrame {
+            setWindowFrame(state.window, frame: snapFrame)
+        }
+
+        SnapPreviewWindow.shared.hidePreview()
+        dragState = nil
+        stopPointerSessionMonitoring()
+    }
+
+    private func interactionType(for modifiers: NSEvent.ModifierFlags) -> WindowSnapInteractionType? {
+        if modifiersMatch(modifiers, requiredMask: resizeModifierMask) {
+            return .resize
+        }
+        if modifiersMatch(modifiers, requiredMask: moveModifierMask) {
+            return .move
+        }
+        return nil
+    }
+
+    private func normalizedModifierFlags(_ flags: NSEvent.ModifierFlags) -> NSEvent.ModifierFlags {
+        flags.intersection([.command, .option, .control, .shift, .function])
+    }
+
+    private func modifierFlags(from mask: UInt) -> NSEvent.ModifierFlags {
+        NSEvent.ModifierFlags(rawValue: mask).intersection([.command, .option, .control, .shift, .function])
+    }
+
+    private func modifiersMatch(_ current: NSEvent.ModifierFlags, requiredMask: UInt) -> Bool {
+        let required = modifierFlags(from: requiredMask)
+        guard !required.isEmpty else { return false }
+        return normalizedModifierFlags(current) == required
+    }
+
+    private func modifiersMatch(_ current: NSEvent.ModifierFlags, for interaction: WindowSnapInteractionType) -> Bool {
+        switch interaction {
+        case .move:
+            return modifiersMatch(current, requiredMask: moveModifierMask)
+        case .resize:
+            return modifiersMatch(current, requiredMask: resizeModifierMask)
+        }
+    }
+
+    private func resolvedResizeCorner(for frame: CGRect, pointer: CGPoint) -> WindowSnapResizeCorner {
+        guard resizeMode == .closestCorner else { return .bottomRight }
+
+        let corners: [(WindowSnapResizeCorner, CGPoint)] = [
+            (.topLeft, CGPoint(x: frame.minX, y: frame.minY)),
+            (.topRight, CGPoint(x: frame.maxX, y: frame.minY)),
+            (.bottomLeft, CGPoint(x: frame.minX, y: frame.maxY)),
+            (.bottomRight, CGPoint(x: frame.maxX, y: frame.maxY))
+        ]
+
+        return corners.min(by: { lhs, rhs in
+            let ld = hypot(lhs.1.x - pointer.x, lhs.1.y - pointer.y)
+            let rd = hypot(rhs.1.x - pointer.x, rhs.1.y - pointer.y)
+            return ld < rd
+        })?.0 ?? .bottomRight
+    }
+
+    private func resizedFrame(from initialFrame: CGRect, corner: WindowSnapResizeCorner, delta: CGPoint) -> CGRect {
+        switch corner {
+        case .bottomRight:
+            let width = max(minResizeWidth, initialFrame.width + delta.x)
+            let height = max(minResizeHeight, initialFrame.height + delta.y)
+            return CGRect(x: initialFrame.minX, y: initialFrame.minY, width: width, height: height)
+        case .topLeft:
+            let width = max(minResizeWidth, initialFrame.width - delta.x)
+            let height = max(minResizeHeight, initialFrame.height - delta.y)
+            return CGRect(
+                x: initialFrame.maxX - width,
+                y: initialFrame.maxY - height,
+                width: width,
+                height: height
+            )
+        case .topRight:
+            let width = max(minResizeWidth, initialFrame.width + delta.x)
+            let height = max(minResizeHeight, initialFrame.height - delta.y)
+            return CGRect(
+                x: initialFrame.minX,
+                y: initialFrame.maxY - height,
+                width: width,
+                height: height
+            )
+        case .bottomLeft:
+            let width = max(minResizeWidth, initialFrame.width - delta.x)
+            let height = max(minResizeHeight, initialFrame.height + delta.y)
+            return CGRect(
+                x: initialFrame.maxX - width,
+                y: initialFrame.minY,
+                width: width,
+                height: height
+            )
+        }
+    }
+
+    private func screenForScreenPoint(_ point: CGPoint) -> NSScreen? {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        return NSScreen.screens.first { screen in
+            let frame = screen.frame
+            let screenCoordsFrame = CGRect(
+                x: frame.origin.x,
+                y: primaryHeight - frame.origin.y - frame.height,
+                width: frame.width,
+                height: frame.height
+            )
+            return screenCoordsFrame.insetBy(dx: -1, dy: -1).contains(point)
+        } ?? NSScreen.main
+    }
+
+    private func resolvePointerTarget(at screenPoint: CGPoint) -> WindowSnapPointerTarget? {
+        let systemElement = AXUIElementCreateSystemWide()
+        var hitElement: AXUIElement?
+        let hitStatus = AXUIElementCopyElementAtPosition(systemElement, Float(screenPoint.x), Float(screenPoint.y), &hitElement)
+
+        if hitStatus == .success, let hitElement {
+            if let window = resolveWindowElement(from: hitElement) {
+                var pid: pid_t = 0
+                AXUIElementGetPid(window, &pid)
+                if pid != 0 && pid != ProcessInfo.processInfo.processIdentifier {
+                    let app = NSRunningApplication(processIdentifier: pid)
+                    return WindowSnapPointerTarget(
+                        window: window,
+                        app: app,
+                        bundleID: app?.bundleIdentifier,
+                        pid: pid
+                    )
+                }
+            }
+        }
+
+        // Fallback for apps that don't expose hit-testing cleanly.
+        guard let frontmostApp = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = frontmostApp.processIdentifier
+        guard pid != ProcessInfo.processInfo.processIdentifier else { return nil }
+        guard let window = getFrontmostWindow() else { return nil }
+
+        return WindowSnapPointerTarget(
+            window: window,
+            app: frontmostApp,
+            bundleID: frontmostApp.bundleIdentifier,
+            pid: pid
+        )
+    }
+
+    private func resolveWindowElement(from element: AXUIElement) -> AXUIElement? {
+        // Prefer direct window attribute if available.
+        if let directWindow = copyAXElementAttribute(from: element, attribute: kAXWindowAttribute as CFString) {
+            return directWindow
+        }
+
+        var current: AXUIElement? = element
+        for _ in 0..<10 {
+            guard let node = current else { break }
+            if let role = copyAXStringAttribute(from: node, attribute: kAXRoleAttribute as CFString),
+               role == (kAXWindowRole as String) {
+                return node
+            }
+            current = copyAXElementAttribute(from: node, attribute: kAXParentAttribute as CFString)
+        }
+        return nil
+    }
+
+    private func copyAXElementAttribute(from element: AXUIElement, attribute: CFString) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
+              let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            return nil
+        }
+        return (value as! AXUIElement)
+    }
+
+    private func copyAXStringAttribute(from element: AXUIElement, attribute: CFString) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
+              let value,
+              let string = value as? String else {
+            return nil
+        }
+        return string
+    }
+
+    private func convertAppKitPointToScreenPoint(_ appKitPoint: CGPoint) -> CGPoint {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        return CGPoint(x: appKitPoint.x, y: primaryHeight - appKitPoint.y)
+    }
+
+    private func visibleFrameInScreenCoordinates(for screen: NSScreen) -> CGRect {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+        let visible = screen.visibleFrame
+        return CGRect(
+            x: visible.origin.x,
+            y: primaryHeight - visible.origin.y - visible.height,
+            width: visible.width,
+            height: visible.height
+        )
+    }
+
+    private func detectSnapAction(at pointer: CGPoint, on screen: NSScreen) -> SnapAction? {
+        let visible = visibleFrameInScreenCoordinates(for: screen)
+        let expandedBounds = visible.insetBy(dx: -edgeSnapThreshold, dy: -edgeSnapThreshold)
+        guard expandedBounds.contains(pointer) else { return nil }
+
+        let nearLeft = pointer.x <= visible.minX + edgeSnapThreshold
+        let nearRight = pointer.x >= visible.maxX - edgeSnapThreshold
+        let nearTop = pointer.y <= visible.minY + edgeSnapThreshold
+        let nearBottom = pointer.y >= visible.maxY - edgeSnapThreshold
+
+        if nearTop && nearLeft { return .topLeft }
+        if nearTop && nearRight { return .topRight }
+        if nearBottom && nearLeft { return .bottomLeft }
+        if nearBottom && nearRight { return .bottomRight }
+        if nearTop { return .maximize }
+        if nearLeft { return .leftHalf }
+        if nearRight { return .rightHalf }
+        if nearBottom { return .bottomHalf }
+        return nil
+    }
+
+    private func isPointerWithinStickySnapZone(pointer: CGPoint, on screen: NSScreen, action: SnapAction) -> Bool {
+        let visible = visibleFrameInScreenCoordinates(for: screen)
+        let sticky = edgeSnapThreshold + edgeSnapStickyInset
+
+        let nearLeft = pointer.x <= visible.minX + sticky
+        let nearRight = pointer.x >= visible.maxX - sticky
+        let nearTop = pointer.y <= visible.minY + sticky
+        let nearBottom = pointer.y >= visible.maxY - sticky
+
+        switch action {
+        case .topLeft:
+            return nearTop && nearLeft
+        case .topRight:
+            return nearTop && nearRight
+        case .bottomLeft:
+            return nearBottom && nearLeft
+        case .bottomRight:
+            return nearBottom && nearRight
+        case .maximize:
+            return nearTop
+        case .leftHalf:
+            return nearLeft
+        case .rightHalf:
+            return nearRight
+        case .bottomHalf:
+            return nearBottom
+        default:
+            return false
+        }
+    }
+
     // MARK: - Permission Checking
     
     private func checkAccessibilityPermission() -> Bool {
@@ -769,6 +1387,13 @@ final class WindowSnapManager: ObservableObject {
         // Step 3: Set size again (macOS enforces sizes that fit on current display)
         if let sizeValue = AXValueCreate(.cgSize, &size) {
             AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        }
+    }
+
+    private func setWindowPosition(_ window: AXUIElement, position: CGPoint) {
+        var position = position
+        if let positionValue = AXValueCreate(.cgPoint, &position) {
+            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
         }
     }
     

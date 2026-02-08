@@ -15,13 +15,13 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.alwaysCopyOnDrag) private var alwaysCopyOnDrag = PreferenceDefault.alwaysCopyOnDrag
     @AppStorage(AppPreferenceKey.enablePowerFolders) private var enablePowerFolders = PreferenceDefault.enablePowerFolders
     @AppStorage(AppPreferenceKey.enableQuickActions) private var enableQuickActions = PreferenceDefault.enableQuickActions
+    @AppStorage(AppPreferenceKey.quickActionsMailApp) private var quickActionsMailApp = PreferenceDefault.quickActionsMailApp
     @AppStorage(AppPreferenceKey.basketAutoHideDelay) private var basketAutoHideDelay = PreferenceDefault.basketAutoHideDelay
     @AppStorage(AppPreferenceKey.instantBasketOnDrag) private var instantBasketOnDrag = PreferenceDefault.instantBasketOnDrag
     @AppStorage(AppPreferenceKey.instantBasketDelay) private var instantBasketDelay = PreferenceDefault.instantBasketDelay
     @AppStorage(AppPreferenceKey.basketJiggleSensitivity) private var basketJiggleSensitivity = PreferenceDefault.basketJiggleSensitivity
     @AppStorage(AppPreferenceKey.showClipboardButton) private var showClipboardButton = PreferenceDefault.showClipboardButton
     @AppStorage(AppPreferenceKey.enableMultiBasket) private var enableMultiBasket = PreferenceDefault.enableMultiBasket
-    @AppStorage(AppPreferenceKey.showOpenShelfIndicator) private var showOpenShelfIndicator = PreferenceDefault.showOpenShelfIndicator
     @AppStorage(AppPreferenceKey.hideNotchOnExternalDisplays) private var hideNotchOnExternalDisplays = PreferenceDefault.hideNotchOnExternalDisplays
     @AppStorage(AppPreferenceKey.hideNotchFromScreenshots) private var hideNotchFromScreenshots = PreferenceDefault.hideNotchFromScreenshots
     @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
@@ -47,14 +47,19 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.mediaControlTargetMode) private var mediaControlTargetMode = PreferenceDefault.mediaControlTargetMode
     @AppStorage(AppPreferenceKey.notificationHUDInstalled) private var isNotificationHUDInstalled = PreferenceDefault.notificationHUDInstalled
     @AppStorage(AppPreferenceKey.notificationHUDEnabled) private var enableNotificationHUD = PreferenceDefault.notificationHUDEnabled
+    @AppStorage(AppPreferenceKey.notificationHUDShowPreview) private var notificationHUDShowPreview = PreferenceDefault.notificationHUDShowPreview
     @AppStorage(AppPreferenceKey.terminalNotchInstalled) private var isTerminalNotchInstalled = PreferenceDefault.terminalNotchInstalled
     @AppStorage(AppPreferenceKey.terminalNotchEnabled) private var enableTerminalNotch = PreferenceDefault.terminalNotchEnabled
+    @AppStorage(AppPreferenceKey.terminalNotchExternalApp) private var terminalNotchExternalApp = PreferenceDefault.terminalNotchExternalApp
     @AppStorage(AppPreferenceKey.caffeineInstalled) private var isCaffeineInstalled = PreferenceDefault.caffeineInstalled
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var enableCaffeine = PreferenceDefault.caffeineEnabled
+    @AppStorage(AppPreferenceKey.caffeineMode) private var caffeineModeRaw = PreferenceDefault.caffeineMode
     @AppStorage(AppPreferenceKey.cameraInstalled) private var isCameraInstalled = PreferenceDefault.cameraInstalled
     @AppStorage(AppPreferenceKey.cameraEnabled) private var enableCamera = PreferenceDefault.cameraEnabled
     @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
     @AppStorage(AppPreferenceKey.showMediaPlayer) private var showMediaPlayer = PreferenceDefault.showMediaPlayer
+    @AppStorage(AppPreferenceKey.enableMouseSwipeMediaSwitch) private var enableMouseSwipeMediaSwitch = PreferenceDefault.enableMouseSwipeMediaSwitch
+    @AppStorage(AppPreferenceKey.mouseSwipeMediaSwitchModifier) private var mouseSwipeMediaSwitchModifier = PreferenceDefault.mouseSwipeMediaSwitchModifier
     @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
     @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
     @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer = PreferenceDefault.enableRealAudioVisualizer
@@ -72,6 +77,8 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.autoHideOnFullscreen) private var autoHideOnFullscreen = PreferenceDefault.autoHideOnFullscreen
     @AppStorage(AppPreferenceKey.hideMediaOnlyOnFullscreen) private var hideMediaOnlyOnFullscreen = PreferenceDefault.hideMediaOnlyOnFullscreen
     @AppStorage(AppPreferenceKey.enableFinderServices) private var enableFinderServices = PreferenceDefault.enableFinderServices
+    @AppStorage(AppPreferenceKey.ocrAutoCopyExtractedText) private var ocrAutoCopyExtractedText = PreferenceDefault.ocrAutoCopyExtractedText
+    @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
 
 
     
@@ -203,6 +210,39 @@ struct SettingsView: View {
         default: return "Very High"
         }
     }
+
+    private var selectedCaffeineMode: CaffeineMode {
+        CaffeineMode(rawValue: caffeineModeRaw) ?? .both
+    }
+
+    private func setCaffeineMode(_ mode: CaffeineMode) {
+        caffeineModeRaw = mode.rawValue
+        if CaffeineManager.shared.isActive {
+            CaffeineManager.shared.activate(duration: CaffeineManager.shared.currentDuration, mode: mode)
+        }
+    }
+
+    private func caffeineModeIcon(_ mode: CaffeineMode) -> String {
+        switch mode {
+        case .displayOnly:
+            return "display"
+        case .systemOnly:
+            return "gearshape.2"
+        case .both:
+            return "bolt.fill"
+        }
+    }
+
+    private func caffeineModeTileLabel(_ mode: CaffeineMode) -> String {
+        switch mode {
+        case .displayOnly:
+            return "Display"
+        case .systemOnly:
+            return "System"
+        case .both:
+            return "Both"
+        }
+    }
     
     @ViewBuilder
     private func nativePickerRow<PickerContent: View>(
@@ -306,11 +346,11 @@ struct SettingsView: View {
                             Text("Per-Display")
                             Text("advanced")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.white.opacity(0.08)))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                         }
                         Text("Choose exactly which external displays show Droppy")
                             .font(.caption)
@@ -393,23 +433,30 @@ struct SettingsView: View {
     private var topScrollScrim: some View {
         // Top blur scrim - only visible while scrolling
         VStack(spacing: 0) {
-            // withinWindow is required to blur content inside this window
-            SettingsVisualEffectView(material: .headerView, blendingMode: .withinWindow)
-                .frame(height: 68)
-                .frame(maxWidth: .infinity)
-                // Fade the scrim into the content
-                .mask(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white, location: 0),
-                            .init(color: .white, location: 0.55),
-                            .init(color: .clear, location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+            Group {
+                if useTransparentBackground {
+                    // withinWindow is required to blur content inside this window
+                    SettingsVisualEffectView(material: .headerView, blendingMode: .withinWindow)
+                } else {
+                    Rectangle()
+                        .fill(AdaptiveColors.panelBackgroundAuto)
+                }
+            }
+            .frame(height: 68)
+            .frame(maxWidth: .infinity)
+            // Fade the scrim into the content
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .white, location: 0),
+                        .init(color: .white, location: 0.55),
+                        .init(color: .clear, location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
-                .allowsHitTesting(false)
+            )
+            .allowsHitTesting(false)
             
             Spacer()
         }
@@ -432,8 +479,8 @@ struct SettingsView: View {
                         Rectangle()
                             .fill(.ultraThinMaterial)
                     } else {
-                        // Black gradient in dark mode
-                        Color.black
+                        // Match panel tone in opaque mode to avoid a dark strip in light mode
+                        AdaptiveColors.panelBackgroundAuto
                     }
                 }
                 .frame(height: 80)
@@ -473,10 +520,10 @@ struct SettingsView: View {
         // Apply blue accent color for toggles
         .tint(.droppyAccent)
         // Apply transparent material or solid black
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         // CRITICAL: Always use dark color scheme to ensure text is readable
         // In both solid black and transparent material modes, we need light text
-        .preferredColorScheme(.dark)
+        
         // Force complete view rebuild when transparency mode changes
         // This fixes the issue where background doesn't update immediately
         .id(useTransparentBackground)
@@ -554,7 +601,7 @@ struct SettingsView: View {
                     ) {
                         Image(systemName: "menubar.rectangle")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(showInMenuBar ? Color.blue : Color.white.opacity(0.5))
+                            .foregroundStyle(showInMenuBar ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                     .sheet(isPresented: $showMenuBarHiddenWarning) {
                         MenuBarHiddenSheet(
@@ -576,7 +623,7 @@ struct SettingsView: View {
                     ) {
                         Image(systemName: "power")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(startAtLogin ? Color.blue : Color.white.opacity(0.5))
+                            .foregroundStyle(startAtLogin ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                 }
             } header: {
@@ -611,7 +658,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = false }
                             ) {
                                 UShape()
-                                    .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 50, height: 16)
                             }
                             
@@ -621,7 +668,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = true }
                             ) {
                                 Capsule()
-                                    .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 40, height: 14)
                             }
                         }
@@ -717,7 +764,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = false }
                             ) {
                                 UShape()
-                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                             
@@ -727,7 +774,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = true }
                             ) {
                                 Capsule()
-                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                         }
@@ -812,7 +859,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "trash")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(enableAutoClean ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(enableAutoClean ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         HStack(spacing: 4) {
@@ -834,7 +881,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "folder.badge.plus")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(enablePowerFolders ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(enablePowerFolders ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         HStack(spacing: 4) {
@@ -861,7 +908,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "lock.shield")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(alwaysCopyOnDrag ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(alwaysCopyOnDrag ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         HStack(spacing: 4) {
@@ -877,6 +924,15 @@ struct SettingsView: View {
                     }
                 }
                 
+                Toggle(isOn: $ocrAutoCopyExtractedText) {
+                    VStack(alignment: .leading) {
+                        Text("Auto-Copy OCR Text")
+                        Text("Skip OCR result window and copy recognized text instantly")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 // Smart Export & Tracked Folders (keep as custom rows)
                 SmartExportSettingsRow()
                 TrackedFoldersSettingsRow()
@@ -936,7 +992,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "arrow.down.right.and.arrow.up.left")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(autoCollapseShelf ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(autoCollapseShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         // Auto-Expand
@@ -947,7 +1003,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "arrow.up.left.and.arrow.down.right")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(autoExpandShelf ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(autoExpandShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         // Auto-Open Media
@@ -959,7 +1015,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "music.note")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(autoOpenMediaHUDOnShelfExpand ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(autoOpenMediaHUDOnShelfExpand ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                     }
                     
@@ -1112,7 +1168,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "tray")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(!enableMultiBasket ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(!enableMultiBasket ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                         
                         SettingsSegmentButtonWithContent(
@@ -1122,7 +1178,7 @@ struct SettingsView: View {
                         ) {
                             Image(systemName: "square.stack.3d.up")
                                 .font(.system(size: 18, weight: .medium))
-                                .foregroundStyle(enableMultiBasket ? Color.blue : Color.white.opacity(0.5))
+                                .foregroundStyle(enableMultiBasket ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
                     }
                     
@@ -1159,6 +1215,74 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Multi-Basket")
+                }
+
+                Section {
+                    HStack(spacing: 8) {
+                        QuickActionsInfoButton()
+                        Toggle(isOn: $enableQuickActions) {
+                            VStack(alignment: .leading) {
+                                HStack(alignment: .center, spacing: 6) {
+                                    Text("Quick Actions")
+                                    Text("advanced")
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundStyle(AdaptiveColors.secondaryTextAuto)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                        .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
+                                }
+                                Text("Show quick action drop buttons under Shelf and Basket (AirDrop, Messages, Mail)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .onChange(of: enableQuickActions) { _, newValue in
+                            if newValue {
+                                showQuickActionsWarning = true
+                            }
+                        }
+                        .sheet(isPresented: $showQuickActionsWarning) {
+                            QuickActionsInfoSheet(enableQuickActions: $enableQuickActions)
+                        }
+                    }
+
+                    if enableQuickActions {
+                        nativePickerRow(
+                            title: "Mail App",
+                            subtitle: "Choose which app opens for the Mail quick action"
+                        ) {
+                            SettingsSegmentButton(
+                                icon: QuickActionsMailApp.systemDefault.icon,
+                                label: QuickActionsMailApp.systemDefault.title,
+                                isSelected: quickActionsMailApp == QuickActionsMailApp.systemDefault.rawValue,
+                                action: { quickActionsMailApp = QuickActionsMailApp.systemDefault.rawValue }
+                            )
+
+                            SettingsSegmentButton(
+                                icon: QuickActionsMailApp.appleMail.icon,
+                                label: QuickActionsMailApp.appleMail.title,
+                                isSelected: quickActionsMailApp == QuickActionsMailApp.appleMail.rawValue,
+                                action: { quickActionsMailApp = QuickActionsMailApp.appleMail.rawValue }
+                            )
+
+                            SettingsSegmentButton(
+                                icon: QuickActionsMailApp.outlook.icon,
+                                label: QuickActionsMailApp.outlook.title,
+                                isSelected: quickActionsMailApp == QuickActionsMailApp.outlook.rawValue,
+                                action: { quickActionsMailApp = QuickActionsMailApp.outlook.rawValue }
+                            )
+                        }
+
+                        if quickActionsMailApp == QuickActionsMailApp.outlook.rawValue &&
+                            !MailHelper.isMailClientInstalled(.outlook) {
+                            Text("Outlook is not installed. Droppy will fall back to the system Mail action.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Quick Actions")
                 }
             }
         }
@@ -1239,21 +1363,32 @@ struct SettingsView: View {
                     }
                 }
                 
-                Toggle(isOn: $showOpenShelfIndicator) {
-                    VStack(alignment: .leading) {
-                        Text("Shelf Indicator")
-                        Text("Show subtle indicator where shelf will open")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                
                 Toggle(isOn: $enableHapticFeedback) {
                     VStack(alignment: .leading) {
                         Text("Haptic Feedback")
                         Text("Get tactile feedback when dropping files")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                Toggle(isOn: $disableAnalytics) {
+                    VStack(alignment: .leading) {
+                        Text("Skip All Analytics")
+                        Text("Disable usage analytics and hide extension install/download stats")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: disableAnalytics) { _, isDisabled in
+                    if isDisabled {
+                        downloadCount = nil
+                    } else {
+                        Task {
+                            if let count = try? await AnalyticsService.shared.fetchDownloadCount() {
+                                downloadCount = count
+                            }
+                        }
                     }
                 }
                 
@@ -1335,7 +1470,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = false }
                             ) {
                                 UShape()
-                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                             
@@ -1345,7 +1480,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = true }
                             ) {
                                 Capsule()
-                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                         }
@@ -1375,7 +1510,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = false }
                             ) {
                                 UShape()
-                                    .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 50, height: 16)
                             }
                             
@@ -1385,7 +1520,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = true }
                             ) {
                                 Capsule()
-                                    .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 40, height: 14)
                             }
                         }
@@ -1492,11 +1627,11 @@ struct SettingsView: View {
                                 Text("Protect Originals")
                                 Text("advanced")
                                     .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.7))
+                                    .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.white.opacity(0.08)))
-                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                    .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                             }
                             Text("Always copy, never move files")
                                 .font(.caption)
@@ -1638,13 +1773,13 @@ struct SettingsView: View {
                                 Text("Quick Actions")
                                 Text("advanced")
                                     .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.7))
+                                    .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.white.opacity(0.08)))
-                                    .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                    .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                             }
-                            Text("Select all and drop to Finder folder")
+                            Text("Show quick action drop buttons under Shelf and Basket")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1778,13 +1913,13 @@ struct SettingsView: View {
                                     Text("Quick Actions")
                                     Text("advanced")
                                         .font(.system(size: 9, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.7))
+                                        .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.white.opacity(0.08)))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                        .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                        .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                                 }
-                                Text("Select all and drop to Finder folder")
+                                Text("Show quick action drop buttons under Shelf and Basket")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1842,6 +1977,43 @@ struct SettingsView: View {
                     if showMediaPlayer {
                         // Advanced Auto-Fade settings (Issue #79)
                         AdvancedAutofadeSettingsRow()
+
+                        Toggle(isOn: $enableMouseSwipeMediaSwitch) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Mouse Swipe Gesture")
+                                Text("Use a mouse wheel gesture to switch between Media and Shelf")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if enableMouseSwipeMediaSwitch {
+                            nativePickerRow(
+                                title: "Mouse Gesture Setup",
+                                subtitle: "Hold a modifier and scroll over the notch area"
+                            ) {
+                                SettingsSegmentButton(
+                                    icon: "option",
+                                    label: "Option",
+                                    isSelected: mouseSwipeMediaSwitchModifier == "option",
+                                    action: { mouseSwipeMediaSwitchModifier = "option" }
+                                )
+
+                                SettingsSegmentButton(
+                                    icon: "shift",
+                                    label: "Shift",
+                                    isSelected: mouseSwipeMediaSwitchModifier == "shift",
+                                    action: { mouseSwipeMediaSwitchModifier = "shift" }
+                                )
+
+                                SettingsSegmentButton(
+                                    icon: "control",
+                                    label: "Control",
+                                    isSelected: mouseSwipeMediaSwitchModifier == "control",
+                                    action: { mouseSwipeMediaSwitchModifier = "control" }
+                                )
+                            }
+                        }
                         
                         nativePickerRow(
                             title: "Visualizer",
@@ -1909,11 +2081,11 @@ struct SettingsView: View {
                                     Text("Stabilize Media")
                                     Text("advanced")
                                         .font(.system(size: 9, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.7))
+                                        .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Capsule().fill(Color.white.opacity(0.08)))
-                                        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                        .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                        .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                                 }
                                 Text("Prevent flickering from rapid song changes")
                                     .font(.caption)
@@ -2076,6 +2248,31 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Lock Screen
+                HStack(spacing: 12) {
+                    LockScreenHUDIcon()
+                    
+                    Toggle(isOn: $enableLockScreenHUD) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Lock Screen")
+                            Text("Show lock/unlock animation")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .onChange(of: enableLockScreenHUD) { _, newValue in
+                    if newValue {
+                        NotchWindowController.shared.setupNotchWindow()
+                        LockScreenManager.shared.enable()
+                    } else {
+                        LockScreenManager.shared.disable()
+                        if !enableNotchShelf && !enableHUDReplacement && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
+                            NotchWindowController.shared.closeWindow()
+                        }
+                    }
+                }
+                
                 // Droppy Updates
                 HStack(spacing: 12) {
                     UpdateHUDIcon()
@@ -2131,6 +2328,31 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+
+                if isNotificationHUDInstalled && enableNotificationHUD {
+                    nativePickerRow(
+                        title: "Notification Preview",
+                        subtitle: "Display body text in the Notify me! HUD"
+                    ) {
+                        SettingsSegmentButton(
+                            icon: "eye",
+                            label: "Preview On",
+                            isSelected: notificationHUDShowPreview,
+                            tileWidth: 82
+                        ) {
+                            notificationHUDShowPreview = true
+                        }
+
+                        SettingsSegmentButton(
+                            icon: "eye.slash",
+                            label: "Preview Off",
+                            isSelected: !notificationHUDShowPreview,
+                            tileWidth: 82
+                        ) {
+                            notificationHUDShowPreview = false
+                        }
+                    }
+                }
                 
                 // Termi-Notch Extension
                 if isTerminalNotchInstalled {
@@ -2147,6 +2369,29 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                    }
+
+                    nativePickerRow(
+                        title: "Terminal App",
+                        subtitle: "Used when opening the full terminal from Termi-Notch"
+                    ) {
+                        ForEach(TerminalNotchExternalApp.allCases) { app in
+                            SettingsSegmentButton(
+                                icon: app.icon,
+                                label: app.title,
+                                isSelected: terminalNotchExternalApp == app.rawValue,
+                                tileWidth: 82
+                            ) {
+                                terminalNotchExternalApp = app.rawValue
+                            }
+                        }
+                    }
+
+                    let selectedTerminalApp = TerminalNotchExternalApp(rawValue: terminalNotchExternalApp) ?? .appleTerminal
+                    if !selectedTerminalApp.isInstalled {
+                        Text("\(selectedTerminalApp.title) is not installed. Droppy will fall back to Terminal.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 } else {
                     // Extension is not installed - clickable card to open Extension Store
@@ -2198,6 +2443,25 @@ struct SettingsView: View {
                                 Text("Keep your Mac awake")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if enableCaffeine {
+                        nativePickerRow(
+                            title: "Prevention Mode",
+                            subtitle: "Choose what stays awake while High Alert is active"
+                        ) {
+                            ForEach(CaffeineMode.allCases, id: \.rawValue) { mode in
+                                SettingsSegmentButton(
+                                    icon: caffeineModeIcon(mode),
+                                    label: caffeineModeTileLabel(mode),
+                                    isSelected: selectedCaffeineMode == mode,
+                                    tileWidth: 82
+                                ) {
+                                    HapticFeedback.tap()
+                                    setCaffeineMode(mode)
+                                }
                             }
                         }
                     }
@@ -2452,7 +2716,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = false }
                             ) {
                                 UShape()
-                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                             
@@ -2462,7 +2726,7 @@ struct SettingsView: View {
                                 action: { externalDisplayUseDynamicIsland = true }
                             ) {
                                 Capsule()
-                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(externalDisplayUseDynamicIsland ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 44, height: 14)
                             }
                         }
@@ -2494,7 +2758,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = false }
                             ) {
                                 UShape()
-                                    .fill(!useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(!useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 50, height: 16)
                             }
                             
@@ -2504,7 +2768,7 @@ struct SettingsView: View {
                                 action: { useDynamicIslandStyle = true }
                             ) {
                                 Capsule()
-                                    .fill(useDynamicIslandStyle ? Color.blue : Color.white.opacity(0.5))
+                                    .fill(useDynamicIslandStyle ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                                     .frame(width: 40, height: 14)
                             }
                         }
@@ -2747,6 +3011,10 @@ struct SettingsView: View {
         }
         .onAppear {
             Task {
+                guard !disableAnalytics else {
+                    downloadCount = nil
+                    return
+                }
                 if let count = try? await AnalyticsService.shared.fetchDownloadCount() {
                     downloadCount = count
                 }
@@ -3064,7 +3332,7 @@ struct SettingsView: View {
                     ) {
                         Image(systemName: "tag")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(tagsEnabled ? Color.blue : Color.white.opacity(0.5))
+                            .foregroundStyle(tagsEnabled ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                     
                     // Copy + Favorite
@@ -3083,7 +3351,7 @@ struct SettingsView: View {
                     ) {
                         Image(systemName: "heart")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(copyFavoriteEnabled ? Color.blue : Color.white.opacity(0.5))
+                            .foregroundStyle(copyFavoriteEnabled ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                     
                     // Auto-Focus Search
@@ -3099,7 +3367,7 @@ struct SettingsView: View {
                     ) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(autoFocusSearch ? Color.blue : Color.white.opacity(0.5))
+                            .foregroundStyle(autoFocusSearch ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                 }
                 .sheet(isPresented: $showAutoFocusSearchWarning) {
@@ -3275,7 +3543,12 @@ struct SettingsView: View {
             }
             .frame(width: 320, height: 300)
         }
-        .background(.ultraThinMaterial)
+        .background(AdaptiveColors.panelBackgroundOpaqueStyle)
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+        )
     }
     
     // MARK: - Helper Properties
@@ -3346,7 +3619,7 @@ struct AutoSelectNumberField: NSViewRepresentable {
         textField.isBordered = false
         textField.drawsBackground = false
         textField.backgroundColor = .clear
-        textField.textColor = .white
+        textField.textColor = .labelColor
         textField.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         textField.alignment = .center
         textField.focusRingType = .none
@@ -3494,6 +3767,7 @@ struct SwipeGestureInfoButton: View {
                         Label("Swipe left → Media Controls", systemImage: "music.note")
                         Label("Swipe right → File Shelf", systemImage: "tray.and.arrow.down.fill")
                         Label("Quick toggle between modes", systemImage: "arrow.left.arrow.right")
+                        Label("Optional mouse gesture in Now Playing settings", systemImage: "computermouse")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -3933,9 +4207,9 @@ struct ProtectOriginalsWarningSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item
@@ -3951,13 +4225,13 @@ struct ProtectOriginalsWarningSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -3978,7 +4252,7 @@ struct ProtectOriginalsWarningSheet: View {
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
                 .scaleEffect(isHoveringCancel ? 1.05 : 1.0)
                 .onHover { isHoveringCancel = $0 }
-                .animation(.easeOut(duration: 0.15), value: isHoveringCancel)
+                .animation(DroppyAnimation.hover, value: isHoveringCancel)
                 
                 Spacer()
                 
@@ -3992,13 +4266,13 @@ struct ProtectOriginalsWarningSheet: View {
                 .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .small))
                 .scaleEffect(isHoveringConfirm ? 1.05 : 1.0)
                 .onHover { isHoveringConfirm = $0 }
-                .animation(.easeOut(duration: 0.15), value: isHoveringConfirm)
+                .animation(DroppyAnimation.hover, value: isHoveringConfirm)
             }
             .padding(DroppySpacing.lg)
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -4049,9 +4323,9 @@ struct StabilizeMediaInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 2
@@ -4067,9 +4341,9 @@ struct StabilizeMediaInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 3
@@ -4085,13 +4359,13 @@ struct StabilizeMediaInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -4125,7 +4399,7 @@ struct StabilizeMediaInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -4176,9 +4450,9 @@ struct AutoFocusSearchInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 2
@@ -4194,9 +4468,9 @@ struct AutoFocusSearchInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 3
@@ -4212,13 +4486,13 @@ struct AutoFocusSearchInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -4252,7 +4526,7 @@ struct AutoFocusSearchInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -4294,11 +4568,11 @@ struct FullDiskAccessSheet: View {
                     stepRow(number: "2", text: "Enable Droppy in the list")
                     stepRow(number: "3", text: "Click \"I've Granted Access\"", isLast: true)
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -4343,7 +4617,7 @@ struct FullDiskAccessSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
     
@@ -4363,10 +4637,10 @@ struct FullDiskAccessSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.white.opacity(0.02))
+        .background(AdaptiveColors.overlayAuto(0.02))
         .overlay(alignment: .bottom) {
             if !isLast {
-                Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
             }
         }
     }
@@ -4413,13 +4687,13 @@ struct MenuBarHiddenSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -4456,7 +4730,7 @@ struct MenuBarHiddenSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -4647,14 +4921,14 @@ struct QuickActionsInfoButton: View {
                             .font(.headline)
                     }
                     
-                    Text("Adds Select All and Add All buttons for faster batch operations.")
+                    Text("Adds quick action drop targets under Shelf and Basket for fast sharing.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("Select All selects all items at once", systemImage: "checkmark.circle.fill")
-                        Label("Add All copies items to Finder folder", systemImage: "plus.circle.fill")
-                        Label("Great for managing many files", systemImage: "doc.on.doc")
+                        Label("Drag files onto AirDrop, Messages, Mail, or Quickshare", systemImage: "bolt.fill")
+                        Label("Choose your preferred app for the Mail quick action", systemImage: "envelope.badge")
+                        Label("Also enables Select All and Add All tools in Basket", systemImage: "doc.on.doc")
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -4697,61 +4971,61 @@ struct QuickActionsInfoSheet: View {
                 
                 // Card with explanation items
                 VStack(spacing: 0) {
-                    // Info item 1 - Select All
+                    // Info item 1 - Quick action drop targets
                     HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: "bolt.fill")
                             .foregroundStyle(.blue)
                             .font(.system(size: 14))
                             .frame(width: 22)
-                        Text("\"Select All\" button selects all files in the basket")
+                        Text("Shows quick action drop targets under Shelf and Basket (AirDrop, Messages, Mail, Quickshare)")
                             .font(.system(size: 12))
                             .foregroundStyle(.primary.opacity(0.85))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
-                    // Info item 2 - Add All
+                    // Info item 2 - Mail app routing
                     HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: "envelope.badge")
                             .foregroundStyle(.green)
                             .font(.system(size: 14))
                             .frame(width: 22)
-                        Text("When all selected, button becomes \"Add All\" to copy files to the frontmost Finder folder")
+                        Text("The Mail quick action uses the app selected in \"Mail App\" settings")
                             .font(.system(size: 12))
                             .foregroundStyle(.primary.opacity(0.85))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
-                    // Info item 3 - Deselect
+                    // Info item 3 - Basket tools
                     HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "hand.tap.fill")
+                        Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.orange)
                             .font(.system(size: 14))
                             .frame(width: 22)
-                        Text("Click anywhere in the basket to deselect all")
+                        Text("Also enables Select All and Add All tools in Basket for faster batch operations")
                             .font(.system(size: 12))
                             .foregroundStyle(.primary.opacity(0.85))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                 )
             }
             .padding(DroppySpacing.xxl)
@@ -4784,7 +5058,7 @@ struct QuickActionsInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }
@@ -4849,11 +5123,11 @@ struct TrackedFoldersSettingsRow: View {
                             Text("Tracked Folders")
                             Text("advanced")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.white.opacity(0.08)))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                         }
                         Text("Watch folders and auto-add new files")
                             .font(.caption)
@@ -4971,7 +5245,7 @@ struct WatchedFolderRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
     }
 }
@@ -5002,11 +5276,11 @@ struct MediaSourceFilterSettingsRow: View {
                         Text("Filter Media Sources")
                         Text("advanced")
                             .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.white.opacity(0.08)))
-                            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                            .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                     }
                     Text("Only show selected apps in media player")
                         .font(.caption)
@@ -5141,7 +5415,7 @@ private struct MediaSourceAppRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
     }
 }
@@ -5199,11 +5473,11 @@ struct AdvancedAutofadeSettingsRow: View {
                             Text("Auto-Hide Preview")
                             Text("advanced")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.white.opacity(0.08)))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                         }
                         Text("Fade out mini player after delay")
                             .font(.caption)
@@ -5352,7 +5626,7 @@ struct AutofadeAppRuleRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
     }
 }
@@ -5395,7 +5669,7 @@ struct AutofadeDisplayRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
     }
 }
@@ -5432,7 +5706,7 @@ struct ExternalDisplayVisibilityRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.03))
+        .background(AdaptiveColors.overlayAuto(0.03))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
     }
 }
@@ -5558,7 +5832,7 @@ struct AppPickerRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(isHovering ? Color.white.opacity(0.05) : Color.clear)
+        .background(isHovering ? AdaptiveColors.overlayAuto(0.05) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
         .onHover { isHovering = $0 }
     }

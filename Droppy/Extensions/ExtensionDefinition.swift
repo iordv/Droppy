@@ -157,6 +157,16 @@ final class ExtensionRegistry {
 
 // MARK: - Icon View Helper
 
+extension Image {
+    /// Consistent high-quality rendering for extension icons on all displays/scales.
+    func droppyExtensionIcon(contentMode: ContentMode = .fill) -> some View {
+        self
+            .resizable()
+            .interpolation(Image.Interpolation.high)
+            .aspectRatio(contentMode: contentMode)
+    }
+}
+
 /// Reusable icon view for extension cards
 struct ExtensionIconView<T: ExtensionDefinition>: View {
     let definition: T.Type
@@ -164,7 +174,7 @@ struct ExtensionIconView<T: ExtensionDefinition>: View {
     
     var body: some View {
         CachedAsyncImage(url: definition.iconURL) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
+            image.droppyExtensionIcon(contentMode: .fill)
         } placeholder: {
             Image(systemName: definition.iconPlaceholder)
                 .font(.system(size: size * 0.5, weight: .medium))

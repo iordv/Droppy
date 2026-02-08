@@ -235,17 +235,17 @@ private struct DropoverCard: View {
             } else if item.isDirectory {
                 // Folder icon fallback
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(AdaptiveColors.overlayAuto(0.1))
                     .frame(width: 80, height: 80)
                     .overlay(
                         Image(systemName: "folder.fill")
                             .font(.system(size: 30))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.9))
                     )
             } else {
                 // Generic file icon fallback
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .fill(Color.white.opacity(0.1))
+                    .fill(AdaptiveColors.overlayAuto(0.1))
                     .frame(width: 80, height: 80)
                     .overlay(
                         Image(nsImage: ThumbnailCache.shared.cachedIcon(forPath: item.url.path))
@@ -373,11 +373,11 @@ struct BasketDragHandle: View {
     private var capsuleFill: Color {
         if !showAccentColor {
             if isDragging {
-                return Color.white.opacity(0.52)
+                return AdaptiveColors.overlayAuto(0.52)
             } else if isHovering {
-                return Color.white.opacity(0.40)
+                return AdaptiveColors.overlayAuto(0.40)
             } else {
-                return Color.white.opacity(0.28)
+                return AdaptiveColors.overlayAuto(0.28)
             }
         }
         if isDragging {
@@ -457,7 +457,7 @@ struct BasketDragHandle: View {
             
             // Stacked preview placeholder
             RoundedRectangle(cornerRadius: DroppyRadius.medium)
-                .fill(Color.white.opacity(0.1))
+                .fill(AdaptiveColors.overlayAuto(0.1))
                 .frame(width: 100, height: 100)
             
             Spacer()
@@ -472,7 +472,7 @@ struct BasketDragHandle: View {
                 .fill(Color(red: 0.15, green: 0.18, blue: 0.45))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.jumbo, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        .strokeBorder(AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
                 )
         )
     }

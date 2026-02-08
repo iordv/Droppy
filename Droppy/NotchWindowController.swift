@@ -11,6 +11,21 @@ import Combine
 import UniformTypeIdentifiers
 import Observation
 import SkyLightWindow
+import QuartzCore
+
+private let notchMotionDebugLogs = false
+
+@inline(__always)
+private func notchDebugLog(_ message: @autoclosure () -> String) {
+    guard notchMotionDebugLogs else { return }
+    print(message())
+}
+
+private final class NoAnimationCAAction: NSObject, CAAction {
+    static let shared = NoAnimationCAAction()
+
+    func run(forKey event: String, object anObject: Any, arguments dict: [AnyHashable : Any]?) {}
+}
 
 /// Manages the transparent overlay window positioned at the MacBook notch
 final class NotchWindowController: NSObject, ObservableObject {
@@ -232,12 +247,14 @@ final class NotchWindowController: NSObject, ObservableObject {
         // 1. Create the SwiftUI view with screen context
         let notchView = NotchShelfView(state: DroppyState.shared, targetScreen: screen)
             .preferredColorScheme(.dark) // Force dark mode always
+
         let hostingView = NSHostingView(rootView: notchView)
-        hostingView.wantsLayer = true
+        configureMotionLayer(hostingView)
         hostingView.layer?.backgroundColor = CGColor.clear
         
         // 2. Create the container view that handles drops
         let dragContainer = NotchDragContainer(frame: NSRect(origin: .zero, size: windowFrame.size))
+        configureMotionLayer(dragContainer)
         dragContainer.hostingView = hostingView
         dragContainer.addSubview(hostingView)
         
@@ -251,6 +268,9 @@ final class NotchWindowController: NSObject, ObservableObject {
         ])
         
         window.contentView = dragContainer
+        if let contentView = window.contentView {
+            configureMotionLayer(contentView)
+        }
         
         // Show the window
         window.orderFrontRegardless()
@@ -265,6 +285,26 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Note: We do NOT delegate to SkyLight here eagerly.
         // Doing so breaks drag-and-drop on the desktop for the built-in screen.
         // Delegation happens ONLY when the screen is actually locked (via sessionDidResignActive).
+    }
+
+    /// AppKit-level motion quality guard:
+    /// disable implicit layer animations that can cause accidental lateral drift
+    /// when frame/bounds/content updates happen in rapid succession.
+    private func configureMotionLayer(_ view: NSView) {
+        view.wantsLayer = true
+        view.layerContentsRedrawPolicy = .onSetNeedsDisplay
+
+        guard let layer = view.layer else { return }
+        let noAction = NoAnimationCAAction.shared
+        layer.actions = [
+            "position": noAction,
+            "bounds": noAction,
+            "frame": noAction,
+            "transform": noAction,
+            "sublayerTransform": noAction,
+            "opacity": noAction,
+            "contents": noAction
+        ]
     }
     /// Updates the window's visibility in screenshots based on user preference
     func updateScreenshotVisibility() {
@@ -392,8 +432,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 let screenFrame = screen.frame
                 let notchWidth: CGFloat = 450  // Approximate notch/island width
                 let notchHeight: CGFloat = 60  // Approximate notch/island height
+                let centerX = screen.notchAlignedCenterX
                 let notchArea = CGRect(
-                    x: screenFrame.midX - notchWidth / 2,
+                    x: centerX - notchWidth / 2,
                     y: screenFrame.maxY - notchHeight,
                     width: notchWidth,
                     height: notchHeight
@@ -552,7 +593,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         NotificationCenter.default.publisher(for: .hudStateDidChange)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                print("🔔 NotchWindowController: Received hudStateDidChange - updating mouse event handling")
+                notchDebugLog("🔔 NotchWindowController: Received hudStateDidChange - updating mouse event handling")
                 self?.updateAllWindowsMouseEventHandling()
             }
             .store(in: &cancellables)
@@ -582,22 +623,28 @@ final class NotchWindowController: NSObject, ObservableObject {
         
         // Global monitor catches mouse movement when Droppy is not frontmost
         globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
-            // PERFORMANCE (v10.x): Skip drag events unless already hovering over the notch.
+            guard let self else { return }
+            // PERFORMANCE (v10.x): Skip drag events unless already hovering over this display's notch.
             // macOS fires hundreds of leftMouseDragged events per second during drag operations.
             // Processing each one causes 100% CPU. We only care about drags that START on the notch.
-            if event.type == .leftMouseDragged && !DroppyState.shared.isMouseHovering {
-                return
+            if event.type == .leftMouseDragged {
+                let mouseLocation = NSEvent.mouseLocation
+                if let (_, screen) = self.findWindowForMouseLocation(mouseLocation) {
+                    guard DroppyState.shared.isHovering(for: screen.displayID) else { return }
+                } else if !DroppyState.shared.isMouseHovering {
+                    return
+                }
             }
             
             // DEBUG: Log every 60 events to verify monitor is receiving events after unlock
             struct DebugCounter { static var count = 0 }
             DebugCounter.count += 1
             if DebugCounter.count % 60 == 0 {
-                print("🐭 NotchWindowController: globalMouseMonitor received \(DebugCounter.count) events")
+                notchDebugLog("🐭 NotchWindowController: globalMouseMonitor received \(DebugCounter.count) events")
             }
-            self?.handleMouseEvent(event)
+            self.handleMouseEvent(event)
         }
-        print("✅ NotchWindowController: globalMouseMonitor created: \(globalMouseMonitor != nil)")
+        notchDebugLog("✅ NotchWindowController: globalMouseMonitor created: \(globalMouseMonitor != nil)")
         
         // GLOBAL CLICK MONITOR (v5.3) - Ultra-reliable single-click shelf opening
         // This catches clicks even when Droppy isn't focused, enabling instant shelf opening
@@ -626,9 +673,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 height: notchRect.height + upwardExpansion  // Extend to screen top
             )
             // Calculate expanded shelf area (when shelf is open)
-            let isExpanded = DroppyState.shared.isExpanded
+            let isExpandedOnTarget = DroppyState.shared.isExpanded(for: targetScreen.displayID)
             var expandedShelfZone: NSRect = .zero
-            if isExpanded {
+            if isExpandedOnTarget {
                 let expandedWidth = self.currentExpandedShelfWidth()
                 let centerX = self.effectiveShelfCenterX(for: targetScreen)
                 
@@ -645,7 +692,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
             // Check if click is in notch zone or expanded shelf zone
             let isInNotchZone = clickZone.contains(mouseLocation)
-            let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
+            let isInExpandedShelfZone = isExpandedOnTarget && expandedShelfZone.contains(mouseLocation)
 
             if isInNotchZone {
                 // ROCK-SOLID: Debounce rapid clicks to prevent toggle storms
@@ -658,16 +705,20 @@ final class NotchWindowController: NSObject, ObservableObject {
                 // Let them pass through to SwiftUI item buttons (like the X to delete a file).
                 // Only toggle when collapsed OR when expanded but empty.
                 let hasItems = !DroppyState.shared.items.isEmpty
-                if isExpanded && hasItems {
+                if isExpandedOnTarget && hasItems {
                     // Shelf is expanded with items - let SwiftUI handle the click
                     return
                 }
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.transition) {
+                    let isExpandedOnTarget = DroppyState.shared.isExpanded(for: targetScreen.displayID)
+                    let animation = isExpandedOnTarget
+                        ? DroppyAnimation.expandClose(for: targetScreen)
+                        : DroppyAnimation.expandOpen(for: targetScreen)
+                    withAnimation(animation) {
                         DroppyState.shared.toggleShelfExpansion(for: targetScreen.displayID)
                     }
                 }
-            } else if isExpanded &&
+            } else if isExpandedOnTarget &&
                         !isInExpandedShelfZone &&
                         !self.hasActiveContextMenu() &&
                         !ToDoManager.shared.isInteractingWithPopover &&
@@ -687,10 +738,11 @@ final class NotchWindowController: NSObject, ObservableObject {
                     guard !DragMonitor.shared.isDragging else { return }
                     guard !ToDoManager.shared.isInteractingWithPopover else { return }
                     guard !self.hasActivePopoverWindow() else { return }
+                    guard DroppyState.shared.isExpanded(for: targetScreen.displayID) else { return }
                     
-                    withAnimation(DroppyAnimation.transition) {
+                    withAnimation(DroppyAnimation.expandClose(for: targetScreen)) {
                         DroppyState.shared.expandedDisplayID = nil
-                        DroppyState.shared.isMouseHovering = false
+                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
                     }
                 }
             }
@@ -808,9 +860,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 )
 
                 // Calculate expanded shelf area
-                let isExpanded = DroppyState.shared.isExpanded
+                let isExpandedOnTarget = DroppyState.shared.isExpanded(for: targetScreen.displayID)
                 var expandedShelfZone: NSRect = .zero
-                if isExpanded {
+                if isExpandedOnTarget {
                     let expandedWidth = self.currentExpandedShelfWidth()
                     let centerX = self.effectiveShelfCenterX(for: targetScreen)
                     
@@ -826,7 +878,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 }
 
                 let isInNotchZone = clickZone.contains(mouseLocation)
-                let isInExpandedShelfZone = isExpanded && expandedShelfZone.contains(mouseLocation)
+                let isInExpandedShelfZone = isExpandedOnTarget && expandedShelfZone.contains(mouseLocation)
 
                 // CRITICAL FIX: When notification HUD is visible, check if click is in notification area
                 // The notification HUD is LARGER than the normal notch zone, so we need a separate check
@@ -861,17 +913,21 @@ final class NotchWindowController: NSObject, ObservableObject {
                     // CRITICAL FIX: When shelf is expanded WITH ITEMS, don't intercept clicks!
                     // Let them pass through to SwiftUI item buttons (like the X to delete a file).
                     let hasItems = !DroppyState.shared.items.isEmpty
-                    if isExpanded && hasItems {
+                    if isExpandedOnTarget && hasItems {
                         // Shelf is expanded with items - let SwiftUI handle the click
                         return event
                     }
                     DispatchQueue.main.async {
-                        withAnimation(DroppyAnimation.transition) {
+                        let isExpandedOnTarget = DroppyState.shared.isExpanded(for: targetScreen.displayID)
+                        let animation = isExpandedOnTarget
+                            ? DroppyAnimation.expandClose(for: targetScreen)
+                            : DroppyAnimation.expandOpen(for: targetScreen)
+                        withAnimation(animation) {
                             DroppyState.shared.toggleShelfExpansion(for: targetScreen.displayID)
                         }
                     }
                     return nil  // Consume the click event
-                } else if isExpanded &&
+                } else if isExpandedOnTarget &&
                             !isInExpandedShelfZone &&
                             !self.hasActiveContextMenu() &&
                             !ToDoManager.shared.isInteractingWithPopover &&
@@ -890,10 +946,11 @@ final class NotchWindowController: NSObject, ObservableObject {
                         guard !DragMonitor.shared.isDragging else { return }
                         guard !ToDoManager.shared.isInteractingWithPopover else { return }
                         guard !self.hasActivePopoverWindow() else { return }
+                        guard DroppyState.shared.isExpanded(for: targetScreen.displayID) else { return }
                         
-                        withAnimation(DroppyAnimation.transition) {
+                        withAnimation(DroppyAnimation.expandClose(for: targetScreen)) {
                             DroppyState.shared.expandedDisplayID = nil
-                            DroppyState.shared.isMouseHovering = false
+                            DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
                         }
                     }
                 }
@@ -1032,7 +1089,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                     let displayID = screen.displayID  // Capture for async block
                     DispatchQueue.main.async { [weak self] in
                         DroppyState.shared.validateItems()
-                        withAnimation(DroppyAnimation.hoverBouncy) {
+                        withAnimation(DroppyAnimation.hoverBouncy(for: screen)) {
                             DroppyState.shared.setHovering(for: displayID, isHovering: true)
                         }
                         // Start auto-expand timer with screen context
@@ -1087,7 +1144,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Track the specific properties that affect mouse event handling
         withObservationTracking {
             _ = DroppyState.shared.isExpanded
-            _ = DroppyState.shared.isMouseHovering
+            _ = DroppyState.shared.hoveringDisplayID
             _ = DroppyState.shared.isDropTargeted
             _ = DroppyState.shared.items.count  // Track item count for dynamic window sizing
             _ = DroppyState.shared.shelfDisplaySlotCount  // Track row growth changes immediately
@@ -1403,7 +1460,14 @@ final class NotchWindowController: NSObject, ObservableObject {
                 AppPreferenceKey.enableLockScreenMediaWidget,
                 default: PreferenceDefault.enableLockScreenMediaWidget
             )
-            if lockScreenEnabled {
+            let lockHUDEnabled = UserDefaults.standard.preference(
+                AppPreferenceKey.enableLockScreenHUD,
+                default: PreferenceDefault.enableLockScreenHUD
+            )
+
+            // Lock HUD mode uses its own dedicated lock-screen window surface.
+            // Skip delegating the regular notch window to prevent double-surface artifacts.
+            if lockScreenEnabled && !lockHUDEnabled {
                 print("🔒 NotchWindowController: Screen locking - re-delegating to SkyLight")
                 self?.delegateToLockScreen()
             }
@@ -1442,8 +1506,12 @@ final class NotchWindowController: NSObject, ObservableObject {
             AppPreferenceKey.enableLockScreenMediaWidget,
             default: PreferenceDefault.enableLockScreenMediaWidget
         )
+        let lockHUDEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.enableLockScreenHUD,
+            default: PreferenceDefault.enableLockScreenHUD
+        )
         
-        if lockScreenEnabled {
+        if lockScreenEnabled && !lockHUDEnabled {
             // WINDOW RECREATION: Destroy and rebuild all windows
             // This is the only way to "undelegaDe" from SkyLight
             print("🔥 NotchWindowController: Destroying SkyLight-delegated windows...")
@@ -1556,8 +1624,8 @@ final class NotchWindowController: NSObject, ObservableObject {
             // MOUSE EVENT VALIDATION
             // Check if window is ignoring events when it shouldn't be
             if window.ignoresMouseEvents {
-                let isExpanded = DroppyState.shared.isExpanded
-                let isHovering = DroppyState.shared.isMouseHovering
+                let isExpanded = DroppyState.shared.isExpanded(for: displayID)
+                let isHovering = DroppyState.shared.isHovering(for: displayID)
                 let isNotificationHUDActive = HUDManager.shared.isNotificationHUDVisible
 
                 // Window SHOULD accept events when:
@@ -1679,7 +1747,7 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// - Parameter displayID: The display to expand when timer fires (optional for backwards compat)
     func startAutoExpandTimer(for displayID: CGDirectDisplayID? = nil) {
         // DEBUG: Log when timer is started
-        print("🟢 startAutoExpandTimer CALLED for displayID: \(displayID?.description ?? "nil")")
+        notchDebugLog("🟢 startAutoExpandTimer CALLED for displayID: \(displayID?.description ?? "nil")")
         
         // CRITICAL: Use object() ?? true to match @AppStorage default for new users
         guard (UserDefaults.standard.object(forKey: "autoExpandShelf") as? Bool) ?? true else { return }
@@ -1689,14 +1757,14 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Use configurable delay (0.5-2.0 seconds, default 1.0s)
         let delay = UserDefaults.standard.double(forKey: "autoExpandDelay")
         let actualDelay = delay > 0 ? delay : 1.0  // Fallback to 1.0s if not set
-        print("🟢 AUTO-EXPAND TIMER STARTED with delay: \(actualDelay)s for displayID: \(displayID?.description ?? "nil")")
+        notchDebugLog("🟢 AUTO-EXPAND TIMER STARTED with delay: \(actualDelay)s for displayID: \(displayID?.description ?? "nil")")
         autoExpandTimer = Timer.scheduledTimer(withTimeInterval: actualDelay, repeats: false) { [weak self] _ in
             guard self != nil else { return }
 
             // CRITICAL: Don't expand shelf when NotificationHUD is visible
             // User needs to click the notification, not accidentally expand the shelf
             if HUDManager.shared.isNotificationHUDVisible {
-                print("⏰ AUTO-EXPAND BLOCKED: NotificationHUD is visible")
+                notchDebugLog("⏰ AUTO-EXPAND BLOCKED: NotificationHUD is visible")
                 return
             }
 
@@ -1708,7 +1776,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             // After SkyLight lock/unlock, the isHovering state can become stale/incorrect.
             // Instead of trusting the state, we directly check if mouse is over the notch zone.
             let currentMouse = NSEvent.mouseLocation
-            let isExpanded = DroppyState.shared.isExpanded
+            let isExpanded = displayID.map { DroppyState.shared.isExpanded(for: $0) } ?? DroppyState.shared.isExpanded
             
             // Find the target screen and check if mouse is in notch zone
             var isMouseOverNotchZone = false
@@ -1728,37 +1796,38 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
             
             // Also check DroppyState as backup
-            let stateHovering = DroppyState.shared.isMouseHovering
+            let stateHovering = displayID.map { DroppyState.shared.isHovering(for: $0) } ?? DroppyState.shared.isMouseHovering
             let shouldExpand = (isMouseOverNotchZone || stateHovering) && !isExpanded
             
-            print("⏰ AUTO-EXPAND TIMER FIRED: stateHovering=\(stateHovering), geometryHovering=\(isMouseOverNotchZone), isExpanded=\(isExpanded), shouldExpand=\(shouldExpand), displayID=\(displayID?.description ?? "nil")")
+            notchDebugLog("⏰ AUTO-EXPAND TIMER FIRED: stateHovering=\(stateHovering), geometryHovering=\(isMouseOverNotchZone), isExpanded=\(isExpanded), shouldExpand=\(shouldExpand), displayID=\(displayID?.description ?? "nil")")
             
             // Expand if EITHER state or geometry says we're hovering
             if shouldExpand {
+                let animationScreen = displayID.flatMap { self?.notchWindows[$0]?.notchScreen }
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.transition) {
+                    withAnimation(DroppyAnimation.expandOpen(for: animationScreen)) {
                         if let displayID = displayID {
                             // Expand on the specific screen
-                            print("📤 EXPANDING SHELF for displayID: \(displayID)")
+                            notchDebugLog("📤 EXPANDING SHELF for displayID: \(displayID)")
                             DroppyState.shared.expandShelf(for: displayID)
                         } else {
                             // Fallback: Find screen containing mouse and expand that
                             if let screen = NSScreen.screens.first(where: { $0.frame.contains(currentMouse) }) {
-                                print("📤 EXPANDING SHELF for fallback displayID: \(screen.displayID)")
+                                notchDebugLog("📤 EXPANDING SHELF for fallback displayID: \(screen.displayID)")
                                 DroppyState.shared.expandShelf(for: screen.displayID)
                             }
                         }
                     }
                 }
             } else {
-                print("⏰ AUTO-EXPAND SKIPPED: stateHovering=\(stateHovering), geometryHovering=\(isMouseOverNotchZone), isExpanded=\(isExpanded)")
+                notchDebugLog("⏰ AUTO-EXPAND SKIPPED: stateHovering=\(stateHovering), geometryHovering=\(isMouseOverNotchZone), isExpanded=\(isExpanded)")
             }
         }
     }
     
     func cancelAutoExpandTimer() {
         if autoExpandTimer != nil {
-            print("🔴 cancelAutoExpandTimer CALLED (timer was active)")
+            notchDebugLog("🔴 cancelAutoExpandTimer CALLED (timer was active)")
         }
         autoExpandTimer?.invalidate()
         autoExpandTimer = nil
@@ -1805,7 +1874,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                     
                     if isInNotchArea || isInExpandedZone {
                         // Trigger reveal - window becomes visible again
-                        print("🎬 FULLSCREEN REVEAL: Triggering for display \(displayID)")
+                        notchDebugLog("🎬 FULLSCREEN REVEAL: Triggering for display \(displayID)")
                         fullscreenHoverRevealedDisplays.insert(displayID)
                         window.revealInFullscreen()
                     }
@@ -1820,8 +1889,12 @@ final class NotchWindowController: NSObject, ObservableObject {
             // and ensures hover state doesn't get stuck when mouse leaves all notch areas
             if DroppyState.shared.isMouseHovering {
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.hoverBouncy) {
-                        DroppyState.shared.isMouseHovering = false
+                    withAnimation(DroppyAnimation.hoverBouncy(for: nil)) {
+                        if let hoveringDisplayID = DroppyState.shared.hoveringDisplayID {
+                            DroppyState.shared.setHovering(for: hoveringDisplayID, isHovering: false)
+                        } else {
+                            DroppyState.shared.isMouseHovering = false
+                        }
                     }
                 }
             }
@@ -1841,6 +1914,44 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Accumulated horizontal scroll for swipe detection
     private var accumulatedScrollX: CGFloat = 0
     private var lastScrollTime: Date = .distantPast
+
+    private enum MouseSwipeModifier: String {
+        case option
+        case shift
+        case control
+
+        var flags: NSEvent.ModifierFlags {
+            switch self {
+            case .option: return .option
+            case .shift: return .shift
+            case .control: return .control
+            }
+        }
+    }
+
+    private func mouseSwipeModifier() -> MouseSwipeModifier {
+        let rawValue = UserDefaults.standard.preference(
+            AppPreferenceKey.mouseSwipeMediaSwitchModifier,
+            default: PreferenceDefault.mouseSwipeMediaSwitchModifier
+        )
+        return MouseSwipeModifier(rawValue: rawValue) ?? .option
+    }
+
+    private func mouseGestureDeltaX(for event: NSEvent) -> CGFloat? {
+        let isEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.enableMouseSwipeMediaSwitch,
+            default: PreferenceDefault.enableMouseSwipeMediaSwitch
+        )
+        guard isEnabled else { return nil }
+
+        let allowedFlags: NSEvent.ModifierFlags = [.option, .shift, .control]
+        let activeModifiers = event.modifierFlags.intersection(allowedFlags)
+        guard activeModifiers.contains(mouseSwipeModifier().flags) else { return nil }
+
+        // For regular mouse wheels, map vertical wheel motion to horizontal swipe intent.
+        guard abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX) else { return nil }
+        return -event.scrollingDeltaY
+    }
     
     /// Handles scroll wheel events for 2-finger horizontal swipe media HUD toggle
     /// Swipe left = show media HUD, Swipe right = hide media HUD
@@ -1858,12 +1969,15 @@ final class NotchWindowController: NSObject, ObservableObject {
         }
         lastScrollTime = Date()
         
-        // Accumulate horizontal scroll
-        accumulatedScrollX += event.scrollingDeltaX
-        
-        // Only handle when clearly horizontal swipe (X dominates Y by 1.5x)
-        // And accumulated scroll exceeds threshold
-        guard abs(accumulatedScrollX) > abs(event.scrollingDeltaY) * 1.5 else { return }
+        let trackpadHorizontalSwipe = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) * 1.5
+        let mappedMouseGestureDelta = mouseGestureDeltaX(for: event)
+        let usingMappedMouseGesture = mappedMouseGestureDelta != nil
+
+        // Allow either native horizontal swipe input or configured mouse-gesture mapping.
+        guard trackpadHorizontalSwipe || usingMappedMouseGesture else { return }
+
+        // Accumulate horizontal intent from the active input path.
+        accumulatedScrollX += mappedMouseGestureDelta ?? event.scrollingDeltaX
         
         let mouseLocation = NSEvent.mouseLocation
         
@@ -1882,7 +1996,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         
         // Build swipe detection zone based on current state
         var swipeZone: NSRect
-        if DroppyState.shared.isExpanded {
+        if DroppyState.shared.isExpanded(for: screen.displayID) {
             // EXPANDED: Cover the full expanded shelf area
             let expandedWidth = currentExpandedShelfWidth()
             let centerX = screen.notchAlignedCenterX
@@ -1909,8 +2023,9 @@ final class NotchWindowController: NSObject, ObservableObject {
         // Only toggle if there's a track to show (not idle)
         guard !MusicManager.shared.isPlayerIdle else { return }
         
-        // Require accumulated scroll to exceed threshold before triggering
-        let threshold: CGFloat = 30
+        // Require accumulated intent to exceed threshold before triggering.
+        // Mouse wheel gestures are less granular than trackpad swipes, so use a lower threshold.
+        let threshold: CGFloat = usingMappedMouseGesture ? 4 : 30
         
         // Determine current effective state for media visibility
         let musicManager = MusicManager.shared
@@ -1921,7 +2036,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             // Force immediate SwiftUI update (fixes delay when cursor is stationary)
             musicManager.objectWillChange.send()
             // PREMIUM PARITY: Use .smooth(duration: 0.35) for content transitions
-            withAnimation(DroppyAnimation.smoothContent) {
+            withAnimation(DroppyAnimation.smoothContent(for: screen)) {
                 musicManager.isMediaHUDForced = true
                 musicManager.isMediaHUDHidden = false
             }
@@ -1931,7 +2046,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             // Force immediate SwiftUI update (fixes delay when cursor is stationary)
             musicManager.objectWillChange.send()
             // PREMIUM PARITY: Use .smooth(duration: 0.35) for content transitions
-            withAnimation(DroppyAnimation.smoothContent) {
+            withAnimation(DroppyAnimation.smoothContent(for: screen)) {
                 musicManager.isMediaHUDForced = false
                 musicManager.isMediaHUDHidden = true
             }
@@ -2192,7 +2307,7 @@ class NotchWindow: NSPanel {
         struct DebugCounter { static var count = 0; static var lastLog = Date.distantPast }
         DebugCounter.count += 1
         if Date().timeIntervalSince(DebugCounter.lastLog) > 2.0 { // Log every 2 seconds max
-            print("🎯 NotchWindow.handleGlobalMouseEvent called \(DebugCounter.count)x, notchRect: \(notchRect)")
+            notchDebugLog("🎯 NotchWindow.handleGlobalMouseEvent called \(DebugCounter.count)x, notchRect: \(notchRect)")
             DebugCounter.lastLog = Date()
         }
         
@@ -2211,8 +2326,12 @@ class NotchWindow: NSPanel {
         // This prevents text selection in browsers from triggering the Dynamic Island
         // When user drags to select text, the cursor may pass through the notch zone briefly
         // We only want to respond to drags if the user was already hovering (intentional drag)
-        if event.type == .leftMouseDragged && !DroppyState.shared.isMouseHovering {
-            return
+        if event.type == .leftMouseDragged {
+            if let screen = notchScreen {
+                guard DroppyState.shared.isHovering(for: screen.displayID) else { return }
+            } else if !DroppyState.shared.isMouseHovering {
+                return
+            }
         }
         
         // SAFETY: Use the event's location properties instead of NSEvent.mouseLocation
@@ -2253,7 +2372,7 @@ class NotchWindow: NSPanel {
             GuardDebugCounter.count += 1
             
             if isVerbose || Date().timeIntervalSince(GuardDebugCounter.lastLog) > 2.0 {
-                print("⚠️ GUARD FAILED (\(GuardDebugCounter.count)x, verbose=\(isVerbose)): notchScreen=\(notchScreen != nil ? "\(notchScreen!.displayID)" : "nil"), mouseLocation=\(mouseLocation), frame=\(notchScreen.map { String(describing: $0.frame) } ?? "nil")")
+                notchDebugLog("⚠️ GUARD FAILED (\(GuardDebugCounter.count)x, verbose=\(isVerbose)): notchScreen=\(notchScreen != nil ? "\(notchScreen!.displayID)" : "nil"), mouseLocation=\(mouseLocation), frame=\(notchScreen.map { String(describing: $0.frame) } ?? "nil")")
                 GuardDebugCounter.lastLog = Date()
             }
             return
@@ -2266,7 +2385,7 @@ class NotchWindow: NSPanel {
         struct PastGuardDebugCounter { static var count = 0; static var lastLog = Date.distantPast }
         PastGuardDebugCounter.count += 1
         if Date().timeIntervalSince(PastGuardDebugCounter.lastLog) > 2.0 {
-            print("✅ PAST GUARD: displayID=\(targetScreen.displayID), mouse=\(mouseLocation), screenFrame=\(targetScreen.frame)")
+            notchDebugLog("✅ PAST GUARD: displayID=\(targetScreen.displayID), mouse=\(mouseLocation), screenFrame=\(targetScreen.frame)")
             PastGuardDebugCounter.lastLog = Date()
         }
 
@@ -2333,7 +2452,8 @@ class NotchWindow: NSPanel {
 
         // Use expanded zone to START hovering, exact zone to MAINTAIN hover
         // Exception: Also maintain hover at the screen top edge (Fitt's Law - user pushing against edge)
-        let currentlyHovering = DroppyState.shared.isMouseHovering
+        let displayID = targetScreen.displayID
+        let currentlyHovering = DroppyState.shared.isHovering(for: displayID)
 
         // For maintaining hover: exact notch OR at screen top within horizontal bounds
         var isOverExactOrEdge = isOverExactNotch
@@ -2349,7 +2469,7 @@ class NotchWindow: NSPanel {
         struct DragDebugCounter { static var lastLog = Date.distantPast; static var count = 0 }
         DragDebugCounter.count += 1
         if DragMonitor.shared.isDragging && Date().timeIntervalSince(DragDebugCounter.lastLog) > 2.0 {
-            print("⚠️ DRAG STUCK: isDragging=true for \(DragDebugCounter.count) samples! mouseY=\(mouseLocation.y), screenMaxY=\(targetScreen.frame.maxY)")
+            notchDebugLog("⚠️ DRAG STUCK: isDragging=true for \(DragDebugCounter.count) samples! mouseY=\(mouseLocation.y), screenMaxY=\(targetScreen.frame.maxY)")
             DragDebugCounter.lastLog = Date()
         }
         
@@ -2364,7 +2484,7 @@ class NotchWindow: NSPanel {
             AllEventDebugCounter.count += 1
             if Date().timeIntervalSince(AllEventDebugCounter.lastLog) > 2.0 {
                 let isNearTop = mouseLocation.y > yThreshold
-                print("🔎 MOUSE Y CHECK: mouse.y=\(mouseLocation.y), screenMaxY=\(screenMaxY), threshold=\(yThreshold), nearTop=\(isNearTop), displayID=\(targetScreen.displayID)")
+                notchDebugLog("🔎 MOUSE Y CHECK: mouse.y=\(mouseLocation.y), screenMaxY=\(screenMaxY), threshold=\(yThreshold), nearTop=\(isNearTop), displayID=\(targetScreen.displayID)")
                 AllEventDebugCounter.lastLog = Date()
             }
             
@@ -2372,7 +2492,7 @@ class NotchWindow: NSPanel {
             if mouseLocation.y > yThreshold {
                 struct DebugCounter { static var lastLog = Date.distantPast }
                 if Date().timeIntervalSince(DebugCounter.lastLog) > 1.0 {
-                    print("🔍 HOVER DEBUG: mouse=\(mouseLocation), isOverNotch=\(isOverNotch), currentlyHovering=\(currentlyHovering), isOverExpandedZone=\(isOverExpandedZone), isOverExactOrEdge=\(isOverExactOrEdge)")
+                    notchDebugLog("🔍 HOVER DEBUG: mouse=\(mouseLocation), isOverNotch=\(isOverNotch), currentlyHovering=\(currentlyHovering), isOverExpandedZone=\(isOverExpandedZone), isOverExactOrEdge=\(isOverExactOrEdge)")
                     DebugCounter.lastLog = Date()
                 }
             }
@@ -2382,28 +2502,27 @@ class NotchWindow: NSPanel {
                     // Validate items before showing shelf (remove ghost files)
                     DroppyState.shared.validateItems()
 
-                    withAnimation(DroppyAnimation.hoverBouncy) {
+                    withAnimation(DroppyAnimation.hoverBouncy(for: targetScreen)) {
                         DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: true)
                     }
                     // Start auto-expand timer with THIS screen's displayID
                     // Critical for multi-monitor: ensures correct screen expands
                     NotchWindowController.shared.startAutoExpandTimer(for: targetScreen.displayID)
                 }
-            } else if !isOverNotch && currentlyHovering && !DroppyState.shared.isExpanded {
+            } else if !isOverNotch && currentlyHovering && !DroppyState.shared.isExpanded(for: displayID) {
                 // Only reset hover if not expanded (expanded has its own area)
                 DispatchQueue.main.async {
-                    withAnimation(DroppyAnimation.hoverBouncy) {
-                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
+                    withAnimation(DroppyAnimation.hoverBouncy(for: targetScreen)) {
+                        DroppyState.shared.setHovering(for: displayID, isHovering: false)
                     }
                     NotchWindowController.shared.cancelAutoExpandTimer()
                     
                     // BUG #133 FIX: Trigger delayed hide for fullscreen hover-reveal
-                    let displayID = targetScreen.displayID
                     if NotchWindowController.shared.fullscreenHoverRevealedDisplays.contains(displayID) {
                         // Delay hide slightly to allow re-entry if user is just moving around
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             // Recheck: only hide if still not hovering and not expanded
-                            if !DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+                            if !DroppyState.shared.isHovering(for: displayID) && !DroppyState.shared.isExpanded(for: displayID) {
                                 NotchWindowController.shared.hideFullscreenReveal(for: displayID)
                             }
                         }
@@ -2435,26 +2554,25 @@ class NotchWindow: NSPanel {
                 // Reset hover state if user moves OUT of the expanded shelf
                 else if !isInExpandedShelf && currentlyHovering {
                     DispatchQueue.main.async {
-                        DroppyState.shared.setHovering(for: targetScreen.displayID, isHovering: false)
+                        DroppyState.shared.setHovering(for: displayID, isHovering: false)
                         
                         // BUG #133 FIX: Trigger delayed hide for fullscreen hover-reveal
-                        let displayID = targetScreen.displayID
                         if NotchWindowController.shared.fullscreenHoverRevealedDisplays.contains(displayID) {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                if !DroppyState.shared.isMouseHovering && !DroppyState.shared.isExpanded {
+                                if !DroppyState.shared.isHovering(for: displayID) && !DroppyState.shared.isExpanded(for: displayID) {
                                     NotchWindowController.shared.hideFullscreenReveal(for: displayID)
                                 }
                             }
                         }
                     }
                 }
-            } else if DroppyState.shared.isExpanded && currentlyHovering && !isOverNotch {
+            } else if DroppyState.shared.isExpanded && !DroppyState.shared.isExpanded(for: displayID) && currentlyHovering && !isOverNotch {
                 // CRITICAL FIX (2-external-monitor bug):
                 // Shelf is expanded on a DIFFERENT screen, and mouse is on THIS screen,
                 // but NOT over this screen's notch. Reset hover state so the expanded
                 // shelf on the other screen can auto-collapse.
                 DispatchQueue.main.async {
-                    DroppyState.shared.isMouseHovering = false
+                    DroppyState.shared.setHovering(for: displayID, isHovering: false)
                 }
             }
         }
@@ -2485,10 +2603,10 @@ class NotchWindow: NSPanel {
         // Safely capture state - avoid accessing shared singletons if they might be nil
         // Use local variables to minimize property access time
         let state = DroppyState.shared
-        
-        let isExpanded = state.isExpanded
-        _ = state.isMouseHovering
-        let isDropTargeted = state.isDropTargeted
+
+        let displayID = targetDisplayID != 0 ? targetDisplayID : (notchScreen?.displayID ?? 0)
+        let isExpanded = state.isExpanded(for: displayID)
+        let isDropTargeted = state.isDropTargeted && (state.dropTargetDisplayID == nil || state.dropTargetDisplayID == displayID)
         let isDraggingFiles = DragMonitor.shared.isDragging
         
         // CRITICAL FIX (v7.0.2): When dragging, only accept events if drag is OVER the valid drop zone!
@@ -2550,14 +2668,14 @@ class NotchWindow: NSPanel {
 
         // DEBUG: Log notification HUD state affecting mouse events
         if isNotificationHUDActive {
-            print("🔔 NotchWindow: NotificationHUD active - shouldAcceptEvents=\(shouldAcceptEvents), ignoresMouseEvents=\(self.ignoresMouseEvents)")
+            notchDebugLog("🔔 NotchWindow: NotificationHUD active - shouldAcceptEvents=\(shouldAcceptEvents), ignoresMouseEvents=\(self.ignoresMouseEvents)")
         }
 
         // Only update if the value actually needs to change
         if self.ignoresMouseEvents == shouldAcceptEvents {
             self.ignoresMouseEvents = !shouldAcceptEvents
             if isNotificationHUDActive {
-                print("🔔 NotchWindow: Updated ignoresMouseEvents to \(!shouldAcceptEvents) for NotificationHUD")
+                notchDebugLog("🔔 NotchWindow: Updated ignoresMouseEvents to \(!shouldAcceptEvents) for NotificationHUD")
             }
         }
 
@@ -2566,7 +2684,7 @@ class NotchWindow: NSPanel {
         if isNotificationHUDActive {
             if self.becomesKeyOnlyIfNeeded {
                 self.becomesKeyOnlyIfNeeded = false
-                print("🔔 NotchWindow: Set becomesKeyOnlyIfNeeded=false for NotificationHUD clicks")
+                notchDebugLog("🔔 NotchWindow: Set becomesKeyOnlyIfNeeded=false for NotificationHUD clicks")
             }
         } else {
             // Restore default behavior when notification is not visible
@@ -2715,12 +2833,15 @@ class NotchWindow: NSPanel {
 
         // CRITICAL FIX: NotificationHUD needs key window status to receive clicks
         let isNotificationHUDActive = HUDManager.shared.isNotificationHUDVisible
+        let displayID = targetDisplayID != 0 ? targetDisplayID : (notchScreen?.displayID ?? 0)
 
         // Become key when:
         // - Shelf is expanded and needs interaction
         // - Mouse is hovering (about to interact)
         // - NotificationHUD is visible (needs clicks to open source app)
-        return DroppyState.shared.isExpanded || DroppyState.shared.isMouseHovering || isNotificationHUDActive
+        return DroppyState.shared.isExpanded(for: displayID) ||
+            DroppyState.shared.isHovering(for: displayID) ||
+            isNotificationHUDActive
     }
 }
 

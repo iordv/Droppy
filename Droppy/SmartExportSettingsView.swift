@@ -56,7 +56,7 @@ struct SmartExportSettingsView: View {
         }
         .frame(width: 480)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
     
@@ -105,7 +105,7 @@ struct SmartExportSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
     
@@ -195,7 +195,7 @@ struct SmartExportSettingsView: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
         .animation(DroppyAnimation.state, value: enabled.wrappedValue)
     }
@@ -318,11 +318,11 @@ struct SmartExportSettingsRow: View {
                         Text("Smart Export")
                         Text("advanced")
                             .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.white.opacity(0.08)))
-                            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                            .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                     }
                     Text("Auto-save processed files to designated folders")
                         .font(.caption)
@@ -353,11 +353,11 @@ struct SmartExportSettingsRow: View {
                             Text("Smart Export")
                             Text("advanced")
                                 .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(Color.white.opacity(0.08)))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                .background(Capsule().fill(AdaptiveColors.overlayAuto(0.08)))
+                                .overlay(Capsule().stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1))
                         }
                         Text("Auto-save processed files to designated folders")
                             .font(.caption)
@@ -501,9 +501,9 @@ struct SmartExportInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 2
@@ -519,9 +519,9 @@ struct SmartExportInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                     .overlay(alignment: .bottom) {
-                        Rectangle().fill(Color.white.opacity(0.04)).frame(height: 0.5)
+                        Rectangle().fill(AdaptiveColors.overlayAuto(0.04)).frame(height: 0.5)
                     }
                     
                     // Info item 3
@@ -537,13 +537,13 @@ struct SmartExportInfoSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.02))
+                    .background(AdaptiveColors.overlayAuto(0.02))
                 }
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.05), lineWidth: 1)
                 )
             }
             .padding(.horizontal, 24)
@@ -581,7 +581,7 @@ struct SmartExportInfoSheet: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
     }
 }

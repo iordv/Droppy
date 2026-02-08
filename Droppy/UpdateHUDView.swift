@@ -15,7 +15,6 @@ struct UpdateHUDView: View {
     let hudWidth: CGFloat     // Total HUD width
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     
-    /// Animation state for the bounce effect
     @State private var animationTrigger = false
     
     /// Centralized layout calculator - Single Source of Truth
@@ -34,7 +33,6 @@ struct UpdateHUDView: View {
     var body: some View {
         hudContent
             .onAppear {
-                // Trigger bounce animation
                 withAnimation(DroppyAnimation.scalePop) {
                     animationTrigger = true
                 }
@@ -106,14 +104,14 @@ struct UpdateHUDView: View {
         }
     }
     
-    /// Update icon with bounce animation
+    /// Update icon with subtle entrance animation
     @ViewBuilder
     private func updateIcon(size: CGFloat) -> some View {
         Image(systemName: "arrow.down.circle.fill")
             .font(.system(size: size, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color(red: 0.41, green: 0.71, blue: 1.0))
             .symbolEffect(.bounce.up.byLayer, value: animationTrigger)
-            .scaleEffect(animationTrigger ? 1.0 : 0.6)
+            .scaleEffect(animationTrigger ? 1.0 : 0.88)
     }
 }
 

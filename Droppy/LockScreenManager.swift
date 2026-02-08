@@ -23,6 +23,10 @@ class LockScreenManager: ObservableObject {
     
     /// The event that triggered the last change
     @Published private(set) var lastEvent: LockEvent = .none
+
+    /// True while the dedicated lock-screen HUD window is the active visual surface.
+    /// Used to suppress duplicate inline notch lock HUD rendering during lock/unlock handoff.
+    @Published private(set) var isDedicatedHUDActive: Bool = false
     
     /// Duration the HUD should stay visible
     let visibleDuration: TimeInterval = 2.5
@@ -34,12 +38,38 @@ class LockScreenManager: ObservableObject {
         case unlocked  // Screen woke up / lid opened
     }
     
+    /// Whether observers are currently active
+    private var isEnabled = false
+    
     private init() {
-        // DISABLED: Lock screen features (Skylight API, window recreation) causing serious issues.
-        // All observers that trigger lock screen behavior are disabled until issues are resolved.
-        // The code is preserved for future debugging - just uncomment to re-enable.
-        // setupObservers()
+        // Observers are NOT started here — call enable() after checking user preferences.
+        // This avoids the historical issue of lock screen features activating unconditionally.
     }
+    
+    // MARK: - Public API
+    
+    /// Start observing lock/unlock events. Called from DroppyApp when the preference is enabled.
+    func enable() {
+        guard !isEnabled else { return }
+        isEnabled = true
+        setupObservers()
+        print("LockScreenManager: ✅ Observers enabled")
+    }
+    
+    /// Stop observing lock/unlock events.
+    func disable() {
+        guard isEnabled else { return }
+        isEnabled = false
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        DistributedNotificationCenter.default().removeObserver(self)
+        LockScreenMediaPanelManager.shared.hidePanel()
+        LockScreenHUDWindowManager.shared.hideAndDestroy()
+        isDedicatedHUDActive = false
+        HUDManager.shared.dismiss()
+        print("LockScreenManager: ⏹ Observers disabled")
+    }
+    
+    // MARK: - Observer Setup
     
     private func setupObservers() {
         let workspaceCenter = NSWorkspace.shared.notificationCenter
@@ -93,13 +123,13 @@ class LockScreenManager: ObservableObject {
         )
     }
     
+    // MARK: - Event Handlers
+    
     @objc private func handleScreenSleep() {
-        // Update internal state IMMEDIATELY - the notch is visible on lock screen via SkyLight
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             
-            // Always show the panel when screen locks/dims (even if already locked)
-            // This handles: initial lock, screen dim, and re-lock after partial wake
+            // Show media panel when screen locks (separate feature, already safe)
             LockScreenMediaPanelManager.shared.showPanel()
             
             // Only update state if transitioning from unlocked
@@ -107,14 +137,15 @@ class LockScreenManager: ObservableObject {
                 self.isUnlocked = false
                 self.lastEvent = .locked
                 self.lastChangeAt = Date()
-                
-                // CRITICAL: Trigger Lock Screen HUD via HUDManager
-                // Use a very long duration effectively "indefinite" while locked
-                // It will be dismissed/replaced upon unlock
+
+                // Show dedicated lock screen window (SkyLight-delegated, separate from main notch)
+                self.isDedicatedHUDActive = LockScreenHUDWindowManager.shared.showOnLockScreen()
+
+                // Gate all other HUDs during lock transition to guarantee no overlap.
                 HUDManager.shared.show(.lockScreen, on: NSScreen.builtInWithNotch?.displayID, duration: 3600)
-                
-                // CRITICAL: Delegate window to lock screen space and elevate level
-                NotchWindowController.shared.delegateToLockScreen()
+
+                // Keep a single lock HUD animation timeline across lock/unlock events.
+                LockScreenHUDAnimator.shared.transition(to: .locked)
             }
         }
     }
@@ -123,52 +154,52 @@ class LockScreenManager: ObservableObject {
         // Screen wake can happen on lock screen (just screen brightening)
         // Don't hide panel here - only hide on actual unlock
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             // Re-show panel on screen wake (in case it was hidden during dim)
-            // This ensures panel stays visible when screen dims and wakes while still locked
             if !self.isUnlocked {
                 LockScreenMediaPanelManager.shared.showPanel()
-                // CRITICAL: Ensure Lock Screen HUD is visible on wake
+                self.isDedicatedHUDActive = LockScreenHUDWindowManager.shared.showOnLockScreen()
                 HUDManager.shared.show(.lockScreen, on: NSScreen.builtInWithNotch?.displayID, duration: 3600)
-                
-                // CRITICAL: Ensure window is properly delegated and visible (re-apply in case of state loss)
-                NotchWindowController.shared.delegateToLockScreen()
             }
         }
     }
     
     /// Called when user actually unlocks (not just screen wake)
     @objc private func handleActualUnlock() {
-        // Hide lock screen media panel (user is actually unlocking)
-        LockScreenMediaPanelManager.shared.hidePanel()
-        
-        // Trigger unlock HUD
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            guard !self.isUnlocked else { return }
-            self.isUnlocked = true
-            self.lastEvent = .unlocked
-            self.lastChangeAt = Date()
-            self.lastChangeAt = Date()
-            // CRITICAL: Trigger Unlock HUD (2.0s)
-            HUDManager.shared.show(.lockScreen, on: NSScreen.builtInWithNotch?.displayID, duration: 2.0)
+            guard let self else { return }
             
-            // PREMIUM: Play subtle unlock sound
-            self.playUnlockSound()
+            // 1. Update state and animate on the SAME lock HUD surface
+            if !self.isUnlocked {
+                self.isUnlocked = true
+                self.lastEvent = .unlocked
+                self.lastChangeAt = Date()
+
+                // Continue on the same shared animation timeline (no handoff to main notch HUD).
+                LockScreenHUDAnimator.shared.transition(to: .unlocked)
+                HUDManager.shared.show(.lockScreen, on: NSScreen.builtInWithNotch?.displayID, duration: 2.0)
+
+                // Play subtle unlock sound
+                self.playUnlockSound()
+            }
             
-            // CRITICAL: Restore window to standard desktop state (recycle mechanism)
-            // Delay to allow unlock animation to play out (2.0s)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                 NotchWindowController.shared.returnFromLockScreen()
+            // 2. Hide lock screen media panel
+            LockScreenMediaPanelManager.shared.hidePanel()
+            
+            // 3. Keep the dedicated lock HUD as the sole visible surface through unlock.
+            // It animates icon + width back toward desktop notch geometry before teardown.
+            LockScreenHUDWindowManager.shared.transitionToDesktopAndHide(after: 0.2) {
+                // 4. Release lock gate only after the lock HUD window is fully gone.
+                HUDManager.shared.dismiss()
+                self.isDedicatedHUDActive = false
             }
         }
     }
     
     /// Plays a premium, subtle unlock sound
     private func playUnlockSound() {
-        // Use the system "Pop" sound - satisfying clack effect
         if let sound = NSSound(named: "Pop") {
-            sound.volume = 0.4 // Subtle but audible
+            sound.volume = 0.4
             sound.play()
         }
     }

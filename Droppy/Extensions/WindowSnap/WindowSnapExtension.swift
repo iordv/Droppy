@@ -10,14 +10,15 @@ import SwiftUI
 struct WindowSnapExtension: ExtensionDefinition {
     static let id = "windowSnap"
     static let title = "Window Snap"
-    static let subtitle = "Keyboard-driven window management"
+    static let subtitle = "Pointer + keyboard window management"
     static let category: ExtensionGroup = .productivity
     static let categoryColor: Color = .blue // Matches blue window icon
     
-    static let description = "Snap windows to halves, quarters, thirds, or full screen with customizable keyboard shortcuts. Multi-monitor support included."
+    static let description = "Snap windows with shortcuts, or move/resize from anywhere with modifier-drag. Includes live snap zones and multi-monitor support."
     
     static let features: [(icon: String, text: String)] = [
         ("keyboard", "Configurable keyboard shortcuts"),
+        ("cursorarrow.motionlines", "Modifier-drag move and resize"),
         ("rectangle.split.2x2", "Halves, quarters, and thirds"),
         ("arrow.up.left.and.arrow.down.right", "Maximize and restore"),
         ("display", "Multi-monitor support")

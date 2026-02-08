@@ -88,13 +88,9 @@ jobs:
           # Pattern matches: dmgUrl: '.../Droppy-X.X.X.dmg'
           sed -i '' "s|dmgUrl: '.*'|dmgUrl: 'https://github.com/iordv/Droppy/releases/latest/download/Droppy-$VERSION.dmg'|" docs/assets/js/version.js
           
-          # Update download.html static link
-          # Pattern matches: href=".../Droppy-X.X.X.dmg"
-          sed -i '' "s|href=\"https://github.com/iordv/Droppy/releases/latest/download/Droppy-.*.dmg\"|href=\"https://github.com/iordv/Droppy/releases/latest/download/Droppy-$VERSION.dmg\"|" docs/download.html
-          
           # Commit and push changes if meaningful changes exist
           if [[ -n $(git status -s) ]]; then
-            git add docs/assets/js/version.js docs/download.html
+            git add docs/assets/js/version.js
             git commit -m "Update docs to v$VERSION"
             git push origin HEAD:main
           else

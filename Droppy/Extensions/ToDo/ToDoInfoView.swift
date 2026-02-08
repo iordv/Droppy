@@ -13,6 +13,7 @@ struct ToDoInfoView: View {
 
     @AppStorage(AppPreferenceKey.todoInstalled) private var isInstalled = PreferenceDefault.todoInstalled
     @AppStorage(AppPreferenceKey.todoAutoCleanupHours) private var autoCleanupHours = PreferenceDefault.todoAutoCleanupHours
+    @AppStorage(AppPreferenceKey.todoSyncCalendarEnabled) private var syncCalendarEnabled = PreferenceDefault.todoSyncCalendarEnabled
     @AppStorage(AppPreferenceKey.todoSyncRemindersEnabled) private var syncRemindersEnabled = PreferenceDefault.todoSyncRemindersEnabled
     @State private var manager = ToDoManager.shared
     @State private var showReviewsSheet = false
@@ -52,12 +53,15 @@ struct ToDoInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .todo)
         }
         .onAppear {
+            if syncCalendarEnabled {
+                manager.syncExternalSourcesNow()
+            }
             if syncRemindersEnabled {
                 manager.refreshReminderListsNow()
             }
@@ -103,7 +107,7 @@ struct ToDoInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -256,6 +260,31 @@ struct ToDoInfoView: View {
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
+                        Text("Apple Calendar sync")
+                            .font(.callout.weight(.medium))
+                        Text("Show upcoming calendar events in the task overview.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { syncCalendarEnabled },
+                        set: { newValue in
+                            syncCalendarEnabled = newValue
+                            manager.setCalendarSyncEnabled(newValue)
+                        }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                }
+                .padding(.horizontal, DroppySpacing.md)
+                .padding(.vertical, 12)
+
+                Divider()
+                    .padding(.horizontal, DroppySpacing.md)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Apple Reminders sync")
                             .font(.callout.weight(.medium))
                         Text("Two-way sync with Apple Reminders")
@@ -293,7 +322,7 @@ struct ToDoInfoView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Sync behavior")
                             .font(.callout.weight(.medium))
-                        Text("Automatically syncs when Reminders opens and in real time when Apple Reminders change.")
+                        Text("Automatically syncs in real time when Apple Reminders or Calendar events change.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -303,11 +332,11 @@ struct ToDoInfoView: View {
                 .padding(.horizontal, DroppySpacing.md)
                 .padding(.vertical, 12)
             }
-            .background(Color.white.opacity(0.03))
+            .background(AdaptiveColors.overlayAuto(0.03))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .onChange(of: autoCleanupHours) { _, _ in
                 manager.performCleanupNow()
@@ -364,18 +393,18 @@ struct ToDoInfoView: View {
                                 reminderListBadge(colorHex: list.colorHex)
                                 Text(list.title)
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.92))
+                                    .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.92))
                                     .lineLimit(1)
                                 Spacer()
                                 Image(systemName: manager.isReminderListSelected(list.id) ? "checkmark.circle.fill" : "circle")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(manager.isReminderListSelected(list.id) ? .blue : .white.opacity(0.32))
+                                    .foregroundStyle(manager.isReminderListSelected(list.id) ? .blue : AdaptiveColors.secondaryTextAuto.opacity(0.4))
                             }
                             .padding(.horizontal, DroppySpacing.md)
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                    .fill(focusedListIndex == index ? Color.white.opacity(0.08) : Color.clear)
+                                    .fill(focusedListIndex == index ? AdaptiveColors.overlayAuto(0.08) : Color.clear)
                             )
                         }
                         .buttonStyle(.plain)
@@ -426,7 +455,7 @@ struct ToDoInfoView: View {
 
     @ViewBuilder
     private func reminderListBadge(colorHex: String?) -> some View {
-        let tint = colorFromHex(colorHex) ?? Color.white.opacity(0.65)
+        let tint = colorFromHex(colorHex) ?? AdaptiveColors.overlayAuto(0.65)
         ZStack {
             Circle()
                 .fill(tint.opacity(0.2))
@@ -497,10 +526,10 @@ struct ToDoPreviewView: View {
         VStack(spacing: 1) {
             // Sample task rows
             previewRow(title: "Review pull request", priority: .high, isCompleted: false)
-            Divider().background(Color.white.opacity(0.06)).padding(.horizontal, 24)
+            Divider().background(AdaptiveColors.overlayAuto(0.06)).padding(.horizontal, 24)
             
             previewRow(title: "Update documentation", priority: .medium, isCompleted: false)
-            Divider().background(Color.white.opacity(0.06)).padding(.horizontal, 24)
+            Divider().background(AdaptiveColors.overlayAuto(0.06)).padding(.horizontal, 24)
             
             previewRow(title: "Fix login bug", priority: .normal, isCompleted: true)
         }

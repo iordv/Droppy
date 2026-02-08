@@ -44,7 +44,7 @@ struct NotificationHUDInfoView: View {
         }
         .frame(width: 450)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .notificationHUD)
@@ -74,7 +74,7 @@ struct NotificationHUDInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -155,7 +155,7 @@ struct NotificationHUDInfoView: View {
                     )
             } placeholder: {
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .fill(Color.black.opacity(0.8))
+                    .fill(AdaptiveColors.panelBackgroundAuto)
                     .frame(height: 120)
                     .overlay(
                         HStack(spacing: 12) {
@@ -166,10 +166,10 @@ struct NotificationHUDInfoView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Messages")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
                                 Text("New message from John")
                                     .font(.system(size: 12))
-                                    .foregroundStyle(.white.opacity(0.7))
+                                    .foregroundStyle(AdaptiveColors.secondaryTextAuto)
                             }
 
                             Spacer()
@@ -255,7 +255,7 @@ struct NotificationHUDInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .onAppear {
                 manager.recheckAccess()
@@ -303,7 +303,7 @@ struct NotificationHUDInfoView: View {
             .overlay(
 
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // System Integration Card
@@ -358,7 +358,7 @@ struct NotificationHUDInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // Captured Apps Card
@@ -405,7 +405,7 @@ struct NotificationHUDInfoView: View {
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
                 )
             }
         }

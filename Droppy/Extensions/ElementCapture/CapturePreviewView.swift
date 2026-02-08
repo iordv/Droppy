@@ -49,6 +49,7 @@ struct CapturePreviewView: View {
             // Screenshot preview
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
@@ -58,7 +59,7 @@ struct CapturePreviewView: View {
                 )
         }
         .padding(padding)  // Symmetrical padding on all sides
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -85,7 +86,7 @@ private struct EditButton: View {
             .foregroundColor(.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(isHovered ? Color.white.opacity(0.15) : Color.white.opacity(0.08))
+            .background(isHovered ? AdaptiveColors.overlayAuto(0.15) : AdaptiveColors.overlayAuto(0.08))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)

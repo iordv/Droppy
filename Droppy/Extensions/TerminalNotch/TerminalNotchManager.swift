@@ -9,6 +9,59 @@ import SwiftUI
 import AppKit
 import Combine
 
+enum TerminalNotchExternalApp: String, CaseIterable, Identifiable {
+    case appleTerminal
+    case iTerm
+    case warp
+    case ghostty
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .appleTerminal: return "Terminal"
+        case .iTerm: return "iTerm"
+        case .warp: return "Warp"
+        case .ghostty: return "Ghostty"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .appleTerminal: return "terminal"
+        case .iTerm: return "chevron.left.forwardslash.chevron.right"
+        case .warp: return "sparkles.rectangle.stack"
+        case .ghostty: return "bolt.horizontal.circle"
+        }
+    }
+
+    var bundleIdentifiers: [String] {
+        switch self {
+        case .appleTerminal:
+            return ["com.apple.Terminal"]
+        case .iTerm:
+            return ["com.googlecode.iterm2"]
+        case .warp:
+            return ["dev.warp.Warp-Stable", "dev.warp.Warp"]
+        case .ghostty:
+            return ["com.mitchellh.ghostty"]
+        }
+    }
+
+    var resolvedApplicationURL: URL? {
+        for bundleIdentifier in bundleIdentifiers {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    var isInstalled: Bool {
+        resolvedApplicationURL != nil
+    }
+}
+
 /// Manages the Terminal-Notch extension state and terminal process
 @MainActor
 class TerminalNotchManager: ObservableObject {
@@ -167,13 +220,34 @@ class TerminalNotchManager: ObservableObject {
         }
     }
     
-    /// Open Terminal.app (no automation - just launches the app)
+    /// Open the selected terminal app (no automation - just launches the app)
     func openInTerminalApp() {
-        // Use NSWorkspace to simply open Terminal.app
-        // This doesn't require any special permissions
-        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
-            NSWorkspace.shared.openApplication(at: terminalURL, configuration: NSWorkspace.OpenConfiguration())
+        // Use NSWorkspace to simply open the selected terminal app.
+        // This doesn't require any special permissions.
+        let preferredAppRaw = UserDefaults.standard.preference(
+            AppPreferenceKey.terminalNotchExternalApp,
+            default: PreferenceDefault.terminalNotchExternalApp
+        )
+        let preferredApp = TerminalNotchExternalApp(rawValue: preferredAppRaw) ?? .appleTerminal
+
+        if let appURL = preferredApp.resolvedApplicationURL {
+            NSWorkspace.shared.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration())
+            return
         }
+
+        // Fallback to Apple Terminal if the selected app is unavailable.
+        if let fallbackURL = TerminalNotchExternalApp.appleTerminal.resolvedApplicationURL {
+            NSWorkspace.shared.openApplication(at: fallbackURL, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+
+    var preferredExternalAppTitle: String {
+        let preferredAppRaw = UserDefaults.standard.preference(
+            AppPreferenceKey.terminalNotchExternalApp,
+            default: PreferenceDefault.terminalNotchExternalApp
+        )
+        let preferredApp = TerminalNotchExternalApp(rawValue: preferredAppRaw) ?? .appleTerminal
+        return preferredApp.title
     }
     
     /// Navigate command history up

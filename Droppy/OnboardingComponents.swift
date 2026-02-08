@@ -47,7 +47,7 @@ struct OnboardingToggle: View {
                     RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.25), Color.clear],
+                                colors: [AdaptiveColors.overlayAuto(0.25), Color.clear],
                                 startPoint: .top,
                                 endPoint: .center
                             )
@@ -78,7 +78,7 @@ struct OnboardingToggle: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(isOn ? color.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(isOn ? color.opacity(0.3) : AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             .scaleEffect(isHovering ? 1.02 : 1.0)
         }
@@ -213,7 +213,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
                 self?.close()
             }
         }
-        .preferredColorScheme(.dark) // Force dark mode always
+
         
         let hostingView = NSHostingView(rootView: contentView)
         

@@ -1,19 +1,33 @@
 import SwiftUI
 
-/// Fixed color palette for dark mode UI (Droppy is dark mode only)
+/// Semantic color palette that adapts to the active macOS appearance.
 enum AdaptiveColors {
-    /// Button background - subtle white overlay
-    static let buttonBackgroundAuto = Color.white.opacity(0.1)
+    /// Base contrast tint used for overlays (white in dark mode, black in light mode).
+    static let contrastTintAuto = Color(nsColor: .labelColor)
     
-    /// Hover background - slightly brighter
-    static let hoverBackgroundAuto = Color.white.opacity(0.15)
+    /// Default button/background overlay.
+    static let buttonBackgroundAuto = contrastTintAuto.opacity(0.10)
     
-    /// Subtle border for cards and containers
-    static let subtleBorderAuto = Color.white.opacity(0.1)
+    /// Hover/active overlay.
+    static let hoverBackgroundAuto = contrastTintAuto.opacity(0.16)
     
-    /// Primary text color
-    static let primaryTextAuto = Color.white
+    /// Overlay helper for one-off opacities.
+    static func overlayAuto(_ opacity: Double) -> Color {
+        contrastTintAuto.opacity(opacity)
+    }
     
-    /// Secondary text color
-    static let secondaryTextAuto = Color.white.opacity(0.7)
+    /// Subtle border for cards and containers.
+    static let subtleBorderAuto = Color(nsColor: .separatorColor).opacity(0.75)
+    
+    /// Opaque panel/window background when material blur is disabled.
+    static let panelBackgroundAuto = Color(nsColor: .windowBackgroundColor).opacity(0.97)
+    
+    /// Shared shape style for opaque panels.
+    static let panelBackgroundOpaqueStyle = AnyShapeStyle(panelBackgroundAuto)
+    
+    /// Primary text color.
+    static let primaryTextAuto = Color(nsColor: .labelColor)
+    
+    /// Secondary text color.
+    static let secondaryTextAuto = Color(nsColor: .secondaryLabelColor)
 }

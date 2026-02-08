@@ -19,6 +19,13 @@ struct DisableExtensionButton: View {
     private var isDisabled: Bool {
         extensionType.isRemoved
     }
+
+    /// Only show toggle when extension can actually be toggled:
+    /// - already installed/configured, or
+    /// - currently disabled (so user can re-enable)
+    private var isToggleAvailable: Bool {
+        isDisabled || extensionType.isInstalledInSystem
+    }
     
     init(extensionType: ExtensionType, onStateChanged: (() -> Void)? = nil) {
         self.extensionType = extensionType
@@ -26,37 +33,41 @@ struct DisableExtensionButton: View {
     }
     
     var body: some View {
-        Button {
-            if isDisabled {
-                // Enable immediately without confirmation
-                enableExtension()
-            } else {
-                // Show confirmation before disabling using native Droppy alert
-                showDisableConfirmation()
-            }
-        } label: {
-            HStack(spacing: 4) {
-                if isProcessing {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .frame(width: 10, height: 10)
-                } else {
-                    Image(systemName: isDisabled ? "plus.circle" : "minus.circle")
+        Group {
+            if isToggleAvailable {
+                Button {
+                    if isDisabled {
+                        // Enable immediately without confirmation
+                        enableExtension()
+                    } else {
+                        // Show confirmation before disabling using native Droppy alert
+                        showDisableConfirmation()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        if isProcessing {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .frame(width: 10, height: 10)
+                        } else {
+                            Image(systemName: isDisabled ? "power.circle" : "poweroff")
+                        }
+                        Text(buttonText)
+                    }
                 }
-                Text(buttonText)
+                .buttonStyle(DroppyAccentButtonStyle(color: isDisabled ? .green : .red, size: .small))
+                .disabled(isProcessing)
             }
         }
-        .buttonStyle(DroppyAccentButtonStyle(color: isDisabled ? .green : .red, size: .small))
-        .disabled(isProcessing)
     }
     
     private func showDisableConfirmation() {
         Task { @MainActor in
             let confirmed = await DroppyAlertController.shared.show(
                 style: .warning,
-                title: "Disable \(extensionType.title)?",
+                title: "Turn Off \(extensionType.title)?",
                 message: disableMessage,
-                primaryButtonTitle: "Disable",
+                primaryButtonTitle: "Turn Off",
                 secondaryButtonTitle: "Cancel"
             )
             if confirmed {
@@ -67,9 +78,9 @@ struct DisableExtensionButton: View {
     
     private var buttonText: String {
         if isProcessing {
-            return isDisabled ? "Enabling..." : "Disabling..."
+            return isDisabled ? "Turning On..." : "Turning Off..."
         }
-        return isDisabled ? "Enable" : "Disable"
+        return isDisabled ? "Turn On" : "Turn Off"
     }
     
     private var disableMessage: String {

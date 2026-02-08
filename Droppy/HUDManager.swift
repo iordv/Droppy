@@ -19,7 +19,7 @@ final class HUDManager {
     
     /// All HUD types with their priority (higher number = higher priority)
     enum HUDType: Int, Comparable, CaseIterable {
-        // Interactive HUDs (user-triggered) - highest priority
+        // Interactive HUDs (user-triggered) - high priority
         case volumeBrightness = 100  // User is actively adjusting
         
         // System event HUDs - medium priority
@@ -27,7 +27,7 @@ final class HUDManager {
         case battery = 70            // Charge state changes
         case capsLock = 60           // Keyboard state
         case highAlert = 55          // High Alert (stay awake) state changes
-        case lockScreen = 50         // Lock/unlock events
+        case lockScreen = 110        // Lock/unlock transition gate (must not overlap with any other HUD)
         case notification = 45       // Notification HUD (extension)
         case dnd = 40                // Focus mode changes
         case update = 35             // App update available
@@ -138,12 +138,13 @@ final class HUDManager {
     
     /// Dismiss the current HUD immediately
     func dismiss() {
+        let wasLockScreenHUD = activeHUD?.type == .lockScreen
         let wasNotificationHUD = activeHUD?.type == .notification
 
         dismissTimer?.invalidate()
         dismissTimer = nil
 
-        withAnimation(DroppyAnimation.easeOut) {
+        withAnimation(wasLockScreenHUD ? nil : DroppyAnimation.easeOut) {
             activeHUD = nil
         }
 
@@ -154,7 +155,8 @@ final class HUDManager {
         }
 
         // Process queue after dismiss animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        let queueDelay: TimeInterval = wasLockScreenHUD ? 0 : 0.2
+        DispatchQueue.main.asyncAfter(deadline: .now() + queueDelay) { [weak self] in
             self?.processQueue()
         }
     }
@@ -177,7 +179,7 @@ final class HUDManager {
             isMuted: request.isMuted
         )
 
-        withAnimation(DroppyAnimation.hover) {
+        withAnimation(request.type == .lockScreen ? nil : DroppyAnimation.hover) {
             activeHUD = hud
         }
 

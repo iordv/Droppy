@@ -72,7 +72,7 @@ struct FloatingBasketView: View {
     }
 
     private var effectiveAccentColor: Color {
-        shouldShowAccentColor ? accentColor.color : Color.white
+        shouldShowAccentColor ? accentColor.color : AdaptiveColors.primaryTextAuto
     }
     
     private let cornerRadius: CGFloat = 28
@@ -86,6 +86,14 @@ struct FloatingBasketView: View {
     
     // AirDrop zone width (30% of total when enabled)
     private let airDropZoneWidth: CGFloat = 90
+
+    private var basketPrimaryTextColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var basketSecondaryTextColor: Color {
+        AdaptiveColors.secondaryTextAuto
+    }
     
     /// Full width for 4-column grid: 4 * 68 + 3 * 12 + 12 * 2 = 272 + 36 + 24 = 360 (expanded only)
     private let fullGridWidth: CGFloat = 360
@@ -167,9 +175,10 @@ struct FloatingBasketView: View {
             VStack(spacing: 16) {
                 mainBasketContainer
                 
-                // Quick Actions bar - ALWAYS visible when basket appears
-                // Users can drag files directly onto action buttons for quick share
-                BasketQuickActionsBar(items: basketState.items, basketState: basketState)
+                // Quick Actions bar (only when quick actions are enabled)
+                if enableQuickActions {
+                    BasketQuickActionsBar(items: basketState.items, basketState: basketState)
+                }
             }
             .animation(DroppyAnimation.basketTransition, value: basketState.items.count)
         }
@@ -194,6 +203,12 @@ struct FloatingBasketView: View {
         }
         .onReceive(autoScrollTicker) { _ in
             performAutoScrollTick()
+        }
+        .onChange(of: enableQuickActions) { _, enabled in
+            if !enabled {
+                basketState.hoveredQuickAction = nil
+                basketState.isQuickActionsTargeted = false
+            }
         }
     }
     
@@ -242,11 +257,11 @@ struct FloatingBasketView: View {
                                 } label: {
                                     Image(systemName: "eye.slash")
                                         .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(.white.opacity(0.6))
+                                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.78))
                                         .frame(width: 32, height: 32)
                                         .background(
                                             Circle()
-                                                .fill(.white.opacity(0.08))
+                                                .fill(AdaptiveColors.overlayAuto(0.08))
                                         )
                                 }
                                 .buttonStyle(.plain)
@@ -446,11 +461,14 @@ struct FloatingBasketView: View {
     @ViewBuilder
     private var basketBackground: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
             .frame(width: currentWidth, height: currentHeight)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(useTransparentBackground ? 0.12 : 0.06), lineWidth: 1)
+                    .strokeBorder(
+                        AdaptiveColors.overlayAuto(0.12),
+                        lineWidth: 1
+                    )
             )
             // Sleek drag handle at top (only when files present)
             .overlay(alignment: .top) {
@@ -491,7 +509,7 @@ struct FloatingBasketView: View {
             Spacer()
             Text("Drop files here")
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.88))
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -507,13 +525,13 @@ struct FloatingBasketView: View {
             if useTransparentBackground {
                 Rectangle().fill(.ultraThinMaterial)
             } else {
-                Rectangle().fill(Color.black)
+                Rectangle().fill(AdaptiveColors.panelBackgroundAuto)
             }
             
             // Centered description text
             Text(action.description)
                 .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.88))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -629,11 +647,11 @@ struct FloatingBasketView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(expandedTitleText)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(basketPrimaryTextColor)
                 
                 Text(totalFileSizeText)
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(basketSecondaryTextColor)
             }
             
             Spacer()
@@ -720,9 +738,7 @@ struct FloatingBasketView: View {
         }
         
         Button {
-            if let mailService = NSSharingService(named: .composeEmail) {
-                mailService.perform(withItems: basketState.items.map(\.url))
-            }
+            _ = MailHelper.composeEmail(with: basketState.items.map(\.url))
         } label: {
             Label("Mail", systemImage: "envelope.fill")
         }
@@ -1231,7 +1247,7 @@ private struct AutoSelectTextField: NSViewRepresentable {
         textField.isBordered = false
         textField.drawsBackground = false
         textField.backgroundColor = .clear
-        textField.textColor = .white
+        textField.textColor = .labelColor
         textField.font = .systemFont(ofSize: 11, weight: .medium)
         textField.alignment = .center
         textField.focusRingType = .none

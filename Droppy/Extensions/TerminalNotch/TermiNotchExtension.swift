@@ -20,7 +20,7 @@ struct TermiNotchExtension: ExtensionDefinition {
         ("terminal", "Full terminal emulation"),
         ("keyboard", "Customizable keyboard shortcut"),
         ("rectangle.expand.vertical", "Quick command & expanded modes"),
-        ("arrow.up.forward.app", "Open in Terminal.app anytime")
+        ("arrow.up.forward.app", "Open in your terminal app anytime")
     ]
     
     static var screenshotURL: URL? {

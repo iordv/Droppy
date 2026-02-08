@@ -12,6 +12,9 @@
 <p align="center">
   <a href="https://github.com/iordv/Droppy/releases/latest"><img src="assets/download-macos.png" alt="Download for macOS" width="200" /></a>
 </p>
+<p align="center">
+  <a href="https://iordv.gumroad.com/l/Droppy"><b>Buy License on Gumroad (€6.99)</b></a>
+</p>
 
 <p align="center">
   <a href="https://github.com/iordv/Droppy/releases/latest"><img src="https://img.shields.io/github/v/release/iordv/Droppy?style=flat-square&label=Version" /></a>

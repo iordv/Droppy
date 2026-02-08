@@ -21,10 +21,19 @@ final class AnalyticsService: Sendable {
     private let kAnalyticsID = "droppy_analytics_id"
     private let kHasTrackedInstall = "droppy_has_tracked_install"
     
+    var isDisabled: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.disableAnalytics,
+            default: PreferenceDefault.disableAnalytics
+        )
+    }
+    
     private init() {}
     
     /// Called on app launch to track stats
     func logAppLaunch() {
+        guard !isDisabled else { return }
+
         Task {
             // 1. Ensure we have an anonymous ID
             let analyticsID = getOrGenerateAnalyticsID()
@@ -50,6 +59,8 @@ final class AnalyticsService: Sendable {
     }
     
     private func trackEvent(type: String, id: String) async {
+        guard !isDisabled else { return }
+
         // Construct payload
         let payload: [String: Any] = [
             "event_type": type,
@@ -81,6 +92,8 @@ final class AnalyticsService: Sendable {
     
     /// Fetches the total number of unique installs (downloads)
     func fetchDownloadCount() async throws -> Int {
+        guard !isDisabled else { return 0 }
+
         // RPC endpoint: /rest/v1/rpc/get_download_count
         let rpcURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/rpc/get_download_count")!
         
@@ -119,6 +132,8 @@ final class AnalyticsService: Sendable {
         let localKey = "\(extensionId)Tracked"
         UserDefaults.standard.set(true, forKey: localKey)
         
+        guard !isDisabled else { return }
+        
         // Track to Supabase for analytics
         Task {
             let analyticsID = getOrGenerateAnalyticsID()
@@ -127,6 +142,8 @@ final class AnalyticsService: Sendable {
     }
     
     private func trackExtensionEvent(extensionId: String, action: String, id: String) async {
+        guard !isDisabled else { return }
+
         let payload: [String: Any] = [
             "extension_id": extensionId,
             "anonymous_id": id,
@@ -157,6 +174,8 @@ final class AnalyticsService: Sendable {
     
     /// Fetches install counts for all extensions
     func fetchExtensionCounts() async throws -> [String: Int] {
+        guard !isDisabled else { return [:] }
+
         let rpcURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/rpc/get_extension_counts")!
         
         var request = URLRequest(url: rpcURL)
@@ -197,6 +216,8 @@ final class AnalyticsService: Sendable {
     
     /// Submit a rating for an extension
     func submitExtensionRating(extensionId: String, rating: Int, feedback: String?) async throws {
+        guard !isDisabled else { return }
+
         let ratingsURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/extension_ratings")!
         let analyticsID = getOrGenerateAnalyticsID()
         
@@ -229,6 +250,8 @@ final class AnalyticsService: Sendable {
     
     /// Fetch average ratings for all extensions
     func fetchExtensionRatings() async throws -> [String: ExtensionRating] {
+        guard !isDisabled else { return [:] }
+
         let rpcURL = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/rpc/get_extension_ratings")!
         
         var request = URLRequest(url: rpcURL)
@@ -262,6 +285,8 @@ final class AnalyticsService: Sendable {
     
     /// Fetch all individual reviews for a specific extension
     func fetchExtensionReviews(extensionId: String) async throws -> [ExtensionReview] {
+        guard !isDisabled else { return [] }
+
         let url = URL(string: "https://anannmonpspjsnfgdglb.supabase.co/rest/v1/extension_ratings?extension_id=eq.\(extensionId)&order=created_at.desc")!
         
         var request = URLRequest(url: url)

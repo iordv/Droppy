@@ -69,7 +69,7 @@ struct ReorderSheetView: View {
         }
         .frame(minWidth: 340, idealWidth: 400, maxWidth: 500)  // 2-column width
         .frame(minHeight: 400, idealHeight: 500, maxHeight: 700)  // Taller default
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .onAppear {
             reorderableItems = sourceItems
@@ -226,7 +226,7 @@ struct ReorderableItemRow: View {
         .padding(.vertical, DroppySpacing.smd)
         .background(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .fill(Color.white.opacity(backgroundOpacity))
+                .fill(AdaptiveColors.overlayAuto(backgroundOpacity))
         )
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
@@ -239,8 +239,8 @@ struct ReorderableItemRow: View {
         .zIndex(isDragging ? 100 : 0)
         // Smooth animations
         .animation(DroppyAnimation.bouncy, value: isDragging)
-        .animation(.easeOut(duration: 0.12), value: isHovering)
-        .animation(.easeOut(duration: 0.15), value: isDropTarget)
+        .animation(DroppyAnimation.hoverQuick, value: isHovering)
+        .animation(DroppyAnimation.hover, value: isDropTarget)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -290,7 +290,7 @@ struct ReorderableItemRow: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
         .background(
             RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(AdaptiveColors.overlayAuto(0.04))
         )
     }
     
@@ -333,7 +333,7 @@ struct ReorderableGridItem: View {
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.white.opacity(0.04))
+                    .fill(AdaptiveColors.overlayAuto(0.04))
             )
             
             // Name (single line)
@@ -349,11 +349,11 @@ struct ReorderableGridItem: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.white.opacity(backgroundOpacity))
+                .fill(AdaptiveColors.overlayAuto(backgroundOpacity))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.white.opacity(isHovering ? 0.12 : 0.06), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(isHovering ? 0.12 : 0.06), lineWidth: 1)
         )
         // Lift effect when dragging
         .opacity(isDragging ? 0.6 : 1.0)
@@ -362,7 +362,7 @@ struct ReorderableGridItem: View {
         .zIndex(isDragging ? 100 : 0)
         // Smooth animations
         .animation(DroppyAnimation.bouncy, value: isDragging)
-        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .animation(DroppyAnimation.hoverQuick, value: isHovering)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -477,7 +477,7 @@ class ReorderWindowController {
             basketState: basketState
         )
         
-        let hostingView = NSHostingView(rootView: reorderView.preferredColorScheme(.dark))
+        let hostingView = NSHostingView(rootView: reorderView)
         hostingView.setFrameSize(hostingView.fittingSize)
         
         let contentSize = hostingView.fittingSize

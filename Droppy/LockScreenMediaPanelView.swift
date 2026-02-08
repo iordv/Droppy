@@ -82,11 +82,11 @@ struct LockScreenMediaPanelView: View {
                         ZStack(alignment: .leading) {
                             // Background track
                             Capsule()
-                                .fill(Color.white.opacity(0.2))
+                                .fill(AdaptiveColors.overlayAuto(0.2))
                             
                             // Progress fill
                             Capsule()
-                                .fill(Color.white.opacity(0.9))
+                                .fill(AdaptiveColors.overlayAuto(0.9))
                                 .frame(width: max(0, geo.size.width * progress))
                         }
                     }
@@ -137,13 +137,13 @@ struct LockScreenMediaPanelView: View {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(useTransparentBackground ? 0.2 : 0.1), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.2 : 0.1), lineWidth: 1)
             )
             .shadow(color: Color.black.opacity(0.4), radius: 30, x: 0, y: 15)
             // Entry/exit animations - FAST
             .scaleEffect(animator.isPresented ? 1 : 0.9, anchor: .center)
             .opacity(animator.isPresented ? 1 : 0)
-            .animation(.easeOut(duration: 0.1), value: animator.isPresented)
+            .animation(DroppyAnimation.hoverQuick, value: animator.isPresented)
         }
     }
     
@@ -155,7 +155,7 @@ struct LockScreenMediaPanelView: View {
             // Glass effect
             ZStack {
                 VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                Color.white.opacity(0.03)
+                AdaptiveColors.overlayAuto(0.03)
             }
         } else {
             // Dark solid
@@ -175,7 +175,7 @@ struct LockScreenMediaPanelView: View {
                 .clipShape(RoundedRectangle(cornerRadius: albumArtRadius, style: .continuous))
         } else {
             RoundedRectangle(cornerRadius: albumArtRadius, style: .continuous)
-                .fill(Color.white.opacity(0.1))
+                .fill(AdaptiveColors.overlayAuto(0.1))
                 .frame(width: albumArtSize, height: albumArtSize)
                 .overlay(
                     Image(systemName: "music.note")

@@ -6,6 +6,7 @@ import SwiftUI
 struct ExtensionReviewsSheet: View {
     let extensionType: ExtensionType
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
     @Environment(\.dismiss) private var dismiss
     @State private var reviews: [ExtensionReview] = []
     @State private var isLoading = true
@@ -35,7 +36,7 @@ struct ExtensionReviewsSheet: View {
                 Spacer()
                 
                 // Average rating
-                if !reviews.isEmpty {
+                if !disableAnalytics && !reviews.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .foregroundStyle(.yellow)
@@ -58,46 +59,68 @@ struct ExtensionReviewsSheet: View {
             
             Divider()
             
-            // Rating submission section
-            ratingSubmitSection
-            
-            Divider()
-            
-            // Reviews list
-            if isLoading {
-                Spacer()
-                ProgressView()
-                    .scaleEffect(1.2)
-                Spacer()
-            } else if reviews.isEmpty {
+            if disableAnalytics {
                 Spacer()
                 VStack(spacing: 12) {
-                    Image(systemName: "star.bubble")
-                        .font(.system(size: 48))
+                    Image(systemName: "hand.raised.fill")
+                        .font(.system(size: 40))
                         .foregroundStyle(.tertiary)
-                    Text("No reviews yet")
+                    Text("Analytics is disabled")
                         .font(.headline)
                         .foregroundStyle(.secondary)
-                    Text("Be the first to rate this extension!")
+                    Text("Reviews and ratings are hidden while \"Skip All Analytics\" is enabled.")
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
                 }
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(reviews) { review in
-                            ReviewCard(review: review)
-                        }
+                // Rating submission section
+                ratingSubmitSection
+                
+                Divider()
+                
+                // Reviews list
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Spacer()
+                } else if reviews.isEmpty {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "star.bubble")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.tertiary)
+                        Text("No reviews yet")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text("Be the first to rate this extension!")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
                     }
-                    .padding(DroppySpacing.xl)
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(reviews) { review in
+                                ReviewCard(review: review)
+                            }
+                        }
+                        .padding(DroppySpacing.xl)
+                    }
                 }
             }
         }
         .frame(width: 450, height: 500)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .onAppear {
             Task {
+                guard !disableAnalytics else {
+                    isLoading = false
+                    reviews = []
+                    return
+                }
                 await loadReviews()
             }
         }
@@ -195,7 +218,7 @@ struct ExtensionReviewsSheet: View {
     }
     
     private func submitRating() {
-        guard selectedRating > 0, !isSubmittingRating else { return }
+        guard !disableAnalytics, selectedRating > 0, !isSubmittingRating else { return }
         isSubmittingRating = true
         
         Task {
@@ -257,7 +280,7 @@ struct ReviewCard: View {
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
 }

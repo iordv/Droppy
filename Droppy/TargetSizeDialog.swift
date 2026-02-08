@@ -110,7 +110,7 @@ struct TargetSizeDialogView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .onAppear {
             // Default to 50% of current size
             let suggestedMB = Double(currentSize) / (1024 * 1024) / 2
@@ -145,7 +145,7 @@ private struct TargetSizeTextField: NSViewRepresentable {
         textField.isBordered = false
         textField.drawsBackground = false
         textField.backgroundColor = .clear
-        textField.textColor = NSColor.white // Fixed dark mode text color
+        textField.textColor = NSColor.labelColor
         textField.font = .systemFont(ofSize: 16, weight: .medium)
         textField.alignment = .left
         textField.focusRingType = .none
@@ -243,7 +243,7 @@ class TargetSizeDialogController {
                 }
             )
             
-            let hostingView = NSHostingView(rootView: dialogView.preferredColorScheme(.dark)) // Force dark mode
+            let hostingView = NSHostingView(rootView: dialogView)
             
             // Use custom CompressPanel that can become key (like BasketPanel)
             let panel = CompressPanel(

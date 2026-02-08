@@ -61,7 +61,7 @@ struct QuickshareInfoView: View {
         }
         .frame(width: 540)
         .fixedSize(horizontal: true, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .quickshare)
@@ -119,10 +119,10 @@ struct QuickshareInfoView: View {
                         Text("shared file\(manager.items.count == 1 ? "" : "s")")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.9))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.white.opacity(0.15)))
+                    .background(Capsule().fill(AdaptiveColors.overlayAuto(0.15)))
                 }
             }
             
@@ -132,7 +132,7 @@ struct QuickshareInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text("\(installCount ?? 0)")
+                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -210,7 +210,7 @@ struct QuickshareInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
             
             // Settings sidebar toggle
@@ -241,7 +241,7 @@ struct QuickshareInfoView: View {
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
         }
     }
@@ -259,10 +259,10 @@ struct QuickshareInfoView: View {
                 if !manager.items.isEmpty {
                     Text("\(manager.items.count)")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.82))
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.white.opacity(0.1)))
+                        .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
                 }
             }
             .padding(.horizontal, 4)
@@ -280,7 +280,7 @@ struct QuickshareInfoView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 20)
-                .background(Color.white.opacity(0.03))
+                .background(AdaptiveColors.overlayAuto(0.03))
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
             } else {
                 // File List - spacing 8 to match clipboard

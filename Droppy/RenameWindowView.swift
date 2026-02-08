@@ -56,7 +56,7 @@ struct RenameWindowView: View {
         }
         .frame(width: 300)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)

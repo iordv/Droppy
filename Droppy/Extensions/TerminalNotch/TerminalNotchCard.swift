@@ -13,6 +13,18 @@ struct TerminalNotchCard: View {
     var onTap: () -> Void = {}
     
     private let extensionType = ExtensionType.terminalNotch
+
+    private var titleColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
+
+    private var subtitleColor: Color {
+        AdaptiveColors.secondaryTextAuto
+    }
+
+    private var actionTextColor: Color {
+        AdaptiveColors.primaryTextAuto
+    }
     
     var body: some View {
         Button(action: onTap) {
@@ -26,12 +38,12 @@ struct TerminalNotchCard: View {
                     // Title
                     Text(extensionType.title)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(titleColor)
                     
                     // Subtitle
                     Text(extensionType.subtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(subtitleColor)
                     
                     Spacer()
                     
@@ -42,9 +54,9 @@ struct TerminalNotchCard: View {
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.green)
                         } else {
-                            Text("Get")
+                            Text("Set Up")
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(actionTextColor)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 6)
                                 .background(Color.green)
@@ -70,17 +82,14 @@ struct TerminalNotchCard: View {
         RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
             .fill(
                 LinearGradient(
-                    colors: [
-                        Color.green.opacity(0.3),
-                        Color.black.opacity(0.8)
-                    ],
+                    colors: [Color.green.opacity(0.16), AdaptiveColors.panelBackgroundAuto],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
             )
     }
 }

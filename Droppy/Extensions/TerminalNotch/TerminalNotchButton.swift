@@ -34,7 +34,7 @@ struct TerminalNotchButton: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
     }
