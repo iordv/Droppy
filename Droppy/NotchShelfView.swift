@@ -633,7 +633,7 @@ struct NotchShelfView: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 expandedSurfaceToggleButton(
-                    icon: "music.note",
+                    icon: "house.fill",
                     isSelected: isMediaSelected,
                     helpText: "Show media player",
                     action: {
