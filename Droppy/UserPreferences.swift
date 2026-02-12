@@ -174,6 +174,8 @@ enum AppPreferenceKey {
     static let todoSyncRemindersListIDs = "todo_syncRemindersListIDs"  // JSON array of selected reminder list identifiers
     static let todoSyncCalendarListIDs = "todo_syncCalendarListIDs"  // JSON array of selected calendar identifiers
     static let todoShelfSplitViewEnabled = "todo_shelfSplitViewEnabled"
+    static let todoShowTaskViewTimezone = "todo_showTaskViewTimezone"
+    static let todoShowTaskWeekNumber = "todo_showTaskWeekNumber"
     
     // MARK: - Extension: Voice Transcribe
     static let voiceTranscribeAutoCopyResult = "voiceTranscribe_autoCopyResult"  // Auto-copy transcription and skip result window
@@ -357,6 +359,8 @@ enum PreferenceDefault {
     static let todoSyncRemindersEnabled = false
     static let todoSyncRemindersListIDs = "[]"
     static let todoShelfSplitViewEnabled = true
+    static let todoShowTaskViewTimezone = false
+    static let todoShowTaskWeekNumber = true
     
     // MARK: - Extension: Voice Transcribe
     static let voiceTranscribeAutoCopyResult = false

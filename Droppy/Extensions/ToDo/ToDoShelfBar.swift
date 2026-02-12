@@ -37,6 +37,8 @@ struct ToDoShelfBar: View {
     var useAdaptiveForegroundsForTransparentNotch: Bool = false
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @AppStorage(AppPreferenceKey.todoShelfSplitViewEnabled) private var isSplitViewEnabled = PreferenceDefault.todoShelfSplitViewEnabled
+    @AppStorage(AppPreferenceKey.todoShowTaskWeekNumber) private var showTaskWeekNumber = PreferenceDefault.todoShowTaskWeekNumber
+    @AppStorage(AppPreferenceKey.todoShowTaskViewTimezone) private var showTaskViewTimezone = PreferenceDefault.todoShowTaskViewTimezone
 
     @State private var inputText: String = ""
     @State private var inputPriority: ToDoPriority = .normal
@@ -490,6 +492,27 @@ struct ToDoShelfBar: View {
                             )
                     )
 
+                if showTaskWeekNumber {
+                    Text("W\(visibleStripWeekNumber)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(
+                            useAdaptiveForegrounds
+                                ? AdaptiveColors.secondaryTextAuto.opacity(0.88)
+                                : .white.opacity(0.68)
+                        )
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    useAdaptiveForegrounds
+                                        ? AdaptiveColors.overlayAuto(0.08)
+                                        : Color.white.opacity(0.08)
+                                )
+                        )
+                }
+
                 Spacer(minLength: 0)
 
                 Button {
@@ -651,6 +674,7 @@ struct ToDoShelfBar: View {
                                     allowCompactDetailsPopover: !isSplitViewEnabled,
                                     useAdaptiveForegrounds: useAdaptiveForegrounds,
                                     timeLabel: formattedTimelineTimeLabel(for: item),
+                                    detailDateLabel: item.dueDate.map { formattedDetailDate(for: $0) },
                                     onSelect: {
                                         isDetailTitleFieldFocused = false
                                         selectedTimelineItemID = item.id
@@ -1641,6 +1665,7 @@ private struct ShelfTimelineRow: View {
     let allowCompactDetailsPopover: Bool
     let useAdaptiveForegrounds: Bool
     let timeLabel: String
+    let detailDateLabel: String?
     let onSelect: () -> Void
     let onToggleCompletion: () -> Void
     let onDelete: () -> Void
@@ -1802,8 +1827,8 @@ private struct ShelfTimelineRow: View {
                 .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
                 .fixedSize(horizontal: false, vertical: true)
 
-            if let dueDate = item.dueDate {
-                Label(dueDate.formatted(date: .abbreviated, time: .shortened), systemImage: "clock")
+            if let detailDateLabel {
+                Label(detailDateLabel, systemImage: "clock")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.86) : .white.opacity(0.72))
             }
@@ -2802,7 +2827,7 @@ private extension ToDoShelfBar {
         if !dueDateHasTime(dueDate) {
             return "All day"
         }
-        return Self.timelineTimeFormatter.string(from: dueDate)
+        return Self.timelineTimeFormatter.string(from: dueDate) + timezoneSuffix(for: dueDate)
     }
 
     func formattedDayHeader(for day: Date) -> String {
@@ -2819,10 +2844,18 @@ private extension ToDoShelfBar {
 
     func formattedDetailDate(for date: Date) -> String {
         if dueDateHasTime(date) {
-            return Self.detailDateTimeFormatter.string(from: date)
+            return Self.detailDateTimeFormatter.string(from: date) + timezoneSuffix(for: date)
         } else {
             return Self.detailDateFormatter.string(from: date)
         }
+    }
+
+    func timezoneSuffix(for date: Date) -> String {
+        guard showTaskViewTimezone,
+              let abbreviation = TimeZone.autoupdatingCurrent.abbreviation(for: date) else {
+            return ""
+        }
+        return " \(abbreviation)"
     }
 
     func dueDateHasTime(_ date: Date) -> Bool {
@@ -2870,6 +2903,10 @@ private extension ToDoShelfBar {
             return min(44, notchHeight * 1.12)
         }
         return min(28, notchHeight * 0.72)
+    }
+
+    var visibleStripWeekNumber: Int {
+        Calendar.current.component(.weekOfYear, from: stripWindowStartDay)
     }
 
     private static let timelineTimeFormatter: DateFormatter = {

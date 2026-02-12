@@ -16,6 +16,8 @@ struct ToDoInfoView: View {
     @AppStorage(AppPreferenceKey.todoSyncCalendarEnabled) private var syncCalendarEnabled = PreferenceDefault.todoSyncCalendarEnabled
     @AppStorage(AppPreferenceKey.todoSyncRemindersEnabled) private var syncRemindersEnabled = PreferenceDefault.todoSyncRemindersEnabled
     @AppStorage(AppPreferenceKey.todoShelfSplitViewEnabled) private var shelfSplitViewEnabled = PreferenceDefault.todoShelfSplitViewEnabled
+    @AppStorage(AppPreferenceKey.todoShowTaskWeekNumber) private var showTaskWeekNumber = PreferenceDefault.todoShowTaskWeekNumber
+    @AppStorage(AppPreferenceKey.todoShowTaskViewTimezone) private var showTaskViewTimezone = PreferenceDefault.todoShowTaskViewTimezone
     @State private var manager = ToDoManager.shared
     @State private var showReviewsSheet = false
     @State private var focusedCalendarIndex: Int? = nil
@@ -332,6 +334,44 @@ struct ToDoInfoView: View {
                 }
                 .padding(.horizontal, DroppySpacing.md)
                 .padding(.vertical, 12)
+                Divider()
+                    .padding(.horizontal, DroppySpacing.md)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show week number")
+                            .font(.callout.weight(.medium))
+                        Text("Display the current week number in the shelf task timeline header.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $showTaskWeekNumber)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                .padding(.horizontal, DroppySpacing.md)
+                .padding(.vertical, 12)
+
+                Divider()
+                    .padding(.horizontal, DroppySpacing.md)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show timezone in task view")
+                            .font(.callout.weight(.medium))
+                        Text("Append timezone abbreviation to timed tasks/events.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $showTaskViewTimezone)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                .padding(.horizontal, DroppySpacing.md)
+                .padding(.vertical, 12)
+
 
                 if syncCalendarEnabled {
                     Divider()
