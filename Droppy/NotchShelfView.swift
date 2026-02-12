@@ -82,6 +82,7 @@ struct NotchShelfView: View {
     var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
     var notificationHUDManager = NotificationHUDManager.shared  // @Observable - needed for current notification tracking
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var caffeineEnabled = PreferenceDefault.caffeineEnabled
+    @AppStorage(AppPreferenceKey.caffeineInstantlyExpandShelfOnHover) private var caffeineInstantlyExpandShelfOnHover = PreferenceDefault.caffeineInstantlyExpandShelfOnHover
     @State private var showVolumeHUD = false
     @State private var showBrightnessHUD = false
     @State private var hudWorkItem: DispatchWorkItem?
@@ -904,11 +905,13 @@ struct NotchShelfView: View {
     }
     
     /// Whether caffeine hover indicator should show (takes priority over media HUD)
+    /// Disabled when user prefers instant shelf expand on hover.
     /// CRITICAL: Uses isHoveringOnThisScreen for multi-monitor awareness
     private var isCaffeineHoverActive: Bool {
         isHoveringOnThisScreen &&
         caffeineExtensionEnabled &&
         CaffeineManager.shared.isActive &&
+        !caffeineInstantlyExpandShelfOnHover &&
         !isExpandedOnThisScreen &&
         !HUDManager.shared.isVisible
     }
@@ -959,7 +962,7 @@ struct NotchShelfView: View {
             return hudWidth  // Media HUD uses tighter wings
         } else if enableNotchShelf && isHoveringOnThisScreen {
             // When High Alert is active, expand enough to show timer on hover
-            if CaffeineManager.shared.isActive && caffeineExtensionEnabled {
+            if CaffeineManager.shared.isActive && caffeineExtensionEnabled && !caffeineInstantlyExpandShelfOnHover {
                 return highAlertHudWidth
             }
             // Keep hover width stable so collapse/open always stays visually centered.

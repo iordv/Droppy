@@ -55,6 +55,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.caffeineInstalled) private var isCaffeineInstalled = PreferenceDefault.caffeineInstalled
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var enableCaffeine = PreferenceDefault.caffeineEnabled
     @AppStorage(AppPreferenceKey.caffeineMode) private var caffeineModeRaw = PreferenceDefault.caffeineMode
+    @AppStorage(AppPreferenceKey.caffeineInstantlyExpandShelfOnHover) private var caffeineInstantlyExpandShelfOnHover = PreferenceDefault.caffeineInstantlyExpandShelfOnHover
     @AppStorage(AppPreferenceKey.cameraInstalled) private var isCameraInstalled = PreferenceDefault.cameraInstalled
     @AppStorage(AppPreferenceKey.cameraEnabled) private var enableCamera = PreferenceDefault.cameraEnabled
     @AppStorage(AppPreferenceKey.cameraPreferredDeviceID) private var cameraPreferredDeviceID = PreferenceDefault.cameraPreferredDeviceID
@@ -2581,6 +2582,15 @@ struct SettingsView: View {
                                     HapticFeedback.tap()
                                     setCaffeineMode(mode)
                                 }
+                            }
+                        }
+
+                        Toggle(isOn: $caffeineInstantlyExpandShelfOnHover) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Instant Shelf Expand on Hover")
+                                Text("Skip the High Alert mini timer on hover and open the shelf directly")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }

@@ -12,6 +12,7 @@ struct CaffeineInfoView: View {
     
     @AppStorage(AppPreferenceKey.caffeineInstalled) private var isInstalled = PreferenceDefault.caffeineInstalled
     @AppStorage(AppPreferenceKey.caffeineMode) private var selectedModeRaw = PreferenceDefault.caffeineMode
+    @AppStorage(AppPreferenceKey.caffeineInstantlyExpandShelfOnHover) private var caffeineInstantlyExpandShelfOnHover = PreferenceDefault.caffeineInstantlyExpandShelfOnHover
     @State private var showReviewsSheet = false
     
     // Derived mode from preference
@@ -309,6 +310,16 @@ struct CaffeineInfoView: View {
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
                     .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
             )
+
+            Toggle(isOn: $caffeineInstantlyExpandShelfOnHover) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Instant Shelf Expand on Hover")
+                    Text("Skip the mini timer HUD while hovering and open shelf directly")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.top, 6)
         }
     }
     

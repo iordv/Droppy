@@ -165,6 +165,7 @@ enum AppPreferenceKey {
     static let caffeineInstalled = "caffeine_installed"
     static let caffeineEnabled = "caffeine_enabled"  // Whether to show in HUD section
     static let caffeineMode = "caffeine_mode"  // CaffeineMode rawValue
+    static let caffeineInstantlyExpandShelfOnHover = "caffeine_instantlyExpandShelfOnHover"  // Skip hover timer HUD and keep normal shelf auto-expand
 
     // MARK: - Extension: Todo
     static let todoInstalled = "todo_installed"
@@ -354,6 +355,7 @@ enum PreferenceDefault {
     static let caffeineInstalled = false  // Disabled by default, user installs from Extension Store
     static let caffeineEnabled = true  // Enabled by default when installed
     static let caffeineMode = "Both"  // CaffeineMode.both.rawValue
+    static let caffeineInstantlyExpandShelfOnHover = false  // Keep current behavior by default: show High Alert timer on hover
 
     // MARK: - Extension: Todo
     static let todoInstalled = false  // Disabled by default, user installs from Extension Store

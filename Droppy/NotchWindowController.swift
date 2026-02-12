@@ -1991,10 +1991,14 @@ final class NotchWindowController: NSObject, ObservableObject {
         notchDebugLog("🟢 startAutoExpandTimer CALLED for displayID: \(displayID?.description ?? "nil")")
         
         cancelAutoExpandTimer() // Reset if already running
+        let skipHighAlertHoverHUD = UserDefaults.standard.preference(
+            AppPreferenceKey.caffeineInstantlyExpandShelfOnHover,
+            default: PreferenceDefault.caffeineInstantlyExpandShelfOnHover
+        )
 
-        // High Alert override: while active, never auto-expand on hover.
-        // User can still click the notch to expand manually.
-        guard !CaffeineManager.shared.isActive else {
+        // High Alert override: by default, active High Alert blocks hover auto-expand.
+        // Users can opt out via High Alert settings to expand shelf directly on hover.
+        guard !CaffeineManager.shared.isActive || skipHighAlertHoverHUD else {
             HapticFeedback.hover()
             notchDebugLog("⏰ AUTO-EXPAND BLOCKED: High Alert is active")
             return
@@ -2032,7 +2036,11 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
 
             // High Alert can toggle after timer start; re-check before expanding.
-            if CaffeineManager.shared.isActive {
+            let skipHighAlertHoverHUD = UserDefaults.standard.preference(
+                AppPreferenceKey.caffeineInstantlyExpandShelfOnHover,
+                default: PreferenceDefault.caffeineInstantlyExpandShelfOnHover
+            )
+            if CaffeineManager.shared.isActive && !skipHighAlertHoverHUD {
                 notchDebugLog("⏰ AUTO-EXPAND BLOCKED (timer fire): High Alert is active")
                 return
             }
