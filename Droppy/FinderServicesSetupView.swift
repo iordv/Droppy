@@ -14,6 +14,7 @@ func openFinderServicesSettings() -> Bool {
     // Try direct Services/Keyboard links first, then broader Keyboard pane fallbacks.
     let candidates = [
         "x-apple.systempreferences:com.apple.preference.keyboard?Services",
+        "x-apple.systempreferences:com.apple.preference.keyboard?KeyboardShortcuts",
         "x-apple.systempreferences:com.apple.preference.keyboard?Shortcuts",
         "x-apple.systempreferences:com.apple.Keyboard-Settings.extension",
         "x-apple.systempreferences:com.apple.Keyboard-Settings",
@@ -34,9 +35,8 @@ func openFinderServicesSettings() -> Bool {
 
 struct FinderServicesSetupView: View {
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
-    @State private var isHoveringAction = false
-    @State private var isHoveringCancel = false
     @State private var hasOpenedSettings = false
+    @State private var openSettingsFailed = false
     
     let onComplete: () -> Void
     
@@ -94,23 +94,31 @@ struct FinderServicesSetupView: View {
             stepRow(
                 number: 1,
                 text: "Click \"Open Settings\" below.",
-                detail: "This opens Keyboard settings for the Services shortcuts list."
+                detail: "Droppy opens Keyboard Shortcuts in System Settings."
             )
             stepRow(
                 number: 2,
-                text: "Open the Services list in System Settings.",
-                detail: "If needed: Keyboard > Keyboard Shortcuts > Services."
+                text: "Open Services in Keyboard Shortcuts.",
+                detail: "Path: Keyboard > Keyboard Shortcuts > Services."
             )
             stepRow(
                 number: 3,
                 text: "Enable \"Add to Droppy Shelf\" and \"Add to Droppy Basket\".",
-                detail: "Look under File and Folder Services."
+                detail: "Look under Files and Folders."
             )
             stepRow(
                 number: 4,
-                text: "In Finder: right-click selected file(s) > Services.",
+                text: "In Finder, right-click selected files > Quick Actions or Services.",
                 detail: "You should now see both Droppy actions."
             )
+            
+            if openSettingsFailed {
+                Text("Could not open System Settings automatically. Open it manually, then go to Keyboard > Keyboard Shortcuts > Services.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 2)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 16)
@@ -184,7 +192,7 @@ struct FinderServicesSetupView: View {
     }
     
     private func openServicesSettings() {
-        _ = openFinderServicesSettings()
+        openSettingsFailed = !openFinderServicesSettings()
     }
 }
 
@@ -194,9 +202,8 @@ struct FinderServicesSetupView: View {
 struct FinderServicesSetupSheetView: View {
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @Environment(\.dismiss) private var dismiss
-    @State private var isHoveringAction = false
-    @State private var isHoveringCancel = false
     @State private var hasOpenedSettings = false
+    @State private var openSettingsFailed = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -251,23 +258,31 @@ struct FinderServicesSetupSheetView: View {
             stepRow(
                 number: 1,
                 text: "Click \"Open Settings\" below.",
-                detail: "This opens Keyboard settings for the Services shortcuts list."
+                detail: "Droppy opens Keyboard Shortcuts in System Settings."
             )
             stepRow(
                 number: 2,
-                text: "Open the Services list in System Settings.",
-                detail: "If needed: Keyboard > Keyboard Shortcuts > Services."
+                text: "Open Services in Keyboard Shortcuts.",
+                detail: "Path: Keyboard > Keyboard Shortcuts > Services."
             )
             stepRow(
                 number: 3,
                 text: "Enable \"Add to Droppy Shelf\" and \"Add to Droppy Basket\".",
-                detail: "Look under File and Folder Services."
+                detail: "Look under Files and Folders."
             )
             stepRow(
                 number: 4,
-                text: "In Finder: right-click selected file(s) > Services.",
+                text: "In Finder, right-click selected files > Quick Actions or Services.",
                 detail: "You should now see both Droppy actions."
             )
+            
+            if openSettingsFailed {
+                Text("Could not open System Settings automatically. Open it manually, then go to Keyboard > Keyboard Shortcuts > Services.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 2)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 16)
@@ -341,7 +356,7 @@ struct FinderServicesSetupSheetView: View {
     }
     
     private func openServicesSettings() {
-        _ = openFinderServicesSettings()
+        openSettingsFailed = !openFinderServicesSettings()
     }
 }
 

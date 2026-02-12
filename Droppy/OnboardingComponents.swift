@@ -212,23 +212,31 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             }
         }
         
-        let contentView = OnboardingView { [weak self] in
-            // Defer to next runloop to avoid releasing view while callback is in progress
-            DispatchQueue.main.async {
-                // Mark onboarding as complete first
-                UserDefaults.standard.set(true, forKey: AppPreferenceKey.hasCompletedOnboarding)
-                self?.close()
+        let contentView = OnboardingView(
+            onComplete: { [weak self] in
+                // Defer to next runloop to avoid releasing view while callback is in progress
+                DispatchQueue.main.async {
+                    // Mark onboarding as complete first
+                    UserDefaults.standard.set(true, forKey: AppPreferenceKey.hasCompletedOnboarding)
+                    self?.close()
+                }
+            },
+            onPageChange: { [weak self] page in
+                self?.resizeWindow(for: page, animated: true)
             }
-        }
+        )
 
         
-        let preferredSize = OnboardingView.preferredWindowSize
-
         let hostingView = NSHostingView(rootView: contentView)
         
         // Use NSPanel with borderless style to match extension windows (no traffic lights)
         let newWindow = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: preferredSize.width, height: preferredSize.height),
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: OnboardingView.standardWindowSize.width,
+                height: OnboardingView.standardWindowSize.height
+            ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -236,6 +244,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         
         newWindow.titlebarAppearsTransparent = true
         newWindow.titleVisibility = .hidden
+        newWindow.title = "Welcome to Droppy"
         newWindow.backgroundColor = .clear  // Clear to allow SwiftUI transparency mode
         newWindow.isOpaque = false
         newWindow.hasShadow = true
@@ -263,7 +272,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         newWindow.alphaValue = 0
         if let contentView = newWindow.contentView {
             contentView.wantsLayer = true
-            contentView.layer?.transform = CATransform3DMakeScale(0.9, 0.9, 1.0)
+            contentView.layer?.transform = CATransform3DMakeScale(0.85, 0.85, 1.0)
             contentView.layer?.opacity = 0
         }
         
@@ -289,7 +298,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             
             // Scale with spring overshoot
             let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-            scaleAnim.fromValue = 0.9
+            scaleAnim.fromValue = 0.85
             scaleAnim.toValue = 1.0
             scaleAnim.mass = 1.0
             scaleAnim.stiffness = 250  // Slightly softer for larger window
@@ -354,5 +363,30 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         guard NSApp.isActive else { return false }
         guard let frontmost = NSWorkspace.shared.frontmostApplication else { return false }
         return frontmost.processIdentifier == ProcessInfo.processInfo.processIdentifier
+    }
+
+    private func resizeWindow(for page: OnboardingPage, animated: Bool) {
+        guard let window else { return }
+        let targetSize = OnboardingView.windowSize(for: page)
+
+        // Avoid redundant frame animations
+        guard abs(window.frame.width - targetSize.width) > 0.5 || abs(window.frame.height - targetSize.height) > 0.5 else {
+            return
+        }
+
+        var newFrame = window.frame
+        let heightDelta = targetSize.height - newFrame.height
+        newFrame.size = targetSize
+        newFrame.origin.y -= heightDelta / 2  // keep center visually stable
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.24
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(newFrame, display: true)
+            }
+        } else {
+            window.setFrame(newFrame, display: true)
+        }
     }
 }
