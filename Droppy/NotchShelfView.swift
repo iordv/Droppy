@@ -59,6 +59,7 @@ struct NotchShelfView: View {
     @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
     @AppStorage(AppPreferenceKey.enableLockScreenMediaWidget) private var enableLockScreenMediaWidget = PreferenceDefault.enableLockScreenMediaWidget
     @AppStorage(AppPreferenceKey.enableGradientVisualizer) private var enableGradientVisualizer = PreferenceDefault.enableGradientVisualizer
+    @AppStorage(AppPreferenceKey.enableMediaAlbumArtGlow) private var enableMediaAlbumArtGlow = PreferenceDefault.enableMediaAlbumArtGlow
     @AppStorage(AppPreferenceKey.cameraInstalled) private var cameraInstalled = PreferenceDefault.cameraInstalled
     @AppStorage(AppPreferenceKey.cameraEnabled) private var cameraEnabled = PreferenceDefault.cameraEnabled
     @AppStorage(AppPreferenceKey.todoShelfSplitViewEnabled) private var todoShelfSplitViewEnabled = PreferenceDefault.todoShelfSplitViewEnabled
@@ -2152,7 +2153,11 @@ struct NotchShelfView: View {
                         .animation(displayNotchStateAnimation, value: musicManager.isSpotifySource)
                 }
             }
-            .shadow(color: isExpandedOnThisScreen ? .black.opacity(0.3) : .clear, radius: 8, y: 4)
+            .shadow(
+                color: (isExpandedOnThisScreen && enableMediaAlbumArtGlow) ? .black.opacity(0.3) : .clear,
+                radius: 8,
+                y: 4
+            )
             // PREMIUM: Cursor-following parallax - MUST be applied BEFORE offset to track correct position
             .onContinuousHover { phase in
                 guard isExpandedOnThisScreen else {

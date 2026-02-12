@@ -65,6 +65,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.mouseSwipeMediaSwitchModifier) private var mouseSwipeMediaSwitchModifier = PreferenceDefault.mouseSwipeMediaSwitchModifier
     @AppStorage(AppPreferenceKey.autoFadeMediaHUD) private var autoFadeMediaHUD = PreferenceDefault.autoFadeMediaHUD
     @AppStorage(AppPreferenceKey.debounceMediaChanges) private var debounceMediaChanges = PreferenceDefault.debounceMediaChanges
+    @AppStorage(AppPreferenceKey.enableMediaAlbumArtGlow) private var enableMediaAlbumArtGlow = PreferenceDefault.enableMediaAlbumArtGlow
     @AppStorage(AppPreferenceKey.enableRealAudioVisualizer) private var enableRealAudioVisualizer = PreferenceDefault.enableRealAudioVisualizer
     @AppStorage(AppPreferenceKey.enableGradientVisualizer) private var enableGradientVisualizer = PreferenceDefault.enableGradientVisualizer
     @AppStorage(AppPreferenceKey.mediaSourceFilterEnabled) private var mediaSourceFilterEnabled = PreferenceDefault.mediaSourceFilterEnabled
@@ -2159,6 +2160,15 @@ struct SettingsView: View {
                         }
                         .onAppear {
                             normalizeVisualizerModeIfNeeded()
+                        }
+
+                        Toggle(isOn: $enableMediaAlbumArtGlow) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Album Art Glow")
+                                Text("Show ambient glow/shadow around album art in Now Playing")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         
                         nativePickerRow(

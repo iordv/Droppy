@@ -232,6 +232,7 @@ struct MediaPlayerView: View {
     // MARK: - Preferences
     @AppStorage(AppPreferenceKey.enableRightClickHide) private var enableRightClickHide = PreferenceDefault.enableRightClickHide
     @AppStorage(AppPreferenceKey.enableGradientVisualizer) private var enableGradientVisualizer = PreferenceDefault.enableGradientVisualizer
+    @AppStorage(AppPreferenceKey.enableMediaAlbumArtGlow) private var enableMediaAlbumArtGlow = PreferenceDefault.enableMediaAlbumArtGlow
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDReplacement = PreferenceDefault.enableHUDReplacement
     @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault.enableBatteryHUD
@@ -749,7 +750,7 @@ struct MediaPlayerView: View {
         ZStack {
             // MARK: - Album Art Glow (very subtle blurred halo)
             // PERFORMANCE FIX (Issue #81): Use drawingGroup() for GPU-accelerated blur rendering
-            if musicManager.albumArt.size.width > 0 && musicManager.isPlaying {
+            if enableMediaAlbumArtGlow && musicManager.albumArt.size.width > 0 && musicManager.isPlaying {
                 Image(nsImage: musicManager.albumArt)
                     .resizable()
                     .aspectRatio(1, contentMode: .fill)

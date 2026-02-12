@@ -50,6 +50,7 @@ enum AppPreferenceKey {
     static let autofadeAppRulesEnabled = "autofadeAppRulesEnabled"  // Enable app-specific rules
     static let autofadeDisplayRulesEnabled = "autofadeDisplayRulesEnabled"  // Enable display-specific rules
     static let debounceMediaChanges = "debounceMediaChanges"
+    static let enableMediaAlbumArtGlow = "enableMediaAlbumArtGlow"  // Enable album art shadow/glow in media HUD
     static let enableRealAudioVisualizer = "enableRealAudioVisualizer"
     static let enableGradientVisualizer = "enableGradientVisualizer"  // Gradient colors across visualizer bars
 
@@ -95,6 +96,7 @@ enum AppPreferenceKey {
     static let enablePowerFolders = "enablePowerFolders"
     static let enableQuickActions = "enableQuickActions"
     static let quickActionsMailApp = "quickActionsMailApp"  // "systemDefault", "appleMail", "outlook"
+    static let quickActionsCloudProvider = "quickActionsCloudProvider"  // "droppyQuickshare", "iCloudDrive"
     static let enableTrackedFolders = "enableTrackedFolders"
     static let enableMultiBasket = "enableMultiBasket"  // Allow spawning multiple baskets simultaneously
     static let basketSwitcherShortcut = "basketSwitcherShortcut"  // Custom shortcut to show basket switcher
@@ -243,6 +245,7 @@ enum PreferenceDefault {
     static let autofadeAppRulesEnabled = false  // App-specific rules disabled by default
     static let autofadeDisplayRulesEnabled = false  // Display-specific rules disabled by default
     static let debounceMediaChanges = false
+    static let enableMediaAlbumArtGlow = true
     static let enableRealAudioVisualizer = false  // Opt-in: requires Screen Recording
     static let enableGradientVisualizer = true    // Keep one visualizer mode enabled by default
 
@@ -288,6 +291,7 @@ enum PreferenceDefault {
     static let enablePowerFolders = true
     static let enableQuickActions = false  // Advanced feature, opt-in
     static let quickActionsMailApp = "systemDefault"
+    static let quickActionsCloudProvider = "droppyQuickshare"
     static let enableTrackedFolders = false  // Advanced feature, opt-in
     static let enableMultiBasket = true  // Multi-basket by default for spawning multiple simultaneous baskets
     
