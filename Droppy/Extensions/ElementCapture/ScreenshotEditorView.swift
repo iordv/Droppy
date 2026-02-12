@@ -922,6 +922,10 @@ struct ScreenshotEditorView: View {
     // MARK: - Rendering
     
     private func renderAnnotatedImage() -> NSImage {
+        if let rendered = renderRenderedViewImage() {
+            return rendered
+        }
+        
         guard let bitmap = renderAnnotatedBitmap() else {
             return originalImage
         }
@@ -932,8 +936,51 @@ struct ScreenshotEditorView: View {
     }
     
     private func renderAnnotatedPNGData() -> Data? {
+        if let rendered = renderRenderedViewImage(),
+           let tiff = rendered.tiffRepresentation,
+           let bitmap = NSBitmapImageRep(data: tiff) {
+            return bitmap.representation(using: .png, properties: [:])
+        }
+        
         guard let bitmap = renderAnnotatedBitmap() else { return nil }
         return bitmap.representation(using: .png, properties: [:])
+    }
+    
+    private func renderRenderedViewImage() -> NSImage? {
+        let source = resolvedSourceImage()
+        let renderSize = source.size
+        guard renderSize.width > 0, renderSize.height > 0 else { return nil }
+        
+        let baseImage: NSImage = {
+            if let cgImage = source.cgImage {
+                return NSImage(cgImage: cgImage, size: renderSize)
+            }
+            return originalImage
+        }()
+        
+        let exportView = ZStack {
+            Image(nsImage: baseImage)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: renderSize.width, height: renderSize.height)
+            
+            AnnotationCanvas(
+                annotations: annotations,
+                currentAnnotation: currentAnnotation,
+                originalImage: baseImage,
+                imageSize: renderSize,
+                containerSize: renderSize
+            )
+            .frame(width: renderSize.width, height: renderSize.height)
+        }
+        .frame(width: renderSize.width, height: renderSize.height)
+        
+        let renderer = ImageRenderer(content: exportView)
+        renderer.proposedSize = ProposedViewSize(width: renderSize.width, height: renderSize.height)
+        renderer.scale = 1
+        
+        return renderer.nsImage
     }
     
     private func renderAnnotatedBitmap() -> NSBitmapImageRep? {
@@ -997,6 +1044,12 @@ struct ScreenshotEditorView: View {
     }
     
     private func resolvedSourceImage() -> (cgImage: CGImage?, size: NSSize) {
+        // Prefer AppKit's currently resolved CGImage first. This is usually the exact
+        // visible representation and avoids selecting stale/cropped cached reps.
+        if let cgImage = originalImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            return (cgImage, NSSize(width: cgImage.width, height: cgImage.height))
+        }
+        
         let expectedAspect: CGFloat? = {
             guard originalImage.size.width > 0, originalImage.size.height > 0 else { return nil }
             return originalImage.size.width / originalImage.size.height
@@ -1036,25 +1089,30 @@ struct ScreenshotEditorView: View {
         }
         
         let isLessPreferred: (Candidate, Candidate) -> Bool = { lhs, rhs in
-            let lhsArea = Int64(lhs.width) * Int64(lhs.height)
-            let rhsArea = Int64(rhs.width) * Int64(rhs.height)
-            if lhsArea == rhsArea {
+            // Prefer closest aspect first to prevent wrong cropped reps.
+            let aspectSlack: CGFloat = 0.001
+            if abs(lhs.aspectDelta - rhs.aspectDelta) > aspectSlack {
                 return lhs.aspectDelta > rhs.aspectDelta
             }
+            
+            // Prefer candidates that have a concrete CGImage backing.
+            if (lhs.cgImage != nil) != (rhs.cgImage != nil) {
+                return lhs.cgImage == nil
+            }
+            
+            // Then pick the highest resolution.
+            let lhsArea = Int64(lhs.width) * Int64(lhs.height)
+            let rhsArea = Int64(rhs.width) * Int64(rhs.height)
             return lhsArea < rhsArea
         }
         
         let bestAspectMatch = candidates
-            .filter { $0.aspectDelta <= 0.03 } // Ignore cached reps with obviously wrong aspect.
+            .filter { $0.aspectDelta <= 0.03 }
             .max(by: isLessPreferred)
-        let bestAnyAspect = candidates.max(by: isLessPreferred)
+        let bestClosest = candidates.max(by: isLessPreferred)
         
-        if let candidate = bestAspectMatch ?? bestAnyAspect {
+        if let candidate = bestAspectMatch ?? bestClosest {
             return (candidate.cgImage, NSSize(width: candidate.width, height: candidate.height))
-        }
-
-        if let cgImage = originalImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            return (cgImage, NSSize(width: cgImage.width, height: cgImage.height))
         }
         
         if let bitmapRep = originalImage.representations
