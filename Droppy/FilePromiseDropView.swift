@@ -92,6 +92,10 @@ class FilePromiseDropNSView: NSView {
     }
     
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // Ensure hover/target visuals are released immediately after drop begins.
+        onTargetingChanged?(false)
+        onHoverChanged?(false)
+
         let pasteboard = sender.draggingPasteboard
         var urls: [URL] = []
         

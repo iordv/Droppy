@@ -176,7 +176,7 @@ struct LicenseSettingsSection: View {
 
             inputField(icon: "envelope.fill", isFocused: focusedField == .email) {
                 LeftAlignedTextField(
-                    placeholder: "Purchase email (optional)",
+                    placeholder: "Purchase email (required for trial)",
                     text: $emailInput,
                     onFocusChanged: { isFocused in
                         focusedField = isFocused ? .email : nil
@@ -293,6 +293,12 @@ struct LicenseSettingsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
+            if licenseManager.needsEmailForTrialStart {
+                Text("Enter purchase email above to start the 3-day trial.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             if licenseManager.canStartTrial {
                 HStack {
                     Spacer()
@@ -312,6 +318,7 @@ struct LicenseSettingsSection: View {
                         }
                     }
                     .buttonStyle(DroppyAccentButtonStyle(color: .orange, size: .small))
+                    .disabled(licenseManager.isChecking || !licenseManager.canSubmitTrialStart(accountEmail: emailInput))
                 }
             }
         }

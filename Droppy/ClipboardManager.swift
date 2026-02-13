@@ -603,6 +603,41 @@ class ClipboardManager: ObservableObject {
             self?.monitorLoop()
         }
     }
+
+    /// Forces an immediate check of the current pasteboard and applies changes synchronously
+    /// when called on the main thread (used by menu snapshots to avoid stale "empty" state).
+    func refreshFromPasteboardIfNeeded() {
+        checkForChanges(applyOnMainSynchronously: true)
+    }
+
+    /// Returns a one-off preview item from the current system pasteboard without mutating history.
+    /// Used by menu snapshots when history is empty but clipboard currently has content.
+    func currentPasteboardPreviewItem() -> ClipboardItem? {
+        let pasteboard = NSPasteboard.general
+        guard let itemsSnapshot = pasteboard.pasteboardItems, !itemsSnapshot.isEmpty else { return nil }
+
+        // Respect concealed/transient skip preference for preview as well.
+        if skipConcealedContent {
+            let typesSnapshot = pasteboard.types ?? []
+            let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+            let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
+            if typesSnapshot.contains(concealedType) || typesSnapshot.contains(transientType) {
+                return nil
+            }
+        }
+
+        var frontmostAppName: String? = nil
+        if let app = NSWorkspace.shared.frontmostApplication,
+           let name = app.localizedName {
+            frontmostAppName = String(name)
+        }
+
+        return extractItems(
+            from: pasteboard,
+            itemsSnapshot: itemsSnapshot,
+            appNameSnapshot: frontmostAppName
+        ).first
+    }
     
     func enforceHistoryLimit() {
         // Protected items: flagged, favorites, AND tagged items - these never get auto-deleted
@@ -629,7 +664,7 @@ class ClipboardManager: ObservableObject {
                   limitedRegular
     }
 
-    private func checkForChanges() {
+    private func checkForChanges(applyOnMainSynchronously: Bool = false) {
         guard isEnabled else { return }
 
         // Snapshot pasteboard and frontmost app state once per cycle
@@ -689,7 +724,7 @@ class ClipboardManager: ObservableObject {
         let newItems = extractItems(from: pasteboard, itemsSnapshot: itemsSnapshot, appNameSnapshot: frontmostAppName)
         guard !newItems.isEmpty else { return }
 
-        DispatchQueue.main.async { [weak self] in
+        let applyUpdates = { [weak self] in
             guard let self = self else { return }
             
             // Check if we should favorite the next capture (Issue #43)
@@ -725,6 +760,12 @@ class ClipboardManager: ObservableObject {
                 self.history.insert(item, at: 0)
             }
             self.enforceHistoryLimit()
+        }
+
+        if applyOnMainSynchronously && Thread.isMainThread {
+            applyUpdates()
+        } else {
+            DispatchQueue.main.async(execute: applyUpdates)
         }
     }
     
@@ -996,6 +1037,20 @@ class ClipboardManager: ObservableObject {
                 scheduleSave() // Force save the empty state
             }
         }
+    }
+
+    func clearAllHistory() {
+        guard !history.isEmpty else { return }
+
+        // Mark this as an intentional destructive clear so empty persistence is allowed.
+        wasExplicitlyCleared = true
+        for item in history {
+            deleteImageFile(for: item)
+        }
+        history.removeAll()
+        ThumbnailCache.shared.clearAll()
+        HapticFeedback.delete()
+        scheduleSave()
     }
     
     func rename(item: ClipboardItem, to newTitle: String) {

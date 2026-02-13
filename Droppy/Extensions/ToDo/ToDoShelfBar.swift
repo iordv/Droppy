@@ -94,6 +94,7 @@ struct ToDoShelfBar: View {
 
     var manager: ToDoManager
     @Binding var isListExpanded: Bool
+    var hostDisplayID: CGDirectDisplayID? = nil
     var notchHeight: CGFloat = 0  // Height of physical notch to clear
     var useAdaptiveForegroundsForTransparentNotch: Bool = false
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
@@ -137,6 +138,13 @@ struct ToDoShelfBar: View {
 
     private var timelineColumnHorizontalPadding: CGFloat {
         isSplitViewEnabled ? 10 : Layout.listHorizontalPadding
+    }
+
+    private var isHostShelfExpanded: Bool {
+        if let hostDisplayID {
+            return DroppyState.shared.isExpanded(for: hostDisplayID)
+        }
+        return DroppyState.shared.isExpanded
     }
 
     private enum Layout {
@@ -258,7 +266,7 @@ struct ToDoShelfBar: View {
             manager.isShelfListExpanded = expanded
             if skipNextExpandedResizeRecalc {
                 skipNextExpandedResizeRecalc = false
-            } else {
+            } else if isHostShelfExpanded {
                 NotchWindowController.shared.recalculateAllWindowSizesCoalesced()
             }
             guard expanded else { return }
@@ -288,11 +296,15 @@ struct ToDoShelfBar: View {
             manager.isEditingText = false
         }
         .onChange(of: manager.items) { _, _ in
-            guard isListExpanded else { return }
+            guard isListExpanded, isHostShelfExpanded else { return }
             refreshTimelineSnapshot(animation: DroppyAnimation.itemInsertion)
         }
         .onChange(of: calendarSyncEnabled) { _, _ in
-            guard isListExpanded else { return }
+            guard isListExpanded, isHostShelfExpanded else { return }
+            refreshTimelineSnapshot(animation: DroppyAnimation.smoothContent)
+        }
+        .onChange(of: manager.hideUndatedRemindersChangeToken) { _, _ in
+            guard isListExpanded, isHostShelfExpanded else { return }
             refreshTimelineSnapshot(animation: DroppyAnimation.smoothContent)
         }
         .onChange(of: inputText) { _, newValue in
@@ -788,6 +800,7 @@ struct ToDoShelfBar: View {
                                 ShelfTimelineRow(
                                     item: item,
                                     manager: manager,
+                                    subtaskDepth: manager.reminderHierarchyDepth(for: item),
                                     isSelected: isSplitViewEnabled && selectedTimelineItemID == item.id,
                                     isCompleting: completingTimelineItemIDs.contains(item.id),
                                     allowCompactDetailsPopover: !isSplitViewEnabled,
@@ -1028,8 +1041,6 @@ struct ToDoShelfBar: View {
                             lineWidth: 1
                         )
                 )
-                .id(item.id)
-                .transition(.opacity.combined(with: .move(edge: .trailing)))
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "sidebar.right")
@@ -1051,11 +1062,8 @@ struct ToDoShelfBar: View {
                             lineWidth: 1
                         )
                 )
-                .id("todo.timeline.detail.empty")
-                .transition(.opacity.combined(with: .move(edge: .leading)))
             }
         }
-        .animation(DroppyAnimation.smooth(duration: 0.18), value: selectedTimelineItem?.id)
     }
 
     private func priorityChip(_ priority: ToDoPriority, title: String, item: ToDoItem) -> some View {
@@ -1214,8 +1222,10 @@ struct ToDoShelfBar: View {
         if let explicit = inputReminderListID {
             return explicit
         }
-        guard let parsedQuery else { return nil }
-        return manager.resolveReminderList(matching: parsedQuery)?.id
+        if let parsedQuery {
+            return manager.resolveReminderList(matching: parsedQuery)?.id
+        }
+        return manager.preferredReminderListIDForNewTasks()
     }
 }
 
@@ -1791,6 +1801,7 @@ private struct ToDoDueDatePopoverContentLocal: View {
 private struct ShelfTimelineRow: View {
     let item: ToDoItem
     let manager: ToDoManager
+    let subtaskDepth: Int
     let isSelected: Bool
     let isCompleting: Bool
     let allowCompactDetailsPopover: Bool
@@ -1806,6 +1817,8 @@ private struct ShelfTimelineRow: View {
     @State private var editText = ""
     @State private var editDueDate: Date?
     @State private var isPressPulse = false
+    private var clampedSubtaskDepth: Int { min(max(subtaskDepth, 0), 4) }
+    private var subtaskIndent: CGFloat { CGFloat(clampedSubtaskDepth) * 14 }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -1828,28 +1841,48 @@ private struct ShelfTimelineRow: View {
             }
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .foregroundStyle(
-                        isCalendarEvent
-                            ? calendarTint.opacity(0.95)
-                            : (useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.95) : .white.opacity(0.92))
-                    )
-                    .contentTransition(.interpolate)
-                    .animation(DroppyAnimation.state, value: item.title)
+                HStack(spacing: 5) {
+                    if clampedSubtaskDepth > 0 {
+                        Image(systemName: "arrow.turn.down.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(
+                                useAdaptiveForegrounds
+                                    ? AdaptiveColors.secondaryTextAuto.opacity(0.72)
+                                    : .white.opacity(0.58)
+                            )
+                            .contentTransition(.interpolate)
+                    }
+                    Text(item.title)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                        .foregroundStyle(
+                            isCalendarEvent
+                                ? calendarTint.opacity(0.95)
+                                : (useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.95) : .white.opacity(0.92))
+                        )
+                        .contentTransition(.interpolate)
+                        .animation(DroppyAnimation.state, value: item.title)
+                }
 
                 HStack(spacing: 5) {
                     Text(timeLabel)
                         .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.82) : .white.opacity(0.6))
                     if let sourceLabel {
-                        Text("•")
-                            .font(.system(size: 9, weight: .bold))
+                        if let sourceMarkerColor {
+                            Circle()
+                                .fill(sourceMarkerColor.opacity(0.92))
+                                .frame(width: 5.5, height: 5.5)
+                        } else {
+                            Text("•")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.82) : .white.opacity(0.6))
+                        }
                         Text(sourceLabel)
                             .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(sourceLabelColor)
                     }
                 }
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.82) : .white.opacity(0.6))
                 .contentTransition(.interpolate)
                 .animation(DroppyAnimation.state, value: timeLabel)
             }
@@ -1869,6 +1902,7 @@ private struct ShelfTimelineRow: View {
                 .buttonStyle(.plain)
             }
         }
+        .padding(.leading, subtaskIndent)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .scaleEffect(isCompleting ? 0.92 : 1.0, anchor: .center)
@@ -1926,8 +1960,14 @@ private struct ShelfTimelineRow: View {
     private var sourceLabel: String? {
         switch item.externalSource {
         case .calendar:
+            if let listTitle = item.externalListTitle, !listTitle.isEmpty {
+                return listTitle
+            }
             return "Calendar"
         case .reminders:
+            if let listTitle = item.externalListTitle, !listTitle.isEmpty {
+                return listTitle
+            }
             return "Reminders"
         case .none:
             return nil
@@ -1967,6 +2007,35 @@ private struct ShelfTimelineRow: View {
             green: Double((value >> 8) & 0xFF) / 255.0,
             blue: Double(value & 0xFF) / 255.0
         )
+    }
+
+    private var reminderListColor: Color? {
+        guard item.externalSource == .reminders else { return nil }
+        guard let hex = item.externalListColorHex else { return Color.blue }
+        let trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+        guard trimmed.count == 6, let value = Int(trimmed, radix: 16) else { return Color.blue }
+        return Color(
+            red: Double((value >> 16) & 0xFF) / 255.0,
+            green: Double((value >> 8) & 0xFF) / 255.0,
+            blue: Double(value & 0xFF) / 255.0
+        )
+    }
+
+    private var sourceMarkerColor: Color? {
+        if isCalendarEvent {
+            return calendarTint
+        }
+        return reminderListColor
+    }
+
+    private var sourceLabelColor: Color {
+        if isCalendarEvent {
+            return calendarTint.opacity(0.95)
+        }
+        if let reminderListColor {
+            return reminderListColor.opacity(0.92)
+        }
+        return useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.82) : .white.opacity(0.6)
     }
 
     private var compactInfoPopover: some View {
@@ -2213,11 +2282,11 @@ private struct TaskRow: View {
                             .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.48))
                             .help(externalIconHelp)
                     }
-                    if let reminderListColor {
+                    if let sourceListColor {
                         Image(systemName: "list.bullet.circle.fill")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(reminderListColor.opacity(0.9))
-                            .help(reminderListHelp)
+                            .foregroundStyle(sourceListColor.opacity(0.9))
+                            .help(sourceListHelp)
                     }
                 }
             }
@@ -2499,16 +2568,26 @@ private struct TaskRow: View {
         }
     }
 
-    private var reminderListColor: Color? {
-        guard !isCalendarEvent else { return nil }
+    private var sourceListColor: Color? {
+        guard item.externalSource != nil else { return nil }
         return colorFromHex(item.externalListColorHex)
     }
 
-    private var reminderListHelp: String {
-        if let title = item.externalListTitle, !title.isEmpty {
-            return "Apple Reminders list: \(title)"
+    private var sourceListHelp: String {
+        switch item.externalSource {
+        case .calendar:
+            if let title = item.externalListTitle, !title.isEmpty {
+                return "Apple Calendar: \(title)"
+            }
+            return "Apple Calendar"
+        case .reminders:
+            if let title = item.externalListTitle, !title.isEmpty {
+                return "Apple Reminders list: \(title)"
+            }
+            return "Apple Reminders list"
+        case .none:
+            return ""
         }
-        return "Apple Reminders list"
     }
 
     private var hoverInfoPopoverContent: some View {
@@ -2705,7 +2784,11 @@ private extension ToDoShelfBar {
     }
 
     func refreshTimelineSnapshot(animation: Animation? = nil) {
-        let activeItems = manager.sortedItems.filter { !$0.isCompleted }
+        let sourceItems = manager.sortedItems
+        let remindersByExternalID = manager.reminderItemsByExternalID(in: sourceItems)
+        let activeItems = sourceItems.filter {
+            shouldIncludeInTimeline($0, remindersByExternalID: remindersByExternalID)
+        }
         let hasTaskItems = activeItems.contains { $0.externalSource != .calendar }
         let mode: TimelineContentMode
         if calendarSyncEnabled && hasTaskItems {
@@ -2769,6 +2852,23 @@ private extension ToDoShelfBar {
         completingTimelineItemIDs = completingTimelineItemIDs.intersection(visibleIDs)
     }
 
+    func shouldIncludeInTimeline(
+        _ item: ToDoItem,
+        remindersByExternalID: [String: ToDoItem]
+    ) -> Bool {
+        !item.isCompleted &&
+        !isHiddenUndatedReminder(item, remindersByExternalID: remindersByExternalID)
+    }
+
+    func isHiddenUndatedReminder(
+        _ item: ToDoItem,
+        remindersByExternalID: [String: ToDoItem]
+    ) -> Bool {
+        manager.isHideUndatedRemindersEnabled &&
+        item.externalSource == .reminders &&
+        manager.effectiveDueDate(for: item, remindersByExternalID: remindersByExternalID) == nil
+    }
+
     private func animateTimelineCompletion(for item: ToDoItem) {
         guard !item.isCompleted else {
             manager.toggleCompletion(for: item)
@@ -2801,8 +2901,12 @@ private extension ToDoShelfBar {
 
         var undatedItems: [ToDoItem] = []
         var datedMap: [Date: [ToDoItem]] = [:]
+        let remindersByExternalID = manager.reminderItemsByExternalID(in: visibleItems)
         for item in visibleItems {
-            guard let dueDate = item.dueDate else {
+            guard let dueDate = manager.effectiveDueDate(
+                for: item,
+                remindersByExternalID: remindersByExternalID
+            ) else {
                 undatedItems.append(item)
                 continue
             }
@@ -2821,19 +2925,6 @@ private extension ToDoShelfBar {
         for offset in 0...renderDays {
             let day = calendar.date(byAdding: .day, value: offset, to: today) ?? today
             var dayItems = datedMap[day] ?? []
-            dayItems.sort { lhs, rhs in
-                switch (lhs.dueDate, rhs.dueDate) {
-                case let (left?, right?):
-                    if left != right { return left < right }
-                case (.none, .some):
-                    return true
-                case (.some, .none):
-                    return false
-                case (.none, .none):
-                    break
-                }
-                return lhs.createdAt > rhs.createdAt
-            }
 
             if calendar.isDate(day, inSameDayAs: today) && !undatedItems.isEmpty {
                 dayItems = undatedItems + dayItems
@@ -3116,9 +3207,12 @@ private extension ToDoShelfBar {
     }
 
     var incompleteCount: Int {
-        manager.items.reduce(0) { count, item in
+        let sourceItems = manager.items
+        let remindersByExternalID = manager.reminderItemsByExternalID(in: sourceItems)
+        return sourceItems.reduce(0) { count, item in
             guard !item.isCompleted else { return count }
             guard item.externalSource != .calendar else { return count }
+            guard !isHiddenUndatedReminder(item, remindersByExternalID: remindersByExternalID) else { return count }
             return count + 1
         }
     }

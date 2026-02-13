@@ -887,6 +887,7 @@ final class FloatingBasketWindowController: NSObject {
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
         basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
         
         // Stop keyboard monitoring
         stopKeyboardMonitor()
@@ -922,6 +923,7 @@ final class FloatingBasketWindowController: NSObject {
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
         basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
 
         stopKeyboardMonitor()
         stopMouseTrackingMonitor()
@@ -1048,6 +1050,8 @@ final class FloatingBasketWindowController: NSObject {
     
     /// Handles mouse movement for auto-hide logic (Peek Mode Only)
     private func handleMouseMovement() {
+        guard RunLoop.main.currentMode != .eventTracking else { return }
+
         // We only care about this global check if we are peeking!
         // If fully visible, BasketDragContainer handles mouseEntered/Exited
         guard let panel = basketWindow, panel.isVisible, isInPeekMode, !isShowingOrHiding else { return }
@@ -1097,6 +1101,8 @@ final class FloatingBasketWindowController: NSObject {
     }
     
     private func evaluateAutoHideState() {
+        guard RunLoop.main.currentMode != .eventTracking else { return }
+
         guard let panel = basketWindow, panel.isVisible else {
             hideDeadline = nil
             return

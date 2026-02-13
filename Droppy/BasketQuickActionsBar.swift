@@ -160,6 +160,9 @@ struct BasketQuickActionsBar: View {
                 cancelScheduledCollapse()
                 return
             }
+            // Defensive reset: NSDragging callbacks can lag for some sources (e.g. file promises),
+            // which can leave action explanation overlays visible longer than intended.
+            resetQuickActionHoverState()
             if !isHovering && !isBarAreaTargeted && !isBoltTargeted && !basketState.isQuickActionsTargeted {
                 scheduleCollapse()
             }
@@ -177,6 +180,7 @@ struct BasketQuickActionsBar: View {
         }
         .onDisappear {
             cancelScheduledCollapse()
+            resetQuickActionHoverState()
         }
     }
 
@@ -198,11 +202,15 @@ struct BasketQuickActionsBar: View {
         guard !isHovering, !isBarAreaTargeted, !isBoltTargeted, !dragMonitor.isDragging else {
             return
         }
-        basketState.isQuickActionsTargeted = false
-        basketState.hoveredQuickAction = nil
+        resetQuickActionHoverState()
         withAnimation(DroppyAnimation.state) {
             isExpanded = false
         }
+    }
+
+    private func resetQuickActionHoverState() {
+        basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
     }
     
     // MARK: - Share Actions

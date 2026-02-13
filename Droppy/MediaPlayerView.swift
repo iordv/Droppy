@@ -43,6 +43,12 @@ private struct ScrollWheelCaptureModifier: ViewModifier {
         guard monitor == nil else { return }
         
         monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [self] event in
+            // While AppKit is tracking menus, skip media swipe capture entirely.
+            // This keeps status-item menu scrolling responsive.
+            if RunLoop.current.currentMode == .eventTracking {
+                return event
+            }
+
             // Check if mouse is over this view's frame
             let mouseLocation = NSEvent.mouseLocation
             
@@ -367,7 +373,8 @@ struct MediaPlayerView: View {
     }
 
     private var timelineRootContent: some View {
-        TimelineView(.animation(minimumInterval: 0.1, paused: !musicManager.isPlaying && !isDragging)) { context in
+        let shouldPauseTimeline = (!musicManager.isPlaying && !isDragging) || isMenuTrackingRunLoopActive()
+        return TimelineView(.animation(minimumInterval: 0.1, paused: shouldPauseTimeline)) { context in
             let currentDate = context.date
 
             HStack(alignment: .top, spacing: 16) {
@@ -441,6 +448,10 @@ struct MediaPlayerView: View {
                 }
             }
         }
+    }
+
+    private func isMenuTrackingRunLoopActive() -> Bool {
+        RunLoop.main.currentMode == .eventTracking || RunLoop.current.currentMode == .eventTracking
     }
 
     private func applyUniversalHUDObservers(to view: AnyView) -> AnyView {

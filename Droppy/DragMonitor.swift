@@ -10,6 +10,7 @@
 
 import AppKit
 import Combine
+import UniformTypeIdentifiers
 
 /// Monitors system-wide drag events to detect when files/items are being dragged
 final class DragMonitor: ObservableObject {
@@ -28,6 +29,7 @@ final class DragMonitor: ObservableObject {
     private var isMonitoring = false
     private var dragStartChangeCount: Int = 0
     private var dragActive = false
+    private var dragHasSupportedPayload = false
     private var isDragStartCandidate = false
     private var dragStartCandidateLocation: CGPoint = .zero
     private let dragStartMovementThreshold: CGFloat = 3.5
@@ -56,6 +58,17 @@ final class DragMonitor: ObservableObject {
     private var isDragRevealShortcutConfigured: Bool {
         dragRevealShortcutSignature != "none"
     }
+
+    private static let mailDragTypes: Set<NSPasteboard.PasteboardType> = [
+        NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeMessageTransfer"),
+        NSPasteboard.PasteboardType("com.apple.mail.PasteboardTypeAutomator"),
+        NSPasteboard.PasteboardType("com.apple.mail.message"),
+        NSPasteboard.PasteboardType(UTType.emailMessage.identifier)
+    ]
+
+    private static let filePromiseDragTypes: Set<NSPasteboard.PasteboardType> = Set(
+        NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+    )
     
     private init() {}
     
@@ -151,6 +164,7 @@ final class DragMonitor: ObservableObject {
         
         if isDragging {
             dragActive = true
+            dragHasSupportedPayload = true
             isDragStartCandidate = false
             self.isDragging = true
             updateDragRevealHotKeyRegistration()
@@ -162,6 +176,7 @@ final class DragMonitor: ObservableObject {
             resetJiggle()
         } else {
             dragActive = false
+            dragHasSupportedPayload = false
             isDragStartCandidate = false
             suppressBasketRevealForCurrentDrag = false
             updateDragRevealHotKeyRegistration()
@@ -176,6 +191,7 @@ final class DragMonitor: ObservableObject {
     func forceReset() {
         print("🧹 DragMonitor.forceReset() called - clearing stuck drag state")
         dragActive = false
+        dragHasSupportedPayload = false
         isDragStartCandidate = false
         isDragging = false
         dragLocation = .zero
@@ -217,6 +233,7 @@ final class DragMonitor: ObservableObject {
                     updateDragRevealHotKeyRegistration()
                     resetJiggle()
                 }
+                dragHasSupportedPayload = false
                 isDragStartCandidate = false
                 return
             }
@@ -232,17 +249,20 @@ final class DragMonitor: ObservableObject {
                     dragStartCandidateLocation = currentMouseLocation
                 }
 
-                let hasContent = (dragPasteboard.types?.count ?? 0) > 0
-                if hasContent {
+                let hasSupportedContent = hasSupportedDragPayload(dragPasteboard)
+                if hasSupportedContent {
                     // Some drag sources can reuse pasteboard changeCount across repeated drags.
-                    // Fallback to confirmed pointer movement so drag sessions still start reliably.
+                    // Only allow movement fallback for known unreliable sources (Mail/file promises);
+                    // for regular file/url drags it can false-trigger on stale drag pasteboard data.
                     let movedFromCandidate = hypot(
                         currentMouseLocation.x - dragStartCandidateLocation.x,
                         currentMouseLocation.y - dragStartCandidateLocation.y
                     ) > dragStartMovementThreshold
                     let changeCountChanged = currentChangeCount != dragStartChangeCount
-                    if changeCountChanged || movedFromCandidate {
+                    let canUseMovementFallback = shouldAllowMovementFallback(for: dragPasteboard)
+                    if changeCountChanged || (canUseMovementFallback && movedFromCandidate) {
                         dragActive = true
+                        dragHasSupportedPayload = true
                         isDragStartCandidate = false
                         stopIdleJiggleMonitoring()
                         dragStartChangeCount = currentChangeCount
@@ -272,6 +292,7 @@ final class DragMonitor: ObservableObject {
                             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                                 // Only show if drag is still active (user didn't release)
                                 guard self?.dragActive == true else { return }
+                                guard self?.dragHasSupportedPayload == true else { return }
                                 guard self?.suppressBasketRevealForCurrentDrag != true else { return }
                                 let enabled = UserDefaults.standard.preference(
                                     AppPreferenceKey.enableFloatingBasket,
@@ -308,6 +329,7 @@ final class DragMonitor: ObservableObject {
             // Detect drag END
             if !mouseIsDown && dragActive {
                 dragActive = false
+                dragHasSupportedPayload = false
                 isDragStartCandidate = false
                 suppressBasketRevealForCurrentDrag = false
                 updateDragRevealHotKeyRegistration()
@@ -325,6 +347,7 @@ final class DragMonitor: ObservableObject {
     }
     
     private func detectJiggle(currentLocation: CGPoint) {
+        guard dragHasSupportedPayload else { return }
         guard !suppressBasketRevealForCurrentDrag else { return }
         
         let dx = currentLocation.x - lastDragLocation.x
@@ -375,6 +398,34 @@ final class DragMonitor: ObservableObject {
         
         lastDragDirection = currentDirection
     }
+
+    private func hasSupportedDragPayload(_ pasteboard: NSPasteboard) -> Bool {
+        guard let types = pasteboard.types, !types.isEmpty else { return false }
+
+        for type in types {
+            if Self.mailDragTypes.contains(type) || Self.filePromiseDragTypes.contains(type) {
+                return true
+            }
+
+            if let utType = UTType(type.rawValue),
+               utType.conforms(to: .fileURL) ||
+               utType.conforms(to: .url) ||
+               utType.conforms(to: .image) ||
+               utType.conforms(to: .movie) {
+                return true
+            }
+        }
+
+        // Fallback for drag sources that expose URLs without a canonical UTI type.
+        return pasteboard.canReadObject(forClasses: [NSURL.self], options: nil)
+    }
+
+    private func shouldAllowMovementFallback(for pasteboard: NSPasteboard) -> Bool {
+        guard let types = pasteboard.types, !types.isEmpty else { return false }
+        return types.contains { type in
+            Self.mailDragTypes.contains(type) || Self.filePromiseDragTypes.contains(type)
+        }
+    }
     
     private func loadDragRevealShortcut() -> SavedShortcut? {
         guard let data = UserDefaults.standard.data(forKey: AppPreferenceKey.basketDragRevealShortcut),
@@ -415,6 +466,7 @@ final class DragMonitor: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             guard self.dragActive else { return }
+            guard self.dragHasSupportedPayload else { return }
             
             // Debounce key repeat
             let now = Date()

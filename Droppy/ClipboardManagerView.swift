@@ -72,6 +72,7 @@ struct ClipboardManagerView: View {
     @State private var selectedTagFilter: UUID? = nil  // nil = show all
     @State private var isTagPopoverVisible = false
     @State private var showTagManagement = false
+    @State private var showClearAllConfirmation = false
     
     // Cached sorted/filtered history (updated only when needed)
     @State private var cachedSortedHistory: [ClipboardItem] = []
@@ -242,6 +243,16 @@ struct ClipboardManagerView: View {
                             .keyboardShortcut("f", modifiers: .command)
                             .help("Search (⌘F)")
                         }
+
+                        ToolbarItem(placement: .automatic) {
+                            Button(role: .destructive) {
+                                showClearAllConfirmation = true
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .disabled(manager.history.isEmpty)
+                            .help("Clear All")
+                        }
                     }
                     .sheet(isPresented: $showTagManagement) {
                         TagManagementSheet(manager: manager)
@@ -268,6 +279,18 @@ struct ClipboardManagerView: View {
         .frame(minWidth: 1040, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
         .background(pasteShortcutButton)
         .background(navigationShortcutButtons)
+        .confirmationDialog(
+            "Clear all clipboard history?",
+            isPresented: $showClearAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All", role: .destructive) {
+                clearAllClipboardHistory()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently remove all clipboard items.")
+        }
     }
     
     private var pasteShortcutButton: some View {
@@ -438,6 +461,13 @@ struct ClipboardManagerView: View {
         } else {
             selectedItems = []
         }
+    }
+
+    private func clearAllClipboardHistory() {
+        manager.clearAllHistory()
+        selectedItems = []
+        pendingSelectionId = nil
+        lastClickedItemId = nil
     }
     
     /// Show Quick Look preview for selected image items

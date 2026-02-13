@@ -666,7 +666,14 @@ final class MenuBarManager: ObservableObject {
     
     /// Hover delay in seconds
     @Published var showOnHoverDelay: Double {
-        didSet { UserDefaults.standard.set(showOnHoverDelay, forKey: "MenuBarManager_ShowOnHoverDelay") }
+        didSet {
+            let clamped = min(max(showOnHoverDelay, 0), 2)
+            if clamped != showOnHoverDelay {
+                showOnHoverDelay = clamped
+                return
+            }
+            UserDefaults.standard.set(clamped, forKey: "MenuBarManager_ShowOnHoverDelay")
+        }
     }
     
     /// Icon set for the toggle button
@@ -799,6 +806,9 @@ final class MenuBarManager: ObservableObject {
     /// Last processed mouse-move timestamp for hover handling.
     private var lastMouseMoveProcessTime: TimeInterval = 0
 
+    /// NSMenu tracking depth for fast early-out while any menu is open.
+    private var activeMenuTrackingDepth: Int = 0
+
     /// Cached result for active menu-window detection to avoid scanning NSApp.windows on every mouse event.
     private var cachedHasActiveMenuWindow = false
 
@@ -879,8 +889,9 @@ final class MenuBarManager: ObservableObject {
         
         self.isEnabled = !wasExplicitlyRemoved
         self.showOnHover = UserDefaults.standard.bool(forKey: "MenuBarManager_ShowOnHover")
+        let hasStoredDelay = UserDefaults.standard.object(forKey: "MenuBarManager_ShowOnHoverDelay") != nil
         let storedDelay = UserDefaults.standard.double(forKey: "MenuBarManager_ShowOnHoverDelay")
-        self.showOnHoverDelay = storedDelay == 0 ? 0.3 : storedDelay
+        self.showOnHoverDelay = hasStoredDelay ? min(max(storedDelay, 0), 2) : 0.3
         self.iconSet = MBMIconSet(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_IconSet") ?? "") ?? .eye
         
         // Load additional settings
@@ -976,6 +987,37 @@ final class MenuBarManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.isEnabled = false
+            }
+            .store(in: &c)
+
+        NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.activeMenuTrackingDepth += 1
+                self.cachedHasActiveMenuWindow = true
+                self.isHoverPausedForActiveMenu = true
+                self.cancelAutoHide()
+                self.cancelPendingHoverHide()
+                if let monitor = self.mouseMonitor {
+                    NSEvent.removeMonitor(monitor)
+                    self.mouseMonitor = nil
+                }
+            }
+            .store(in: &c)
+
+        NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.activeMenuTrackingDepth = max(0, self.activeMenuTrackingDepth - 1)
+                if self.activeMenuTrackingDepth == 0 {
+                    self.cachedHasActiveMenuWindow = false
+                    self.isHoverPausedForActiveMenu = false
+                    if self.showOnHover {
+                        self.setupMouseMonitoring()
+                    }
+                }
             }
             .store(in: &c)
         
@@ -1093,6 +1135,16 @@ final class MenuBarManager: ObservableObject {
     }
 
     private func hasActiveMenuWindow(now: TimeInterval) -> Bool {
+        if RunLoop.current.currentMode == .eventTracking || RunLoop.main.currentMode == .eventTracking {
+            cachedHasActiveMenuWindow = true
+            return true
+        }
+
+        if activeMenuTrackingDepth > 0 {
+            cachedHasActiveMenuWindow = true
+            return true
+        }
+
         // Re-check at most ~30 Hz; active menu windows don't need per-event detection fidelity.
         let checkInterval: TimeInterval = 1.0 / 30.0
         if now - lastActiveMenuWindowCheckTime < checkInterval {

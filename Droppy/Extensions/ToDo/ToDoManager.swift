@@ -9,6 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import EventKit
 import AppKit
+import ObjectiveC.runtime
 
 
 
@@ -48,6 +49,7 @@ struct ToDoItem: Identifiable, Codable, Equatable {
     var dueDate: Date?
     var externalSource: ToDoExternalSource?
     var externalIdentifier: String?
+    var externalParentIdentifier: String? = nil
     var externalListIdentifier: String?
     var externalListTitle: String?
     var externalListColorHex: String?
@@ -63,6 +65,7 @@ struct ToDoItem: Identifiable, Codable, Equatable {
         lhs.dueDate == rhs.dueDate &&
         lhs.externalSource == rhs.externalSource &&
         lhs.externalIdentifier == rhs.externalIdentifier &&
+        lhs.externalParentIdentifier == rhs.externalParentIdentifier &&
         lhs.externalListIdentifier == rhs.externalListIdentifier &&
         lhs.externalListTitle == rhs.externalListTitle &&
         lhs.externalListColorHex == rhs.externalListColorHex
@@ -87,6 +90,8 @@ final class ToDoManager {
             // so insert/remove transitions animate reliably.
             sortedItemsCache = nil
             itemPartitionCache = nil
+            activeTimelineCountsCache = nil
+            reminderHierarchyDepthCache = nil
         }
     }
     var isVisible: Bool = false
@@ -126,6 +131,7 @@ final class ToDoManager {
     var showCleanupToast: Bool = false
     var cleanupCount: Int = 0
     var cleanupToastTimer: Timer?
+    var hideUndatedRemindersChangeToken: Int = 0
     
     private let fileName = "todo_items.json"
     private let eventStore = EKEventStore()
@@ -148,12 +154,20 @@ final class ToDoManager {
     private let persistenceQueue = DispatchQueue(label: "app.getdroppy.todo.persistence", qos: .utility)
     private var sortedItemsCache: [ToDoItem]?
     private var itemPartitionCache: ItemPartitionCache?
+    private var activeTimelineCountsCache: (taskItems: Int, calendarItems: Int)?
+    private var reminderHierarchyDepthCache: [UUID: Int]?
     private var reminderListSearchIndex: [(option: ToDoReminderListOption, normalizedTitle: String)] = []
     private var isRefreshingReminderLists = false
     private var isRefreshingCalendarLists = false
     private let remindersSelectedListsKey = AppPreferenceKey.todoSyncRemindersListIDs
+    private let defaultReminderListKey = AppPreferenceKey.todoDefaultReminderListID
+    private let quickOpenShortcutKey = AppPreferenceKey.todoQuickOpenShortcut
     private let calendarSelectedListsKey = AppPreferenceKey.todoSyncCalendarListIDs
     private let dueSoonLeadTimes: [TimeInterval] = [15 * 60, 60]
+    @ObservationIgnored
+    private var quickOpenHotKey: GlobalHotKey?
+    @ObservationIgnored
+    private var storedQuickOpenShortcut: SavedShortcut?
 
     private enum PermissionRequestSource {
         case userInteraction
@@ -166,6 +180,8 @@ final class ToDoManager {
         loadItems()
         loadSelectedReminderListIDs()
         loadSelectedCalendarListIDs()
+        loadQuickOpenShortcut()
+        reloadQuickOpenShortcutMonitoring()
         setupCleanupTimer()
         setupExternalSyncTimer()
         observeEventStoreChanges()
@@ -196,6 +212,7 @@ final class ToDoManager {
         persistenceWorkItem?.cancel()
         undoTimer?.invalidate()
         cleanupToastTimer?.invalidate()
+        quickOpenHotKey = nil
     }
     
     // MARK: - Actions
@@ -227,12 +244,36 @@ final class ToDoManager {
         }
         isShelfListExpanded = false
     }
+
+    var quickOpenShortcut: SavedShortcut? {
+        storedQuickOpenShortcut
+    }
+
+    func setQuickOpenShortcut(_ shortcut: SavedShortcut?) {
+        let sanitized = shortcut.map(Self.sanitizedShortcut)
+        guard sanitized != storedQuickOpenShortcut else { return }
+
+        storedQuickOpenShortcut = sanitized
+        if let sanitized,
+           let encoded = try? JSONEncoder().encode(sanitized) {
+            UserDefaults.standard.set(encoded, forKey: quickOpenShortcutKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: quickOpenShortcutKey)
+        }
+
+        reloadQuickOpenShortcutMonitoring()
+        NotificationCenter.default.post(name: .todoQuickOpenShortcutChanged, object: nil)
+    }
     
     func addItem(title: String, priority: ToDoPriority, dueDate: Date? = nil, reminderListID: String? = nil) {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        
-        let selectedList = reminderListID.flatMap { reminderListOption(withID: $0) }
+
+        let normalizedListID = reminderListID?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let explicitListID = (normalizedListID?.isEmpty == false) ? normalizedListID : nil
+        let effectiveReminderListID = explicitListID ?? preferredReminderListIDForNewTasks()
+        let selectedList = effectiveReminderListID.flatMap { reminderListOption(withID: $0) }
 
         let newItem = ToDoItem(
             title: trimmed,
@@ -255,7 +296,7 @@ final class ToDoManager {
         saveItems()
 
         if isRemindersSyncEnabled {
-            syncNewItemToReminders(itemID: newItem.id, preferredListID: reminderListID)
+            syncNewItemToReminders(itemID: newItem.id, preferredListID: effectiveReminderListID)
         }
         
         // Reset input
@@ -302,6 +343,27 @@ final class ToDoManager {
         )
     }
 
+    var isHideUndatedRemindersEnabled: Bool {
+        UserDefaults.standard.preference(
+            AppPreferenceKey.todoHideUndatedReminders,
+            default: PreferenceDefault.todoHideUndatedReminders
+        )
+    }
+
+    var defaultReminderListID: String? {
+        let stored = UserDefaults.standard.preference(
+            defaultReminderListKey,
+            default: PreferenceDefault.todoDefaultReminderListID
+        )
+        let trimmed = stored.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
+
+    func preferredReminderListIDForNewTasks() -> String? {
+        defaultReminderListID
+    }
+
     func setShelfSplitViewEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: AppPreferenceKey.todoShelfSplitViewEnabled)
     }
@@ -317,6 +379,36 @@ final class ToDoManager {
     func setDueSoonNotificationChimeEnabled(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: AppPreferenceKey.todoDueSoonNotificationsChimeEnabled)
         scheduleDueSoonNotificationsRefresh(debounce: 0)
+    }
+
+    func setHideUndatedRemindersEnabled(_ enabled: Bool) {
+        guard isHideUndatedRemindersEnabled != enabled else { return }
+        UserDefaults.standard.set(enabled, forKey: AppPreferenceKey.todoHideUndatedReminders)
+        itemPartitionCache = nil
+        activeTimelineCountsCache = nil
+        hideUndatedRemindersChangeToken += 1
+    }
+
+    func setDefaultReminderListID(_ listID: String?) {
+        let normalized = listID?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let nextStoredValue = normalized.isEmpty ? "" : normalized
+        let currentStoredValue = UserDefaults.standard.preference(
+            defaultReminderListKey,
+            default: PreferenceDefault.todoDefaultReminderListID
+        )
+        var didUpdateSelection = false
+        if !nextStoredValue.isEmpty && !selectedReminderListIDs.contains(nextStoredValue) {
+            selectedReminderListIDs.insert(nextStoredValue)
+            saveSelectedReminderListIDs()
+            didUpdateSelection = true
+        }
+        if currentStoredValue != nextStoredValue {
+            UserDefaults.standard.set(nextStoredValue, forKey: defaultReminderListKey)
+        }
+        if didUpdateSelection {
+            syncExternalSourcesNow()
+        }
     }
 
     func setRemindersSyncEnabled(_ enabled: Bool) {
@@ -925,6 +1017,10 @@ final class ToDoManager {
                     saveSelectedReminderListIDs()
                 }
             }
+
+            if let defaultReminderListID, !availableIDs.contains(defaultReminderListID) {
+                setDefaultReminderListID(nil)
+            }
         }
     }
 
@@ -945,13 +1041,56 @@ final class ToDoManager {
             }
         }
 
-        return reminders.compactMap { reminder in
+        var parentAliasLookup: [String: String] = [:]
+        parentAliasLookup.reserveCapacity(reminders.count * 10)
+        for reminder in reminders {
+            let canonicalID = reminder.calendarItemIdentifier
+            for alias in Self.reminderIdentifierAliases(for: reminder) {
+                parentAliasLookup[alias] = canonicalID
+            }
+            for objectAlias in Self.reminderObjectIdentifierAliases(for: reminder) {
+                parentAliasLookup[objectAlias] = canonicalID
+            }
+        }
+
+        var parentReferenceCount = 0
+        var resolvedParentCount = 0
+        let payloads: [ExternalTaskPayload] = reminders.compactMap { reminder in
             guard !reminder.isCompleted else { return nil }
             let title = reminder.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !title.isEmpty else { return nil }
+            let canonicalID = reminder.calendarItemIdentifier
+            let parentReference = Self.reminderParentReference(for: reminder)
+            if parentReference != nil {
+                parentReferenceCount += 1
+            }
+            let resolvedParentID: String? = {
+                guard let parentReference else { return nil }
+                switch parentReference {
+                case .string(let reference):
+                    for candidate in Self.expandedIdentifierAliases(from: reference) {
+                        if let resolved = parentAliasLookup[candidate] {
+                            return resolved
+                        }
+                    }
+                    return nil
+                case .object(let reference):
+                    for candidate in Self.identifierAliases(from: reference) {
+                        if let resolved = parentAliasLookup[candidate] {
+                            return resolved
+                        }
+                    }
+                    return nil
+                }
+            }()
+            if resolvedParentID != nil {
+                resolvedParentCount += 1
+            }
+            let parentID = (resolvedParentID == canonicalID) ? nil : resolvedParentID
             return ExternalTaskPayload(
                 source: .reminders,
-                identifier: reminder.calendarItemIdentifier,
+                identifier: canonicalID,
+                parentIdentifier: parentID,
                 title: title,
                 dueDate: reminder.dueDateComponents?.date,
                 isCompleted: reminder.isCompleted,
@@ -960,6 +1099,10 @@ final class ToDoManager {
                 listColorHex: Self.hexColor(from: reminder.calendar.cgColor)
             )
         }
+        if parentReferenceCount > 0 && resolvedParentCount == 0 {
+            print("ToDoManager: Found \(parentReferenceCount) reminder parent references, but none resolved to reminder identifiers.")
+        }
+        return payloads
     }
 
     private func fetchCalendarEvents() async -> [ExternalTaskPayload] {
@@ -988,6 +1131,7 @@ final class ToDoManager {
             return ExternalTaskPayload(
                 source: .calendar,
                 identifier: identifier,
+                parentIdentifier: nil,
                 title: title,
                 dueDate: event.startDate,
                 isCompleted: false,
@@ -1033,6 +1177,10 @@ final class ToDoManager {
                     current.isCompleted = payload.isCompleted
                     changed = true
                 }
+                if current.externalParentIdentifier != payload.parentIdentifier {
+                    current.externalParentIdentifier = payload.parentIdentifier
+                    changed = true
+                }
 
                 let nextCompletedAt = payload.isCompleted ? (current.completedAt ?? now) : nil
                 if current.completedAt != nextCompletedAt {
@@ -1066,6 +1214,7 @@ final class ToDoManager {
                 dueDate: payload.dueDate,
                 externalSource: payload.source,
                 externalIdentifier: payload.identifier,
+                externalParentIdentifier: payload.parentIdentifier,
                 externalListIdentifier: payload.listIdentifier,
                 externalListTitle: payload.listTitle,
                 externalListColorHex: payload.listColorHex,
@@ -1119,6 +1268,7 @@ final class ToDoManager {
     private struct ExternalTaskPayload {
         let source: ToDoExternalSource
         let identifier: String
+        let parentIdentifier: String?
         let title: String
         let dueDate: Date?
         let isCompleted: Bool
@@ -1453,6 +1603,61 @@ final class ToDoManager {
         selectedReminderListIDs = Set(decoded)
     }
 
+    private func loadQuickOpenShortcut() {
+        guard let data = UserDefaults.standard.data(forKey: quickOpenShortcutKey),
+              let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) else {
+            storedQuickOpenShortcut = nil
+            return
+        }
+        storedQuickOpenShortcut = Self.sanitizedShortcut(decoded)
+    }
+
+    private func reloadQuickOpenShortcutMonitoring() {
+        quickOpenHotKey = nil
+        guard let shortcut = storedQuickOpenShortcut else { return }
+
+        quickOpenHotKey = GlobalHotKey(
+            keyCode: shortcut.keyCode,
+            modifiers: shortcut.modifiers
+        ) { [weak self] in
+            self?.handleQuickOpenShortcutTriggered()
+        }
+    }
+
+    private func handleQuickOpenShortcutTriggered() {
+        let todoInstalled = UserDefaults.standard.preference(
+            AppPreferenceKey.todoInstalled,
+            default: PreferenceDefault.todoInstalled
+        )
+        let shelfEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.enableNotchShelf,
+            default: PreferenceDefault.enableNotchShelf
+        )
+        let canOpenShelfTodo = todoInstalled && !ExtensionType.todo.isRemoved && shelfEnabled
+        guard canOpenShelfTodo else {
+            SettingsWindowController.shared.showSettings(openingExtension: .todo)
+            return
+        }
+
+        let targetDisplayID = DroppyState.shared.expandedDisplayID
+            ?? NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) })?.displayID
+            ?? NSScreen.main?.displayID
+        guard let targetDisplayID else {
+            SettingsWindowController.shared.showSettings(openingExtension: .todo)
+            return
+        }
+
+        withAnimation(DroppyAnimation.interactive) {
+            DroppyState.shared.expandShelf(for: targetDisplayID)
+        }
+
+        NotificationCenter.default.post(
+            name: .todoQuickOpenRequested,
+            object: nil,
+            userInfo: ["displayID": NSNumber(value: targetDisplayID)]
+        )
+    }
+
     private func saveSelectedReminderListIDs() {
         let payload = Array(selectedReminderListIDs).sorted()
         guard let data = try? JSONEncoder().encode(payload),
@@ -1597,48 +1802,23 @@ final class ToDoManager {
         }
 
         let now = Date()
-        let sorted = items.sorted {
+        let baseSorted = items.sorted {
             // Always put completed items at the bottom
-            if $0.isCompleted != $1.isCompleted {
-                return !$0.isCompleted
-            }
-            
-            // If both are completed, sort by completion date (newest first)
-            if $0.isCompleted {
-                return ($0.completedAt ?? now) > ($1.completedAt ?? now)
-            }
-            
-
-            
-            // Exception: no-date + high priority always floats to the top.
-            let lhsNoDateHigh = $0.dueDate == nil && $0.priority == .high
-            let rhsNoDateHigh = $1.dueDate == nil && $1.priority == .high
-            if lhsNoDateHigh != rhsNoDateHigh {
-                return lhsNoDateHigh
-            }
-
-            // Then sort by due date: dated tasks first, earlier dates first.
-            switch ($0.dueDate, $1.dueDate) {
-            case let (lhs?, rhs?):
-                if lhs != rhs { return lhs < rhs }
-            case (.some, .none):
-                return true
-            case (.none, .some):
-                return false
-            case (.none, .none):
-                break
-            }
-
-            // Fallback to Priority (High -> Medium -> Normal).
-            if $0.priority != $1.priority {
-                return rank($0.priority) > rank($1.priority)
-            }
-            
-            // Fallback to Date
-            return $0.createdAt > $1.createdAt
+            isItemOrderedBefore($0, $1, now: now)
         }
+        let sorted = applyingReminderHierarchy(to: baseSorted)
         sortedItemsCache = sorted
         return sorted
+    }
+
+    func reminderHierarchyDepth(for item: ToDoItem) -> Int {
+        if let reminderHierarchyDepthCache,
+           let depth = reminderHierarchyDepthCache[item.id] {
+            return depth
+        }
+        let computedDepths = computeReminderHierarchyDepthMap()
+        reminderHierarchyDepthCache = computedDepths
+        return computedDepths[item.id] ?? 0
     }
 
     var upcomingCalendarItems: [ToDoItem] {
@@ -1650,15 +1830,9 @@ final class ToDoManager {
     }
 
     var shelfTimelineItemCount: Int {
-        var calendarItemsCount = 0
-        var taskItemsCount = 0
-        for item in sortedItems where !item.isCompleted {
-            if item.externalSource == .calendar {
-                calendarItemsCount += 1
-            } else {
-                taskItemsCount += 1
-            }
-        }
+        let counts = activeTimelineCounts
+        let taskItemsCount = counts.taskItems
+        let calendarItemsCount = counts.calendarItems
 
         if isCalendarSyncEnabled {
             // Keep a combined shelf whenever there are visible task/reminder items.
@@ -1669,6 +1843,31 @@ final class ToDoManager {
         }
         return taskItemsCount
     }
+
+    private var activeTimelineCounts: (taskItems: Int, calendarItems: Int) {
+        if let activeTimelineCountsCache {
+            return activeTimelineCountsCache
+        }
+
+        let sourceItems = sortedItems
+        let remindersByExternalID = reminderItemsByExternalID(in: sourceItems)
+        var taskItems = 0
+        var calendarItems = 0
+        for item in sourceItems where !item.isCompleted {
+            if shouldHideUndatedReminder(item, remindersByExternalID: remindersByExternalID) {
+                continue
+            }
+            if item.externalSource == .calendar {
+                calendarItems += 1
+            } else {
+                taskItems += 1
+            }
+        }
+
+        let counts = (taskItems: taskItems, calendarItems: calendarItems)
+        activeTimelineCountsCache = counts
+        return counts
+    }
     
     private func rank(_ p: ToDoPriority) -> Int {
         switch p {
@@ -1676,6 +1875,148 @@ final class ToDoManager {
         case .medium: return 2
         case .normal: return 1
         }
+    }
+
+    private func isItemOrderedBefore(_ lhs: ToDoItem, _ rhs: ToDoItem, now: Date) -> Bool {
+        // Always put completed items at the bottom
+        if lhs.isCompleted != rhs.isCompleted {
+            return !lhs.isCompleted
+        }
+
+        // If both are completed, sort by completion date (newest first)
+        if lhs.isCompleted {
+            return (lhs.completedAt ?? now) > (rhs.completedAt ?? now)
+        }
+
+        // Exception: no-date + high priority always floats to the top.
+        let lhsNoDateHigh = lhs.dueDate == nil && lhs.priority == .high
+        let rhsNoDateHigh = rhs.dueDate == nil && rhs.priority == .high
+        if lhsNoDateHigh != rhsNoDateHigh {
+            return lhsNoDateHigh
+        }
+
+        // Then sort by due date: dated tasks first, earlier dates first.
+        switch (lhs.dueDate, rhs.dueDate) {
+        case let (left?, right?):
+            if left != right { return left < right }
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case (.none, .none):
+            break
+        }
+
+        // Fallback to Priority (High -> Medium -> Normal).
+        if lhs.priority != rhs.priority {
+            return rank(lhs.priority) > rank(rhs.priority)
+        }
+
+        // Fallback to Date
+        return lhs.createdAt > rhs.createdAt
+    }
+
+    private func applyingReminderHierarchy(to orderedItems: [ToDoItem]) -> [ToDoItem] {
+        let reminderItems = orderedItems.filter { $0.externalSource == .reminders }
+        guard !reminderItems.isEmpty else { return orderedItems }
+
+        let remindersByExternalID = Dictionary(
+            reminderItems.compactMap { item -> (String, ToDoItem)? in
+                guard let externalID = item.externalIdentifier else { return nil }
+                return (externalID, item)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+        guard !remindersByExternalID.isEmpty else { return orderedItems }
+
+        let baseIndexByItemID = Dictionary(
+            uniqueKeysWithValues: orderedItems.enumerated().map { ($1.id, $0) }
+        )
+        var childrenByParentExternalID: [String: [ToDoItem]] = [:]
+        for item in reminderItems {
+            guard let parentExternalID = item.externalParentIdentifier,
+                  let parent = remindersByExternalID[parentExternalID],
+                  parent.isCompleted == item.isCompleted else { continue }
+            childrenByParentExternalID[parentExternalID, default: []].append(item)
+        }
+
+        for parentExternalID in childrenByParentExternalID.keys {
+            childrenByParentExternalID[parentExternalID]?.sort { lhs, rhs in
+                (baseIndexByItemID[lhs.id] ?? .max) < (baseIndexByItemID[rhs.id] ?? .max)
+            }
+        }
+
+        var flattened: [ToDoItem] = []
+        flattened.reserveCapacity(orderedItems.count)
+        var emittedItemIDs = Set<UUID>()
+
+        func emit(_ item: ToDoItem) {
+            guard emittedItemIDs.insert(item.id).inserted else { return }
+            flattened.append(item)
+            guard let externalID = item.externalIdentifier else { return }
+            for child in childrenByParentExternalID[externalID] ?? [] {
+                emit(child)
+            }
+        }
+
+        for item in orderedItems {
+            let parentExistsInSet = item.externalSource == .reminders &&
+                item.externalParentIdentifier.flatMap { remindersByExternalID[$0] } != nil
+            if parentExistsInSet {
+                continue
+            }
+            emit(item)
+        }
+
+        if flattened.count != orderedItems.count {
+            for item in orderedItems where !emittedItemIDs.contains(item.id) {
+                emit(item)
+            }
+        }
+
+        return flattened
+    }
+
+    private func computeReminderHierarchyDepthMap() -> [UUID: Int] {
+        let remindersByExternalID = Dictionary(
+            items.compactMap { item -> (String, ToDoItem)? in
+                guard item.externalSource == .reminders,
+                      let externalID = item.externalIdentifier else { return nil }
+                return (externalID, item)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+        guard !remindersByExternalID.isEmpty else { return [:] }
+
+        var depthByItemID: [UUID: Int] = [:]
+        depthByItemID.reserveCapacity(items.count)
+
+        for item in items {
+            guard item.externalSource == .reminders else {
+                depthByItemID[item.id] = 0
+                continue
+            }
+            guard let parentExternalID = item.externalParentIdentifier,
+                  !parentExternalID.isEmpty else {
+                depthByItemID[item.id] = 0
+                continue
+            }
+
+            var depth = 0
+            var currentParentExternalID: String? = parentExternalID
+            var visited = Set<String>()
+            while let parentID = currentParentExternalID,
+                  let parent = remindersByExternalID[parentID],
+                  visited.insert(parentID).inserted,
+                  parent.isCompleted == item.isCompleted,
+                  depth < 4 {
+                depth += 1
+                currentParentExternalID = parent.externalParentIdentifier
+            }
+            depthByItemID[item.id] = depth
+        }
+
+        return depthByItemID
     }
 
     private struct ItemPartitionCache {
@@ -1689,12 +2030,16 @@ final class ToDoManager {
         }
 
         let sourceItems = sortedItems
+        let remindersByExternalID = reminderItemsByExternalID(in: sourceItems)
         var upcoming: [ToDoItem] = []
         var overview: [ToDoItem] = []
         upcoming.reserveCapacity(sourceItems.count)
         overview.reserveCapacity(sourceItems.count)
 
         for item in sourceItems {
+            if shouldHideUndatedReminder(item, remindersByExternalID: remindersByExternalID) {
+                continue
+            }
             if item.externalSource == .calendar && !item.isCompleted {
                 upcoming.append(item)
             } else {
@@ -1708,6 +2053,52 @@ final class ToDoManager {
         )
         itemPartitionCache = cache
         return cache
+    }
+
+    func reminderItemsByExternalID(in sourceItems: [ToDoItem]) -> [String: ToDoItem] {
+        Dictionary(
+            sourceItems.compactMap { item -> (String, ToDoItem)? in
+                guard item.externalSource == .reminders,
+                      let externalID = item.externalIdentifier else { return nil }
+                return (externalID, item)
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    func effectiveDueDate(
+        for item: ToDoItem,
+        remindersByExternalID: [String: ToDoItem]
+    ) -> Date? {
+        if let dueDate = item.dueDate {
+            return dueDate
+        }
+        guard item.externalSource == .reminders else { return nil }
+
+        var currentParentExternalID = item.externalParentIdentifier
+        var visited = Set<String>()
+        while let parentExternalID = currentParentExternalID,
+              !parentExternalID.isEmpty,
+              visited.insert(parentExternalID).inserted,
+              let parent = remindersByExternalID[parentExternalID],
+              parent.isCompleted == item.isCompleted {
+            if let parentDueDate = parent.dueDate {
+                return parentDueDate
+            }
+            currentParentExternalID = parent.externalParentIdentifier
+        }
+        return nil
+    }
+
+    private func shouldHideUndatedReminder(
+        _ item: ToDoItem,
+        remindersByExternalID: [String: ToDoItem]
+    ) -> Bool {
+        guard isHideUndatedRemindersEnabled,
+              item.externalSource == .reminders else {
+            return false
+        }
+        return effectiveDueDate(for: item, remindersByExternalID: remindersByExternalID) == nil
     }
 
     private func syncExternalTitle(for item: ToDoItem) {
@@ -1810,8 +2201,13 @@ final class ToDoManager {
                    let preferred = calendars.first(where: { $0.calendarIdentifier == preferredListID }) {
                     return preferred
                 }
-                if let selectedDefaultID = selectedReminderListIDs.first,
-                   let selectedDefault = calendars.first(where: { $0.calendarIdentifier == selectedDefaultID }) {
+                if let configuredDefaultID = defaultReminderListID,
+                   let configuredDefault = calendars.first(where: { $0.calendarIdentifier == configuredDefaultID }) {
+                    return configuredDefault
+                }
+                if let selectedDefault = calendars.first(where: {
+                    selectedReminderListIDs.contains($0.calendarIdentifier)
+                }) {
                     return selectedDefault
                 }
                 return eventStore.defaultCalendarForNewReminders() ?? calendars.first
@@ -1837,6 +2233,7 @@ final class ToDoManager {
                     guard let index = items.firstIndex(where: { $0.id == itemID }) else { return }
                     items[index].externalSource = .reminders
                     items[index].externalIdentifier = reminder.calendarItemIdentifier
+                    items[index].externalParentIdentifier = nil
                     items[index].externalListIdentifier = targetCalendar.calendarIdentifier
                     items[index].externalListTitle = targetCalendar.title
                     items[index].externalListColorHex = Self.hexColor(from: targetCalendar.cgColor)
@@ -1864,6 +2261,166 @@ final class ToDoManager {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+
+    private enum ReminderParentReference {
+        case string(String)
+        case object(Any)
+    }
+
+    private nonisolated static let reminderParentReferenceKeys = [
+        // Some system builds expose this identifier directly.
+        "parentCalendarItemIdentifier",
+        // On current macOS SDKs this is typically EKObjectID-backed.
+        "parentID"
+    ]
+
+    private nonisolated static func reminderParentReference(for reminder: EKReminder) -> ReminderParentReference? {
+        for key in reminderParentReferenceKeys {
+            guard let rawValue = valueIfResponds(reminder, key: key) else { continue }
+            if let normalized = normalizedIdentifierString(rawValue) {
+                return normalized == "0" ? nil : .string(normalized)
+            }
+            if !identifierAliases(from: rawValue).isEmpty {
+                return .object(rawValue)
+            }
+        }
+        return nil
+    }
+
+    private nonisolated static func reminderIdentifierAliases(for reminder: EKReminder) -> Set<String> {
+        var aliases: Set<String> = []
+        aliases.formUnion(identifierAliases(from: reminder.calendarItemIdentifier))
+        aliases.formUnion(identifierAliases(from: reminder.calendarItemExternalIdentifier))
+        aliases.formUnion(identifierAliases(from: valueIfResponds(reminder, key: "UUID")))
+        aliases.formUnion(identifierAliases(from: valueIfResponds(reminder, key: "reminderIdentifier")))
+        return aliases
+    }
+
+    private nonisolated static func reminderObjectIdentifierAliases(for reminder: EKReminder) -> Set<String> {
+        // Keep this intentionally narrow. Probing CADObjectID can assert inside EventKit.
+        let candidateKeys = ["objectID"]
+        var aliases: Set<String> = []
+        aliases.reserveCapacity(candidateKeys.count)
+
+        for key in candidateKeys {
+            guard let rawValue = valueIfResponds(reminder, key: key) else {
+                continue
+            }
+            aliases.formUnion(identifierAliases(from: rawValue))
+        }
+        return aliases
+    }
+
+    private nonisolated static func valueIfResponds(_ object: NSObject, key: String) -> Any? {
+        let selector = NSSelectorFromString(key)
+        guard object.responds(to: selector) else { return nil }
+        // `perform(_:)` is only safe for object returns. Ignore scalar-return selectors.
+        guard selectorReturnsObject(type(of: object), selector: selector) else { return nil }
+        return object.perform(selector)?.takeUnretainedValue()
+    }
+
+    private nonisolated static func selectorReturnsObject(_ cls: AnyClass, selector: Selector) -> Bool {
+        guard let method = class_getInstanceMethod(cls, selector) else {
+            return false
+        }
+        let returnTypePointer = method_copyReturnType(method)
+        defer { free(returnTypePointer) }
+        let returnType = String(cString: returnTypePointer)
+        return returnType.hasPrefix("@")
+    }
+
+    private nonisolated static func normalizedIdentifierString(_ value: Any?) -> String? {
+        guard let value else { return nil }
+        if let rawString = value as? String {
+            let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed.lowercased()
+        }
+        if let rawString = value as? NSString {
+            let trimmed = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed.lowercased()
+        }
+        if let url = value as? URL {
+            let absolute = url.absoluteString.trimmingCharacters(in: .whitespacesAndNewlines)
+            return absolute.isEmpty ? nil : absolute.lowercased()
+        }
+        if let url = value as? NSURL {
+            let absolute = (url.absoluteString ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return absolute.isEmpty ? nil : absolute.lowercased()
+        }
+        if let uuid = value as? UUID {
+            return uuid.uuidString.lowercased()
+        }
+        if let uuid = value as? NSUUID {
+            return uuid.uuidString.lowercased()
+        }
+        if let number = value as? NSNumber {
+            let numeric = number.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            return numeric.isEmpty ? nil : numeric
+        }
+        return nil
+    }
+
+    private nonisolated static func identifierAliases(
+        from value: Any?,
+        depth: Int = 1
+    ) -> Set<String> {
+        guard let value else { return [] }
+
+        var aliases: Set<String> = []
+        if let normalized = normalizedIdentifierString(value) {
+            aliases.formUnion(expandedIdentifierAliases(from: normalized))
+        }
+
+        guard depth > 0, let object = value as? NSObject else {
+            return aliases
+        }
+
+        // Keep this strict: probing some private selectors (e.g. CADObjectID)
+        // can trigger assertions inside EventKit on the main thread.
+        let className = NSStringFromClass(type(of: object))
+        let selectorKeys: [String]
+        if className.contains("EKObjectID") || className.contains("CADObjectID") {
+            selectorKeys = ["stringRepresentation", "URIRepresentation"]
+        } else {
+            selectorKeys = []
+        }
+
+        for key in selectorKeys {
+            guard let nested = valueIfResponds(object, key: key) else { continue }
+            aliases.formUnion(identifierAliases(from: nested, depth: depth - 1))
+        }
+        return aliases
+    }
+
+    private nonisolated static func expandedIdentifierAliases(from rawAlias: String) -> Set<String> {
+        let alias = rawAlias.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !alias.isEmpty else { return [] }
+
+        var aliases: Set<String> = [alias]
+        if alias.hasPrefix("x-apple-reminder://") {
+            let stripped = String(alias.dropFirst("x-apple-reminder://".count))
+            if !stripped.isEmpty {
+                aliases.insert(stripped)
+            }
+        }
+        if let lastPath = alias.split(separator: "/").last, !lastPath.isEmpty {
+            aliases.insert(String(lastPath))
+        }
+        return aliases
+    }
+
+    private nonisolated static let shortcutAllowedModifierMask: UInt =
+        (UInt(1) << 17) | // command
+        (UInt(1) << 18) | // shift
+        (UInt(1) << 19) | // option
+        (UInt(1) << 20)   // control
+
+    private nonisolated static func sanitizedShortcut(_ shortcut: SavedShortcut) -> SavedShortcut {
+        SavedShortcut(
+            keyCode: shortcut.keyCode,
+            modifiers: shortcut.modifiers & shortcutAllowedModifierMask
+        )
     }
 
     private static func hexColor(from cgColor: CGColor?) -> String? {

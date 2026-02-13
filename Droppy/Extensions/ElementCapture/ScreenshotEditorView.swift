@@ -115,6 +115,9 @@ struct ScreenshotEditorView: View {
     
     // Zoom
     @State private var zoomScale: CGFloat = 1.0
+    @State private var didApplyInitialZoom = false
+    @State private var pinchStartZoomScale: CGFloat?
+    @State private var didApplyInitialEditorColor = false
     
     // Font selection
     @State private var selectedFont: String = "SF Pro"
@@ -125,11 +128,14 @@ struct ScreenshotEditorView: View {
     @State private var isDraggingAnnotation = false
     @State private var draggedAnnotationInitialPoints: [CGPoint] = []
     
-    private let colors: [Color] = [.red, .orange, .yellow, .green, .cyan, .purple, .white]
+    private let colors: [Color] = [.red, .orange, .yellow, .green, .cyan, .purple, .black, .white]
     private let strokeWidths: [(CGFloat, String)] = [(2, "S"), (4, "M"), (6, "L")]
     
     // Transparent mode preference
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
+    @AppStorage(AppPreferenceKey.elementCaptureEditorDefaultColor) private var defaultEditorColorToken = PreferenceDefault.elementCaptureEditorDefaultColor
+    @AppStorage(AppPreferenceKey.elementCaptureEditorPrefer100Zoom) private var prefer100Zoom = PreferenceDefault.elementCaptureEditorPrefer100Zoom
+    @AppStorage(AppPreferenceKey.elementCaptureEditorPinchZoomEnabled) private var pinchZoomEnabled = PreferenceDefault.elementCaptureEditorPinchZoomEnabled
     
     // Blur strength preference (5-30, lower = stronger pixelation)
     @AppStorage(AppPreferenceKey.editorBlurStrength) private var blurStrength = PreferenceDefault.editorBlurStrength
@@ -208,8 +214,26 @@ struct ScreenshotEditorView: View {
                     .frame(width: scaledSize.width, height: scaledSize.height)
                 }
                 .frame(width: availableSize.width, height: availableSize.height)
+                .simultaneousGesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            guard pinchZoomEnabled else { return }
+                            if pinchStartZoomScale == nil {
+                                pinchStartZoomScale = zoomScale
+                            }
+                            guard let base = pinchStartZoomScale else { return }
+                            zoomScale = clampedZoomScale(base * value)
+                        }
+                        .onEnded { _ in
+                            pinchStartZoomScale = nil
+                        }
+                )
                 .onAppear {
-                    canvasSize = scaledSize
+                    applyInitialZoomIfNeeded(fittedSize: fittedSize)
+                    canvasSize = CGSize(
+                        width: fittedSize.width * zoomScale,
+                        height: fittedSize.height * zoomScale
+                    )
                 }
             }
             .background(useTransparentBackground ? Color.clear : AdaptiveColors.panelBackgroundAuto)
@@ -223,7 +247,11 @@ struct ScreenshotEditorView: View {
         }
         .onAppear {
             setupKeyboardMonitor()
+            didApplyInitialEditorColor = false
+            applyInitialEditorColorIfNeeded()
             updateCursor()
+            didApplyInitialZoom = false
+            pinchStartZoomScale = nil
         }
         .onDisappear {
             removeKeyboardMonitor()
@@ -231,6 +259,7 @@ struct ScreenshotEditorView: View {
         }
         .onChange(of: selectedTool) { _, _ in
             updateCursor()
+            applyHighlighterDefaultColorIfNeeded()
         }
     }
     
@@ -308,6 +337,63 @@ struct ScreenshotEditorView: View {
         case .text:
             NSCursor.iBeam.set()
         }
+    }
+
+    private func clampedZoomScale(_ value: CGFloat) -> CGFloat {
+        min(4.0, max(0.25, value))
+    }
+
+    private func applyInitialEditorColorIfNeeded() {
+        guard !didApplyInitialEditorColor else { return }
+        didApplyInitialEditorColor = true
+        selectedColor = colorForToken(defaultEditorColorToken)
+        applyHighlighterDefaultColorIfNeeded()
+    }
+
+    private func applyHighlighterDefaultColorIfNeeded() {
+        if selectedTool == .highlighter {
+            selectedColor = .yellow
+        }
+    }
+
+    private func colorForToken(_ token: String) -> Color {
+        switch token.lowercased() {
+        case "red": return .red
+        case "orange": return .orange
+        case "yellow": return .yellow
+        case "green": return .green
+        case "cyan": return .cyan
+        case "purple": return .purple
+        case "black": return .black
+        case "white": return .white
+        default: return .red
+        }
+    }
+
+    private func applyInitialZoomIfNeeded(fittedSize: CGSize) {
+        guard !didApplyInitialZoom else { return }
+        defer { didApplyInitialZoom = true }
+
+        guard prefer100Zoom else {
+            zoomScale = 1.0
+            return
+        }
+
+        let safeImageWidth = max(originalImage.size.width, 1)
+        let safeImageHeight = max(originalImage.size.height, 1)
+        let safeFittedWidth = max(fittedSize.width, 1)
+        let safeFittedHeight = max(fittedSize.height, 1)
+
+        let nativeScaleWidth = safeImageWidth / safeFittedWidth
+        let nativeScaleHeight = safeImageHeight / safeFittedHeight
+        var targetScale = min(nativeScaleWidth, nativeScaleHeight)
+
+        // Large captures are easier to edit when opened slightly below full native scale.
+        if targetScale > 1.2 {
+            targetScale *= 0.8
+        }
+
+        zoomScale = clampedZoomScale(targetScale)
     }
     
     // MARK: - Title Bar (Draggable)
@@ -483,6 +569,10 @@ struct ScreenshotEditorView: View {
                     Circle()
                         .fill(color)
                         .frame(width: 18, height: 18)
+                        .overlay(
+                            Circle()
+                                .stroke(AdaptiveColors.overlayAuto(0.24), lineWidth: 0.8)
+                        )
                         .overlay(
                             Circle()
                                 .stroke(selectedColor == color ? AdaptiveColors.primaryTextAuto : Color.clear, lineWidth: 2)
@@ -756,6 +846,8 @@ struct ScreenshotEditorView: View {
             return
         }
         
+        let isShiftHeld = NSEvent.modifierFlags.contains(.shift)
+
         if currentAnnotation == nil {
             // Start new annotation
             var annotation = Annotation(
@@ -768,18 +860,26 @@ struct ScreenshotEditorView: View {
             if selectedTool == .blur {
                 annotation.blurStrength = blurStrength
             }
-            annotation.points = [normalizedStart, normalizedPoint]
+            if isShiftHeld {
+                let constrainedPoint = applyShiftConstraint(
+                    from: normalizedStart,
+                    to: normalizedPoint,
+                    tool: selectedTool
+                )
+                annotation.points = [normalizedStart, constrainedPoint]
+            } else {
+                annotation.points = [normalizedStart, normalizedPoint]
+            }
             currentAnnotation = annotation
         } else {
             // Update current annotation
-            if selectedTool == .freehand || selectedTool == .highlighter {
+            if (selectedTool == .freehand || selectedTool == .highlighter) && !isShiftHeld {
                 currentAnnotation?.points.append(normalizedPoint)
             } else {
-                // For arrow, line, rect, ellipse - track start and end with Shift-constrain
+                // Shift-constrain applies across drawing tools.
                 var constrainedPoint = normalizedPoint
                 
-                // Check if Shift is held for constrain mode
-                if NSEvent.modifierFlags.contains(.shift) {
+                if isShiftHeld {
                     constrainedPoint = applyShiftConstraint(
                         from: normalizedStart,
                         to: normalizedPoint,
@@ -792,13 +892,15 @@ struct ScreenshotEditorView: View {
         }
     }
     
-    /// Applies Shift-key constraints: 45° angles for lines/arrows, square/circle for rect/ellipse
+    /// Applies Shift-key constraints across drawing tools.
+    /// - Line-like tools snap to 45° increments.
+    /// - Shape tools constrain to equal width/height.
     private func applyShiftConstraint(from start: CGPoint, to end: CGPoint, tool: AnnotationTool) -> CGPoint {
         let dx = end.x - start.x
         let dy = end.y - start.y
         
         switch tool {
-        case .arrow, .curvedArrow, .line:
+        case .arrow, .curvedArrow, .line, .freehand, .highlighter:
             // Snap to nearest 45° angle (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
             let angle = atan2(dy, dx)
             let snappedAngle = round(angle / (.pi / 4)) * (.pi / 4)
@@ -852,10 +954,14 @@ struct ScreenshotEditorView: View {
                 y: value.location.y / containerSize.height
             )
             
-            if selectedTool != .freehand && selectedTool != .highlighter {
-                // Apply Shift-constraint to final points if Shift is held
+            let shiftHeldAtEnd = NSEvent.modifierFlags.contains(.shift)
+            let shouldFinalizeAsSegment =
+                (selectedTool != .freehand && selectedTool != .highlighter) || shiftHeldAtEnd
+
+            // Finalize line-like end points (including Shift-constrained freehand/highlighter).
+            if shouldFinalizeAsSegment {
                 var finalEnd = normalizedEnd
-                if NSEvent.modifierFlags.contains(.shift) {
+                if shiftHeldAtEnd {
                     finalEnd = applyShiftConstraint(
                         from: normalizedStart,
                         to: normalizedEnd,

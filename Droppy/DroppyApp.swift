@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 /// Main application entry point for Droppy
 @main
@@ -29,6 +30,9 @@ struct DroppyMenuContent: View {
     @State private var shortcutRefreshId = UUID()
     @State private var clipboardMenuItems: [ClipboardItem] = []
     @State private var clipboardMenuTitles: [UUID: String] = [:]
+    @State private var lastObservedPasteboardChangeCount: Int = NSPasteboard.general.changeCount
+    @State private var todoManager = ToDoManager.shared
+    @ObservedObject private var clipboardManager = ClipboardManager.shared
     
     // Observe NotchWindowController for hide state
     @ObservedObject private var notchController = NotchWindowController.shared
@@ -42,6 +46,8 @@ struct DroppyMenuContent: View {
 
     // Check if Clipboard menu bar is enabled
     @AppStorage(AppPreferenceKey.showClipboardInMenuBar) private var showClipboardInMenuBar = PreferenceDefault.showClipboardInMenuBar
+    @AppStorage(AppPreferenceKey.todoInstalled) private var todoInstalled = PreferenceDefault.todoInstalled
+    @AppStorage(AppPreferenceKey.todoShowUpcomingInMenuBar) private var showUpcomingInMenuBar = PreferenceDefault.todoShowUpcomingInMenuBar
     @ObservedObject private var licenseManager = LicenseManager.shared
     
     // Check if extensions are disabled
@@ -178,7 +184,7 @@ struct DroppyMenuContent: View {
                         Divider()
                         
                         Button(role: .destructive) {
-                            ClipboardManager.shared.history.removeAll()
+                            clipboardManager.clearAllHistory()
                             refreshClipboardMenuSnapshot()
                         } label: {
                             Label("Clear History", systemImage: "trash")
@@ -195,6 +201,62 @@ struct DroppyMenuContent: View {
                     
                 } label: {
                     Label("Clipboard", systemImage: "clipboard")
+                }
+            }
+
+            if shouldShowUpcomingMenu {
+                Menu {
+                    if upcomingTaskItems.isEmpty && upcomingEventItems.isEmpty {
+                        Text("No upcoming tasks or events")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        if !upcomingTaskItems.isEmpty {
+                            Text("Tasks")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            ForEach(upcomingTaskItems) { item in
+                                Button {
+                                    SettingsWindowController.shared.showSettings(openingExtension: .todo)
+                                } label: {
+                                    Label(upcomingTitle(for: item), systemImage: "checklist")
+                                }
+                            }
+                        }
+
+                        if !upcomingEventItems.isEmpty {
+                            if !upcomingTaskItems.isEmpty {
+                                Divider()
+                            }
+                            Text("Events")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            ForEach(upcomingEventItems) { item in
+                                Button {
+                                    SettingsWindowController.shared.showSettings(openingExtension: .todo)
+                                } label: {
+                                    Label(upcomingTitle(for: item), systemImage: "calendar.badge.clock")
+                                }
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        todoManager.syncExternalSourcesNow()
+                    } label: {
+                        Label("Refresh Upcoming", systemImage: "arrow.clockwise")
+                    }
+
+                    Button {
+                        SettingsWindowController.shared.showSettings(openingExtension: .todo)
+                    } label: {
+                        Label("Open Reminders", systemImage: "checklist")
+                    }
+                } label: {
+                    Label("Upcoming", systemImage: "calendar.badge.clock")
                 }
             }
             
@@ -265,9 +327,19 @@ struct DroppyMenuContent: View {
                 // Refresh when extension is disabled/enabled
                 shortcutRefreshId = UUID()
             }
+            .onReceive(clipboardManager.$history) { _ in
+                refreshClipboardMenuSnapshot()
+            }
+            .onReceive(Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()) { _ in
+                refreshClipboardMenuSnapshotIfNeeded()
+            }
             }
             .onAppear {
-                refreshClipboardMenuSnapshot()
+                refreshClipboardMenuSnapshotIfNeeded(force: true)
+                if shouldShowUpcomingMenu &&
+                    (todoManager.isRemindersSyncEnabled || todoManager.isCalendarSyncEnabled) {
+                    todoManager.syncExternalSourcesNow(minimumInterval: 0)
+                }
             }
         }
     }
@@ -302,7 +374,12 @@ struct DroppyMenuContent: View {
     }
 
     private func refreshClipboardMenuSnapshot() {
-        let items = Array(ClipboardManager.shared.history.prefix(15))
+        clipboardManager.refreshFromPasteboardIfNeeded()
+
+        var items = Array(clipboardManager.history.prefix(15))
+        if items.isEmpty, let previewItem = clipboardManager.currentPasteboardPreviewItem() {
+            items = [previewItem]
+        }
         clipboardMenuItems = items
 
         var titles: [UUID: String] = [:]
@@ -313,18 +390,101 @@ struct DroppyMenuContent: View {
         clipboardMenuTitles = titles
     }
 
+    private func refreshClipboardMenuSnapshotIfNeeded(force: Bool = false) {
+        let currentChangeCount = NSPasteboard.general.changeCount
+        guard force || currentChangeCount != lastObservedPasteboardChangeCount || clipboardMenuItems.isEmpty else {
+            return
+        }
+
+        lastObservedPasteboardChangeCount = currentChangeCount
+        refreshClipboardMenuSnapshot()
+    }
+
     private func clipboardMenuTitle(for item: ClipboardItem) -> String {
         clipboardMenuTitles[item.id] ?? item.title
     }
+
+    private var shouldShowUpcomingMenu: Bool {
+        showUpcomingInMenuBar && todoInstalled && !ExtensionType.todo.isRemoved
+    }
+
+    private var upcomingTaskItems: [ToDoItem] {
+        let items = todoManager.overviewTaskItems.filter {
+            !$0.isCompleted && $0.externalSource != .calendar
+        }
+        return Array(items.prefix(6))
+    }
+
+    private var upcomingEventItems: [ToDoItem] {
+        Array(todoManager.upcomingCalendarItems.prefix(6))
+    }
+
+    private func upcomingTitle(for item: ToDoItem) -> String {
+        let baseTitle: String
+        if item.title.count > 52 {
+            baseTitle = String(item.title.prefix(49)) + "..."
+        } else {
+            baseTitle = item.title
+        }
+
+        guard let dueDate = item.dueDate else { return baseTitle }
+        return "\(baseTitle) - \(upcomingDueText(for: dueDate))"
+    }
+
+    private func upcomingDueText(for dueDate: Date) -> String {
+        let calendar = Calendar.current
+        let hasTime = dueDateHasTime(dueDate)
+        if calendar.isDateInToday(dueDate) {
+            return hasTime ? "Today \(Self.todoMenuTimeFormatter.string(from: dueDate))" : "Today"
+        }
+        if calendar.isDateInTomorrow(dueDate) {
+            return hasTime ? "Tomorrow \(Self.todoMenuTimeFormatter.string(from: dueDate))" : "Tomorrow"
+        }
+        return hasTime
+            ? Self.todoMenuDateFormatter.string(from: dueDate)
+            : Self.todoMenuDateOnlyFormatter.string(from: dueDate)
+    }
+
+    private func dueDateHasTime(_ dueDate: Date) -> Bool {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: dueDate)
+        return (components.hour ?? 0) != 0 || (components.minute ?? 0) != 0
+    }
+
+    private static let todoMenuTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("jm")
+        return formatter
+    }()
+
+    private static let todoMenuDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("d MMM jm")
+        return formatter
+    }()
+
+    private static let todoMenuDateOnlyFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter
+    }()
 }
 
 /// App delegate to manage application lifecycle and notch window
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    static var isTerminationRequested = false
+
     /// Must be stored as property to stay alive (services won't work if deallocated)
     private let serviceProvider = ServiceProvider()
     private var didStartLicensedFeatures = false
     private var didStartBackgroundUpdates = false
+    private var isRetryingTerminateAfterClosingSheets = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // FIX #123: Force LaunchServices re-registration on first launch
@@ -337,6 +497,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.register(defaults: [
             AppPreferenceKey.showInMenuBar: PreferenceDefault.showInMenuBar,
             AppPreferenceKey.showQuickshareInMenuBar: PreferenceDefault.showQuickshareInMenuBar,
+            AppPreferenceKey.todoShowUpcomingInMenuBar: PreferenceDefault.todoShowUpcomingInMenuBar,
             AppPreferenceKey.quickshareRequireUploadConfirmation: PreferenceDefault.quickshareRequireUploadConfirmation,
             AppPreferenceKey.enableNotchShelf: PreferenceDefault.enableNotchShelf,
             AppPreferenceKey.enableHUDReplacement: PreferenceDefault.enableHUDReplacement,
@@ -667,6 +828,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if isRetryingTerminateAfterClosingSheets {
+            isRetryingTerminateAfterClosingSheets = false
+            Self.isTerminationRequested = true
+            return .terminateNow
+        }
+
+        let visibleAttachedSheets = sender.windows.compactMap { $0.attachedSheet }.filter { $0.isVisible }
+        guard !visibleAttachedSheets.isEmpty else {
+            Self.isTerminationRequested = true
+            return .terminateNow
+        }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Close open dialog and quit Droppy?"
+        alert.informativeText = "Droppy can't quit while this dialog is open."
+        alert.addButton(withTitle: "Close and Quit")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else {
+            Self.isTerminationRequested = false
+            return .terminateCancel
+        }
+
+        for sheet in visibleAttachedSheets {
+            if let parent = sheet.sheetParent {
+                parent.endSheet(sheet, returnCode: .cancel)
+            } else {
+                sheet.close()
+            }
+        }
+
+        isRetryingTerminateAfterClosingSheets = true
+        Self.isTerminationRequested = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            sender.terminate(nil)
+        }
+
+        return .terminateCancel
     }
     
     // Prevent app from closing when the settings window is closed

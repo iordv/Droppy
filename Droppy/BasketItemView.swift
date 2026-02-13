@@ -1127,7 +1127,7 @@ struct BasketItemView: View {
                     try FileManager.default.moveItem(at: item.url, to: finalDestURL)
                     
                     DispatchQueue.main.async {
-                        state.removeBasketItem(item)
+                        state.removeBasketItem(item, allowPinnedRemoval: true)
                     }
                 } catch {
                     // Fallback copy+delete mechanism
@@ -1136,7 +1136,7 @@ struct BasketItemView: View {
                         try FileManager.default.removeItem(at: item.url)
                         
                         DispatchQueue.main.async {
-                            state.removeBasketItem(item)
+                            state.removeBasketItem(item, allowPinnedRemoval: true)
                         }
                     } catch {
                         let errorDescription = error.localizedDescription

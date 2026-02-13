@@ -51,6 +51,12 @@ extension Notification.Name {
     /// Posted when Window Snap shortcuts are changed
     static let windowSnapShortcutChanged = Notification.Name("windowSnapShortcutChanged")
 
+    /// Posted when the Reminders quick-open shortcut is changed
+    static let todoQuickOpenShortcutChanged = Notification.Name("todoQuickOpenShortcutChanged")
+
+    /// Posted when the Reminders quick-open shortcut is triggered
+    static let todoQuickOpenRequested = Notification.Name("todoQuickOpenRequested")
+
     // MARK: - Licensing
 
     /// Posted when Gumroad license activation state changes

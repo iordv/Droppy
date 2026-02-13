@@ -130,9 +130,9 @@ final class VoiceTranscribeMenuBar {
         if isRecording {
             stopRecording()
         } else {
-            // Pop up directly to avoid extra menu assignment/removal churn on every open.
-            if let menu = menu {
-                statusItem?.popUpMenu(menu)
+            // Pop up directly without using deprecated NSStatusItem.popUpMenu.
+            if let menu = menu, let button = statusItem?.button {
+                menu.popUp(positioning: nil, at: NSPoint(x: button.bounds.midX, y: button.bounds.maxY), in: button)
             }
         }
     }

@@ -20,26 +20,21 @@ final class ScreenshotEditorWindowController {
     var currentWindowNumber: Int? { window?.windowNumber }
     
     private init() {}
+
+    private struct EditorWindowSizing {
+        let initialSize: NSSize
+        let minSize: NSSize
+        let maxSize: NSSize
+        let targetScreen: NSScreen?
+    }
     
     func show(with image: NSImage) {
         // Clean up any existing window
         cleanUp()
-        
-        // Calculate window size based on image aspect ratio
-        let imageAspect = image.size.width / image.size.height
-        let maxWidth: CGFloat = 800
-        let maxHeight: CGFloat = 600
-        
-        var windowWidth = min(image.size.width + 80, maxWidth)
-        var windowHeight = windowWidth / imageAspect + 60 // Extra for toolbar
-        
-        if windowHeight > maxHeight {
-            windowHeight = maxHeight
-            windowWidth = (maxHeight - 60) * imageAspect
-        }
-        
-        windowWidth = max(windowWidth, 900)  // Must fit entire toolbar
-        windowHeight = max(windowHeight, 500)
+
+        let sizing = calculateWindowSizing(for: image)
+        let windowWidth = sizing.initialSize.width
+        let windowHeight = sizing.initialSize.height
         
         let cornerRadius: CGFloat = 24
         
@@ -79,9 +74,10 @@ final class ScreenshotEditorWindowController {
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
         
-        // Size constraints for resizing - minWidth must fit entire toolbar
-        newWindow.minSize = NSSize(width: 900, height: 400)
-        newWindow.maxSize = NSSize(width: 1600, height: 1200)
+        // Size constraints are screen-aware so the editor can open larger by default
+        // while still fitting on smaller displays.
+        newWindow.minSize = sizing.minSize
+        newWindow.maxSize = sizing.maxSize
         
         newWindow.contentView = hosting
         newWindow.backgroundColor = .clear
@@ -91,8 +87,17 @@ final class ScreenshotEditorWindowController {
         newWindow.isMovableByWindowBackground = false  // Disabled so canvas drawing doesn't move window
         newWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         
-        // Center on screen
-        newWindow.center()
+        // Center on the active screen (mouse display) so multi-monitor setups feel natural.
+        if let targetScreen = sizing.targetScreen {
+            let visibleFrame = targetScreen.visibleFrame
+            let origin = NSPoint(
+                x: visibleFrame.midX - windowWidth / 2,
+                y: visibleFrame.midY - windowHeight / 2
+            )
+            newWindow.setFrameOrigin(origin)
+        } else {
+            newWindow.center()
+        }
         
         // Show with animation
         AppKitMotion.prepareForPresent(newWindow, initialScale: 0.94)
@@ -215,5 +220,56 @@ final class ScreenshotEditorWindowController {
 
     private func isTextInputActive(in window: NSWindow) -> Bool {
         window.firstResponder is NSTextView
+    }
+
+    private func calculateWindowSizing(for image: NSImage) -> EditorWindowSizing {
+        let targetScreen = activeScreenForPresentation()
+        let visibleFrame = targetScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1512, height: 982)
+
+        let safeImageWidth = max(image.size.width, 1)
+        let safeImageHeight = max(image.size.height, 1)
+        let imageAspect = safeImageWidth / safeImageHeight
+
+        // Keep a margin from screen edges so shadows/resize handles remain visible.
+        let screenPadding: CGFloat = 28
+        let toolbarHeight: CGFloat = 110
+
+        let maxWidth = max(visibleFrame.width - screenPadding * 2, 320)
+        let maxHeight = max(visibleFrame.height - screenPadding * 2, 260)
+
+        // Default to a large, readable window while respecting capture dimensions.
+        let preferredWidth = min(maxWidth, max(safeImageWidth + 80, maxWidth * 0.72))
+        var windowWidth = preferredWidth
+        var windowHeight = windowWidth / imageAspect + toolbarHeight
+
+        // If height overflows, fit by height and recompute width from aspect ratio.
+        if windowHeight > maxHeight {
+            windowHeight = maxHeight
+            windowWidth = min(maxWidth, (maxHeight - toolbarHeight) * imageAspect)
+        }
+
+        // Keep an ergonomic minimum size, but never exceed max bounds.
+        let minWidth = min(maxWidth, max(760, maxWidth * 0.55))
+        let minHeight = min(maxHeight, max(460, maxHeight * 0.50))
+
+        windowWidth = min(maxWidth, max(windowWidth, minWidth))
+        windowHeight = min(maxHeight, max(windowHeight, minHeight))
+
+        let maxSize = NSSize(
+            width: maxWidth,
+            height: maxHeight
+        )
+
+        return EditorWindowSizing(
+            initialSize: NSSize(width: windowWidth, height: windowHeight),
+            minSize: NSSize(width: minWidth, height: minHeight),
+            maxSize: maxSize,
+            targetScreen: targetScreen
+        )
+    }
+
+    private func activeScreenForPresentation() -> NSScreen? {
+        let mouseLocation = NSEvent.mouseLocation
+        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main ?? NSScreen.screens.first
     }
 }

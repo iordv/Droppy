@@ -103,7 +103,10 @@ final class BasketState {
     }
     
     /// Removes an item from this basket
-    func removeItem(_ item: DroppedItem) {
+    func removeItem(_ item: DroppedItem, allowPinnedRemoval: Bool = false) {
+        // Pinned folders are persistent and must be explicitly unpinned before removal.
+        guard allowPinnedRemoval || !item.isPinned else { return }
+
         item.cleanupIfTemporary()
         powerFolders.removeAll { $0.id == item.id }
         itemsList.removeAll { $0.id == item.id }
@@ -156,7 +159,7 @@ final class BasketState {
         let fm = FileManager.default
         let ghosts = items.filter { !fm.fileExists(atPath: $0.url.path) }
         for item in ghosts {
-            removeItem(item)
+            removeItem(item, allowPinnedRemoval: true)
         }
     }
     
@@ -192,8 +195,8 @@ final class BasketState {
         DroppyState.shared.endFileOperation()
     }
 
-    func removeBasketItem(_ item: DroppedItem) {
-        removeItem(item)
+    func removeBasketItem(_ item: DroppedItem, allowPinnedRemoval: Bool = false) {
+        removeItem(item, allowPinnedRemoval: allowPinnedRemoval)
     }
 
     func removeBasketItemForTransfer(_ item: DroppedItem) {

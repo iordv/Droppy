@@ -510,7 +510,10 @@ final class DroppyState {
     }
     
     /// Removes an item from the shelf
-    func removeItem(_ item: DroppedItem) {
+    func removeItem(_ item: DroppedItem, allowPinnedRemoval: Bool = false) {
+        // Pinned folders are persistent and must be explicitly unpinned before removal.
+        guard allowPinnedRemoval || !item.isPinned else { return }
+
         item.cleanupIfTemporary()
         
         // Remove from power folders
@@ -527,33 +530,45 @@ final class DroppyState {
     /// Removes selected items
     func removeSelectedItems() {
         beginBulkUpdateIfNeeded(selectedItems.count)
+        let idsToRemove = Set(
+            items
+                .filter { selectedItems.contains($0.id) && !$0.isPinned }
+                .map(\.id)
+        )
+
         // Remove from power folders
-        for item in shelfPowerFolders.filter({ selectedItems.contains($0.id) }) {
+        for item in shelfPowerFolders.filter({ idsToRemove.contains($0.id) }) {
             item.cleanupIfTemporary()
         }
-        shelfPowerFolders.removeAll { selectedItems.contains($0.id) }
+        shelfPowerFolders.removeAll { idsToRemove.contains($0.id) }
         
         // Remove from regular items
-        for item in shelfItems.filter({ selectedItems.contains($0.id) }) {
+        for item in shelfItems.filter({ idsToRemove.contains($0.id) }) {
             item.cleanupIfTemporary()
         }
-        shelfItems.removeAll { selectedItems.contains($0.id) }
+        shelfItems.removeAll { idsToRemove.contains($0.id) }
         
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
     }
     
-    /// Clears all items from the shelf
+    /// Clears all non-pinned items from the shelf (pinned folders persist)
     func clearAll() {
         beginBulkUpdateIfNeeded(shelfItems.count + shelfPowerFolders.count)
-        for item in shelfItems {
+
+        let removableShelfItems = shelfItems.filter { !$0.isPinned }
+        let removablePowerFolders = shelfPowerFolders.filter { !$0.isPinned }
+
+        for item in removableShelfItems {
             item.cleanupIfTemporary()
         }
-        for item in shelfPowerFolders {
+        for item in removablePowerFolders {
             item.cleanupIfTemporary()
         }
-        shelfItems.removeAll()
-        shelfPowerFolders.removeAll()
+
+        shelfItems.removeAll { !$0.isPinned }
+        shelfPowerFolders.removeAll { !$0.isPinned }
+
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
     }
@@ -641,7 +656,7 @@ final class DroppyState {
         
         for item in ghostItems {
             print("🗑️ Droppy: Removing ghost item (file no longer exists): \(item.name)")
-            removeItem(item)
+            removeItem(item, allowPinnedRemoval: true)
         }
     }
     
@@ -652,7 +667,7 @@ final class DroppyState {
         
         for item in ghostItems {
             print("🗑️ Droppy: Removing ghost basket item (file no longer exists): \(item.name)")
-            removeBasketItem(item)
+            removeBasketItem(item, allowPinnedRemoval: true)
         }
     }
     
@@ -796,7 +811,10 @@ final class DroppyState {
     }
     
     /// Removes an item from the basket
-    func removeBasketItem(_ item: DroppedItem) {
+    func removeBasketItem(_ item: DroppedItem, allowPinnedRemoval: Bool = false) {
+        // Pinned folders are persistent and must be explicitly unpinned before removal.
+        guard allowPinnedRemoval || !item.isPinned else { return }
+
         item.cleanupIfTemporary()
         
         basketPowerFolders.removeAll { $0.id == item.id }
@@ -824,11 +842,12 @@ final class DroppyState {
     /// Clears all items from the basket (preserves pinned folders)
     func clearBasket() {
         beginBulkUpdateIfNeeded(basketItemsList.count + basketPowerFolders.count)
-        // Cleanup regular items
-        for item in basketItemsList {
+        // Cleanup regular non-pinned items
+        let removableBasketItems = basketItemsList.filter { !$0.isPinned }
+        for item in removableBasketItems {
             item.cleanupIfTemporary()
         }
-        basketItemsList.removeAll()
+        basketItemsList.removeAll { !$0.isPinned }
         
         // Only remove unpinned power folders - pinned folders stay
         let unpinnedFolders = basketPowerFolders.filter { !$0.isPinned }

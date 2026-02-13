@@ -12,15 +12,23 @@ import Combine
 import Foundation
 import SwiftUI
 
+private let musicManagerVerboseLogs = false
+
+@inline(__always)
+private func musicManagerLog(_ message: @autoclosure () -> String) {
+    guard musicManagerVerboseLogs else { return }
+    print(message())
+}
+
 // MARK: - NowPlaying Update JSON Model
 
 /// Represents an update from the MediaRemoteAdapter
-private struct NowPlayingUpdate: Codable {
+private struct NowPlayingUpdate: Codable, Sendable {
     let type: String?
     let payload: NowPlayingPayload
     let diff: Bool?
     
-    struct NowPlayingPayload: Codable {
+    struct NowPlayingPayload: Codable, Sendable {
         let title: String?
         let artist: String?
         let album: String?
@@ -82,6 +90,7 @@ final class MusicManager: ObservableObject {
     @Published private(set) var visualizerSecondaryColor: Color = .gray.opacity(0.7)
     @Published private(set) var isPlaying: Bool = false {
         didSet {
+            guard oldValue != isPlaying else { return }
             if oldValue && !isPlaying {
                 // Was playing, now paused - start the "recently playing" timer
                 wasRecentlyPlaying = true
@@ -105,12 +114,15 @@ final class MusicManager: ObservableObject {
                             }
                         }
                     }
+                } else {
+                    scheduleSpotifyPausedSourceReacquire()
                 }
             } else if isPlaying {
                 // Started playing again - cancel timer and keep visible
                 recentlyPlayingTimer?.invalidate()
                 recentlyPlayingTimer = nil
                 wasRecentlyPlaying = false
+                stopSpotifyPausedSourceReacquire()
             }
         }
     }
@@ -143,6 +155,19 @@ final class MusicManager: ObservableObject {
     /// Stable identity for the currently shown track (content item id preferred).
     private var currentTrackIdentity: String = ""
     private var currentContentItemIdentifier: String?
+    private var lastArtworkTrackIdentity: String = ""
+    private var lastArtworkContentItemIdentifier: String?
+    private var lastParsedEventTimestampString: String?
+    private var lastParsedEventTimestampDate: Date?
+    private let iso8601DateFormatter = ISO8601DateFormatter()
+
+    // Cache decoded media-source filter bundles to avoid JSON parsing on every stream update.
+    private var allowedMediaBundlesCacheRawValue = ""
+    private var allowedMediaBundlesCache = Set<String>()
+
+    // Cache incognito checks for a short time to avoid blocking AppleScript calls on every update.
+    private var incognitoBrowserCache: [String: (value: Bool, checkedAt: Date)] = [:]
+    private let incognitoBrowserCacheTTL: TimeInterval = 1.0
 
     // MARK: - Apple Music Metadata Sync
     /// Periodic AppleScript sync to keep Apple Music metadata accurate
@@ -163,25 +188,42 @@ final class MusicManager: ObservableObject {
         )
     }
 
-    /// Set of allowed bundle identifiers for media source filtering
-    /// Empty set means no filter (show all sources)
-    private var allowedMediaBundles: Set<String> {
+    /// Set of allowed bundle identifiers for media source filtering.
+    /// Empty set means no filter (show all sources).
+    private func getAllowedMediaBundles() -> Set<String> {
         let jsonString = UserDefaults.standard.preference(
             AppPreferenceKey.mediaSourceAllowedBundles,
             default: PreferenceDefault.mediaSourceAllowedBundles
         )
-        guard let data = jsonString.data(using: .utf8) else { return [] }
+        if jsonString == allowedMediaBundlesCacheRawValue {
+            return allowedMediaBundlesCache
+        }
+
+        guard let data = jsonString.data(using: .utf8) else {
+            allowedMediaBundlesCacheRawValue = jsonString
+            allowedMediaBundlesCache = []
+            return []
+        }
+        let decoded: Set<String>
 
         // Try new format (dictionary: bundleId -> appName)
         if let dict = try? JSONDecoder().decode([String: String].self, from: data) {
-            return Set(dict.keys)
+            decoded = Set(dict.keys)
+            allowedMediaBundlesCacheRawValue = jsonString
+            allowedMediaBundlesCache = decoded
+            return decoded
         }
 
         // Fallback to old format (array of bundleIds)
         if let array = try? JSONDecoder().decode([String].self, from: data) {
-            return Set(array)
+            decoded = Set(array)
+            allowedMediaBundlesCacheRawValue = jsonString
+            allowedMediaBundlesCache = decoded
+            return decoded
         }
 
+        allowedMediaBundlesCacheRawValue = jsonString
+        allowedMediaBundlesCache = []
         return []
     }
 
@@ -190,7 +232,7 @@ final class MusicManager: ObservableObject {
     private func isBundleAllowed(_ bundleId: String?) -> Bool {
         guard isMediaSourceFilterEnabled else { return true }
         guard let bundleId = bundleId else { return false }
-        let allowed = allowedMediaBundles
+        let allowed = getAllowedMediaBundles()
         if allowed.isEmpty { return true }  // Empty list = no filter
         return allowed.contains(bundleId)
     }
@@ -210,6 +252,12 @@ final class MusicManager: ObservableObject {
     private func isFromIncognitoBrowser(_ bundleId: String?) -> Bool {
         guard hideIncognitoBrowserMedia else { return false }
         guard let bundleId = bundleId, isBrowserBundle(bundleId) else { return false }
+
+        let now = Date()
+        if let cached = incognitoBrowserCache[bundleId],
+           now.timeIntervalSince(cached.checkedAt) < incognitoBrowserCacheTTL {
+            return cached.value
+        }
         
         // Check each browser for incognito/private mode using AppleScript
         var script: String
@@ -285,15 +333,14 @@ final class MusicManager: ObservableObject {
                 return descriptor.stringValue
             }
         }
-        if let result = result {
-            return result == "incognito" || result == "private"
-        }
-        
-        return false
+        let isIncognito = result == "incognito" || result == "private"
+        incognitoBrowserCache[bundleId] = (isIncognito, now)
+        return isIncognito
     }
 
     /// Track previously detected media sources for settings UI
     @Published private(set) var detectedMediaSources: [MediaSourceInfo] = []
+    private var detectedMediaSourceBundleIDs = Set<String>()
 
     /// Information about a detected media source
     struct MediaSourceInfo: Identifiable, Hashable {
@@ -699,7 +746,7 @@ final class MusicManager: ObservableObject {
 
     /// Add a newly detected media source to the list (for settings UI)
     private func recordDetectedSource(_ bundleId: String) {
-        guard !detectedMediaSources.contains(where: { $0.bundleIdentifier == bundleId }) else { return }
+        guard detectedMediaSourceBundleIDs.insert(bundleId).inserted else { return }
 
         // Get app name from bundle identifier
         var appName = bundleId
@@ -792,8 +839,10 @@ final class MusicManager: ObservableObject {
             return
         }
         let clamped = max(0, min(time, songDuration > 0 ? songDuration : time))
-        elapsedTime = clamped
-        timestampDate = Date()
+        if abs(elapsedTime - clamped) > 0.001 {
+            elapsedTime = clamped
+            timestampDate = Date()
+        }
     }
     
     /// FIX #95: Force switch to Spotify by fetching data directly via AppleScript
@@ -869,6 +918,17 @@ final class MusicManager: ObservableObject {
     private let fallbackTimingSyncInterval: TimeInterval = 1.0
     private let fallbackStaleThreshold: TimeInterval = 1.25
     private let fallbackFetchCooldown: TimeInterval = 0.75
+    private var spotifyPausedSourceReacquireTimer: Timer?
+    private var spotifyPausedSourceReacquireDeadline: Date = .distantPast
+    private var isSpotifyPausedSourceReacquireFetchInFlight = false
+    private let spotifyPausedSourceReacquireInterval: TimeInterval = 0.7
+    private let spotifyPausedSourceReacquireWindow: TimeInterval = 6.0
+
+    // Defer high-frequency media updates while NSMenu is actively tracking.
+    // This keeps status-item menu highlight responsive.
+    private var menuTrackingDepth: Int = 0
+    private var deferredUpdateDuringMenuTracking: NowPlayingUpdate?
+    private var menuTrackingObservers: [NSObjectProtocol] = []
     
     // MediaRemote framework for sending commands (still works for control)
     private var mediaRemoteBundle: CFBundle?
@@ -887,6 +947,8 @@ final class MusicManager: ObservableObject {
     
     // MARK: - Initialization
     private init() {
+        setupMenuTrackingObservers()
+
         // MediaRemoteAdapter.framework requires macOS 15.0 (built with that deployment target)
         if #available(macOS 15.0, *) {
             isMediaAvailable = true
@@ -960,6 +1022,7 @@ final class MusicManager: ObservableObject {
 
     /// Clear the media display (used when filtered source app terminates)
     private func clearMediaDisplay() {
+        stopSpotifyPausedSourceReacquire()
         songTitle = ""
         artistName = ""
         albumName = ""
@@ -972,6 +1035,10 @@ final class MusicManager: ObservableObject {
         bundleIdentifier = nil
         currentTrackIdentity = ""
         currentContentItemIdentifier = nil
+        lastArtworkTrackIdentity = ""
+        lastArtworkContentItemIdentifier = nil
+        lastParsedEventTimestampString = nil
+        lastParsedEventTimestampDate = nil
         wasRecentlyPlaying = false
         isMediaHUDForced = false
         stopAppleMusicMetadataSyncTimer()
@@ -1028,7 +1095,7 @@ final class MusicManager: ObservableObject {
                 process.waitUntilExit()
                 
                 if !data.isEmpty {
-                    print("MusicManager: Metadata fetch received \(data.count) bytes")
+                    musicManagerLog("MusicManager: Metadata fetch received \(data.count) bytes")
                     self?.processJSONLine(data, allowPayloadDuringActiveStream: allowPayloadDuringActiveStream)
                 }
                 DispatchQueue.main.async {
@@ -1042,10 +1109,134 @@ final class MusicManager: ObservableObject {
             }
         }
     }
+
+    /// When Spotify is paused, periodically re-query Now Playing so browser playback
+    /// (for example Safari/YouTube) can reclaim the active source without killing Spotify.
+    private func scheduleSpotifyPausedSourceReacquire() {
+        guard bundleIdentifier == SpotifyController.spotifyBundleId else { return }
+        guard !songTitle.isEmpty || !artistName.isEmpty else { return }
+
+        let now = Date()
+        if spotifyPausedSourceReacquireTimer != nil,
+           spotifyPausedSourceReacquireDeadline.timeIntervalSince(now) > 0.25 {
+            return
+        }
+
+        stopSpotifyPausedSourceReacquire()
+        spotifyPausedSourceReacquireDeadline = now.addingTimeInterval(spotifyPausedSourceReacquireWindow)
+
+        attemptSpotifyPausedSourceReacquire()
+
+        let timer = Timer.scheduledTimer(withTimeInterval: spotifyPausedSourceReacquireInterval, repeats: true) { [weak self] _ in
+            self?.attemptSpotifyPausedSourceReacquire()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        spotifyPausedSourceReacquireTimer = timer
+    }
+
+    private func stopSpotifyPausedSourceReacquire() {
+        spotifyPausedSourceReacquireTimer?.invalidate()
+        spotifyPausedSourceReacquireTimer = nil
+        spotifyPausedSourceReacquireDeadline = .distantPast
+        isSpotifyPausedSourceReacquireFetchInFlight = false
+    }
+
+    private func attemptSpotifyPausedSourceReacquire() {
+        guard bundleIdentifier == SpotifyController.spotifyBundleId else {
+            stopSpotifyPausedSourceReacquire()
+            return
+        }
+        guard Date() <= spotifyPausedSourceReacquireDeadline else {
+            stopSpotifyPausedSourceReacquire()
+            return
+        }
+        guard !isSpotifyPausedSourceReacquireFetchInFlight else { return }
+
+        SpotifyController.shared.isSpotifyPlaying { [weak self] isSpotifyPlaying in
+            guard let self else { return }
+            guard self.bundleIdentifier == SpotifyController.spotifyBundleId else {
+                self.stopSpotifyPausedSourceReacquire()
+                return
+            }
+
+            // Spotify is active again, so no fallback probing is needed.
+            if isSpotifyPlaying {
+                self.stopSpotifyPausedSourceReacquire()
+                return
+            }
+
+            if self.isPlaying {
+                self.isPlaying = false
+                self.playbackRate = 0
+            }
+
+            guard Date() <= self.spotifyPausedSourceReacquireDeadline else {
+                self.stopSpotifyPausedSourceReacquire()
+                return
+            }
+
+            self.isSpotifyPausedSourceReacquireFetchInFlight = true
+            self.fetchFullNowPlayingInfo(allowPayloadDuringActiveStream: true) { [weak self] in
+                guard let self else { return }
+                self.isSpotifyPausedSourceReacquireFetchInFlight = false
+                if self.bundleIdentifier != SpotifyController.spotifyBundleId {
+                    self.stopSpotifyPausedSourceReacquire()
+                } else if Date() > self.spotifyPausedSourceReacquireDeadline {
+                    self.stopSpotifyPausedSourceReacquire()
+                }
+            }
+        }
+    }
     
     deinit {
+        removeMenuTrackingObservers()
+        stopSpotifyPausedSourceReacquire()
         stopFallbackTimingSync()
         stopAdapterProcess()
+    }
+
+    private func setupMenuTrackingObservers() {
+        let center = NotificationCenter.default
+
+        let beginObserver = center.addObserver(
+            forName: NSMenu.didBeginTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.menuTrackingDepth += 1
+        }
+        menuTrackingObservers.append(beginObserver)
+
+        let endObserver = center.addObserver(
+            forName: NSMenu.didEndTrackingNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.menuTrackingDepth = max(0, self.menuTrackingDepth - 1)
+
+            guard self.menuTrackingDepth == 0,
+                  let deferred = self.deferredUpdateDuringMenuTracking else {
+                return
+            }
+
+            self.deferredUpdateDuringMenuTracking = nil
+            Task { @MainActor [weak self] in
+                self?.handleUpdate(deferred)
+            }
+        }
+        menuTrackingObservers.append(endObserver)
+    }
+
+    private func removeMenuTrackingObservers() {
+        let center = NotificationCenter.default
+        for observer in menuTrackingObservers {
+            center.removeObserver(observer)
+        }
+        menuTrackingObservers.removeAll()
+        menuTrackingDepth = 0
+        deferredUpdateDuringMenuTracking = nil
     }
     
     // MARK: - Process Management
@@ -1090,12 +1281,12 @@ final class MusicManager: ObservableObject {
             let data = handle.availableData
             if data.isEmpty {
                 // Process ended
-                print("MusicManager: Adapter process ended (empty data)")
+                musicManagerLog("MusicManager: Adapter process ended (empty data)")
                 handle.readabilityHandler = nil
                 return
             }
             
-            print("MusicManager: Received \(data.count) bytes")
+            musicManagerLog("MusicManager: Received \(data.count) bytes")
             buffer.append(data)
             
             // Process complete JSON lines
@@ -1105,7 +1296,7 @@ final class MusicManager: ObservableObject {
                 
                 if !lineData.isEmpty {
                     if let lineStr = String(data: lineData, encoding: .utf8) {
-                        print("MusicManager: JSON line: \(lineStr.prefix(200))...")
+                        musicManagerLog("MusicManager: JSON line: \(lineStr.prefix(200))...")
                     }
                     self?.processJSONLine(lineData)
                 }
@@ -1122,6 +1313,7 @@ final class MusicManager: ObservableObject {
     
     private func stopAdapterProcess() {
         outputPipe?.fileHandleForReading.readabilityHandler = nil
+        stopSpotifyPausedSourceReacquire()
         
         if let process = adapterProcess, process.isRunning {
             process.terminate()
@@ -1134,7 +1326,7 @@ final class MusicManager: ObservableObject {
     private var shouldRunFallbackTimingSync: Bool {
         guard isPlaying else { return false }
         guard bundleIdentifier != nil else { return false }
-        return !isSpotifySource && !isAppleMusicSource
+        return !isAppleMusicSource
     }
 
     private func stopFallbackTimingSync() {
@@ -1153,6 +1345,17 @@ final class MusicManager: ObservableObject {
         if !force {
             guard now.timeIntervalSince(lastFallbackFetchAt) >= fallbackFetchCooldown else { return }
             guard now.timeIntervalSince(timestampDate) > fallbackStaleThreshold else { return }
+        }
+
+        if isSpotifySource {
+            SpotifyController.shared.isSpotifyPlaying { [weak self] isSpotifyPlaying in
+                guard let self else { return }
+                guard self.bundleIdentifier == SpotifyController.spotifyBundleId else { return }
+                if !isSpotifyPlaying && self.isPlaying {
+                    self.isPlaying = false
+                    self.playbackRate = 0
+                }
+            }
         }
 
         isFallbackFetchInFlight = true
@@ -1180,9 +1383,9 @@ final class MusicManager: ObservableObject {
     // MARK: - JSON Stream Processing
     
     private func processJSONLine(_ data: Data, allowPayloadDuringActiveStream: Bool = false) {
-        // Debug: Always log raw JSON for timing issues
-        if let jsonStr = String(data: data, encoding: .utf8) {
-            print("MusicManager: Raw JSON received: \(jsonStr.prefix(500))")
+        // Debug: Optional raw JSON logging for timing investigations.
+        if musicManagerVerboseLogs, let jsonStr = String(data: data, encoding: .utf8) {
+            musicManagerLog("MusicManager: Raw JSON received: \(jsonStr.prefix(500))")
         }
         
         do {
@@ -1199,7 +1402,7 @@ final class MusicManager: ObservableObject {
             // Fallback: Try decoding as payload directly (adapter "get" command output format)
             let payload = try decoder.decode(NowPlayingUpdate.NowPlayingPayload.self, from: data)
             let update = NowPlayingUpdate(type: "data", payload: payload, diff: false)
-            print("MusicManager: Decoded as direct payload")
+            musicManagerLog("MusicManager: Decoded as direct payload")
             
             DispatchQueue.main.async { [weak self] in
                 // Ignore cold-start "get" snapshots once stream updates are active.
@@ -1215,6 +1418,25 @@ final class MusicManager: ObservableObject {
     
     @MainActor
     private func handleUpdate(_ update: NowPlayingUpdate) {
+        if menuTrackingDepth > 0 {
+            // Safety net: if tracking notifications became unbalanced, recover automatically.
+            if RunLoop.main.currentMode != .eventTracking {
+                let hasVisibleMenuWindow = NSApp.windows.contains { window in
+                    guard window.isVisible else { return false }
+                    guard window.level.rawValue >= NSWindow.Level.popUpMenu.rawValue else { return false }
+                    return NSStringFromClass(type(of: window)).lowercased().contains("menu")
+                }
+                if !hasVisibleMenuWindow {
+                    menuTrackingDepth = 0
+                }
+            }
+        }
+
+        if menuTrackingDepth > 0 {
+            deferredUpdateDuringMenuTracking = update
+            return
+        }
+
         let payload = update.payload
 
         // MARK: Media Source Filter
@@ -1225,12 +1447,12 @@ final class MusicManager: ObservableObject {
 
         // Check if this source is allowed by the filter
         if !isBundleAllowed(payload.launchableBundleIdentifier) {
-            print("MusicManager: Skipping update from filtered source: \(payload.launchableBundleIdentifier ?? "unknown")")
+            musicManagerLog("MusicManager: Skipping update from filtered source: \(payload.launchableBundleIdentifier ?? "unknown")")
             
             // FIX: If the blocked source matches the currently displayed source, clear the display
             // This handles the case where filter is enabled while content from a blocked source is already showing
             if payload.launchableBundleIdentifier == bundleIdentifier {
-                print("MusicManager: Current display is from blocked source - clearing")
+                musicManagerLog("MusicManager: Current display is from blocked source - clearing")
                 clearMediaDisplay()
             }
             return
@@ -1238,11 +1460,11 @@ final class MusicManager: ObservableObject {
 
         // Check if this is from an incognito/private browsing window
         if isFromIncognitoBrowser(payload.launchableBundleIdentifier) {
-            print("MusicManager: Skipping update from incognito browser: \(payload.launchableBundleIdentifier ?? "unknown")")
+            musicManagerLog("MusicManager: Skipping update from incognito browser: \(payload.launchableBundleIdentifier ?? "unknown")")
             
             // Clear display if incognito source was previously shown
             if payload.launchableBundleIdentifier == bundleIdentifier {
-                print("MusicManager: Current display is from incognito browser - clearing")
+                musicManagerLog("MusicManager: Current display is from incognito browser - clearing")
                 clearMediaDisplay()
             }
             return
@@ -1295,25 +1517,32 @@ final class MusicManager: ObservableObject {
             }
         }
 
-        songTitle = incomingTitle
-        artistName = incomingArtist
-        albumName = incomingAlbum
-        currentTrackIdentity = incomingIdentity
+        if songTitle != incomingTitle {
+            songTitle = incomingTitle
+        }
+        if artistName != incomingArtist {
+            artistName = incomingArtist
+        }
+        if albumName != incomingAlbum {
+            albumName = incomingAlbum
+        }
+        if currentTrackIdentity != incomingIdentity {
+            currentTrackIdentity = incomingIdentity
+        }
         currentContentItemIdentifier = payload.contentItemIdentifier
 
         if let duration = payload.duration, duration > 0 {
             // Ignore stale end-boundary duration that belongs to the previous track.
             if !staleEndSnapshot {
-                songDuration = duration
+                if abs(songDuration - duration) > 0.001 {
+                    songDuration = duration
+                }
             }
         } else if isTrackChange {
             songDuration = 0
         }
 
-        let eventTimestamp: Date = {
-            guard let ts = payload.timestamp else { return Date() }
-            return ISO8601DateFormatter().date(from: ts) ?? Date()
-        }()
+        let eventTimestamp = parsedEventTimestamp(from: payload.timestamp)
 
         // Accept adapter timing directly; projection happens in estimatedPlaybackPosition().
         if let elapsed = rawElapsed, !isTimingSuppressed, !staleEndSnapshot {
@@ -1335,7 +1564,9 @@ final class MusicManager: ObservableObject {
                 newElapsedTime = max(0, newElapsedTime)
             }
 
-            elapsedTime = newElapsedTime
+            if abs(elapsedTime - newElapsedTime) > 0.001 {
+                elapsedTime = newElapsedTime
+            }
             timestampDate = Date()
         } else if isTrackChange {
             elapsedTime = 0
@@ -1357,16 +1588,23 @@ final class MusicManager: ObservableObject {
             } else {
                 anchored = max(0, anchored)
             }
-            elapsedTime = anchored
+            if abs(elapsedTime - anchored) > 0.001 {
+                elapsedTime = anchored
+            }
             timestampDate = Date()
         }
 
-        playbackRate = newPlaybackRate
+        if abs(playbackRate - newPlaybackRate) > 0.0001 {
+            playbackRate = newPlaybackRate
+        }
         if let bundle = payload.launchableBundleIdentifier {
+            let previousBundle = bundleIdentifier
             let wasSpotify = isSpotifySource
             let wasAppleMusic = isAppleMusicSource
-            let previousBundle = bundleIdentifier
-            bundleIdentifier = bundle
+
+            if previousBundle != bundle {
+                bundleIdentifier = bundle
+            }
             
             // FIX #95: Reset isMediaHUDHidden when media source changes
             // This ensures the HUD shows when switching back to a previous source
@@ -1389,6 +1627,7 @@ final class MusicManager: ObservableObject {
             // This prevents a "zombie timer" from running when another source is active
             if wasSpotify && !isSpotifySource {
                 SpotifyController.shared.stopPositionSyncTimer()
+                stopSpotifyPausedSourceReacquire()
             }
             
             // PERFORMANCE FIX: Stop Apple Music's position sync timer when switching away
@@ -1399,19 +1638,53 @@ final class MusicManager: ObservableObject {
         }
         
         // Keep play state aligned with adapter payload.
-        isPlaying = newIsPlaying
+        if isPlaying != newIsPlaying {
+            isPlaying = newIsPlaying
+        }
+        if bundleIdentifier == SpotifyController.spotifyBundleId && !isPlaying {
+            scheduleSpotifyPausedSourceReacquire()
+        } else {
+            stopSpotifyPausedSourceReacquire()
+        }
         
-        // Handle artwork
-        if let base64Art = payload.artworkData,
-           let artData = Data(base64Encoded: base64Art),
-           let image = NSImage(data: artData) {
-            albumArt = image
+        // Handle artwork only when track identity changes or when artwork is missing.
+        if let base64Art = payload.artworkData {
+            let contentItemChanged = payload.contentItemIdentifier != nil &&
+                payload.contentItemIdentifier != lastArtworkContentItemIdentifier
+            let artworkTrackChanged = incomingIdentity != lastArtworkTrackIdentity
+            let hasNoArtwork = albumArt.size.width <= 0 || albumArt.size.height <= 0
 
+            if isTrackChange || contentItemChanged || artworkTrackChanged || hasNoArtwork,
+               let artData = Data(base64Encoded: base64Art),
+               let image = NSImage(data: artData) {
+                albumArt = image
+                lastArtworkTrackIdentity = incomingIdentity
+                lastArtworkContentItemIdentifier = payload.contentItemIdentifier
+            }
+        } else if isTrackChange {
+            lastArtworkTrackIdentity = ""
+            lastArtworkContentItemIdentifier = nil
         }
         
         // Debug: Log the update
-        print("MusicManager: Updated - title='\(songTitle)', artist='\(artistName)', isPlaying=\(isPlaying), elapsed=\(elapsedTime), duration=\(songDuration), rate=\(playbackRate)")
+        musicManagerLog(
+            "MusicManager: Updated - title='\(songTitle)', artist='\(artistName)', isPlaying=\(isPlaying), elapsed=\(elapsedTime), duration=\(songDuration), rate=\(playbackRate)"
+        )
         updateFallbackTimingSyncState()
+    }
+
+    private func parsedEventTimestamp(from rawTimestamp: String?) -> Date {
+        guard let rawTimestamp else { return Date() }
+
+        if rawTimestamp == lastParsedEventTimestampString,
+           let cachedDate = lastParsedEventTimestampDate {
+            return cachedDate
+        }
+
+        let parsed = iso8601DateFormatter.date(from: rawTimestamp) ?? Date()
+        lastParsedEventTimestampString = rawTimestamp
+        lastParsedEventTimestampDate = parsed
+        return parsed
     }
     
     // MARK: - Cached Visualizer Color

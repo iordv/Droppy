@@ -96,6 +96,10 @@ final class LicenseWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if AppDelegate.isTerminationRequested {
+            return true
+        }
+
         let manager = LicenseManager.shared
         let canClose = !manager.requiresLicenseEnforcement || manager.hasAccess
         if !canClose {

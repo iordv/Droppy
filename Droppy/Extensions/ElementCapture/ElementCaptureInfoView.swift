@@ -39,6 +39,27 @@ struct ElementCaptureInfoView: View {
     
     // Editor settings
     @AppStorage(AppPreferenceKey.editorBlurStrength) private var blurStrength = PreferenceDefault.editorBlurStrength
+    @AppStorage(AppPreferenceKey.elementCaptureEditorDefaultColor) private var defaultEditorColorToken = PreferenceDefault.elementCaptureEditorDefaultColor
+    @AppStorage(AppPreferenceKey.elementCaptureEditorPrefer100Zoom) private var prefer100Zoom = PreferenceDefault.elementCaptureEditorPrefer100Zoom
+    @AppStorage(AppPreferenceKey.elementCaptureEditorPinchZoomEnabled) private var pinchZoomEnabled = PreferenceDefault.elementCaptureEditorPinchZoomEnabled
+
+    private struct EditorColorOption: Identifiable {
+        let token: String
+        let title: String
+        let color: Color
+        var id: String { token }
+    }
+
+    private let editorColorOptions: [EditorColorOption] = [
+        EditorColorOption(token: "red", title: "Red", color: .red),
+        EditorColorOption(token: "orange", title: "Orange", color: .orange),
+        EditorColorOption(token: "yellow", title: "Yellow", color: .yellow),
+        EditorColorOption(token: "green", title: "Green", color: .green),
+        EditorColorOption(token: "cyan", title: "Cyan", color: .cyan),
+        EditorColorOption(token: "purple", title: "Purple", color: .purple),
+        EditorColorOption(token: "black", title: "Black", color: .black),
+        EditorColorOption(token: "white", title: "White", color: .white)
+    ]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -311,6 +332,74 @@ struct ElementCaptureInfoView: View {
                 
                 Spacer()
             }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Default annotation color")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.primary)
+                        Text("Applied when opening the editor.")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Menu {
+                        ForEach(editorColorOptions) { option in
+                            Button {
+                                defaultEditorColorToken = option.token
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(option.color)
+                                        .frame(width: 12, height: 12)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AdaptiveColors.overlayAuto(0.24), lineWidth: 0.8)
+                                        )
+                                    Text(option.title)
+                                    if option.token == normalizedDefaultEditorColorToken {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(selectedEditorColorOption.color)
+                                .frame(width: 12, height: 12)
+                                .overlay(
+                                    Circle()
+                                        .stroke(AdaptiveColors.overlayAuto(0.24), lineWidth: 0.8)
+                                )
+                            Text(selectedEditorColorOption.title)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(AdaptiveColors.buttonBackgroundAuto)
+                        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+
+                Text("Highlighter always defaults to yellow.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(AdaptiveColors.buttonBackgroundAuto)
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+            )
             
             // Blur strength slider
             VStack(alignment: .leading, spacing: 8) {
@@ -346,6 +435,45 @@ struct ElementCaptureInfoView: View {
                 Text("Lower values create stronger pixelation blur.")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(AdaptiveColors.buttonBackgroundAuto)
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous)
+                    .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+            )
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Default zoom level")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.primary)
+                        Text("Open editor at native-ish zoom when possible.")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Toggle("Prefer 100%", isOn: $prefer100Zoom)
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12, weight: .semibold))
+                }
+
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pinch to zoom")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.primary)
+                        Text("Use trackpad pinch gesture to zoom in the editor.")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $pinchZoomEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
             }
             .padding(12)
             .background(AdaptiveColors.buttonBackgroundAuto)
@@ -705,5 +833,15 @@ struct ElementCaptureInfoView: View {
     private func loadEditorDefaults() {
         ElementCaptureManager.shared.loadEditorDefaults()
         loadEditorShortcuts()
+    }
+
+    private var normalizedDefaultEditorColorToken: String {
+        let normalized = defaultEditorColorToken.lowercased()
+        let allowed = Set(editorColorOptions.map(\.token))
+        return allowed.contains(normalized) ? normalized : PreferenceDefault.elementCaptureEditorDefaultColor
+    }
+
+    private var selectedEditorColorOption: EditorColorOption {
+        editorColorOptions.first(where: { $0.token == normalizedDefaultEditorColorToken }) ?? editorColorOptions[0]
     }
 }

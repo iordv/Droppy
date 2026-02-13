@@ -73,6 +73,7 @@ struct ToDoView: View {
     @State private var showingNewDueDatePicker = false
     @State private var activeListMentionQuery: String?
     @State private var showingMentionPicker = false
+    @AppStorage(AppPreferenceKey.todoHideUndatedReminders) private var hideUndatedReminders = PreferenceDefault.todoHideUndatedReminders
     
     var body: some View {
         VStack(spacing: 12) {
@@ -169,6 +170,25 @@ struct ToDoView: View {
                         setInteractingPopover: { manager.isInteractingWithPopover = $0 }
                     )
                 }
+
+                Menu {
+                    Toggle(
+                        isOn: Binding(
+                            get: { hideUndatedReminders },
+                            set: { newValue in
+                                hideUndatedReminders = newValue
+                                manager.setHideUndatedRemindersEnabled(newValue)
+                            }
+                        )
+                    ) {
+                        Label("Hide reminders without due date", systemImage: "calendar.badge.exclamationmark")
+                    }
+                } label: {
+                    Image(systemName: hideUndatedReminders ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                        .foregroundColor(hideUndatedReminders ? .blue : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Filter options")
                 
                 // Submit Button
                 Button(action: submitTask) {
@@ -219,7 +239,8 @@ struct ToDoView: View {
                                 ToDoRow(
                                     item: item,
                                     manager: manager,
-                                    reminderListOptions: reminderListMenuOptions
+                                    reminderListOptions: reminderListMenuOptions,
+                                    subtaskDepth: manager.reminderHierarchyDepth(for: item)
                                 )
                                     .transition(.move(edge: .top).combined(with: .opacity))
 
@@ -257,7 +278,8 @@ struct ToDoView: View {
                                 ToDoRow(
                                     item: item,
                                     manager: manager,
-                                    reminderListOptions: reminderListMenuOptions
+                                    reminderListOptions: reminderListMenuOptions,
+                                    subtaskDepth: manager.reminderHierarchyDepth(for: item)
                                 )
                                     .transition(.move(edge: .top).combined(with: .opacity))
 
@@ -396,8 +418,10 @@ struct ToDoView: View {
         if let explicit = manager.newItemReminderListID {
             return explicit
         }
-        guard let parsedQuery else { return nil }
-        return manager.resolveReminderList(matching: parsedQuery)?.id
+        if let parsedQuery {
+            return manager.resolveReminderList(matching: parsedQuery)?.id
+        }
+        return manager.preferredReminderListIDForNewTasks()
     }
 
     private var reminderListMenuOptions: [ToDoReminderListOption] {
@@ -681,12 +705,15 @@ struct ToDoRow: View {
     let item: ToDoItem
     let manager: ToDoManager
     let reminderListOptions: [ToDoReminderListOption]
+    var subtaskDepth: Int = 0
     private static var colorCache: [String: Color] = [:]
     @State private var isHovering = false
     @State private var isShowingInfoPopover = false
     @State private var isEditing = false
     @State private var editText = ""
     @State private var editDueDate: Date?
+    private var clampedSubtaskDepth: Int { min(max(subtaskDepth, 0), 4) }
+    private var subtaskIndent: CGFloat { CGFloat(clampedSubtaskDepth) * 16 }
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
@@ -721,18 +748,26 @@ struct ToDoRow: View {
                 .accessibilityHint("Toggles completion for \(item.title)")
             }
             // Title - color based on priority
-            Text(item.title)
-                .font(.system(size: 13, weight: isCalendarEvent ? .semibold : (item.isCompleted ? .regular : .medium)))
-                .strikethrough(item.isCompleted)
-                .foregroundColor(
-                    item.isCompleted
-                        ? .secondary
-                        : (isCalendarEvent ? calendarEventTint : (item.priority == .normal ? .primary : item.priority.color))
-                )
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentTransition(.interpolate)
-                .animation(.smooth(duration: 0.22), value: item.title)
+            HStack(spacing: 5) {
+                if clampedSubtaskDepth > 0 {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.72))
+                        .contentTransition(.interpolate)
+                }
+                Text(item.title)
+                    .font(.system(size: 13, weight: isCalendarEvent ? .semibold : (item.isCompleted ? .regular : .medium)))
+                    .strikethrough(item.isCompleted)
+                    .foregroundColor(
+                        item.isCompleted
+                            ? .secondary
+                            : (isCalendarEvent ? calendarEventTint : (item.priority == .normal ? .primary : item.priority.color))
+                    )
+                    .lineLimit(1)
+                    .contentTransition(.interpolate)
+                    .animation(.smooth(duration: 0.22), value: item.title)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             // Stats / Controls
             HStack(spacing: 8) {
@@ -749,11 +784,11 @@ struct ToDoRow: View {
                                 .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.85))
                                 .help(externalIconHelp)
                         }
-                        if let reminderListColor {
+                        if let sourceListColor {
                             Image(systemName: "list.bullet.circle.fill")
                                 .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(reminderListColor.opacity(0.9))
-                                .help(reminderListHelp)
+                                .foregroundStyle(sourceListColor.opacity(0.9))
+                                .help(sourceListHelp)
                         }
                     }
                 }
@@ -801,6 +836,7 @@ struct ToDoRow: View {
                 }
             }
         }
+        .padding(.leading, subtaskIndent)
         .padding(.horizontal, DroppySpacing.md)
         .padding(.vertical, 6)
         .contentShape(Rectangle())
@@ -1008,16 +1044,26 @@ struct ToDoRow: View {
         }
     }
 
-    private var reminderListColor: Color? {
-        guard !isCalendarEvent else { return nil }
+    private var sourceListColor: Color? {
+        guard item.externalSource != nil else { return nil }
         return colorFromHex(item.externalListColorHex)
     }
 
-    private var reminderListHelp: String {
-        if let title = item.externalListTitle, !title.isEmpty {
-            return "Apple Reminders list: \(title)"
+    private var sourceListHelp: String {
+        switch item.externalSource {
+        case .calendar:
+            if let title = item.externalListTitle, !title.isEmpty {
+                return "Apple Calendar: \(title)"
+            }
+            return "Apple Calendar"
+        case .reminders:
+            if let title = item.externalListTitle, !title.isEmpty {
+                return "Apple Reminders list: \(title)"
+            }
+            return "Apple Reminders list"
+        case .none:
+            return ""
         }
-        return "Apple Reminders list"
     }
 
     private func colorFromHex(_ hex: String?) -> Color? {

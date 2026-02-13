@@ -163,6 +163,9 @@ final class AIInstallManager: ObservableObject {
         
         isInstalled = installed
         UserDefaults.standard.set(installed, forKey: installedCacheKey)
+        if installed {
+            installError = nil
+        }
         
         if let pythonPath {
             activePythonPath = pythonPath
@@ -187,7 +190,7 @@ final class AIInstallManager: ObservableObject {
         do {
             let result = try await runAIInstallProcess(
                 executable: pythonPath,
-                arguments: ["-c", "import transparent_background"]
+                arguments: ["-c", "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('transparent_background') else 1)"]
             )
             return result.status == 0
         } catch {
@@ -288,6 +291,15 @@ final class AIInstallManager: ObservableObject {
         return false
     }
 
+    private func canCreateVenv(at pythonPath: String) async -> Bool {
+        do {
+            let result = try await runAIInstallProcess(executable: pythonPath, arguments: ["-m", "venv", "--help"])
+            return result.status == 0
+        } catch {
+            return false
+        }
+    }
+
     private func pythonRuntimeInfo(at pythonPath: String) async -> PythonRuntimeInfo? {
         do {
             let result = try await runAIInstallProcess(
@@ -338,8 +350,8 @@ final class AIInstallManager: ObservableObject {
         var issues: [String] = []
 
         for path in sorted {
-            guard await ensurePipAvailable(at: path) else {
-                issues.append("pip unavailable at \(path)")
+            guard await canCreateVenv(at: path) else {
+                issues.append("venv unavailable at \(path)")
                 continue
             }
 
@@ -455,9 +467,12 @@ final class AIInstallManager: ObservableObject {
         guard !installCandidates.isEmpty else {
             installProgress = ""
             if let compatibilityIssue = candidateIssues.first(where: { $0.localizedCaseInsensitiveContains("intel macs are currently unsupported") }) {
-                installError = "No compatible Python found. \(compatibilityIssue)"
-            } else if candidateIssues.contains(where: { $0.localizedCaseInsensitiveContains("pip unavailable") }) {
-                installError = "Python was found, but pip/venv is unavailable. Install pip for Python 3 and retry."
+                let cleanedIssue = compatibilityIssue
+                    .components(separatedBy: ": ")
+                    .last ?? compatibilityIssue
+                installError = "No compatible Python found. \(cleanedIssue)"
+            } else if candidateIssues.contains(where: { $0.localizedCaseInsensitiveContains("venv unavailable") }) {
+                installError = "Python was found, but this runtime cannot create virtual environments. Install Python from python.org and retry."
             } else {
                 installError = "No compatible Python runtime found for AI background removal. Install Python 3.12 or run Command Line Tools, then retry."
             }
@@ -508,7 +523,7 @@ final class AIInstallManager: ObservableObject {
             }
 
             guard await isTransparentBackgroundInstalled(at: venvPythonPath) else {
-                lastError = "Install finished, but verification failed. Click Re-check or run the manual command."
+                lastError = "Install finished, but package verification could not confirm transparent-background."
                 continue
             }
 
@@ -528,7 +543,8 @@ final class AIInstallManager: ObservableObject {
     }
     
     private func formatInstallError(_ rawOutput: String) -> String {
-        let trimmed = rawOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedOutput = stripAnsiEscapeCodes(in: rawOutput)
+        let trimmed = cleanedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = trimmed.lowercased()
         
         if normalized.contains("no module named pip") {
@@ -549,15 +565,51 @@ final class AIInstallManager: ObservableObject {
             return "Permission denied while installing Python packages. Check your user account permissions and retry."
         }
         
-        if normalized.contains("network") || normalized.contains("timed out") {
+        if normalized.contains("network") || normalized.contains("timed out") || normalized.contains("ssl") {
             return "Network error while downloading dependencies. Check connection and retry."
         }
         
         if trimmed.isEmpty {
             return "Installation failed. Try again, then run the manual command if it still fails."
         }
-        
-        return "Installation failed: \(trimmed.prefix(220))"
+
+        let lines = trimmed
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let meaningfulLines = lines.filter { line in
+            let lower = line.lowercased()
+            return !lower.hasPrefix("[notice]") && !lower.hasPrefix("warning:")
+        }
+
+        let priorityLine = meaningfulLines.first { line in
+            let lower = line.lowercased()
+            return lower.contains("error")
+                || lower.contains("failed")
+                || lower.contains("permission denied")
+                || lower.contains("timed out")
+                || lower.contains("no matching distribution")
+                || lower.contains("unsupported")
+                || lower.contains("not found")
+        }
+
+        let selectedLine = priorityLine ?? meaningfulLines.first ?? String(trimmed.prefix(220))
+        let normalizedLine = selectedLine
+            .replacingOccurrences(of: #"^error:\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^fatal:\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return "Installation failed: \(normalizedLine.prefix(180))"
+    }
+
+    private func stripAnsiEscapeCodes(in text: String) -> String {
+        text.replacingOccurrences(
+            of: "\u{001B}\\[[0-9;]*[A-Za-z]",
+            with: "",
+            options: .regularExpression
+        )
     }
     
     // MARK: - Uninstall

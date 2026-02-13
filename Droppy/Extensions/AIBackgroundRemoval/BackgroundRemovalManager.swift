@@ -204,7 +204,7 @@ final class BackgroundRemovalManager: ObservableObject {
     nonisolated private static func isTransparentBackgroundInstalled(at pythonPath: String) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: pythonPath)
-        process.arguments = ["-c", "import transparent_background"]
+        process.arguments = ["-c", "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('transparent_background') else 1)"]
         
         do {
             try process.run()

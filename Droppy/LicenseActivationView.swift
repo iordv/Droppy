@@ -123,11 +123,18 @@ struct LicenseActivationView: View {
                     focused: focusedField == .email
                 ) {
                     TextField(
-                        "Purchase email (optional)",
+                        "Purchase email (required for trial)",
                         text: $emailInput
                     )
                         .textFieldStyle(.plain)
                         .focused($focusedField, equals: .email)
+                }
+
+                if licenseManager.needsEmailForTrialStart {
+                    Text("Email is required to start the 3-day trial.")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 25)
                 }
 
                 textInputRow(
@@ -256,7 +263,7 @@ struct LicenseActivationView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "clock.badge.checkmark")
-                            Text("Start Trial")
+                            Text(licenseManager.needsEmailForTrialStart ? "Start Trial (Email Required)" : "Start Trial")
                         }
                     }
                     .buttonStyle(DroppyPillButtonStyle(size: .small))

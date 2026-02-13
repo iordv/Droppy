@@ -235,11 +235,15 @@ class BasketDragContainer: NSView {
     override func draggingExited(_ sender: NSDraggingInfo?) {
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
+        basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
     }
     
     override func draggingEnded(_ sender: NSDraggingInfo) {
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
+        basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
         
         // Don't hide during file operations
         guard !DroppyState.shared.isFileOperationInProgress else { return }
@@ -374,6 +378,8 @@ class BasketDragContainer: NSView {
         
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
+        basketState.isQuickActionsTargeted = false
+        basketState.hoveredQuickAction = nil
         
         // Mark that a drop occurred - don't hide on drag end
         dropDidOccur = true

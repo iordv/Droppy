@@ -59,7 +59,7 @@ struct ShelfView: View {
                         },
                         onRemove: {
                             withAnimation(DroppyAnimation.state) {
-                                state.shelfPowerFolders.removeAll { $0.id == folder.id }
+                                state.removeItem(folder)
                             }
                         }
                     )

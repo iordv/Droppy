@@ -46,6 +46,10 @@ struct SavedShortcut: Codable, Equatable {
 
 struct KeyShortcutRecorder: View {
     @Binding var shortcut: SavedShortcut?
+    var recordButtonTitle: String = "Record Shortcut"
+    var recordingButtonTitle: String = "Press Keys..."
+    var recordButtonColor: Color = .blue
+    var recordButtonWidth: CGFloat = 120
     @State private var isRecording = false
     @State private var monitor: Any?
     @State private var isHovering = false
@@ -74,11 +78,11 @@ struct KeyShortcutRecorder: View {
                     startRecording()
                 }
             } label: {
-                Text(isRecording ? "Press Keys..." : "Record Shortcut")
+                Text(isRecording ? recordingButtonTitle : recordButtonTitle)
                     .lineLimit(1)
-                    .frame(width: 120)
+                    .frame(width: recordButtonWidth)
             }
-            .buttonStyle(DroppyAccentButtonStyle(color: isRecording ? .red : .blue, size: .small))
+            .buttonStyle(DroppyAccentButtonStyle(color: isRecording ? .red : recordButtonColor, size: .small))
         }
         .onDisappear {
             stopRecording() // Cleanup

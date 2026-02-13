@@ -138,6 +138,9 @@ enum AppPreferenceKey {
     
     // MARK: - Extension: Element Capture
     static let editorBlurStrength = "elementCapture_blurStrength"  // Blur intensity (5-30, lower = stronger pixelation)
+    static let elementCaptureEditorDefaultColor = "elementCapture_editorDefaultColor"
+    static let elementCaptureEditorPrefer100Zoom = "elementCapture_editorPrefer100Zoom"
+    static let elementCaptureEditorPinchZoomEnabled = "elementCapture_editorPinchZoomEnabled"
     static let ocrAutoCopyExtractedText = "ocr_autoCopyExtractedText"  // Auto-copy OCR results and skip result window
 
     // MARK: - Extension: Window Snap
@@ -175,10 +178,14 @@ enum AppPreferenceKey {
     static let todoSyncCalendarEnabled = "todo_syncCalendarEnabled"
     static let todoSyncRemindersEnabled = "todo_syncRemindersEnabled"
     static let todoSyncRemindersListIDs = "todo_syncRemindersListIDs"  // JSON array of selected reminder list identifiers
+    static let todoDefaultReminderListID = "todo_defaultReminderListID"
     static let todoSyncCalendarListIDs = "todo_syncCalendarListIDs"  // JSON array of selected calendar identifiers
     static let todoShelfSplitViewEnabled = "todo_shelfSplitViewEnabled"
     static let todoDueSoonNotificationsEnabled = "todo_dueSoonNotificationsEnabled"
     static let todoDueSoonNotificationsChimeEnabled = "todo_dueSoonNotificationsChimeEnabled"
+    static let todoHideUndatedReminders = "todo_hideUndatedReminders"
+    static let todoShowUpcomingInMenuBar = "todo_showUpcomingInMenuBar"
+    static let todoQuickOpenShortcut = "todo_quickOpenShortcut"  // JSON-encoded SavedShortcut data
     static let todoShowTaskViewTimezone = "todo_showTaskViewTimezone"
     static let todoShowTaskWeekNumber = "todo_showTaskWeekNumber"
     
@@ -329,6 +336,9 @@ enum PreferenceDefault {
     
     // MARK: - Extension: Element Capture
     static let editorBlurStrength: Double = 10  // 10x10 pixelation (lower = stronger blur)
+    static let elementCaptureEditorDefaultColor = "red"
+    static let elementCaptureEditorPrefer100Zoom = false
+    static let elementCaptureEditorPinchZoomEnabled = true
     static let ocrAutoCopyExtractedText = false
 
     // MARK: - Extension: Window Snap
@@ -366,10 +376,13 @@ enum PreferenceDefault {
     static let todoSyncCalendarEnabled = false
     static let todoSyncRemindersEnabled = false
     static let todoSyncRemindersListIDs = "[]"
+    static let todoDefaultReminderListID = ""
     static let todoSyncCalendarListIDs = "[]"
     static let todoShelfSplitViewEnabled = true
     static let todoDueSoonNotificationsEnabled = true
     static let todoDueSoonNotificationsChimeEnabled = true
+    static let todoHideUndatedReminders = false
+    static let todoShowUpcomingInMenuBar = true
     static let todoShowTaskViewTimezone = false
     static let todoShowTaskWeekNumber = true
     

@@ -486,15 +486,15 @@ struct FloatingBasketView: View {
                         lineWidth: 1
                     )
             )
-            // Sleek drag handle at top (only when files present)
+            // Sleek drag handle at top.
+            // Keep it visible for empty baskets too so newly created blank baskets
+            // can still be repositioned immediately.
             .overlay(alignment: .top) {
-                if basketState.items.count > 0 {
-                    BasketDragHandle(
-                        controller: ownerController,
-                        accentColor: accentColor,
-                        showAccentColor: shouldShowAccentColor
-                    )
-                }
+                BasketDragHandle(
+                    controller: ownerController,
+                    accentColor: accentColor,
+                    showAccentColor: shouldShowAccentColor
+                )
             }
             // Pressed effect when targeted (scale is handled by mainBasketContainer)
             .overlay(

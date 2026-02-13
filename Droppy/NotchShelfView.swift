@@ -159,6 +159,17 @@ struct NotchShelfView: View {
     private var dynamicIslandGray: Color {
         Color.black
     }
+
+    private func resetTodoExpansionStateWithoutAnimation() {
+        if isTodoListExpanded {
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                isTodoListExpanded = false
+            }
+        }
+        todoManager.isShelfListExpanded = false
+    }
     
     /// Dynamic notch width based on screen's actual safe areas
     /// This properly handles all resolutions including "More Space" settings
@@ -552,11 +563,15 @@ struct NotchShelfView: View {
     }
 
     private var shouldAttachTodoShelfBar: Bool {
+        shouldAttachTodoShelfBarBase &&
+        (!isMediaPlayerVisibleInShelf || isTodoListExpanded)
+    }
+
+    private var shouldAttachTodoShelfBarBase: Bool {
         isTodoExtensionActive &&
         !isTerminalViewVisible &&
         !isCaffeineViewVisible &&
-        !isCameraViewVisible &&
-        !isMediaPlayerVisibleInShelf
+        !isCameraViewVisible
     }
 
     /// Current expanded width based on what's shown
@@ -1145,16 +1160,14 @@ struct NotchShelfView: View {
                     if !isExpanded {
                         showCaffeineView = false
                         showCameraView = false
-                        isTodoListExpanded = false
-                        todoManager.isShelfListExpanded = false
+                        resetTodoExpansionStateWithoutAnimation()
                     }
                 }
                 .onChange(of: shouldAttachTodoShelfBar) { _, shouldAttach in
                     // Prevent stale ToDo expanded state from leaking height/layout into
                     // Terminal/Camera/Caffeine/Media views on external displays.
                     if !shouldAttach {
-                        isTodoListExpanded = false
-                        todoManager.isShelfListExpanded = false
+                        resetTodoExpansionStateWithoutAnimation()
                     }
                 }
                 .onChange(of: enableQuickActions) { _, enabled in
@@ -1539,7 +1552,7 @@ struct NotchShelfView: View {
             }
     }
     
-    private var shelfContentWithObservers: some View {
+    private var shelfContentWithStateObservers: some View {
         shelfContentWithMediaObservers
             .onChange(of: state.expandedDisplayID) { oldDisplayID, newDisplayID in
                 let thisDisplayID = targetScreen?.displayID
@@ -1600,6 +1613,11 @@ struct NotchShelfView: View {
             }
             .onChange(of: isTodoListExpanded) { _, expanded in
                 todoManager.isShelfListExpanded = expanded
+                if expanded {
+                    cancelAutoShrinkTimer()
+                } else if isExpandedOnThisScreen && !state.isDropTargeted && !dragMonitor.isDragging {
+                    startAutoShrinkTimer()
+                }
                 guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
                 // Defer to next runloop so SwiftUI width/height settles before frame sync.
                 // This avoids the brief off-position jump on close/open transitions.
@@ -1612,6 +1630,27 @@ struct NotchShelfView: View {
                 guard !shouldShow && isTodoListExpanded else { return }
                 isTodoListExpanded = false
                 todoManager.isShelfListExpanded = false
+            }
+    }
+
+    private var shelfContentWithObservers: some View {
+        shelfContentWithStateObservers
+            .onReceive(NotificationCenter.default.publisher(for: .todoQuickOpenRequested)) { notification in
+                guard let requestedIDValue = notification.userInfo?["displayID"] as? NSNumber else { return }
+                let requestedDisplayID = CGDirectDisplayID(requestedIDValue.uint32Value)
+                guard requestedDisplayID == thisDisplayID else { return }
+                guard isTodoExtensionActive else { return }
+                guard !isTerminalViewVisible && !isCaffeineViewVisible && !isCameraViewVisible else {
+                    SettingsWindowController.shared.showSettings(openingExtension: .todo)
+                    return
+                }
+
+                cancelAutoShrinkTimer()
+                withAnimation(DroppyAnimation.smoothContent) {
+                    isTodoListExpanded = true
+                }
+                todoManager.isShelfListExpanded = true
+                NotchWindowController.shared.forceRecalculateAllWindowSizes()
             }
             .onChange(of: isTerminalViewVisible) { _, _ in
                 notchController.forceRecalculateAllWindowSizes()
@@ -1760,6 +1799,8 @@ struct NotchShelfView: View {
         // Check if auto-collapse is enabled (new toggle)
         guard autoCollapseShelf else { return }
         guard isExpandedOnThisScreen else { return }
+        // Keep the shelf open while Reminders panel is expanded (including quick-open).
+        guard !isTodoListExpanded else { return }
         // Keep the shelf stable during active To-do interactions (popover/edit/split-toggle hold).
         guard !ToDoManager.shared.isInteractingWithPopover else { return }
         
@@ -1785,7 +1826,7 @@ struct NotchShelfView: View {
             // Check BOTH SwiftUI hover state AND geometric fallback
             let isHoveringAnyMethod = isHoveringOnThisScreen || isMouseInExpandedZone
             let isTodoPopoverInteractionActive = ToDoManager.shared.isInteractingWithPopover
-            guard isExpandedOnThisScreen && !isHoveringAnyMethod && !state.isDropTargeted && !isTodoPopoverInteractionActive else {
+            guard isExpandedOnThisScreen && !isTodoListExpanded && !isHoveringAnyMethod && !state.isDropTargeted && !isTodoPopoverInteractionActive else {
                 notchShelfDebugLog("⏳ AUTO-SHRINK SKIPPED: conditions not met (isHoveringAnyMethod=\(isHoveringAnyMethod))")
                 return
             }
@@ -2988,6 +3029,7 @@ struct NotchShelfView: View {
                     ToDoShelfBar(
                         manager: todoManager,
                         isListExpanded: $isTodoListExpanded,
+                        hostDisplayID: thisDisplayID,
                         notchHeight: contentLayoutNotchHeight,
                         useAdaptiveForegroundsForTransparentNotch: shouldUseExternalNotchTransparent
                     )
@@ -3269,7 +3311,7 @@ struct NotchShelfView: View {
                             renamingItemId: $renamingItemId,
                             onRemove: {
                                 withAnimation(displayNotchStateAnimation) {
-                                    state.shelfPowerFolders.removeAll { $0.id == folder.id }
+                                    state.removeItem(folder)
                                 }
                             },
                             useAdaptiveForegroundsForTransparentNotch: shouldUseExternalNotchTransparent

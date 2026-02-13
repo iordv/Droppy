@@ -127,7 +127,7 @@ struct NotchItemView: View {
                     
                     // Update UI on Main Thread
                     DispatchQueue.main.async {
-                        state.removeItem(item)
+                        state.removeItem(item, allowPinnedRemoval: true)
                     }
                 } catch {
                     // Fallback copy+delete mechanism for cross-volume moves
@@ -136,7 +136,7 @@ struct NotchItemView: View {
                         try FileManager.default.removeItem(at: item.url)
                         
                         DispatchQueue.main.async {
-                            state.removeItem(item)
+                            state.removeItem(item, allowPinnedRemoval: true)
                         }
                     } catch {
                         let errorDescription = error.localizedDescription

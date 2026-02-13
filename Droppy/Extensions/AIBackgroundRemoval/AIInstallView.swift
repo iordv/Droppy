@@ -50,10 +50,19 @@ struct AIInstallView: View {
     @State private var currentStep: AIInstallStep = .checking
     @State private var showReviewsSheet = false
     @State private var copiedManualCommand = false
+    @State private var showManualSetup = false
     
     // Stats passed from parent
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
+
+    private var isFailureState: Bool {
+        manager.installError != nil && !manager.isInstalling && !manager.isInstalled
+    }
+
+    private var shouldShowManualSetupInPrerequisites: Bool {
+        !manager.hasDetectedPythonPath || showManualSetup
+    }
     
     var body: some View {
         ZStack {
@@ -167,7 +176,7 @@ struct AIInstallView: View {
             
             Text(statusTitle)
                 .font(.title2.bold())
-                .foregroundStyle(manager.isInstalled ? .green : .primary)
+                .foregroundStyle(manager.isInstalled ? .green : (isFailureState ? .orange : .primary))
                 .animation(DroppyAnimation.viewChange, value: manager.isInstalled)
             
             // Stats row: installs + rating + category badge
@@ -225,8 +234,8 @@ struct AIInstallView: View {
     }
     
     private var statusTitle: String {
-        if manager.installError != nil {
-            return "Installation Failed"
+        if isFailureState {
+            return "Setup Needs Attention"
         } else if manager.isInstalled && !manager.isInstalling {
             return "Installed & Ready"
         } else if manager.isInstalling {
@@ -240,7 +249,7 @@ struct AIInstallView: View {
     
     private var contentSection: some View {
         Group {
-            if manager.isInstalling || (manager.isInstalled && !manager.isInstalling) {
+            if manager.isInstalling || manager.isInstalled || isFailureState {
                 // Show step progress during/after install
                 stepsView
             } else if !manager.isInstalled {
@@ -259,6 +268,20 @@ struct AIInstallView: View {
                     isAllComplete: manager.isInstalled && !manager.isInstalling,
                     hasError: manager.installError != nil
                 )
+            }
+
+            if manager.isInstalling && !manager.installProgress.isEmpty {
+                Text(manager.installProgress)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 32)
+                    .padding(.top, 8)
+            } else if isFailureState {
+                Text("Install stopped before completion. Use the recovery actions below and retry.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 32)
+                    .padding(.top, 8)
             }
         }
         .padding(.bottom, 20)
@@ -304,8 +327,8 @@ struct AIInstallView: View {
             }
             
             Text(manager.hasDetectedPythonPath
-                 ? "Install Now creates an isolated AI environment using this Python."
-                 : "Install Now will try to set up Python first (or you can run the command below in Terminal).")
+                 ? "Python is available. Install Now creates an isolated AI environment without changing your system Python."
+                 : "Python was not found yet. Install Now will still try automatic setup, or you can run the command manually.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
@@ -320,43 +343,26 @@ struct AIInstallView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
-            
-            Text("Manual command")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(manager.recommendedManualInstallCommand)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            .padding(DroppySpacing.md)
-            .background(AdaptiveColors.overlayAuto(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small))
-            .overlay(
-                RoundedRectangle(cornerRadius: DroppyRadius.small)
-                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
-            )
-            
-            HStack(spacing: 8) {
-                Button {
-                    manager.checkInstallationStatus()
-                } label: {
-                    Label("Re-check", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
-                Button {
-                    copyManualCommand()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: copiedManualCommand ? "checkmark" : "doc.on.clipboard")
-                        Text(copiedManualCommand ? "Copied!" : "Copy")
+
+            if shouldShowManualSetupInPrerequisites {
+                manualCommandSection
+                recoveryActions
+            } else {
+                HStack(spacing: 8) {
+                    Button {
+                        manager.checkInstallationStatus()
+                    } label: {
+                        Label("Re-check", systemImage: "arrow.clockwise")
                     }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
+
+                    Button {
+                        showManualSetup = true
+                    } label: {
+                        Label("Manual Setup", systemImage: "terminal")
+                    }
+                    .buttonStyle(DroppyPillButtonStyle(size: .small))
                 }
-                .buttonStyle(DroppyAccentButtonStyle(color: .green, size: .small))
             }
         }
     }
@@ -375,44 +381,83 @@ struct AIInstallView: View {
     }
     
     private func errorSection(error: String) -> some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Install Needs Attention")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+
             Text(error)
                 .font(.caption)
-                .foregroundStyle(.red)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            
-            Text("Retry install, or run the manual command shown above and press Re-check.")
+                .foregroundStyle(.primary)
+
+            Text(recoveryHintText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            
-            Text(manager.hasDetectedPythonPath
-                 ? "Python is already detected. This usually means only the AI package install failed."
-                 : "Python was not detected yet. Install Now can still trigger setup automatically.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            
-            HStack(spacing: 8) {
-                Button {
-                    manager.checkInstallationStatus()
-                } label: {
-                    Label("Re-check", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(DroppyPillButtonStyle(size: .small))
-                
-                Button {
-                    copyManualCommand()
-                } label: {
-                    Label(copiedManualCommand ? "Copied" : "Copy Command", systemImage: copiedManualCommand ? "checkmark" : "doc.on.clipboard")
-                }
-                .buttonStyle(DroppyPillButtonStyle(size: .small))
-            }
+
+            manualCommandSection
+            recoveryActions
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DroppySpacing.md)
+        .background(Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.12), lineWidth: 1)
+        )
         .padding(.bottom, 16)
+    }
+
+    private var recoveryHintText: String {
+        if manager.hasDetectedPythonPath {
+            return "Python is already available, so this is usually a dependency or network issue. Retry install, or run the command manually and press Re-check."
+        }
+        return "Python was not detected yet. Retry install to trigger setup, or run the command manually once Python 3 is available."
+    }
+
+    private var manualCommandSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Manual command")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(manager.recommendedManualInstallCommand)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .padding(DroppySpacing.md)
+            .background(AdaptiveColors.overlayAuto(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.small)
+                    .stroke(Color.green.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    private var recoveryActions: some View {
+        HStack(spacing: 8) {
+            Button {
+                manager.checkInstallationStatus()
+            } label: {
+                Label("Re-check", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
+
+            Button {
+                copyManualCommand()
+            } label: {
+                Label(copiedManualCommand ? "Copied" : "Copy Command", systemImage: copiedManualCommand ? "checkmark" : "doc.on.clipboard")
+            }
+            .buttonStyle(DroppyPillButtonStyle(size: .small))
+        }
     }
     
     private func copyManualCommand() {
@@ -461,8 +506,8 @@ struct AIInstallView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.down.circle.fill")
-                        Text("Install Now")
+                        Image(systemName: manager.installError == nil ? "arrow.down.circle.fill" : "arrow.clockwise")
+                        Text(manager.installError == nil ? "Install Now" : "Retry Install")
                     }
                 }
                 .buttonStyle(DroppyAccentButtonStyle(color: .blue, size: .medium))

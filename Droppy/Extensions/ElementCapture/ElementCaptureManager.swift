@@ -1542,6 +1542,7 @@ final class ElementCaptureManager: ObservableObject {
     }
 
     /// Window IDs for transient capture helper UI that should never appear in screenshots.
+    /// NOTE: The screenshot editor window is intentionally NOT excluded so users can capture it.
     private func excludedCaptureHelperWindowIDs() -> Set<CGWindowID> {
         var ids = Set<CGWindowID>()
         if let number = highlightWindow?.windowNumber, number > 0 {
@@ -1551,9 +1552,6 @@ final class ElementCaptureManager: ObservableObject {
             ids.insert(CGWindowID(number))
         }
         if let number = CapturePreviewWindowController.shared.currentWindowNumber, number > 0 {
-            ids.insert(CGWindowID(number))
-        }
-        if let number = ScreenshotEditorWindowController.shared.currentWindowNumber, number > 0 {
             ids.insert(CGWindowID(number))
         }
         return ids
