@@ -425,26 +425,19 @@ struct AppleMusicBadge: View {
 }
 
 /// Small Tidal badge for album art overlay
-/// Uses CachedAsyncImage to load icon from web with SF Symbol fallback
+/// Uses bundled official Tidal icon for reliable visibility
 struct TidalBadge: View {
     var size: CGFloat = 24
-    static let iconURL = URL(string: "https://getdroppy.app/assets/icons/tidal.png")
 
     var body: some View {
-        CachedAsyncImage(url: Self.iconURL) { image in
-            image
-                .resizable()
-                .renderingMode(.original)
-                .antialiased(true)
-                .aspectRatio(contentMode: .fit)
-        } placeholder: {
-            Image(systemName: "waveform")
-                .font(.system(size: size * 0.6, weight: .bold))
-                .foregroundStyle(Color(red: 0.0, green: 0.80, blue: 0.84))
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
-        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+        Image("TidalIcon")
+            .resizable()
+            .renderingMode(.original)
+            .antialiased(true)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
+            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
     }
 }
 
