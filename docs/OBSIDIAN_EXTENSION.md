@@ -278,11 +278,28 @@ The split editor view supports:
 
 ### Syntax highlighting rules
 
-- Headings: bold + white.
+- Headings (`#` to `######`): bold + white.
 - Wikilinks `[[...]]`: purple.
-- Markdown links `[...](...)`: purple.
-- Frontmatter block at file start: dimmed color.
-- Fenced code blocks: green-tinted text.
+- Markdown links `[...](...)`:
+  - Link label: purple accent.
+  - URL target: blue + underline.
+- Frontmatter at file start (`--- ... ---`): dimmed block; `key::` style keys tinted.
+- Fenced code blocks:
+  - Supports both backticks (```) and tildes (`~~~`).
+  - Fence markers dimmed; optional language hint tinted.
+  - Body uses code tint plus lightweight language-aware token colors:
+    - Comments, strings, numbers.
+    - Keyword sets for Swift, JS/TS, Python, and shell.
+- Inline code spans (`` `...` ``): green tint with subtle background.
+- Emphasis: bold (`**`/`__`), italic (`*`/`_`), strikethrough (`~~`).
+- Lists:
+  - Ordered/unordered list markers tinted.
+  - Task checkboxes (`- [ ]`, `- [x]`) colorized by state.
+- Blockquotes and callouts (`>`, `> [!...]`) colorized.
+- Horizontal rules (`---`, `***`, `___`) dimmed.
+- Tables (pipe rows + separators) tinted.
+- Footnotes (`[^id]` refs and definitions) tinted.
+- Tags (`#tag`) tinted.
 
 Highlighting performance:
 
