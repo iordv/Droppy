@@ -21,14 +21,9 @@ struct ObsidianFullEditor: View {
         hasUnsavedChanges && manager.selectedNote?.isDaily != true
     }
 
-    /// Reconstructs the full note content, prepending stored frontmatter when collapsed.
+    /// Reconstructs the full note content, prepending stored frontmatter.
     private var fullContent: String {
-        isFrontmatterCollapsed ? storedFrontmatter + editorText : editorText
-    }
-
-    /// Whether the current note has frontmatter (collapsed or visible in editor).
-    private var hasFrontmatter: Bool {
-        isFrontmatterCollapsed ? !storedFrontmatter.isEmpty : editorText.hasPrefix("---")
+        storedFrontmatter + editorText
     }
 
     private var headingMenuTitle: String {
@@ -45,9 +40,9 @@ struct ObsidianFullEditor: View {
                 externalChangeBanner
             }
 
-            // Frontmatter banner (when collapsed)
-            if isFrontmatterCollapsed, !storedFrontmatter.isEmpty {
-                frontmatterBanner
+            // Collapsible frontmatter section
+            if !storedFrontmatter.isEmpty {
+                frontmatterSection
             }
 
             // Editor
@@ -55,6 +50,9 @@ struct ObsidianFullEditor: View {
                 .frame(maxHeight: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
                 .onChange(of: editorText) { _, _ in
+                    hasUnsavedChanges = (fullContent != manager.currentNoteContent)
+                }
+                .onChange(of: storedFrontmatter) { _, _ in
                     hasUnsavedChanges = (fullContent != manager.currentNoteContent)
                 }
         }
@@ -77,22 +75,6 @@ struct ObsidianFullEditor: View {
         HStack(spacing: 6) {
             // Heading picker menu
             headingPickerMenu
-
-            // Hide frontmatter button (when expanded and frontmatter is present)
-            if !isFrontmatterCollapsed, hasFrontmatter {
-                Button {
-                    collapseFrontmatter()
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "eye.slash")
-                            .font(.system(size: 9))
-                        Text("Hide frontmatter")
-                            .font(.system(size: 10))
-                    }
-                    .foregroundStyle(.white.opacity(0.4))
-                }
-                .buttonStyle(.plain)
-            }
 
             Spacer()
 
@@ -190,36 +172,58 @@ struct ObsidianFullEditor: View {
         .padding(.bottom, 4)
     }
 
-    // MARK: - Frontmatter Banner
+    // MARK: - Frontmatter Section
 
-    private var frontmatterBanner: some View {
-        Button {
-            expandFrontmatter()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.4))
-                Text("frontmatter")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-                Text("·")
-                    .foregroundStyle(.white.opacity(0.3))
-                Text("\(frontmatterPropertyCount(storedFrontmatter)) properties")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.4))
-                Spacer()
+    private var frontmatterSection: some View {
+        VStack(spacing: 0) {
+            // Toggle banner
+            Button {
+                withAnimation(DroppyAnimation.smooth(duration: 0.18)) {
+                    isFrontmatterCollapsed.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .rotationEffect(.degrees(isFrontmatterCollapsed ? 0 : 90))
+                    Text("frontmatter")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                    Text("·")
+                        .foregroundStyle(.white.opacity(0.3))
+                    Text("\(frontmatterPropertyCount(storedFrontmatter)) properties")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.4))
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.white.opacity(0.04))
+                .clipShape(RoundedRectangle(cornerRadius: isFrontmatterCollapsed ? 6 : 0, style: .continuous))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(Color.white.opacity(0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-            )
+            .buttonStyle(.plain)
+
+            // Expanded frontmatter content
+            if !isFrontmatterCollapsed {
+                ScrollView(.vertical, showsIndicators: true) {
+                    TextField("", text: $storedFrontmatter, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(Color(red: 202/255, green: 211/255, blue: 245/255).opacity(0.5))
+                        .lineLimit(3...)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                }
+                .frame(maxHeight: 120)
+                .background(Color.white.opacity(0.02))
+            }
         }
-        .buttonStyle(.plain)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
         .padding(.bottom, 2)
     }
 
@@ -260,23 +264,6 @@ struct ObsidianFullEditor: View {
         editorText = body
         isFrontmatterCollapsed = true
         hasUnsavedChanges = false
-    }
-
-    /// Collapses visible frontmatter from editorText into storedFrontmatter.
-    private func collapseFrontmatter() {
-        let (fm, body) = Self.splitFrontmatter(editorText)
-        guard !fm.isEmpty else { return }
-        storedFrontmatter = fm
-        editorText = body
-        isFrontmatterCollapsed = true
-    }
-
-    /// Expands stored frontmatter back into the editor text.
-    private func expandFrontmatter() {
-        guard !storedFrontmatter.isEmpty else { return }
-        editorText = storedFrontmatter + editorText
-        storedFrontmatter = ""
-        isFrontmatterCollapsed = false
     }
 
     // MARK: - Actions
