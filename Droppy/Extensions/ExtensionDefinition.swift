@@ -135,7 +135,7 @@ final class ExtensionRegistry {
         register(CaffeineExtension.self)
         register(MenuBarManagerExtension.self)
         register(ToDoExtension.self)
-
+        register(ObsidianExtension.self)
     }
     
     /// Register an extension definition

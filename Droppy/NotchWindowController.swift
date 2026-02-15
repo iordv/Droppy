@@ -318,6 +318,11 @@ final class NotchWindowController: NSObject, ObservableObject {
             return false
         }
 
+        // Obsidian takes over expanded shelf sizing/interaction while visible.
+        if ObsidianManager.shared.isVisible {
+            return false
+        }
+
         // To-do editing/list sessions should keep their own interaction zone.
         let todoManager = ToDoManager.shared
         if todoManager.isVisible || todoManager.isShelfListExpanded || todoManager.isEditingText || todoManager.isInteractingWithPopover {
@@ -340,7 +345,7 @@ final class NotchWindowController: NSObject, ObservableObject {
     }
 
     /// Additional downward interaction reach required for floating controls beneath
-    /// the expanded media card (close/terminal/camera/caffeine + quick actions).
+    /// the expanded media card (close/terminal/camera/caffeine/obsidian + quick actions).
     private func expandedFloatingControlsReachPadding(for screen: NSScreen) -> CGFloat {
         let displayID = screen.displayID
         guard DroppyState.shared.isExpanded(for: displayID) else { return 0 }
@@ -358,11 +363,18 @@ final class NotchWindowController: NSObject, ObservableObject {
         let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         let cameraInstalled = UserDefaults.standard.preference(AppPreferenceKey.cameraInstalled, default: PreferenceDefault.cameraInstalled)
         let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
+        let obsidianInstalled = UserDefaults.standard.preference(AppPreferenceKey.obsidianInstalled, default: PreferenceDefault.obsidianInstalled)
+        let obsidianEnabled = UserDefaults.standard.preference(AppPreferenceKey.obsidianEnabled, default: PreferenceDefault.obsidianEnabled)
+        let obsidianVisible = obsidianInstalled &&
+            obsidianEnabled &&
+            !ExtensionType.obsidian.isRemoved &&
+            DroppyState.shared.shelfDisplaySlotCount == 0
 
         let regularButtonsVisible = !dragging && (
             (terminalInstalled && terminalEnabled) ||
             (caffeineInstalled && caffeineEnabled) ||
             (cameraInstalled && cameraEnabled) ||
+            obsidianVisible ||
             !autoCollapseEnabled
         )
         let quickActionsVisible = dragging && enableQuickActions

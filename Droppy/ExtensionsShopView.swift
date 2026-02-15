@@ -28,6 +28,7 @@ struct ExtensionsShopView: View {
     private var isCaffeineInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.caffeineInstalled) }
     private var isMenuBarManagerInstalled: Bool { MenuBarManager.shared.isEnabled }
     private var isTodoInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.todoInstalled) }
+    private var isObsidianInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.obsidianInstalled) }
     private var isCameraInstalled: Bool { UserDefaults.standard.bool(forKey: AppPreferenceKey.cameraInstalled) }
 
     var body: some View {
@@ -552,6 +553,22 @@ struct ExtensionsShopView: View {
                 AnyView(ToDoInfoView(
                     installCount: extensionCounts["todo"],
                     rating: extensionRatings["todo"]
+                ))
+            },
+            ExtensionListItem(
+                id: "obsidian",
+                iconPlaceholder: "book.pages",
+                iconPlaceholderColor: .purple,
+                title: "Obsidian",
+                subtitle: "Quick notes & append",
+                category: .productivity,
+                isInstalled: isObsidianInstalled,
+                analyticsKey: "obsidian",
+                extensionType: .obsidian
+            ) {
+                AnyView(ObsidianInfoView(
+                    installCount: extensionCounts["obsidian"],
+                    rating: extensionRatings["obsidian"]
                 ))
             },
         ]

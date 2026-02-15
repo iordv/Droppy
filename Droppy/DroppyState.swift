@@ -363,6 +363,19 @@ final class DroppyState {
         // Calculate ALL possible content heights
         let terminalHeight: CGFloat = 180 + topPaddingDelta
         let mediaPlayerHeight: CGFloat = 140 + topPaddingDelta
+        let obsidianInstalled = UserDefaults.standard.preference(AppPreferenceKey.obsidianInstalled, default: PreferenceDefault.obsidianInstalled)
+        let obsidianEnabled = UserDefaults.standard.preference(AppPreferenceKey.obsidianEnabled, default: PreferenceDefault.obsidianEnabled)
+        let obsidianActive = obsidianInstalled &&
+            obsidianEnabled &&
+            !ExtensionType.obsidian.isRemoved &&
+            ObsidianManager.shared.isVisible
+        let obsidianHeight: CGFloat = obsidianActive
+            ? ObsidianShelfBar.expandedHeight(
+                isQuickPanelExpanded: ObsidianManager.shared.isQuickPanelExpanded,
+                isFullEditorExpanded: ObsidianManager.shared.isFullEditorExpanded,
+                notchHeight: notchCompensation
+            )
+            : 0
 
         // TODO shelf bar contributes to expanded height and must be part of hit testing.
         let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
@@ -388,7 +401,7 @@ final class DroppyState {
         let shelfHeight: CGFloat = shelfBaseHeight + todoBarHeight
         
         // Use MAXIMUM of all possible heights - guarantees we cover the actual visual
-        var height = max(terminalHeight, max(mediaPlayerHeight, shelfHeight))
+        var height = max(terminalHeight, max(mediaPlayerHeight, max(shelfHeight, obsidianHeight)))
 
         // Keep the expanded shadow fully visible.
         // Must match the extra bottom padding in NotchShelfView.morphingBackground.
@@ -409,8 +422,17 @@ final class DroppyState {
         let cameraInstalled = UserDefaults.standard.preference(AppPreferenceKey.cameraInstalled, default: PreferenceDefault.cameraInstalled)
         let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
         let cameraButtonVisible = cameraInstalled && cameraEnabled && !ExtensionType.camera.isRemoved
+        let obsidianButtonVisible = obsidianInstalled &&
+            obsidianEnabled &&
+            !ExtensionType.obsidian.isRemoved &&
+            DroppyState.shared.shelfDisplaySlotCount == 0
         let isDragging = DragMonitor.shared.isDragging
-        let hasFloatingButtons = terminalButtonVisible || !autoCollapseEnabled || isDragging || caffeineButtonVisible || cameraButtonVisible
+        let hasFloatingButtons = terminalButtonVisible ||
+            !autoCollapseEnabled ||
+            isDragging ||
+            caffeineButtonVisible ||
+            cameraButtonVisible ||
+            obsidianButtonVisible
         
         if hasFloatingButtons {
             // Reserve space for offset + button/bar size + hover/animation headroom.

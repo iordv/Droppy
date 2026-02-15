@@ -81,6 +81,7 @@ struct NotchShelfView: View {
     @ObservedObject private var cameraManager = CameraManager.shared
     var caffeineManager = CaffeineManager.shared  // @Observable - no wrapper needed
     var todoManager = ToDoManager.shared  // @Observable - no wrapper needed
+    var obsidianManager = ObsidianManager.shared  // @Observable - no wrapper needed
     var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
     var notificationHUDManager = NotificationHUDManager.shared  // @Observable - needed for current notification tracking
     @AppStorage(AppPreferenceKey.caffeineEnabled) private var caffeineEnabled = PreferenceDefault.caffeineEnabled
@@ -149,6 +150,8 @@ struct NotchShelfView: View {
     // Todo extension state (for in-shelf input bar)
     @State private var isTodoListExpanded: Bool = false
     @State private var lastPopoverDismissedAt: Date = .distantPast
+
+    // Obsidian extension state (managed by ObsidianManager directly)
 
     // MORPH: Namespace for album art morphing between HUD and expanded player
     @Namespace private var albumArtNamespace
@@ -450,6 +453,7 @@ struct NotchShelfView: View {
     /// Width when showing files (matches media player width for visual consistency)
     private let shelfWidth: CGFloat = 450
     private let todoSplitViewShelfWidth: CGFloat = 920
+    private let obsidianSplitViewShelfWidth: CGFloat = 720
     
     /// Width when showing media player (wider for album art + controls)
     private let mediaPlayerWidth: CGFloat = 450
@@ -474,7 +478,7 @@ struct NotchShelfView: View {
             ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) &&
              !musicManager.isMediaHUDHidden &&
              state.items.isEmpty)
-        let shouldBlockAutoSwitch = shouldLockMediaForTodo
+        let shouldBlockAutoSwitch = shouldLockMediaForTodo || shouldLockMediaForObsidian
 
         return showMediaPlayer &&
         !isCameraViewVisible &&
@@ -493,7 +497,8 @@ struct NotchShelfView: View {
         !isTerminalViewVisible &&
         !isCaffeineViewVisible &&
         !isCameraViewVisible &&
-        !shouldLockMediaForTodo
+        !shouldLockMediaForTodo &&
+        !shouldLockMediaForObsidian
     }
 
     private var isShowingExpandedMediaSurface: Bool {
@@ -503,6 +508,16 @@ struct NotchShelfView: View {
     private var isTodoExtensionActive: Bool {
         let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
         return todoInstalled && !ExtensionType.todo.isRemoved
+    }
+
+    private var isObsidianExtensionActive: Bool {
+        let obsidianInstalled = UserDefaults.standard.preference(
+            AppPreferenceKey.obsidianInstalled, default: PreferenceDefault.obsidianInstalled
+        )
+        let obsidianEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.obsidianEnabled, default: PreferenceDefault.obsidianEnabled
+        )
+        return obsidianInstalled && obsidianEnabled && !ExtensionType.obsidian.isRemoved
     }
 
     private var cameraExtensionEnabled: Bool {
@@ -515,6 +530,7 @@ struct NotchShelfView: View {
         cameraExtensionEnabled &&
         state.shelfDisplaySlotCount == 0 &&
         !todoManager.isVisible &&
+        !obsidianManager.isVisible &&
         !isTerminalViewVisible
     }
 
@@ -540,6 +556,10 @@ struct NotchShelfView: View {
         return isActiveTodoListSession || isFullTodoViewSession
     }
 
+    private var isObsidianViewVisible: Bool {
+        isObsidianExtensionActive && obsidianManager.isVisible
+    }
+
     private var shouldShowTodoShelfBar: Bool {
         shouldAttachTodoShelfBar &&
         state.shelfDisplaySlotCount == 0
@@ -556,7 +576,16 @@ struct NotchShelfView: View {
         !isTerminalViewVisible &&
         !isCaffeineViewVisible &&
         !isCameraViewVisible &&
-        !isMediaPlayerVisibleInShelf
+        !isMediaPlayerVisibleInShelf &&
+        !obsidianManager.isVisible
+    }
+
+    private var shouldUseObsidianSplitShelfWidth: Bool {
+        isObsidianViewVisible && obsidianManager.isFullEditorExpanded
+    }
+
+    private var shouldLockMediaForObsidian: Bool {
+        isExpandedOnThisScreen && isObsidianViewVisible
     }
 
     /// Current expanded width based on what's shown
@@ -570,6 +599,9 @@ struct NotchShelfView: View {
         }
         if shouldUseTodoSplitShelfWidth {
             return max(shelfWidth, todoSplitViewShelfWidth)
+        }
+        if shouldUseObsidianSplitShelfWidth {
+            return max(shelfWidth, obsidianSplitViewShelfWidth)
         }
         return shelfWidth
     }
@@ -759,6 +791,7 @@ struct NotchShelfView: View {
         guard !isExpandedOnThisScreen else { return false }
         guard !isCaffeineHoverActive else { return false }
         guard !shouldLockMediaForTodo else { return false }
+        guard !shouldLockMediaForObsidian else { return false }
 
         if let displayID = targetScreen?.displayID {
             return !notchController.fullscreenDisplayIDs.contains(displayID)
@@ -947,6 +980,15 @@ struct NotchShelfView: View {
             }
         }
 
+        // OBSIDIAN: Full shelf takeover height
+        if isObsidianViewVisible {
+            return ObsidianShelfBar.expandedHeight(
+                isQuickPanelExpanded: obsidianManager.isQuickPanelExpanded,
+                isFullEditorExpanded: obsidianManager.isFullEditorExpanded,
+                notchHeight: contentLayoutNotchHeight
+            )
+        }
+
         // MEDIA PLAYER: Content height based on layout
         if isMediaPlayerVisibleInShelf {
             // SSOT (v21.68): Different base heights for different modes:
@@ -982,10 +1024,12 @@ struct NotchShelfView: View {
                 showsUndoToast: todoManager.showUndoToast
             )
             : 0
-        
+
         // FIX: When todo list is expanded and shelf is empty, don't add baseHeight
         // The todo bar provides its own height, no need for the 110px shelf base
-        let shouldSkipBaseHeight = state.shelfDisplaySlotCount == 0 && isTodoListExpanded && todoBarHeight > 0
+        let extensionBarHeight = todoBarHeight
+        let shouldSkipBaseHeight = state.shelfDisplaySlotCount == 0
+            && (isTodoListExpanded && todoBarHeight > 0)
         let baseHeight = shouldSkipBaseHeight ? 0 : max(1, cappedRowCount) * 110
 
         // In built-in notch mode, add extra height to compensate for top padding that clears physical notch
@@ -993,7 +1037,7 @@ struct NotchShelfView: View {
         // SSOT: Use contentLayoutNotchHeight for consistent sizing
         let notchCompensation: CGFloat = contentLayoutNotchHeight
 
-        return baseHeight + notchCompensation + todoBarHeight
+        return baseHeight + notchCompensation + extensionBarHeight
     }
 
     private var notificationHUDHeight: CGFloat {
@@ -1147,6 +1191,7 @@ struct NotchShelfView: View {
                         showCameraView = false
                         isTodoListExpanded = false
                         todoManager.isShelfListExpanded = false
+                        obsidianManager.hide()
                     }
                 }
                 .onChange(of: shouldAttachTodoShelfBar) { _, shouldAttach in
@@ -1175,6 +1220,7 @@ struct NotchShelfView: View {
             let caffeineShouldShow = caffeineInstalled && caffeineEnabled
             let terminalShouldShow = terminalManager.isInstalled && terminalEnabled
             let cameraShouldShow = canShowCameraFloatingButton
+            let obsidianShouldShow = isObsidianExtensionActive && state.shelfDisplaySlotCount == 0
             if enableNotchShelf && isExpandedOnThisScreen {
                 // FLOATING BUTTONS: ZStack enables smooth crossfade between button states
                 // - Quick Actions: Shown when dragging files
@@ -1202,7 +1248,7 @@ struct NotchShelfView: View {
                     }
                     
                     // Regular floating buttons (caffeine/terminal/close) - appear when NOT dragging
-                    if !dragMonitor.isDragging && (shouldShowExternalMouseSwitchFloatingButton || caffeineShouldShow || terminalShouldShow || cameraShouldShow || !autoCollapseShelf) {
+                    if !dragMonitor.isDragging && (shouldShowExternalMouseSwitchFloatingButton || caffeineShouldShow || terminalShouldShow || cameraShouldShow || obsidianShouldShow || !autoCollapseShelf) {
                         HStack(spacing: 12) {
                             if shouldShowExternalMouseSwitchFloatingButton {
                                 Button(action: {
@@ -1227,10 +1273,10 @@ struct NotchShelfView: View {
                                     HapticFeedback.tap()
                                     withAnimation(displayNotchStateAnimation) {
                                         showCaffeineView.toggle()
-                                        // If activating caffeine view, close terminal if open
                                         if showCaffeineView {
                                             terminalManager.hide()
                                             showCameraView = false
+                                            obsidianManager.hide()
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1260,6 +1306,7 @@ struct NotchShelfView: View {
                                         if showCameraView {
                                             showCaffeineView = false
                                             terminalManager.hide()
+                                            obsidianManager.hide()
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1277,6 +1324,39 @@ struct NotchShelfView: View {
                                     solidFill: isHighlight ? .cyan : (isDynamicIslandMode ? dynamicIslandGray : .black)
                                 ))
                                 .help(showCameraView ? "Hide Notchface" : "Show Notchface")
+                                .transition(displayElementTransition)
+                            }
+
+                            // Obsidian button (if extension installed AND enabled)
+                            if obsidianShouldShow {
+                                let isHighlight = isObsidianViewVisible
+                                Button(action: {
+                                    HapticFeedback.tap()
+                                    withAnimation(displayNotchStateAnimation) {
+                                        if obsidianManager.isVisible {
+                                            obsidianManager.hide()
+                                        } else {
+                                            obsidianManager.show()
+                                            showCaffeineView = false
+                                            showCameraView = false
+                                            terminalManager.hide()
+                                            isTodoListExpanded = false
+                                            todoManager.isShelfListExpanded = false
+                                        }
+                                    }
+                                    notchController.forceRecalculateAllWindowSizes()
+                                    DispatchQueue.main.async {
+                                        notchController.forceRecalculateAllWindowSizes()
+                                    }
+                                }) {
+                                    Image(systemName: "book.pages")
+                                }
+                                .buttonStyle(DroppyCircleButtonStyle(
+                                    size: 32,
+                                    useTransparent: shouldUseFloatingButtonTransparent,
+                                    solidFill: isHighlight ? .purple : (isDynamicIslandMode ? dynamicIslandGray : .black)
+                                ))
+                                .help(obsidianManager.isVisible ? "Hide Obsidian" : "Show Obsidian")
                                 .transition(displayElementTransition)
                             }
 
@@ -1312,6 +1392,7 @@ struct NotchShelfView: View {
                                         if openingTerminal {
                                             showCaffeineView = false
                                             showCameraView = false
+                                            obsidianManager.hide()
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1613,6 +1694,27 @@ struct NotchShelfView: View {
                 isTodoListExpanded = false
                 todoManager.isShelfListExpanded = false
             }
+            .onChange(of: obsidianManager.isQuickPanelExpanded) { _, _ in
+                guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
+                DispatchQueue.main.async {
+                    guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
+                    notchController.forceRecalculateAllWindowSizes()
+                }
+            }
+            .onChange(of: obsidianManager.isFullEditorExpanded) { _, _ in
+                guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
+                DispatchQueue.main.async {
+                    guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
+                    notchController.forceRecalculateAllWindowSizes()
+                }
+            }
+            .onChange(of: isObsidianViewVisible) { _, visible in
+                if visible {
+                    cancelAutoShrinkTimer()
+                    return
+                }
+                obsidianManager.hide()
+            }
             .onChange(of: isTerminalViewVisible) { _, _ in
                 notchController.forceRecalculateAllWindowSizes()
             }
@@ -1628,6 +1730,9 @@ struct NotchShelfView: View {
             }
             .onAppear {
                 todoManager.isShelfListExpanded = isTodoListExpanded
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .obsidianHotkeyTriggered)) { _ in
+                handleObsidianHotkeyTriggered()
             }
             .onDisappear {
                 externalCollapseVisibilityWorkItem?.cancel()
@@ -1754,6 +1859,66 @@ struct NotchShelfView: View {
     }
     
     // MARK: - Auto-Shrink Timer
+
+    private func handleObsidianHotkeyTriggered() {
+        let hotkeyTargetScreen = NSScreen.main
+            ?? NSScreen.builtInWithNotch
+            ?? targetScreen
+            ?? NSScreen.screens.first
+        let hotkeyTargetDisplayID = hotkeyTargetScreen?.displayID
+
+        // NotchShelfView exists once per display; handle the hotkey on the main display only
+        // to avoid double-toggling shared Obsidian visibility state.
+        if let mainDisplayID = hotkeyTargetDisplayID,
+           let thisDisplayID,
+           thisDisplayID != mainDisplayID {
+            return
+        }
+
+        guard isObsidianExtensionActive else {
+            if obsidianManager.isVisible {
+                withAnimation(displayNotchStateAnimation) {
+                    obsidianManager.hide()
+                }
+                notchController.forceRecalculateAllWindowSizes()
+                DispatchQueue.main.async {
+                    notchController.forceRecalculateAllWindowSizes()
+                }
+            } else {
+                obsidianManager.hide()
+            }
+            return
+        }
+
+        // Expand the notch on the resolved hotkey target display.
+        if let hotkeyTargetDisplayID {
+            withAnimation(DroppyAnimation.notchState(for: hotkeyTargetScreen)) {
+                DroppyState.shared.expandShelf(for: hotkeyTargetDisplayID)
+            }
+        }
+
+        // Toggle Obsidian visibility, close competing views when opening
+        withAnimation(displayNotchStateAnimation) {
+            if obsidianManager.isVisible {
+                obsidianManager.hide()
+            } else {
+                // Match Terminal hotkey behavior: make Droppy active so text input
+                // can reliably become first responder immediately.
+                NSApp.activate(ignoringOtherApps: true)
+                obsidianManager.show()
+                showCaffeineView = false
+                showCameraView = false
+                terminalManager.hide()
+                isTodoListExpanded = false
+                todoManager.isShelfListExpanded = false
+            }
+        }
+
+        notchController.forceRecalculateAllWindowSizes()
+        DispatchQueue.main.async {
+            notchController.forceRecalculateAllWindowSizes()
+        }
+    }
     
     /// Starts the auto-shrink timer when the shelf is expanded
     private func startAutoShrinkTimer() {
@@ -1762,6 +1927,8 @@ struct NotchShelfView: View {
         guard isExpandedOnThisScreen else { return }
         // Keep the shelf stable during active To-do interactions (popover/edit/split-toggle hold).
         guard !ToDoManager.shared.isInteractingWithPopover else { return }
+        // Obsidian quick panel/full editor sessions should own the expanded shelf.
+        guard !obsidianManager.isUserEditingObsidian else { return }
         
         // Cancel any existing timer
         autoShrinkWorkItem?.cancel()
@@ -1785,7 +1952,11 @@ struct NotchShelfView: View {
             // Check BOTH SwiftUI hover state AND geometric fallback
             let isHoveringAnyMethod = isHoveringOnThisScreen || isMouseInExpandedZone
             let isTodoPopoverInteractionActive = ToDoManager.shared.isInteractingWithPopover
-            guard isExpandedOnThisScreen && !isHoveringAnyMethod && !state.isDropTargeted && !isTodoPopoverInteractionActive else {
+            guard isExpandedOnThisScreen &&
+                    !isHoveringAnyMethod &&
+                    !state.isDropTargeted &&
+                    !isTodoPopoverInteractionActive &&
+                    !obsidianManager.isUserEditingObsidian else {
                 notchShelfDebugLog("⏳ AUTO-SHRINK SKIPPED: conditions not met (isHoveringAnyMethod=\(isHoveringAnyMethod))")
                 return
             }
@@ -2078,17 +2249,18 @@ struct NotchShelfView: View {
             noHUDsVisible &&
             notExpanded &&
             notInFullscreen &&
-            !shouldLockMediaForTodo
-        
+            !shouldLockMediaForTodo &&
+            !shouldLockMediaForObsidian
+
         let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
         let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
         let debounceOk = !debounceMediaChanges || isMediaStable
-        
+
         // FIX #95: Bypass ALL safeguards when forcing source switch (Spotify fallback)
         // When isMediaSourceForced is true, we know the source is playing (verified via AppleScript)
         let bypassSafeguards = musicManager.isMediaSourceForced
         let hasContent = !musicManager.songTitle.isEmpty
-        let shouldBlockAutoSwitch = shouldLockMediaForTodo
+        let shouldBlockAutoSwitch = shouldLockMediaForTodo || shouldLockMediaForObsidian
         let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && !shouldBlockAutoSwitch &&
                               (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
         let shouldShowHovered = mediaHUDIsHovered && isMediaHUDHoverEligible
@@ -2477,13 +2649,14 @@ struct NotchShelfView: View {
             noHUDsVisible &&
             notExpanded &&
             notInFullscreen &&
-            !shouldLockMediaForTodo
+            !shouldLockMediaForTodo &&
+            !shouldLockMediaForObsidian
         let mediaIsActive = musicManager.isPlaying && !musicManager.songTitle.isEmpty
         let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
         let debounceOk = !debounceMediaChanges || isMediaStable
         let bypassSafeguards = musicManager.isMediaSourceForced
         let hasContent = !musicManager.songTitle.isEmpty
-        let shouldBlockAutoSwitch = shouldLockMediaForTodo
+        let shouldBlockAutoSwitch = shouldLockMediaForTodo || shouldLockMediaForObsidian
         let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && !shouldBlockAutoSwitch &&
                               (bypassSafeguards ? hasContent : (mediaIsActive && notFadedOrTransitioning && debounceOk))
         let shouldShowHovered = mediaHUDIsHovered && isMediaHUDHoverEligible
@@ -2502,7 +2675,7 @@ struct NotchShelfView: View {
         guard !(showCaffeineView && caffeineShouldShow) else { return false }
         guard !isCameraViewVisible else { return false }
         let dragMonitor = DragMonitor.shared
-        let shouldBlockAutoSwitch = shouldLockMediaForTodo
+        let shouldBlockAutoSwitch = shouldLockMediaForTodo || shouldLockMediaForObsidian
         let forced = musicManager.isMediaHUDForced
         let autoOrSongDriven = (autoOpenMediaHUDOnShelfExpand && !musicManager.isMediaHUDHidden) ||
             ((musicManager.isPlaying || musicManager.wasRecentlyPlaying) && !musicManager.isMediaHUDHidden && state.items.isEmpty)
@@ -2898,8 +3071,23 @@ struct NotchShelfView: View {
                     .id("camera-view")
                     .transition(displayContentSwapTransition)
             }
+            // OBSIDIAN VIEW: Full shelf takeover when Obsidian button is active
+            else if isObsidianViewVisible {
+                ObsidianShelfBar(
+                    manager: obsidianManager,
+                    isQuickPanelExpanded: .init(
+                        get: { obsidianManager.isQuickPanelExpanded },
+                        set: { obsidianManager.isQuickPanelExpanded = $0 }
+                    ),
+                    notchHeight: contentLayoutNotchHeight,
+                    isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland
+                )
+                .frame(height: currentExpandedHeight, alignment: .top)
+                .id("obsidian-view")
+                .transition(displayContentSwapTransition)
+            }
             // Show drop zone when dragging over (takes priority) - but NOT when Todo bar is visible
-            else if state.isDropTargeted && state.items.isEmpty && !shouldShowTodoBar {
+            else if state.isDropTargeted && state.items.isEmpty && !shouldShowTodoBar && !isObsidianViewVisible {
                 emptyShelfContent
                     .frame(height: currentExpandedHeight, alignment: .top)
                     .transition(displayContentSwapTransition)
@@ -2925,8 +3113,9 @@ struct NotchShelfView: View {
             }
             // Show empty shelf when no items and no music (or user swiped to hide music)
             // Show drop zone + todo input bar coexisting, but HIDE drop zone when task list is expanded
-            else if state.items.isEmpty && !(shouldShowTodoBar && isTodoListExpanded) {
-                // When todo bar is visible (but list collapsed), reduce the drop zone height to leave room at bottom
+            else if state.items.isEmpty
+                && !(shouldShowTodoBar && isTodoListExpanded) {
+                // When extension bar is visible (but collapsed), reduce the drop zone height to leave room at bottom
                 let todoBarHeight = shouldShowTodoBar
                     ? ToDoShelfBar.expandedHeight(
                         isListExpanded: false,
@@ -2934,8 +3123,9 @@ struct NotchShelfView: View {
                         showsUndoToast: todoManager.showUndoToast
                     )
                     : 0
+                let extensionBottomInset = todoBarHeight
                 emptyShelfContent
-                    .frame(height: max(0, currentExpandedHeight - todoBarHeight), alignment: .top)
+                    .frame(height: max(0, currentExpandedHeight - extensionBottomInset), alignment: .top)
                     .frame(maxHeight: .infinity, alignment: .top)
                     // Stable identity for animation
                     .id("empty-shelf-view")
@@ -2943,7 +3133,7 @@ struct NotchShelfView: View {
             }
             // Show items grid when items exist
             else if !state.items.isEmpty {
-                // When todo bar is visible, add bottom content inset so items don't overlap with it
+                // When extension bar is visible, add bottom content inset so items don't overlap with it
                 let todoBarHeight = shouldShowTodoBar
                     ? ToDoShelfBar.expandedHeight(
                         isListExpanded: isTodoListExpanded,
@@ -2952,10 +3142,11 @@ struct NotchShelfView: View {
                         showsUndoToast: todoManager.showUndoToast
                     )
                     : 0
+                let extensionBottomInset = todoBarHeight
                 Group {
-                    if todoBarHeight > 0 {
+                    if extensionBottomInset > 0 {
                         itemsGridView
-                            .padding(.bottom, todoBarHeight)
+                            .padding(.bottom, extensionBottomInset)
                     } else {
                         itemsGridView
                     }

@@ -247,7 +247,7 @@ struct ExtensionInfoView: View {
             switch extensionType {
             case .spotify, .appleMusic:
                 return "Set Up"
-            case .finder, .finderServices, .windowSnap, .voiceTranscribe, .elementCapture, .terminalNotch, .camera, .notificationHUD, .caffeine, .menuBarManager, .todo:
+            case .finder, .finderServices, .windowSnap, .voiceTranscribe, .elementCapture, .terminalNotch, .camera, .notificationHUD, .caffeine, .menuBarManager, .todo, .obsidian:
                 return "Set Up"
             case .quickshare:
                 return "Enable"
@@ -273,6 +273,7 @@ struct ExtensionInfoView: View {
         case .caffeine: return "Configure"
         case .menuBarManager: return "Configure"
         case .todo: return "Configure"
+        case .obsidian: return "Configure"
         }
     }
 
@@ -294,6 +295,7 @@ struct ExtensionInfoView: View {
         case .caffeine: return "Configure"
         case .menuBarManager: return "Configure"
         case .todo: return "Configure"
+        case .obsidian: return "Configure"
         }
     }
 
@@ -315,6 +317,7 @@ struct ExtensionInfoView: View {
         case .caffeine: return "cup.and.saucer.fill"
         case .menuBarManager: return "menubar.rectangle"
         case .todo: return "checklist"
+        case .obsidian: return "book.pages"
         }
     }
 }

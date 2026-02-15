@@ -45,6 +45,9 @@ extension Notification.Name {
     
     // MARK: - Shortcuts
     
+    /// Posted when Obsidian global hotkey is triggered
+    static let obsidianHotkeyTriggered = Notification.Name("obsidianHotkeyTriggered")
+
     /// Posted when Element Capture shortcut is changed
     static let elementCaptureShortcutChanged = Notification.Name("elementCaptureShortcutChanged")
     

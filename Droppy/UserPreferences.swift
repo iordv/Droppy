@@ -181,7 +181,15 @@ enum AppPreferenceKey {
     static let todoDueSoonNotificationsChimeEnabled = "todo_dueSoonNotificationsChimeEnabled"
     static let todoShowTaskViewTimezone = "todo_showTaskViewTimezone"
     static let todoShowTaskWeekNumber = "todo_showTaskWeekNumber"
-    
+
+    // MARK: - Extension: Obsidian
+    static let obsidianInstalled = "obsidian_installed"
+    static let obsidianEnabled = "obsidian_enabled"
+    static let obsidianVaultPath = "obsidian_vaultPath"
+    static let obsidianUseCLI = "obsidian_useCLI"
+    static let obsidianShortcut = "obsidian_shortcut"  // SavedShortcut JSON data
+    static let obsidianLastSelectedNoteID = "obsidian_lastSelectedNoteID"
+
     // MARK: - Extension: Voice Transcribe
     static let voiceTranscribeAutoCopyResult = "voiceTranscribe_autoCopyResult"  // Auto-copy transcription and skip result window
     
@@ -372,7 +380,14 @@ enum PreferenceDefault {
     static let todoDueSoonNotificationsChimeEnabled = true
     static let todoShowTaskViewTimezone = false
     static let todoShowTaskWeekNumber = true
-    
+
+    // MARK: - Extension: Obsidian
+    static let obsidianInstalled = false
+    static let obsidianEnabled = true
+    static let obsidianVaultPath = ""
+    static let obsidianUseCLI = true
+    static let obsidianLastSelectedNoteID = ""
+
     // MARK: - Extension: Voice Transcribe
     static let voiceTranscribeAutoCopyResult = false
     
