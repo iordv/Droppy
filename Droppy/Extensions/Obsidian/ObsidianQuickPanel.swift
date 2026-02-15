@@ -118,34 +118,38 @@ struct ObsidianQuickPanel: View {
     // MARK: - Text Input
 
     private var textInput: some View {
-        TextField(
-            "Type to append or prepend...",
-            text: $manager.inputText,
-            prompt: Text("Type to append or prepend...")
-                .foregroundStyle(Color(red: 165/255, green: 173/255, blue: 203/255)),
-            axis: .vertical
+        ZStack(alignment: .topLeading) {
+            if manager.inputText.isEmpty {
+                Text("Type to append or prepend...")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.55))
+                    .padding(.top, 1)
+                    .allowsHitTesting(false)
+            }
+
+            TextField("", text: $manager.inputText, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(Color(red: 202/255, green: 211/255, blue: 245/255))
+                .lineLimit(2...3)
+                .focused($isInputFocused)
+                .onSubmit {
+                    performLastAction()
+                }
+                .onChange(of: isInputFocused) { _, focused in
+                    manager.isEditingText = focused
+                }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(red: 36/255, green: 39/255, blue: 58/255))
         )
-            .textFieldStyle(.plain)
-            .font(.system(size: 12))
-            .foregroundStyle(Color(red: 202/255, green: 211/255, blue: 245/255))
-            .lineLimit(2...3)
-            .focused($isInputFocused)
-            .onSubmit {
-                performLastAction()
-            }
-            .onChange(of: isInputFocused) { _, focused in
-                manager.isEditingText = focused
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(red: 36/255, green: 39/255, blue: 58/255))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
-            )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.15), lineWidth: 1)
+        )
     }
 
     // MARK: - Action Bar
