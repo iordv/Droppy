@@ -229,6 +229,7 @@ struct ObsidianQuickPanel: View {
 
     private func performLastAction() {
         guard let note = manager.selectedNote else { return }
+        print("[Obsidian][SaveDebug] quickPanel performLastAction note='\(note.displayName)' action=\(manager.lastUsedAction.rawValue) heading='\(manager.selectedHeading ?? "nil")' inputChars=\(manager.inputText.count)")
         Task { @MainActor in
             _ = await manager.performAction(on: note)
         }

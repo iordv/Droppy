@@ -248,6 +248,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
     private let shelfBaseWidth: CGFloat = 450
     private let todoSplitShelfWidth: CGFloat = 920
+    private let obsidianSplitShelfWidth: CGFloat = 720
     private let interactionWidthPadding: CGFloat = 80
     private let stableInteractionWindowWidth: CGFloat = 1000
 
@@ -256,6 +257,10 @@ final class NotchWindowController: NSObject, ObservableObject {
     }
 
     fileprivate func currentExpandedShelfWidth() -> CGFloat {
+        if ObsidianManager.shared.isVisible && ObsidianManager.shared.isFullEditorExpanded {
+            return max(shelfBaseWidth, obsidianSplitShelfWidth)
+        }
+
         if ToDoManager.shared.isShelfListExpanded &&
             ToDoManager.shared.isShelfSplitViewEnabled {
             return max(shelfBaseWidth, todoSplitShelfWidth)

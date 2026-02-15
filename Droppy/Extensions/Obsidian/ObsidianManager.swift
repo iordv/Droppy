@@ -8,6 +8,7 @@
 
 import SwiftUI
 import AppKit
+@preconcurrency import Dispatch
 
 // MARK: - Data Model
 
@@ -92,6 +93,11 @@ final class ObsidianManager {
         isVisible || isQuickPanelExpanded || isFullEditorExpanded || isEditingText
     }
 
+    /// True when CLI mode is enabled and the app binary is currently available.
+    var canUseCLIBackend: Bool {
+        useCLI && vaultStatus != .cliUnavailable
+    }
+
     // MARK: - Private State
 
     @ObservationIgnored
@@ -131,6 +137,7 @@ final class ObsidianManager {
 
     private static let cliPath = "/Applications/Obsidian.app/Contents/MacOS/obsidian"
     private static let persistenceFileName = "obsidian_pinned.json"
+    private static let enableSaveDebugLogging = true
 
     // MARK: - Lifecycle
 
@@ -376,6 +383,7 @@ final class ObsidianManager {
     }
 
     func appendToHeading(_ note: PinnedNote, heading: String?, content: String) async -> Bool {
+        debugSaveLog("appendToHeading start note='\(note.displayName)' isDaily=\(note.isDaily) heading='\(heading ?? "nil")' contentChars=\(content.count) canUseCLI=\(canUseCLIBackend)")
         if note.isDaily {
             // Try CLI first for non-heading appends, then fall back to filesystem
             if let heading {
@@ -387,8 +395,10 @@ final class ObsidianManager {
                 do {
                     try appendViaFileSystem(fullPath: dailyPath, heading: heading, content: content)
                     await loadNoteContent(note)
+                    debugSaveLog("appendToHeading daily+heading filesystem succeeded")
                     return true
                 } catch {
+                    debugSaveLog("appendToHeading daily+heading filesystem failed error='\(error.localizedDescription)'")
                     errorMessage = "Append to daily note failed: \(error.localizedDescription)"
                     return false
                 }
@@ -396,9 +406,10 @@ final class ObsidianManager {
                 do {
                     _ = try await runCLI(["daily:append", "content=\(content)"])
                     await loadNoteContent(note)
+                    debugSaveLog("appendToHeading daily CLI succeeded")
                     return true
                 } catch {
-                    print("[Obsidian] CLI daily:append failed (\(error.localizedDescription)), falling back to filesystem")
+                    debugSaveLog("appendToHeading daily CLI failed error='\(error.localizedDescription)'; falling back to filesystem")
                 }
             }
             // Filesystem fallback for non-heading append
@@ -409,8 +420,10 @@ final class ObsidianManager {
             do {
                 try appendViaFileSystem(fullPath: dailyPath, heading: nil, content: content)
                 await loadNoteContent(note)
+                debugSaveLog("appendToHeading daily filesystem fallback succeeded")
                 return true
             } catch {
+                debugSaveLog("appendToHeading daily filesystem fallback failed error='\(error.localizedDescription)'")
                 errorMessage = "Append to daily note failed: \(error.localizedDescription)"
                 return false
             }
@@ -422,24 +435,30 @@ final class ObsidianManager {
             if let heading {
                 // CLI doesn't support heading targeting — use filesystem directly
                 try appendViaFileSystem(fullPath: fullPath, heading: heading, content: content)
+                debugSaveLog("appendToHeading non-daily+heading filesystem succeeded")
             } else if useCLI && vaultStatus != .cliUnavailable {
                 do {
                     _ = try await runCLI(["append", "path=\(note.relativePath)", "content=\(content)"])
+                    debugSaveLog("appendToHeading non-daily CLI succeeded")
                 } catch {
+                    debugSaveLog("appendToHeading non-daily CLI failed error='\(error.localizedDescription)'; falling back to filesystem")
                     try appendViaFileSystem(fullPath: fullPath, heading: nil, content: content)
                 }
             } else {
                 try appendViaFileSystem(fullPath: fullPath, heading: nil, content: content)
+                debugSaveLog("appendToHeading non-daily filesystem succeeded")
             }
             await loadNoteContent(note)
             return true
         } catch {
+            debugSaveLog("appendToHeading non-daily failed error='\(error.localizedDescription)'")
             errorMessage = "Append failed: \(error.localizedDescription)"
             return false
         }
     }
 
     func prependToHeading(_ note: PinnedNote, heading: String?, content: String) async -> Bool {
+        debugSaveLog("prependToHeading start note='\(note.displayName)' isDaily=\(note.isDaily) heading='\(heading ?? "nil")' contentChars=\(content.count) canUseCLI=\(canUseCLIBackend)")
         if note.isDaily {
             // Try CLI first for non-heading prepends, then fall back to filesystem
             if let heading {
@@ -451,8 +470,10 @@ final class ObsidianManager {
                 do {
                     try prependViaFileSystem(fullPath: dailyPath, heading: heading, content: content)
                     await loadNoteContent(note)
+                    debugSaveLog("prependToHeading daily+heading filesystem succeeded")
                     return true
                 } catch {
+                    debugSaveLog("prependToHeading daily+heading filesystem failed error='\(error.localizedDescription)'")
                     errorMessage = "Prepend to daily note failed: \(error.localizedDescription)"
                     return false
                 }
@@ -460,9 +481,10 @@ final class ObsidianManager {
                 do {
                     _ = try await runCLI(["daily:prepend", "content=\(content)"])
                     await loadNoteContent(note)
+                    debugSaveLog("prependToHeading daily CLI succeeded")
                     return true
                 } catch {
-                    print("[Obsidian] CLI daily:prepend failed (\(error.localizedDescription)), falling back to filesystem")
+                    debugSaveLog("prependToHeading daily CLI failed error='\(error.localizedDescription)'; falling back to filesystem")
                 }
             }
             // Filesystem fallback for non-heading prepend
@@ -473,8 +495,10 @@ final class ObsidianManager {
             do {
                 try prependViaFileSystem(fullPath: dailyPath, heading: nil, content: content)
                 await loadNoteContent(note)
+                debugSaveLog("prependToHeading daily filesystem fallback succeeded")
                 return true
             } catch {
+                debugSaveLog("prependToHeading daily filesystem fallback failed error='\(error.localizedDescription)'")
                 errorMessage = "Prepend to daily note failed: \(error.localizedDescription)"
                 return false
             }
@@ -486,37 +510,93 @@ final class ObsidianManager {
             if let heading {
                 // CLI doesn't support heading targeting — use filesystem directly
                 try prependViaFileSystem(fullPath: fullPath, heading: heading, content: content)
+                debugSaveLog("prependToHeading non-daily+heading filesystem succeeded")
             } else if useCLI && vaultStatus != .cliUnavailable {
                 do {
                     _ = try await runCLI(["prepend", "path=\(note.relativePath)", "content=\(content)"])
+                    debugSaveLog("prependToHeading non-daily CLI succeeded")
                 } catch {
+                    debugSaveLog("prependToHeading non-daily CLI failed error='\(error.localizedDescription)'; falling back to filesystem")
                     try prependViaFileSystem(fullPath: fullPath, heading: nil, content: content)
                 }
             } else {
                 try prependViaFileSystem(fullPath: fullPath, heading: nil, content: content)
+                debugSaveLog("prependToHeading non-daily filesystem succeeded")
             }
             await loadNoteContent(note)
             return true
         } catch {
+            debugSaveLog("prependToHeading non-daily failed error='\(error.localizedDescription)'")
             errorMessage = "Prepend failed: \(error.localizedDescription)"
             return false
         }
     }
 
     func writeFullNote(_ note: PinnedNote, content: String) async -> Bool {
-        if note.isDaily {
-            errorMessage = "Daily notes cannot be saved directly — use append or prepend."
-            return false
+        debugSaveLog("writeFullNote start note='\(note.displayName)' isDaily=\(note.isDaily) canUseCLI=\(canUseCLIBackend) vaultStatus=\(vaultStatus) contentChars=\(content.count)")
+        if canUseCLIBackend {
+            do {
+                if note.isDaily {
+                    debugSaveLog("Attempting CLI daily full-save via daily path resolution")
+                    if let dailyPath = try await resolveDailyPathViaCLI() {
+                        debugSaveLog("Resolved daily CLI path='\(dailyPath)'; executing create overwrite")
+                        _ = try await runCLI([
+                            "create",
+                            "path=\(dailyPath)",
+                            "content=\(content)",
+                            "overwrite",
+                            "silent",
+                        ])
+                        debugSaveLog("CLI daily full-save succeeded")
+                        currentNoteContent = content
+                        currentNoteHeadings = parseHeadings(from: content)
+                        return true
+                    }
+                    debugSaveLog("CLI daily path resolution returned nil; falling back to filesystem save")
+                } else {
+                    debugSaveLog("Attempting CLI non-daily full-save path='\(note.relativePath)'")
+                    _ = try await runCLI([
+                        "create",
+                        "path=\(note.relativePath)",
+                        "content=\(content)",
+                        "overwrite",
+                        "silent",
+                    ])
+                    debugSaveLog("CLI non-daily full-save succeeded")
+                    currentNoteContent = content
+                    currentNoteHeadings = parseHeadings(from: content)
+                    updateModDate(for: note)
+                    return true
+                }
+            } catch {
+                debugSaveLog("CLI full-save failed with error='\(error.localizedDescription)'; falling back to filesystem save")
+            }
         }
 
-        let fullPath = (vaultPath as NSString).appendingPathComponent(note.relativePath)
+        let fullPath: String
+        if note.isDaily {
+            guard let dailyPath = resolveDailyNotePath() else {
+                debugSaveLog("Filesystem fallback failed: could not resolve daily note path")
+                errorMessage = "Could not resolve daily note path. Ensure today's daily note exists."
+                return false
+            }
+            fullPath = dailyPath
+        } else {
+            fullPath = (vaultPath as NSString).appendingPathComponent(note.relativePath)
+        }
+        debugSaveLog("Attempting filesystem full-save path='\(fullPath)'")
 
         do {
             try content.write(toFile: fullPath, atomically: true, encoding: .utf8)
+            debugSaveLog("Filesystem full-save succeeded path='\(fullPath)'")
             currentNoteContent = content
-            updateModDate(for: note)
+            currentNoteHeadings = parseHeadings(from: content)
+            if !note.isDaily {
+                updateModDate(for: note)
+            }
             return true
         } catch {
+            debugSaveLog("Filesystem full-save failed path='\(fullPath)' error='\(error.localizedDescription)'")
             errorMessage = "Save failed: \(error.localizedDescription)"
             return false
         }
@@ -867,6 +947,39 @@ final class ObsidianManager {
         }
     }
 
+    /// Resolve today's daily note path via CLI without opening the note.
+    private func resolveDailyPathViaCLI() async throws -> String? {
+        let output = try await runCLI(["daily", "silent"])
+        debugSaveLog("daily silent raw output='\(truncatedForLog(output))'")
+        let lines = output
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard let firstLine = lines.first else {
+            debugSaveLog("daily silent returned no non-empty lines")
+            return nil
+        }
+
+        let path: String
+        if let pathLine = lines.first(where: { $0.hasPrefix("path=") }) {
+            path = String(pathLine.dropFirst("path=".count))
+        } else if let pathLine = lines.first(where: { $0.hasPrefix("path ") }) {
+            path = String(pathLine.dropFirst("path ".count))
+        } else {
+            path = firstLine
+        }
+        debugSaveLog("daily silent parsed path candidate='\(path)'")
+
+        if path.hasPrefix(vaultPath + "/") {
+            let relativePath = String(path.dropFirst(vaultPath.count + 1))
+            debugSaveLog("daily silent normalized absolute path -> relative path='\(relativePath)'")
+            return relativePath
+        }
+
+        return path
+    }
+
     // MARK: - Private — CLI Execution
 
     private func runCLI(_ arguments: [String]) async throws -> String {
@@ -885,6 +998,14 @@ final class ObsidianManager {
                 let vaultName = URL(fileURLWithPath: vaultPath).lastPathComponent
                 args.insert("vault=\(vaultName)", at: 0)
             }
+            let redactedArgs = args.map { arg in
+                if arg.hasPrefix("content=") {
+                    let contentLength = String(arg.dropFirst("content=".count)).count
+                    return "content=<\(contentLength) chars>"
+                }
+                return arg
+            }
+            debugSaveLog("runCLI start args=\(redactedArgs)")
 
             // Shell-escape each argument and build a single command string
             let escapedArgs = args.map { arg -> String in
@@ -904,7 +1025,10 @@ final class ObsidianManager {
 
             // Timeout after 5 seconds
             let timeoutWorkItem = DispatchWorkItem {
-                if process.isRunning { process.terminate() }
+                if process.isRunning {
+                    self.debugSaveLog("runCLI timeout reached (5s), terminating process")
+                    process.terminate()
+                }
             }
             DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: timeoutWorkItem)
 
@@ -919,15 +1043,19 @@ final class ObsidianManager {
 
                     if terminatedProcess.terminationStatus == 0 {
                         let rawOutput = String(data: outputData, encoding: .utf8) ?? ""
+                        self.debugSaveLog("runCLI success status=0 rawStdout='\(self.truncatedForLog(rawOutput))'")
                         // Strip Obsidian's startup log line from stdout
                         let output = rawOutput
                             .components(separatedBy: "\n")
                             .filter { !$0.contains("Loading updated app package") }
                             .joined(separator: "\n")
                             .trimmingCharacters(in: .whitespacesAndNewlines)
+                        self.debugSaveLog("runCLI success sanitizedStdout='\(self.truncatedForLog(output))'")
                         continuation.resume(returning: output)
                     } else {
                         let errorString = String(data: errorData, encoding: .utf8) ?? "CLI error"
+                        let rawOutput = String(data: outputData, encoding: .utf8) ?? ""
+                        self.debugSaveLog("runCLI failed status=\(terminatedProcess.terminationStatus) stderr='\(self.truncatedForLog(errorString))' stdout='\(self.truncatedForLog(rawOutput))'")
                         continuation.resume(throwing: NSError(
                             domain: "ObsidianCLI",
                             code: Int(terminatedProcess.terminationStatus),
@@ -938,8 +1066,20 @@ final class ObsidianManager {
                 try process.run()
             } catch {
                 timeoutWorkItem.cancel()
+                debugSaveLog("runCLI failed to launch process error='\(error.localizedDescription)'")
                 continuation.resume(throwing: error)
             }
         }
+    }
+
+    nonisolated private func debugSaveLog(_ message: String) {
+        guard Self.enableSaveDebugLogging else { return }
+        print("[Obsidian][SaveDebug] \(message)")
+    }
+
+    nonisolated private func truncatedForLog(_ text: String, maxLength: Int = 280) -> String {
+        if text.count <= maxLength { return text }
+        let prefix = text.prefix(maxLength)
+        return "\(prefix)…(\(text.count - maxLength) more chars)"
     }
 }

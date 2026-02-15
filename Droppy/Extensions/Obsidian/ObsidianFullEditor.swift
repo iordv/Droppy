@@ -16,9 +16,11 @@ struct ObsidianFullEditor: View {
     @State private var scrollToHeading: String?
     @State private var isFrontmatterCollapsed: Bool = true
     @State private var storedFrontmatter: String = ""
+    @State private var isSavingNote: Bool = false
+    @State private var isSavingViaCLI: Bool = false
 
     private var canSaveCurrentNote: Bool {
-        hasUnsavedChanges && manager.selectedNote?.isDaily != true
+        hasUnsavedChanges
     }
 
     /// Reconstructs the full note content, prepending stored frontmatter.
@@ -60,12 +62,16 @@ struct ObsidianFullEditor: View {
         .id(manager.selectedNoteID)
         .animation(DroppyAnimation.smooth(duration: 0.18), value: manager.selectedNoteID)
         .onAppear {
+            print("[Obsidian][SaveDebug] fullEditor onAppear note='\(manager.selectedNote?.displayName ?? "nil")'")
             loadEditorContent(manager.currentNoteContent)
         }
         .onChange(of: manager.currentNoteContent) { _, newContent in
             if !hasUnsavedChanges {
                 loadEditorContent(newContent)
             }
+        }
+        .onChange(of: hasUnsavedChanges) { _, newValue in
+            print("[Obsidian][SaveDebug] fullEditor hasUnsavedChanges=\(newValue)")
         }
     }
 
@@ -82,19 +88,40 @@ struct ObsidianFullEditor: View {
                 saveNote()
             } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.system(size: 10))
-                    Text("Save")
+                    if isSavingViaCLI {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 10))
+                    }
+                    Text(isSavingViaCLI ? "Saving..." : "Save")
                         .font(.system(size: 11, weight: .medium))
                 }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill((canSaveCurrentNote ? Color.purple : Color.gray).opacity(0.85))
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+                )
+                .contentShape(Capsule())
             }
-            .buttonStyle(DroppyAccentButtonStyle(color: canSaveCurrentNote ? .purple : .gray, size: .small))
-            .disabled(!canSaveCurrentNote)
-            .help(manager.selectedNote?.isDaily == true ? "Daily notes support append/prepend instead of full save." : "Save note")
+            .buttonStyle(.plain)
+            .disabled(isSavingNote)
+            .keyboardShortcut("s", modifiers: [.command])
+            .help("Save note")
+            .zIndex(50)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(Color.white.opacity(0.04))
+        .zIndex(40)
     }
 
     private var headingPickerMenu: some View {
@@ -269,10 +296,34 @@ struct ObsidianFullEditor: View {
     // MARK: - Actions
 
     private func saveNote() {
-        guard let note = manager.selectedNote else { return }
+        guard let note = manager.selectedNote else {
+            print("[Obsidian][SaveDebug] saveNote ignored: no selected note")
+            return
+        }
+        print("[Obsidian][SaveDebug] saveNote tapped note='\(note.displayName)' isDaily=\(note.isDaily) hasUnsavedChanges=\(hasUnsavedChanges) canUseCLI=\(manager.canUseCLIBackend) contentChars=\(fullContent.count)")
+        guard hasUnsavedChanges else {
+            print("[Obsidian][SaveDebug] saveNote ignored: no unsaved changes")
+            return
+        }
+        isSavingNote = true
+        isSavingViaCLI = manager.canUseCLIBackend
         Task { @MainActor in
             let success = await manager.writeFullNote(note, content: fullContent)
-            if success { hasUnsavedChanges = false }
+            if success {
+                hasUnsavedChanges = false
+                closeNotchAfterSave()
+            }
+            print("[Obsidian][SaveDebug] saveNote completed success=\(success)")
+            isSavingViaCLI = false
+            isSavingNote = false
+        }
+    }
+
+    private func closeNotchAfterSave() {
+        withAnimation(DroppyAnimation.smooth) {
+            manager.hide()
+            DroppyState.shared.expandedDisplayID = nil
+            DroppyState.shared.hoveringDisplayID = nil
         }
     }
 }

@@ -201,8 +201,8 @@ The extension supports two operation backends:
 - Append/prepend with heading:
   - Always filesystem path write (CLI does not support heading targeting).
 - Full note save:
-  - Non-daily only, filesystem write.
-  - Daily save is blocked (append/prepend only).
+  - Non-daily: CLI `create path=<relativePath> content=<content> overwrite silent` then filesystem fallback.
+  - Daily: CLI `daily silent` (resolve path) + `create ... overwrite silent` then filesystem fallback.
 
 ## Daily Note Resolution
 
@@ -273,7 +273,8 @@ The split editor view supports:
 
 - Large editable markdown area (`NSTextView` wrapper).
 - Heading jump menu (scrolls to selected heading in text).
-- Save button for non-daily notes only.
+- Save button for both daily and non-daily notes.
+- While CLI mode is active, full-save button shows a spinner during save execution.
 - External-change warning banner with reload action.
 
 ### Syntax highlighting rules
@@ -362,7 +363,7 @@ Manager stores user-facing error text in `errorMessage` for:
 
 - Failed read/write operations.
 - Daily note path resolution failures.
-- Save attempt on daily note.
+- Save failures (CLI + filesystem fallback path).
 
 Vault status indicators in settings:
 
@@ -373,7 +374,6 @@ Vault status indicators in settings:
 ## Known Constraints
 
 - Heading-target append/prepend is filesystem-only; CLI cannot target heading sections.
-- Daily note full-document save is intentionally disallowed.
 - Daily note path resolution depends on today’s file existing on disk.
 - Heading matching is exact string comparison (including markdown hash prefix).
 - External change detection is disabled for daily notes.
@@ -387,8 +387,9 @@ Vault status indicators in settings:
 5. Test quick append/prepend to entire note and to specific headings.
 6. Test heading-target append/prepend with fenced code blocks and frontmatter.
 7. Open full editor, modify regular note, save, and confirm file content updates.
-8. Verify daily note cannot be full-saved and shows appropriate guidance.
-9. Edit selected file externally; verify change banner and reload behavior.
-10. Configure global hotkey; verify toggle/focus behavior and cross-display handling.
-11. Confirm Obsidian opening closes terminal/camera/caffeine/todo views.
-12. Confirm auto-collapse does not interrupt active text editing.
+8. Verify both regular and daily notes can be full-saved from editor (CLI mode on).
+9. Verify save falls back to filesystem when CLI fails/unavailable.
+10. Edit selected file externally; verify change banner and reload behavior.
+11. Configure global hotkey; verify toggle/focus behavior and cross-display handling.
+12. Confirm Obsidian opening closes terminal/camera/caffeine/todo views.
+13. Confirm auto-collapse does not interrupt active text editing.

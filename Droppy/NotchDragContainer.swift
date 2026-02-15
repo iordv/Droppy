@@ -26,6 +26,8 @@ class NotchDragContainer: NSView {
     private let expandedShelfBaseWidth: CGFloat = 450
     /// Split ToDo+Calendar shelf width (matches NotchShelfView.todoSplitViewShelfWidth)
     private let todoSplitShelfWidth: CGFloat = 920
+    /// Obsidian full editor split width (matches NotchShelfView.obsidianSplitViewShelfWidth)
+    private let obsidianSplitShelfWidth: CGFloat = 720
     
     /// Track if current drag is valid (for Power Folders restriction)
     private var currentDragIsValid: Bool = true
@@ -51,6 +53,10 @@ class NotchDragContainer: NSView {
     }
 
     private func currentExpandedShelfWidth() -> CGFloat {
+        if ObsidianManager.shared.isVisible && ObsidianManager.shared.isFullEditorExpanded {
+            return max(expandedShelfBaseWidth, obsidianSplitShelfWidth)
+        }
+
         if ToDoManager.shared.isShelfListExpanded &&
             ToDoManager.shared.isShelfSplitViewEnabled {
             return max(expandedShelfBaseWidth, todoSplitShelfWidth)
