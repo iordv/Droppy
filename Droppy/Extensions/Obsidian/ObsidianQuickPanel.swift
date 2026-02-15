@@ -88,7 +88,8 @@ struct ObsidianQuickPanel: View {
                     Button {
                         manager.setSelectedHeading(heading)
                     } label: {
-                        Text(heading)
+                        Text(ObsidianDisplay.headingDisplayText(heading))
+                            .padding(.leading, ObsidianDisplay.headingIndent(heading))
                     }
                 }
             }
@@ -97,7 +98,7 @@ struct ObsidianQuickPanel: View {
                 Image(systemName: "number")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.5))
-                Text(manager.selectedHeading ?? "Entire note")
+                Text(manager.selectedHeading.map { ObsidianDisplay.headingDisplayText($0) } ?? "Entire note")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(1)
@@ -169,7 +170,7 @@ struct ObsidianQuickPanel: View {
                 }
             }
             .buttonStyle(DroppyAccentButtonStyle(
-                color: manager.lastUsedAction == .prepend ? .purple : .gray,
+                color: manager.lastUsedAction == .prepend ? .purple : Color.purple.opacity(0.45),
                 size: .small
             ))
 
@@ -186,7 +187,7 @@ struct ObsidianQuickPanel: View {
                 }
             }
             .buttonStyle(DroppyAccentButtonStyle(
-                color: manager.lastUsedAction == .append ? .purple : .gray,
+                color: manager.lastUsedAction == .append ? .purple : Color.purple.opacity(0.45),
                 size: .small
             ))
 
@@ -206,10 +207,18 @@ struct ObsidianQuickPanel: View {
                     manager.enterFullEditor()
                 }
             } label: {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(6)
+                HStack(spacing: 4) {
+                    Image(systemName: "rectangle.expand.vertical")
+                        .font(.system(size: 10, weight: .medium))
+                    Text("Editor")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(.white.opacity(0.6))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule().fill(Color.white.opacity(0.06))
+                )
             }
             .buttonStyle(.plain)
         }

@@ -218,7 +218,7 @@ struct ObsidianShelfBar: View {
                 Text("Pin Note")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundStyle(.white.opacity(0.4))
+            .foregroundStyle(.white.opacity(0.55))
             .padding(.horizontal, 8)
             .padding(.vertical, Layout.noteRowVerticalPadding)
         }

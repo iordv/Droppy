@@ -14,9 +14,21 @@ struct ObsidianFullEditor: View {
     @State private var editorText: String = ""
     @State private var hasUnsavedChanges: Bool = false
     @State private var scrollToHeading: String?
+    @State private var isFrontmatterCollapsed: Bool = true
+    @State private var storedFrontmatter: String = ""
 
     private var canSaveCurrentNote: Bool {
         hasUnsavedChanges && manager.selectedNote?.isDaily != true
+    }
+
+    /// Reconstructs the full note content, prepending stored frontmatter when collapsed.
+    private var fullContent: String {
+        isFrontmatterCollapsed ? storedFrontmatter + editorText : editorText
+    }
+
+    /// Whether the current note has frontmatter (collapsed or visible in editor).
+    private var hasFrontmatter: Bool {
+        isFrontmatterCollapsed ? !storedFrontmatter.isEmpty : editorText.hasPrefix("---")
     }
 
     private var headingMenuTitle: String {
@@ -33,23 +45,28 @@ struct ObsidianFullEditor: View {
                 externalChangeBanner
             }
 
+            // Frontmatter banner (when collapsed)
+            if isFrontmatterCollapsed, !storedFrontmatter.isEmpty {
+                frontmatterBanner
+            }
+
             // Editor
             MarkdownEditorView(text: $editorText, scrollToHeading: $scrollToHeading)
                 .frame(maxHeight: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.small, style: .continuous))
-                .onChange(of: editorText) { _, newValue in
-                    hasUnsavedChanges = (newValue != manager.currentNoteContent)
+                .onChange(of: editorText) { _, _ in
+                    hasUnsavedChanges = (fullContent != manager.currentNoteContent)
                 }
         }
         .padding(8)
         .id(manager.selectedNoteID)
         .animation(DroppyAnimation.smooth(duration: 0.18), value: manager.selectedNoteID)
         .onAppear {
-            editorText = manager.currentNoteContent
+            loadEditorContent(manager.currentNoteContent)
         }
         .onChange(of: manager.currentNoteContent) { _, newContent in
             if !hasUnsavedChanges {
-                editorText = newContent
+                loadEditorContent(newContent)
             }
         }
     }
@@ -60,6 +77,22 @@ struct ObsidianFullEditor: View {
         HStack(spacing: 6) {
             // Heading picker menu
             headingPickerMenu
+
+            // Hide frontmatter button (when expanded and frontmatter is present)
+            if !isFrontmatterCollapsed, hasFrontmatter {
+                Button {
+                    collapseFrontmatter()
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 9))
+                        Text("Hide frontmatter")
+                            .font(.system(size: 10))
+                    }
+                    .foregroundStyle(.white.opacity(0.4))
+                }
+                .buttonStyle(.plain)
+            }
 
             Spacer()
 
@@ -89,7 +122,8 @@ struct ObsidianFullEditor: View {
                     Button {
                         scrollToHeading = heading
                     } label: {
-                        Text(heading)
+                        Text(ObsidianDisplay.headingDisplayText(heading))
+                            .padding(.leading, ObsidianDisplay.headingIndent(heading))
                     }
                 }
             } else {
@@ -142,8 +176,7 @@ struct ObsidianFullEditor: View {
             Button("Reload") {
                 Task { @MainActor in
                     await manager.reloadCurrentNote()
-                    editorText = manager.currentNoteContent
-                    hasUnsavedChanges = false
+                    loadEditorContent(manager.currentNoteContent)
                 }
             }
             .font(.system(size: 11, weight: .medium))
@@ -157,12 +190,101 @@ struct ObsidianFullEditor: View {
         .padding(.bottom, 4)
     }
 
+    // MARK: - Frontmatter Banner
+
+    private var frontmatterBanner: some View {
+        Button {
+            expandFrontmatter()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.4))
+                Text("frontmatter")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                Text("·")
+                    .foregroundStyle(.white.opacity(0.3))
+                Text("\(frontmatterPropertyCount(storedFrontmatter)) properties")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.4))
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 2)
+    }
+
+    // MARK: - Frontmatter Helpers
+
+    /// Splits text into (frontmatter block including delimiters + trailing newline, body).
+    /// Returns `("", text)` if no frontmatter is found.
+    private static func splitFrontmatter(_ text: String) -> (frontmatter: String, body: String) {
+        let lines = text.components(separatedBy: "\n")
+        guard lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == "---" else {
+            return ("", text)
+        }
+        for i in 1..<lines.count {
+            if lines[i].trimmingCharacters(in: .whitespacesAndNewlines) == "---" {
+                let fmLines = Array(lines[0...i])
+                let bodyLines = Array(lines[(i + 1)...])
+                let frontmatter = fmLines.joined(separator: "\n") + "\n"
+                let body = bodyLines.joined(separator: "\n")
+                return (frontmatter, body)
+            }
+        }
+        return ("", text)
+    }
+
+    /// Counts lines containing `:` between the `---` delimiters.
+    private func frontmatterPropertyCount(_ frontmatter: String) -> Int {
+        let lines = frontmatter.components(separatedBy: "\n")
+        return lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed != "---" && trimmed.contains(":")
+        }.count
+    }
+
+    /// Loads content, splitting and collapsing frontmatter.
+    private func loadEditorContent(_ content: String) {
+        let (fm, body) = Self.splitFrontmatter(content)
+        storedFrontmatter = fm
+        editorText = body
+        isFrontmatterCollapsed = true
+        hasUnsavedChanges = false
+    }
+
+    /// Collapses visible frontmatter from editorText into storedFrontmatter.
+    private func collapseFrontmatter() {
+        let (fm, body) = Self.splitFrontmatter(editorText)
+        guard !fm.isEmpty else { return }
+        storedFrontmatter = fm
+        editorText = body
+        isFrontmatterCollapsed = true
+    }
+
+    /// Expands stored frontmatter back into the editor text.
+    private func expandFrontmatter() {
+        guard !storedFrontmatter.isEmpty else { return }
+        editorText = storedFrontmatter + editorText
+        storedFrontmatter = ""
+        isFrontmatterCollapsed = false
+    }
+
     // MARK: - Actions
 
     private func saveNote() {
         guard let note = manager.selectedNote else { return }
         Task { @MainActor in
-            let success = await manager.writeFullNote(note, content: editorText)
+            let success = await manager.writeFullNote(note, content: fullContent)
             if success { hasUnsavedChanges = false }
         }
     }
@@ -221,7 +343,14 @@ struct MarkdownEditorView: NSViewRepresentable {
         if textView.string != text {
             let selectedRanges = textView.selectedRanges
             textView.string = text
-            textView.selectedRanges = selectedRanges
+            let textLength = (text as NSString).length
+            let safeRanges = selectedRanges.filter { nsValue in
+                let range = nsValue.rangeValue
+                return NSMaxRange(range) <= textLength
+            }
+            textView.selectedRanges = safeRanges.isEmpty
+                ? [NSValue(range: NSRange(location: 0, length: 0))]
+                : safeRanges
             context.coordinator.applyHighlighting()
         }
 
