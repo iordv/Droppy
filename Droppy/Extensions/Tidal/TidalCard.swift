@@ -80,7 +80,7 @@ struct TidalExtensionCard: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
 
-                Text("Extra shuffle, repeat & favorite controls in the media player.")
+                Text("Shuffle, repeat, favorites & synced lyrics for the media player.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -90,7 +90,7 @@ struct TidalExtensionCard: View {
             Spacer(minLength: 8)
 
             // Status row - Running indicator
-            HStack {
+            HStack(spacing: 8) {
                 Circle()
                     .fill(TidalController.shared.isTidalRunning ? Color.green : Color.gray.opacity(0.5))
                     .frame(width: 6, height: 6)
@@ -110,12 +110,8 @@ struct TidalExtensionCard: View {
             ExtensionInfoView(
                 extensionType: .tidal,
                 onAction: {
-                    if TidalAuthManager.shared.isAuthenticated {
-                        if let url = URL(string: "tidal://") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } else {
-                        TidalAuthManager.shared.startAuthentication()
+                    if let url = URL(string: "tidal://") {
+                        NSWorkspace.shared.open(url)
                     }
                     TidalController.shared.refreshState()
                 },

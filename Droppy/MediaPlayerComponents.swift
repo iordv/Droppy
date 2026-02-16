@@ -696,66 +696,6 @@ struct MusicVisualizerBars: View {
     }
 }
 
-// MARK: - Tidal Quality Badge
-
-/// Small pill badge showing audio quality (HiFi, HiRes, Atmos) on album art
-struct TidalQualityBadge: View {
-    let quality: String
-    private let tidalTeal = Color(red: 0.0, green: 0.80, blue: 0.84)
-
-    var body: some View {
-        Text(quality)
-            .font(.system(size: 8, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(tidalTeal.opacity(0.85))
-            )
-            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-    }
-}
-
-// MARK: - Tidal Credits Overlay
-
-/// Horizontal scrolling credits overlay that replaces the controls row
-struct TidalCreditsOverlay: View {
-    let credits: [(name: String, role: String)]
-    private let tidalTeal = Color(red: 0.0, green: 0.80, blue: 0.84)
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Array(credits.enumerated()), id: \.offset) { _, credit in
-                    HStack(spacing: 4) {
-                        Text(credit.role)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(tidalTeal)
-                        Text("·")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.4))
-                        Text(credit.name)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(tidalTeal.opacity(0.12))
-                            .overlay(
-                                Capsule()
-                                    .stroke(tidalTeal.opacity(0.2), lineWidth: 0.5)
-                            )
-                    )
-                }
-            }
-            .padding(.horizontal, 4)
-        }
-    }
-}
-
 // MARK: - Preview
 
 #Preview("Media Player") {

@@ -2,7 +2,7 @@
 //  TidalController.swift
 //  Droppy
 //
-//  Tidal-specific media controls using System Events UI scripting and Web API
+//  Tidal-specific media controls using System Events UI scripting
 //  Tidal has no AppleScript dictionary, so all controls go through System Events
 //
 
@@ -10,7 +10,7 @@ import AppKit
 import Foundation
 
 /// Manages Tidal-specific features including shuffle, repeat, and like functionality
-/// Uses System Events UI scripting for local controls and Tidal API for library features
+/// Uses System Events UI scripting for local controls and LRCLIB for lyrics
 @Observable
 final class TidalController {
     static let shared = TidalController()
@@ -29,22 +29,7 @@ final class TidalController {
     /// Whether we're currently checking/updating liked status
     private(set) var isLikeLoading: Bool = false
 
-    /// Whether user has authenticated with Tidal API
-    private(set) var isAuthenticated: Bool = false
-
-    /// Current track identifier from Tidal (used for like/unlike and premium features)
-    private(set) var currentTrackId: String?
-
-    // MARK: - Premium Feature State
-
-    /// Audio quality label for the current track (e.g. "HiFi", "HiRes", "Atmos")
-    private(set) var currentTrackQuality: String?
-
-    /// Credits for the current track (producers, songwriters, engineers)
-    private(set) var currentTrackCredits: [(name: String, role: String)]?
-
-    /// Whether the credits overlay is showing
-    var showingCredits: Bool = false
+    // MARK: - Lyrics State
 
     /// Parsed synced lyrics for the current track
     private(set) var lyricsLines: [(time: TimeInterval, text: String)]?
@@ -55,16 +40,8 @@ final class TidalController {
     /// Whether lyrics display is enabled
     var showingLyrics: Bool = false
 
-    /// User's playlists (fetched on auth)
-    private(set) var userPlaylists: [(id: String, name: String, count: Int)]?
-
-    // MARK: - Track ID Resolution Cache
-
-    /// Cache search results to avoid repeated API calls for the same track
-    private var trackIdCache: [String: String] = [:]
-
-    /// The title+artist key for the currently resolved track
-    private var lastResolvedKey: String?
+    /// The title+artist key for the last track we fetched lyrics for
+    private var lastLyricsKey: String?
 
     /// Tidal bundle identifier
     static let tidalBundleId = "com.tidal.desktop"
@@ -106,9 +83,7 @@ final class TidalController {
 
     // MARK: - Initialization
 
-    private init() {
-        isAuthenticated = TidalAuthManager.shared.isAuthenticated
-    }
+    private init() {}
 
     // MARK: - Tidal Detection
 
@@ -130,86 +105,44 @@ final class TidalController {
 
         fetchShuffleState()
         fetchRepeatState()
+        fetchLikedState()
 
-        // Resolve current track ID if not yet resolved
+        // Fetch lyrics for current track if not yet fetched
         let manager = MusicManager.shared
-        if currentTrackId == nil, !manager.songTitle.isEmpty {
+        if !manager.songTitle.isEmpty {
             onTrackChange(title: manager.songTitle, artist: manager.artistName)
-        }
-
-        // If authenticated, check liked status and fetch playlists
-        if isAuthenticated {
-            if let trackId = currentTrackId {
-                checkIfTrackIsLiked(trackId: trackId)
-            }
-            if userPlaylists == nil {
-                fetchPlaylists()
-            }
         }
     }
 
-    /// Called when track changes - resolve track ID and update all metadata
+    /// Called when track changes - fetch lyrics and update liked state
+    /// No OAuth needed: lyrics use LRCLIB, like state uses AppleScript
     func onTrackChange(title: String, artist: String) {
         let key = "\(title)|\(artist)".lowercased()
 
         // Skip if same track
-        guard key != lastResolvedKey else { return }
+        guard key != lastLyricsKey else { return }
 
-        // Clear previous track's premium data
-        currentTrackQuality = nil
-        currentTrackCredits = nil
+        // Set immediately to prevent duplicate calls from rapid notifications
+        lastLyricsKey = key
+
+        // Clear previous track data
         currentLyricLine = nil
         lyricsLines = nil
-        showingCredits = false
 
-        // Check cache first
-        if let cachedId = trackIdCache[key] {
-            lastResolvedKey = key
-            currentTrackId = cachedId
-            onTrackIdResolved(trackId: cachedId)
-            return
-        }
+        // Check liked state via menu checkmark (AppleScript, no auth)
+        fetchLikedState()
 
-        // Resolve via search API
-        TidalAuthManager.shared.searchTrack(title: title, artist: artist) { [weak self] trackId in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.lastResolvedKey = key
-                if let trackId = trackId {
-                    self.trackIdCache[key] = trackId
-                    self.currentTrackId = trackId
-                    self.onTrackIdResolved(trackId: trackId)
-                } else {
-                    self.currentTrackId = nil
-                    self.isCurrentTrackLiked = false
-                }
-            }
-        }
-    }
+        // Fetch lyrics via LRCLIB (free, no auth needed)
+        let manager = MusicManager.shared
+        let duration = Int(manager.songDuration)
+        guard !title.isEmpty, duration > 0 else { return }
 
-    /// Once we have a track ID, fetch all premium metadata
-    private func onTrackIdResolved(trackId: String) {
-        // Check liked status
-        if isAuthenticated {
-            checkIfTrackIsLiked(trackId: trackId)
-        }
-
-        // Fetch quality badge
-        TidalAuthManager.shared.fetchTrackQuality(trackId: trackId) { [weak self] quality in
-            DispatchQueue.main.async {
-                self?.currentTrackQuality = quality
-            }
-        }
-
-        // Fetch credits
-        TidalAuthManager.shared.fetchTrackCredits(trackId: trackId) { [weak self] credits in
-            DispatchQueue.main.async {
-                self?.currentTrackCredits = credits
-            }
-        }
-
-        // Fetch lyrics
-        TidalAuthManager.shared.fetchLyrics(trackId: trackId) { [weak self] lrcText, _ in
+        TidalAuthManager.shared.fetchLyrics(
+            title: title,
+            artist: artist,
+            album: manager.albumName,
+            duration: duration
+        ) { [weak self] lrcText, _ in
             DispatchQueue.main.async {
                 if let lrcText = lrcText {
                     self?.lyricsLines = TidalLyricsParser.parse(lrcText)
@@ -242,31 +175,6 @@ final class TidalController {
         }
     }
 
-    // MARK: - Playlists
-
-    /// Fetch user's playlists
-    func fetchPlaylists() {
-        TidalAuthManager.shared.fetchUserPlaylists { [weak self] playlists in
-            DispatchQueue.main.async {
-                self?.userPlaylists = playlists
-            }
-        }
-    }
-
-    /// Add current track to a playlist
-    func addToPlaylist(playlistId: String, completion: @escaping (Bool) -> Void) {
-        guard let trackId = currentTrackId else {
-            completion(false)
-            return
-        }
-
-        TidalAuthManager.shared.addTrackToPlaylist(trackId: trackId, playlistId: playlistId) { success in
-            DispatchQueue.main.async {
-                completion(success)
-            }
-        }
-    }
-
     // MARK: - System Events AppleScript Controls
     // Tidal has NO AppleScript dictionary. All controls go through System Events
     // by clicking menu bar items via accessibility (UI scripting).
@@ -289,7 +197,7 @@ final class TidalController {
     }
 
     /// Cycle through repeat modes via Playback menu
-    /// Tidal's Repeat menu item cycles: off → all → one → off
+    /// Tidal's Repeat menu item cycles: off -> all -> one -> off
     func cycleRepeatMode() {
         let script = """
         tell application "System Events"
@@ -375,6 +283,15 @@ final class TidalController {
     // MARK: - AppleScript Execution
 
     private func runAppleScript(_ source: String, completion: @escaping (Any?) -> Void) {
+        // Fast check: if accessibility isn't granted, prompt and skip the script
+        if !AXIsProcessTrusted() {
+            DispatchQueue.main.async {
+                PermissionManager.shared.requestAccessibility(context: .automatic)
+            }
+            completion(nil)
+            return
+        }
+
         appleScriptQueue.async {
             let parsed: Any? = AppleScriptRuntime.execute {
                 var error: NSDictionary?
@@ -387,6 +304,13 @@ final class TidalController {
                 let result = script.executeAndReturnError(&error)
 
                 if let error = error {
+                    // Detect assistive access error and prompt user
+                    if let message = error["NSAppleScriptErrorBriefMessage"] as? String,
+                       message.contains("assistive access") {
+                        DispatchQueue.main.async {
+                            PermissionManager.shared.requestAccessibility(context: .automatic)
+                        }
+                    }
                     print("TidalController: AppleScript error: \(error)")
                     return nil
                 }
@@ -406,98 +330,59 @@ final class TidalController {
         }
     }
 
-    // MARK: - Web API (Like Functionality)
+    // MARK: - Like via AppleScript (System Events)
 
-    /// Like the current track (add to favorites)
-    func likeCurrentTrack() {
-        guard isAuthenticated else { return }
-        guard let trackId = currentTrackId else { return }
-
-        isLikeLoading = true
-
-        TidalAuthManager.shared.addTrackToFavorites(trackId: trackId) { [weak self] success in
-            DispatchQueue.main.async {
-                self?.isLikeLoading = false
-                if success {
-                    self?.isCurrentTrackLiked = true
-                }
-            }
-        }
-    }
-
-    /// Unlike the current track (remove from favorites)
-    func unlikeCurrentTrack() {
-        guard isAuthenticated else { return }
-        guard let trackId = currentTrackId else { return }
-
-        isLikeLoading = true
-
-        TidalAuthManager.shared.removeTrackFromFavorites(trackId: trackId) { [weak self] success in
-            DispatchQueue.main.async {
-                self?.isLikeLoading = false
-                if success {
-                    self?.isCurrentTrackLiked = false
-                }
-            }
-        }
-    }
-
-    /// Toggle like status
+    /// Toggle like/favorite for the current track via Tidal's Playback menu
     func toggleLike() {
-        if isCurrentTrackLiked {
-            unlikeCurrentTrack()
-        } else {
-            likeCurrentTrack()
-        }
-    }
+        let script = """
+        tell application "System Events"
+            tell process "TIDAL"
+                click menu item "Favorite" of menu "Playback" of menu bar 1
+            end tell
+        end tell
+        """
 
-    /// Check if a track is in user's favorites
-    private func checkIfTrackIsLiked(trackId: String) {
-        TidalAuthManager.shared.checkIfTrackIsFavorited(trackId: trackId) { [weak self] isFavorited in
-            DispatchQueue.main.async {
-                self?.isCurrentTrackLiked = isFavorited
+        runAppleScript(script) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self?.fetchLikedState()
             }
         }
     }
 
-    /// Trigger Tidal authentication
-    func authenticate() {
-        TidalAuthManager.shared.startAuthentication()
+    /// Read liked state from Tidal's Playback > Favorite menu checkmark
+    func fetchLikedState() {
+        let script = """
+        tell application "System Events"
+            tell process "TIDAL"
+                set favItem to menu item "Favorite" of menu "Playback" of menu bar 1
+                try
+                    set markChar to value of attribute "AXMenuItemMarkChar" of favItem
+                    if markChar is not missing value then
+                        return "on"
+                    else
+                        return "off"
+                    end if
+                on error
+                    return "off"
+                end try
+            end tell
+        end tell
+        """
+
+        runAppleScript(script) { [weak self] result in
+            if let state = result as? String {
+                DispatchQueue.main.async {
+                    self?.isCurrentTrackLiked = (state == "on")
+                }
+            }
+        }
     }
 
-    /// Sign out from Tidal
-    func signOut() {
-        TidalAuthManager.shared.signOut()
-        isAuthenticated = false
+    /// Reset state when extension is removed
+    func resetState() {
         isCurrentTrackLiked = false
-        currentTrackId = nil
-        currentTrackQuality = nil
-        currentTrackCredits = nil
         lyricsLines = nil
         currentLyricLine = nil
-        userPlaylists = nil
-        trackIdCache.removeAll()
-        lastResolvedKey = nil
-    }
-
-    /// Update authentication state (called from TidalAuthManager after token changes)
-    func updateAuthState() {
-        isAuthenticated = TidalAuthManager.shared.isAuthenticated
-
-        if isAuthenticated {
-            if let trackId = currentTrackId {
-                checkIfTrackIsLiked(trackId: trackId)
-            }
-            fetchPlaylists()
-
-            // Re-trigger track resolution for the currently playing track
-            // This handles the case where auth completes while a song is already playing
-            let manager = MusicManager.shared
-            if manager.isTidalSource, !manager.songTitle.isEmpty {
-                lastResolvedKey = nil  // Force re-resolution
-                trackIdCache.removeAll()
-                onTrackChange(title: manager.songTitle, artist: manager.artistName)
-            }
-        }
+        lastLyricsKey = nil
     }
 }

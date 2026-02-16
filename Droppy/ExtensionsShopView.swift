@@ -437,7 +437,7 @@ struct ExtensionsShopView: View {
                 id: "tidal",
                 localIconAsset: "TidalIcon",
                 title: "Tidal",
-                subtitle: "Control playback from your notch",
+                subtitle: "Shuffle, repeat, favorites & synced lyrics",
                 category: .media,
                 isInstalled: isTidalInstalled,
                 analyticsKey: "tidal",
@@ -447,14 +447,8 @@ struct ExtensionsShopView: View {
                 AnyView(ExtensionInfoView(
                     extensionType: .tidal,
                     onAction: {
-                        if TidalAuthManager.shared.isAuthenticated {
-                            // Already authenticated — just open Tidal
-                            if let url = URL(string: "tidal://") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        } else {
-                            // Start OAuth flow
-                            TidalAuthManager.shared.startAuthentication()
+                        if let url = URL(string: "tidal://") {
+                            NSWorkspace.shared.open(url)
                         }
                         TidalController.shared.refreshState()
                     },

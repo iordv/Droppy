@@ -46,9 +46,6 @@ struct URLSchemeHandler {
         case "spotify-callback":
             // Handle Spotify OAuth callback
             handleSpotifyCallback(url: url)
-        case "tidal-callback":
-            // Handle Tidal OAuth callback
-            handleTidalCallback(url: url)
         case "extension":
             // Open extension info sheet from website
             handleExtensionAction(url: url)
@@ -121,18 +118,6 @@ struct URLSchemeHandler {
         }
     }
     
-    /// Handles Tidal OAuth callback
-    /// URL Format: droppy://tidal-callback?code=xxx
-    private static func handleTidalCallback(url: URL) {
-        print("🎵 URLSchemeHandler: Received Tidal OAuth callback")
-
-        if TidalAuthManager.shared.handleCallback(url: url) {
-            print("✅ URLSchemeHandler: Tidal authentication successful")
-        } else {
-            print("⚠️ URLSchemeHandler: Tidal authentication failed")
-        }
-    }
-
     /// Handles extension deep links from the website
     /// URL Format: droppy://extension/{id}
     /// Supported IDs include: ai-bg, alfred, finder, element-capture, spotify, apple-music, tidal, window-snap, voice-transcribe, video-target-size, termi-notch, notchface, snap-camera, quickshare, notification-hud, caffeine, menu-bar-manager, todo

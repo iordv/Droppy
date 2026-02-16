@@ -15,6 +15,8 @@ struct ExtensionInfoView: View {
     var onAction: (() -> Void)?
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
+    /// Optional extra content rendered inside the scrollable area (e.g. Tidal auth management)
+    var additionalContent: AnyView? = nil
     
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
@@ -42,9 +44,14 @@ struct ExtensionInfoView: View {
                 VStack(spacing: 20) {
                     // Features section
                     featuresSection
-                    
+
                     // Screenshot section
                     screenshotSection
+
+                    // Extension-specific content (e.g. auth management)
+                    if let additionalContent {
+                        additionalContent
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
