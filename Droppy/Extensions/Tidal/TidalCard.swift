@@ -80,7 +80,7 @@ struct TidalExtensionCard: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
 
-                Text("Shuffle, repeat, favorites & synced lyrics for the media player.")
+                Text("Shuffle, repeat & favorites for the media player.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)

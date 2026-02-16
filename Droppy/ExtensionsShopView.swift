@@ -437,7 +437,7 @@ struct ExtensionsShopView: View {
                 id: "tidal",
                 localIconAsset: "TidalIcon",
                 title: "Tidal",
-                subtitle: "Shuffle, repeat, favorites & synced lyrics",
+                subtitle: "Shuffle, repeat & favorites",
                 category: .media,
                 isInstalled: isTidalInstalled,
                 analyticsKey: "tidal",

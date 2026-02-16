@@ -389,21 +389,19 @@ struct MediaPlayerView: View {
                         titleRowView
                         artistRowView
                     }
-
-                    // Tidal synced lyrics line
-                    if musicManager.isTidalSource && musicManager.tidalController.showingLyrics,
-                       let lyric = musicManager.tidalController.currentLyricLine {
-                        Text(lyric)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(secondaryText(0.6))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                            .animation(DroppyAnimation.state, value: lyric)
-                            .onChange(of: estimatedPosition(at: currentDate)) { _, newValue in
-                                musicManager.tidalController.updateCurrentLyric(at: newValue)
+                    .contextMenu {
+                        if musicManager.isTidalSource {
+                            Button {
+                                musicManager.tidalController.goToAlbum()
+                            } label: {
+                                Label("Go to Album", systemImage: "opticaldisc")
                             }
+                            Button {
+                                musicManager.tidalController.goToArtist()
+                            } label: {
+                                Label("Go to Artist", systemImage: "music.mic")
+                            }
+                        }
                     }
 
                     Spacer(minLength: 4)
@@ -815,7 +813,16 @@ struct MediaPlayerView: View {
                     // PREMIUM: matchedGeometryEffect BEFORE clipShape - critical for morphing!
                     .modifier(AlbumArtMatchedGeometry(namespace: albumArtNamespace, id: "albumArt"))
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous))
-                    
+                    .overlay(alignment: .topLeading) {
+                        if musicManager.isTidalSource,
+                           let quality = musicManager.tidalController.currentTrackQuality {
+                            TidalQualityBadge(quality: quality)
+                                .padding(4)
+                                .transition(.opacity)
+                                .animation(DroppyAnimation.state, value: quality)
+                        }
+                    }
+
                     // Source badge (bottom-right corner) - fades in without sliding
                     ZStack {
                         SpotifyBadge()
@@ -1211,17 +1218,6 @@ struct MediaPlayerView: View {
                     }
                 }
 
-                // Tidal lyrics toggle
-                if isTidal && tidal.lyricsLines != nil {
-                    SpotifyControlButton(
-                        icon: "text.quote",
-                        isActive: tidal.showingLyrics,
-                        accentColor: tidalTeal,
-                        size: 12
-                    ) {
-                        tidal.showingLyrics.toggle()
-                    }
-                }
 
             }
             .opacity(inlineHUDType != nil ? 0 : 1)

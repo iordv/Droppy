@@ -10,7 +10,7 @@ import AppKit
 import Foundation
 
 /// Manages Tidal-specific features including shuffle, repeat, and like functionality
-/// Uses System Events UI scripting for local controls and LRCLIB for lyrics
+/// Uses System Events UI scripting for local controls
 @Observable
 final class TidalController {
     static let shared = TidalController()
@@ -29,19 +29,11 @@ final class TidalController {
     /// Whether we're currently checking/updating liked status
     private(set) var isLikeLoading: Bool = false
 
-    // MARK: - Lyrics State
+    /// Audio quality indicator (HiFi, Max, Atmos) detected from Tidal window
+    private(set) var currentTrackQuality: String?
 
-    /// Parsed synced lyrics for the current track
-    private(set) var lyricsLines: [(time: TimeInterval, text: String)]?
-
-    /// The current lyric line matching playback position
-    private(set) var currentLyricLine: String?
-
-    /// Whether lyrics display is enabled
-    var showingLyrics: Bool = false
-
-    /// The title+artist key for the last track we fetched lyrics for
-    private var lastLyricsKey: String?
+    /// The title+artist key for the last track we fetched quality/liked state for
+    private var lastTrackKey: String?
 
     /// Tidal bundle identifier
     static let tidalBundleId = "com.tidal.desktop"
@@ -107,72 +99,31 @@ final class TidalController {
         fetchRepeatState()
         fetchLikedState()
 
-        // Fetch lyrics for current track if not yet fetched
+        // Fetch quality for current track if not yet fetched
         let manager = MusicManager.shared
         if !manager.songTitle.isEmpty {
             onTrackChange(title: manager.songTitle, artist: manager.artistName)
         }
     }
 
-    /// Called when track changes - fetch lyrics and update liked state
-    /// No OAuth needed: lyrics use LRCLIB, like state uses AppleScript
+    /// Called when track changes - update liked state and quality
     func onTrackChange(title: String, artist: String) {
         let key = "\(title)|\(artist)".lowercased()
 
         // Skip if same track
-        guard key != lastLyricsKey else { return }
+        guard key != lastTrackKey else { return }
 
         // Set immediately to prevent duplicate calls from rapid notifications
-        lastLyricsKey = key
+        lastTrackKey = key
 
         // Clear previous track data
-        currentLyricLine = nil
-        lyricsLines = nil
+        currentTrackQuality = nil
 
         // Check liked state via menu checkmark (AppleScript, no auth)
         fetchLikedState()
 
-        // Fetch lyrics via LRCLIB (free, no auth needed)
-        let manager = MusicManager.shared
-        let duration = Int(manager.songDuration)
-        guard !title.isEmpty, duration > 0 else { return }
-
-        TidalAuthManager.shared.fetchLyrics(
-            title: title,
-            artist: artist,
-            album: manager.albumName,
-            duration: duration
-        ) { [weak self] lrcText, _ in
-            DispatchQueue.main.async {
-                if let lrcText = lrcText {
-                    self?.lyricsLines = TidalLyricsParser.parse(lrcText)
-                } else {
-                    self?.lyricsLines = nil
-                }
-            }
-        }
-    }
-
-    /// Update the current lyric line based on playback position
-    func updateCurrentLyric(at elapsed: TimeInterval) {
-        guard showingLyrics, let lines = lyricsLines, !lines.isEmpty else {
-            if currentLyricLine != nil { currentLyricLine = nil }
-            return
-        }
-
-        // Find the last line whose timestamp <= elapsed
-        var matchedLine: String?
-        for line in lines {
-            if line.time <= elapsed {
-                matchedLine = line.text
-            } else {
-                break
-            }
-        }
-
-        if matchedLine != currentLyricLine {
-            currentLyricLine = matchedLine
-        }
+        // Fetch quality indicator from Tidal window (async, best-effort)
+        fetchTrackQuality()
     }
 
     // MARK: - System Events AppleScript Controls
@@ -378,11 +329,120 @@ final class TidalController {
         }
     }
 
+    // MARK: - Audio Quality Detection
+
+    /// Read audio quality indicator from Tidal's window via accessibility tree
+    /// Best-effort: runs async on track change, badge only shows when quality is found
+    private func fetchTrackQuality() {
+        let script = """
+        tell application "System Events"
+            tell process "TIDAL"
+                try
+                    set qualityTerms to {"HiFi", "Master", "Max", "MAX", "Atmos", "Dolby Atmos"}
+                    set w to window 1
+                    -- Level 1: direct static texts
+                    repeat with t in (static texts of w)
+                        try
+                            if value of t is in qualityTerms then return value of t as string
+                        end try
+                    end repeat
+                    -- Level 2: groups
+                    repeat with g in (groups of w)
+                        try
+                            repeat with t in (static texts of g)
+                                try
+                                    if value of t is in qualityTerms then return value of t as string
+                                end try
+                            end repeat
+                        end try
+                    end repeat
+                    -- Level 3: nested groups
+                    repeat with g in (groups of w)
+                        try
+                            repeat with sg in (groups of g)
+                                try
+                                    repeat with t in (static texts of sg)
+                                        try
+                                            if value of t is in qualityTerms then return value of t as string
+                                        end try
+                                    end repeat
+                                end try
+                            end repeat
+                        end try
+                    end repeat
+                    return ""
+                on error
+                    return ""
+                end try
+            end tell
+        end tell
+        """
+
+        runAppleScript(script) { [weak self] result in
+            if let quality = result as? String, !quality.isEmpty {
+                DispatchQueue.main.async {
+                    self?.currentTrackQuality = Self.normalizeQuality(quality)
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self?.currentTrackQuality = nil
+                }
+            }
+        }
+    }
+
+    /// Normalize raw quality strings to user-friendly display labels
+    private static func normalizeQuality(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "hifi", "lossless": return "HiFi"
+        case "master", "hi_res", "hi_res_lossless", "max": return "Max"
+        case "atmos", "dolby atmos": return "Atmos"
+        default: return raw
+        }
+    }
+
+    // MARK: - Navigation
+
+    /// Navigate Tidal to the current track's album via Playback menu
+    func goToAlbum() {
+        let script = """
+        tell application "System Events"
+            tell process "TIDAL"
+                try
+                    click menu item "Go to Album" of menu "Playback" of menu bar 1
+                on error
+                    try
+                        click menu item "View Album" of menu "Playback" of menu bar 1
+                    end try
+                end try
+            end tell
+        end tell
+        """
+        runAppleScript(script) { _ in }
+    }
+
+    /// Navigate Tidal to the current track's artist via Playback menu
+    func goToArtist() {
+        let script = """
+        tell application "System Events"
+            tell process "TIDAL"
+                try
+                    click menu item "Go to Artist" of menu "Playback" of menu bar 1
+                on error
+                    try
+                        click menu item "View Artist" of menu "Playback" of menu bar 1
+                    end try
+                end try
+            end tell
+        end tell
+        """
+        runAppleScript(script) { _ in }
+    }
+
     /// Reset state when extension is removed
     func resetState() {
         isCurrentTrackLiked = false
-        lyricsLines = nil
-        currentLyricLine = nil
-        lastLyricsKey = nil
+        currentTrackQuality = nil
+        lastTrackKey = nil
     }
 }

@@ -453,6 +453,29 @@ struct TidalBadge: View {
     }
 }
 
+/// Small quality badge for Tidal tracks (HiFi, Max, Atmos)
+struct TidalQualityBadge: View {
+    let quality: String
+
+    private var badgeColor: Color {
+        switch quality {
+        case "Atmos": return Color(red: 0.6, green: 0.4, blue: 1.0)
+        case "Max": return Color(red: 1.0, green: 0.75, blue: 0.0)
+        default: return Color(red: 0.0, green: 0.80, blue: 0.84)
+        }
+    }
+
+    var body: some View {
+        Text(quality)
+            .font(.system(size: 8, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(badgeColor.opacity(0.85)))
+            .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+    }
+}
+
 // MARK: - Media Control Button (with premium nudge effects)
 
 /// Media control button with premium press animations
