@@ -176,13 +176,13 @@ struct TerminalNotchView: View {
                     // Use ZStack with fixed frame to prevent any layout shift
                     ZStack(alignment: .leading) {
                         // Invisible sizing reference that never changes
-                        Text("Enter command...")
+                        Text("Enter command…")
                             .font(.system(size: 16, design: .monospaced))
                             .opacity(0)
 
                         // Placeholder text (only visible when empty and not focused)
                         if manager.commandText.isEmpty && !isInputFocused {
-                            Text("Enter command...")
+                            Text("Enter command…")
                                 .font(.system(size: 16, design: .monospaced))
                                 .foregroundStyle(secondaryTextColor(0.4))
                         }
@@ -259,7 +259,7 @@ struct TerminalNotchView: View {
                 TextField(
                     "",
                     text: $manager.commandText,
-                    prompt: Text("Enter command...").foregroundColor(secondaryTextColor(0.42))
+                    prompt: Text("Enter command…").foregroundColor(secondaryTextColor(0.42))
                 )
                     .textFieldStyle(.plain)
                     .font(.system(size: 14, design: .monospaced))

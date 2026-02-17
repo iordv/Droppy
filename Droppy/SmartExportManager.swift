@@ -181,7 +181,7 @@ final class SmartExportManager {
             
             // Reveal in Finder if enabled
             if shouldRevealInFinder(for: operation) {
-                print("📦 SmartExport: Revealing in Finder...")
+                print("📦 SmartExport: Revealing in Finder…")
                 // Ensure we're on main thread for AppKit calls
                 DispatchQueue.main.async {
                     NSWorkspace.shared.selectFile(targetURL.path, inFileViewerRootedAtPath: targetFolder.path)

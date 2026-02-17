@@ -334,23 +334,23 @@ struct BasketItemView: View {
                             
                             // Status text or file size (use white text on blue selection)
                             if isConverting {
-                                Text("Converting...")
+                                Text("Converting…")
                                     .font(.system(size: 11))
                                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .orange.opacity(0.8))
                             } else if isCompressing {
-                                Text("Compressing...")
+                                Text("Compressing…")
                                     .font(.system(size: 11))
                                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .blue.opacity(0.8))
                             } else if isRemovingBackground {
-                                Text("Removing BG...")
+                                Text("Removing BG…")
                                     .font(.system(size: 11))
                                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .purple.opacity(0.8))
                             } else if isExtractingText {
-                                Text("Extracting text...")
+                                Text("Extracting text…")
                                     .font(.system(size: 11))
                                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .green.opacity(0.8))
                             } else if isCreatingZIP {
-                                Text("Creating ZIP...")
+                                Text("Creating ZIP…")
                                     .font(.system(size: 11))
                                     .foregroundStyle(isSelected ? .white.opacity(0.9) : .cyan.opacity(0.8))
                             } else if item.isDirectory {
@@ -660,23 +660,23 @@ struct BasketItemView: View {
                     )
                     
                     if isConverting {
-                        Text("Converting...")
+                        Text("Converting…")
                             .font(.system(size: 11))
                             .foregroundStyle(isSelected ? .white.opacity(0.9) : .orange.opacity(0.8))
                     } else if isCompressing {
-                        Text("Compressing...")
+                        Text("Compressing…")
                             .font(.system(size: 11))
                             .foregroundStyle(isSelected ? .white.opacity(0.9) : .blue.opacity(0.8))
                     } else if isRemovingBackground {
-                        Text("Removing BG...")
+                        Text("Removing BG…")
                             .font(.system(size: 11))
                             .foregroundStyle(isSelected ? .white.opacity(0.9) : .purple.opacity(0.8))
                     } else if isExtractingText {
-                        Text("Extracting text...")
+                        Text("Extracting text…")
                             .font(.system(size: 11))
                             .foregroundStyle(isSelected ? .white.opacity(0.9) : .green.opacity(0.8))
                     } else if isCreatingZIP {
-                        Text("Creating ZIP...")
+                        Text("Creating ZIP…")
                             .font(.system(size: 11))
                             .foregroundStyle(isSelected ? .white.opacity(0.9) : .cyan.opacity(0.8))
                     } else if item.isDirectory {
@@ -778,7 +778,7 @@ struct BasketItemView: View {
             Label("Open", systemImage: "arrow.up.forward.square")
         }
         
-        // Move To...
+        // Move To…
         Menu {
             // Saved Destinations
             ForEach(DestinationManager.shared.destinations) { dest in
@@ -796,10 +796,10 @@ struct BasketItemView: View {
             Button {
                 chooseDestinationAndMove()
             } label: {
-                Label("Choose Folder...", systemImage: "folder.badge.plus")
+                Label("Choose Folder…", systemImage: "folder.badge.plus")
             }
         } label: {
-            Label("Move to...", systemImage: "arrow.right.doc.on.clipboard")
+            Label("Move to…", systemImage: "arrow.right.doc.on.clipboard")
         }
         
         // Open With submenu
@@ -818,7 +818,7 @@ struct BasketItemView: View {
                     }
                 }
             } label: {
-                Label("Open With...", systemImage: "square.and.arrow.up.on.square")
+                Label("Open With…", systemImage: "square.and.arrow.up.on.square")
             }
         }
         
@@ -887,9 +887,9 @@ struct BasketItemView: View {
                 }
             } label: {
                 if state.selectedBasketItems.count > 1 && state.selectedBasketItems.contains(item.id) {
-                    Label("Convert All (\(state.selectedBasketItems.count))...", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Convert All (\(state.selectedBasketItems.count))…", systemImage: "arrow.triangle.2.circlepath")
                 } else {
-                    Label("Convert to...", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Convert to…", systemImage: "arrow.triangle.2.circlepath")
                 }
             }
         }
@@ -957,7 +957,7 @@ struct BasketItemView: View {
                         }
                     }
                     if !isMultiSelect && (showImageTargetSize || showVideoTargetSize) {
-                        Button("Target Size...") {
+                        Button("Target Size…") {
                             compressFile(mode: nil)
                         }
                     }

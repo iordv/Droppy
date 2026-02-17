@@ -196,7 +196,7 @@ struct LiquidTextField: View {
                 .foregroundStyle(.secondary)
                 .font(.system(size: 18))
             
-            TextField("Search Files...", text: $text)
+            TextField("Search Files…", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 16))
                 .focused($isFocused)

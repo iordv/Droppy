@@ -848,7 +848,7 @@ final class MusicManager: ObservableObject {
     /// FIX #95: Force switch to Spotify by fetching data directly via AppleScript
     /// This bypasses MediaRemote which may be stuck on a stale source (e.g., paused browser)
     func forceUpdateFromSpotify() {
-        print("🎵 MusicManager: Forcing update from Spotify via AppleScript...")
+        print("🎵 MusicManager: Forcing update from Spotify via AppleScript…")
         
         SpotifyController.shared.fetchCurrentTrackInfo { [weak self] title, artist, album, duration, position in
             guard let self = self,
@@ -1047,7 +1047,7 @@ final class MusicManager: ObservableObject {
     
     /// Called when screen wakes from sleep - restart the adapter to prevent frozen HUD
     @objc private func handleScreenWake() {
-        print("MusicManager: Screen woke - restarting adapter process to refresh media stream...")
+        print("MusicManager: Screen woke - restarting adapter process to refresh media stream…")
         restartAdapterProcess()
     }
     
@@ -1296,7 +1296,7 @@ final class MusicManager: ObservableObject {
                 
                 if !lineData.isEmpty {
                     if let lineStr = String(data: lineData, encoding: .utf8) {
-                        musicManagerLog("MusicManager: JSON line: \(lineStr.prefix(200))...")
+                        musicManagerLog("MusicManager: JSON line: \(lineStr.prefix(200))…")
                     }
                     self?.processJSONLine(lineData)
                 }

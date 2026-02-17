@@ -110,7 +110,7 @@ class FilePromiseDropNSView: NSView {
             if let promiseReceivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
                !promiseReceivers.isEmpty {
                 
-                print("📦 FilePromiseDrop: Receiving \(promiseReceivers.count) file promises...")
+                print("📦 FilePromiseDrop: Receiving \(promiseReceivers.count) file promises…")
                 
                 // Create temp directory for promised files
                 let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())

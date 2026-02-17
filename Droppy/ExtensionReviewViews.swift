@@ -169,7 +169,7 @@ struct ExtensionReviewsSheet: View {
                     if showFeedbackField && selectedRating > 0 {
                         VStack(spacing: 8) {
                             HStack(spacing: 8) {
-                                TextField("Optional feedback...", text: $feedbackText, axis: .vertical)
+                                TextField("Optional feedback…", text: $feedbackText, axis: .vertical)
                                     .textFieldStyle(.plain)
                                     .font(.callout)
                                     .lineLimit(2...4)

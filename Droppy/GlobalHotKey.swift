@@ -150,7 +150,7 @@ class GlobalHotKey {
         } else if attempt < maxAttempts {
             // TCC subsystem may not be ready yet - retry with increasing delay
             let delay = Double(attempt) * 0.5  // 0.5s, 1.0s, 1.5s
-            print("⚠️ GlobalHotKey: IOHIDManager open failed (attempt \(attempt)), retrying in \(delay)s...")
+            print("⚠️ GlobalHotKey: IOHIDManager open failed (attempt \(attempt)), retrying in \(delay)s…")
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.tryOpenHIDManager(attempt: attempt + 1, maxAttempts: maxAttempts)
             }

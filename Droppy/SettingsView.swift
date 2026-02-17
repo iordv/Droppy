@@ -3318,7 +3318,7 @@ struct SettingsView: View {
     /// Performs a complete reset of all Droppy settings
     /// This is designed to be 100% reliable - clears EVERYTHING
     private func performHardReset() {
-        print("[HardReset] Starting complete reset...")
+        print("[HardReset] Starting complete reset…")
         
         // Get the bundle identifier
         guard let bundleID = Bundle.main.bundleIdentifier else {
@@ -3428,7 +3428,7 @@ struct SettingsView: View {
             print("[HardReset] Cleared caches")
         }
         
-        print("[HardReset] ✅ Reset complete - restarting app...")
+        print("[HardReset] ✅ Reset complete - restarting app…")
         
         // STEP 7: Restart app
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -3771,7 +3771,7 @@ struct SettingsView: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
-                    Text("Add App...")
+                    Text("Add App…")
                 }
             }
             .buttonStyle(DroppyPillButtonStyle(size: .small))
@@ -6062,7 +6062,7 @@ struct AutofadeAppPicker: View {
             Divider()
             
             // Search field
-            TextField("Search apps...", text: $searchText)
+            TextField("Search apps…", text: $searchText)
                 .textFieldStyle(.plain)
                 .droppyTextInputChrome()
                 .padding()

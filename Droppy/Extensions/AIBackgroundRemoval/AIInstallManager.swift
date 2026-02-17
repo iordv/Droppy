@@ -399,7 +399,7 @@ final class AIInstallManager: ObservableObject {
     
     /// Trigger Xcode Command Line Tools installation (shows macOS dialog)
     private func triggerXcodeCliInstall() async -> Bool {
-        installProgress = "Python 3 not found. Requesting Command Line Tools..."
+        installProgress = "Python 3 not found. Requesting Command Line Tools…"
         
         do {
             let result = try await runAIInstallProcess(executable: "/usr/bin/xcode-select", arguments: ["--install"])
@@ -427,7 +427,7 @@ final class AIInstallManager: ObservableObject {
     
     func installTransparentBackground() async {
         isInstalling = true
-        installProgress = "Checking existing installation..."
+        installProgress = "Checking existing installation…"
         installError = nil
         
         defer {
@@ -489,7 +489,7 @@ final class AIInstallManager: ObservableObject {
         var lastError: String?
 
         for basePythonPath in installCandidates {
-            installProgress = "Preparing isolated Python environment..."
+            installProgress = "Preparing isolated Python environment…"
 
             guard let venvResult = await recreateManagedVenv(using: basePythonPath) else {
                 lastError = "Failed to create AI Python environment. Try installing Python from python.org and retry."
@@ -509,7 +509,7 @@ final class AIInstallManager: ObservableObject {
 
             activePythonPath = venvPythonPath
             UserDefaults.standard.set(venvPythonPath, forKey: Self.selectedPythonPathKey)
-            installProgress = "Installing transparent-background package..."
+            installProgress = "Installing transparent-background package…"
 
             do {
                 let result = try await runAIInstallProcess(executable: venvPythonPath, arguments: installArgs)
@@ -616,7 +616,7 @@ final class AIInstallManager: ObservableObject {
     
     func uninstallTransparentBackground() async {
         isInstalling = true
-        installProgress = "Removing package..."
+        installProgress = "Removing package…"
         installError = nil
         
         defer {

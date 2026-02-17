@@ -18,7 +18,7 @@
 "feature.todo.extra" = "Priority levels and auto-cleanup";
 
 /* UI General */
-"add_task_placeholder" = "Add a task...";
+"add_task_placeholder" = "Add a task…";
 "no_tasks_yet" = "No tasks yet";
 "type_above_hint" = "Type above to add your first task";
 "undo" = "Undo";

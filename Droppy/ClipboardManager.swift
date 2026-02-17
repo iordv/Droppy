@@ -430,7 +430,7 @@ class ClipboardManager: ObservableObject {
                     
                     // Save if we migrated data
                     if needsSave {
-                        print("📋 Saving migrated history to disk...")
+                        print("📋 Saving migrated history to disk…")
                         self.isLoading = false
                         self.saveToDisk()
                         self.isLoading = true

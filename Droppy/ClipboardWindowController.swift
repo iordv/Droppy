@@ -162,7 +162,7 @@ class ClipboardWindowController: NSObject, NSWindowDelegate {
         ClipboardManager.shared.isEditingContent = false
         
         isAnimating = true
-        print("⌨️ Droppy: Fading Out Clipboard Window (Duration: 0.25s)...")
+        print("⌨️ Droppy: Fading Out Clipboard Window (Duration: 0.25s)…")
 
         AppKitMotion.animateOut(window, targetScale: 0.96, duration: 0.16) { [weak self] in
             self?.window?.orderOut(nil)

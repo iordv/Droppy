@@ -1947,7 +1947,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         if lockScreenEnabled && !lockHUDEnabled {
             // WINDOW RECREATION: Destroy and rebuild all windows
             // This is the only way to "undelegaDe" from SkyLight
-            print("🔥 NotchWindowController: Destroying SkyLight-delegated windows...")
+            print("🔥 NotchWindowController: Destroying SkyLight-delegated windows…")
             
             // Close and remove all existing windows
             for window in notchWindows.values {
@@ -1988,7 +1988,7 @@ final class NotchWindowController: NSObject, ObservableObject {
         
         // 5. Fallback retry if global monitor failed
         if globalMouseMonitor == nil {
-            print("⚠️ NotchWindowController: Global monitor failed to start! Retrying...")
+            print("⚠️ NotchWindowController: Global monitor failed to start! Retrying…")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.startMonitors()
             }

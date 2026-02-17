@@ -409,7 +409,7 @@ final class WindowSnapManager: ObservableObject {
         stopMonitoringAllShortcuts()
         shortcuts.removeAll()
 
-        debugLog("[WindowSnap] Extension is enabled, loading shortcuts...")
+        debugLog("[WindowSnap] Extension is enabled, loading shortcuts…")
         loadShortcuts()
         debugLog("[WindowSnap] Loaded \(shortcuts.count) shortcuts from UserDefaults")
 

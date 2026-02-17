@@ -443,11 +443,11 @@ struct NotificationHUDView: View {
             return false
         }
 
-        print("NotificationHUD: Found running instance, activating...")
+        print("NotificationHUD: Found running instance, activating…")
 
         // If app is hidden, unhide it first
         if app.isHidden {
-            if debugEnabled { print("🔔 NotificationHUDView: App is hidden, unhiding...") }
+            if debugEnabled { print("🔔 NotificationHUDView: App is hidden, unhiding…") }
             app.unhide()
         }
 

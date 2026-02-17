@@ -391,7 +391,7 @@ struct ToDoInfoView: View {
                                 quickOpenShortcut = newValue
                                 manager.setQuickOpenShortcut(newValue)
                             }
-                        ), recordButtonTitle: "Record", recordingButtonTitle: "Press...", recordButtonColor: .blue, recordButtonWidth: 70)
+                        ), recordButtonTitle: "Record", recordingButtonTitle: "Press…", recordButtonColor: .blue, recordButtonWidth: 70)
 
                         Button {
                             quickOpenShortcut = nil

@@ -465,7 +465,7 @@ struct NotchItemView: View {
                 Label("Show in Finder", systemImage: "folder")
             }
             
-            // Move To...
+            // Move To…
             Menu {
                 // Saved Destinations
                 ForEach(DestinationManager.shared.destinations) { dest in
@@ -483,10 +483,10 @@ struct NotchItemView: View {
                 Button {
                     chooseDestinationAndMove()
                 } label: {
-                    Label("Choose Folder...", systemImage: "folder.badge.plus")
+                    Label("Choose Folder…", systemImage: "folder.badge.plus")
                 }
             } label: {
-                Label("Move to...", systemImage: "arrow.right.doc.on.clipboard")
+                Label("Move to…", systemImage: "arrow.right.doc.on.clipboard")
             }
             
             // Open With submenu
@@ -505,7 +505,7 @@ struct NotchItemView: View {
                         }
                     }
                 } label: {
-                    Label("Open With...", systemImage: "square.and.arrow.up.on.square")
+                    Label("Open With…", systemImage: "square.and.arrow.up.on.square")
                 }
             }
             
@@ -574,9 +574,9 @@ struct NotchItemView: View {
                     }
                 } label: {
                     if state.selectedItems.count > 1 && state.selectedItems.contains(item.id) {
-                        Label("Convert All (\(state.selectedItems.count))...", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Convert All (\(state.selectedItems.count))…", systemImage: "arrow.triangle.2.circlepath")
                     } else {
-                        Label("Convert to...", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Convert to…", systemImage: "arrow.triangle.2.circlepath")
                     }
                 }
             }
@@ -645,7 +645,7 @@ struct NotchItemView: View {
                             }
                         }
                         if !isMultiSelect && (showImageTargetSize || showVideoTargetSize) {
-                            Button("Target Size...") {
+                            Button("Target Size…") {
                                 compressFile(mode: nil)
                             }
                         }

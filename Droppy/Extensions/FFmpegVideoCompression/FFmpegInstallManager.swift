@@ -106,7 +106,7 @@ final class FFmpegInstallManager: ObservableObject {
     /// Install FFmpeg using Homebrew
     func installFFmpeg() async {
         isInstalling = true
-        installProgress = "Checking prerequisites..."
+        installProgress = "Checking prerequisites…"
         installError = nil
         
         defer {
@@ -128,7 +128,7 @@ final class FFmpegInstallManager: ObservableObject {
             return
         }
         
-        installProgress = "Installing FFmpeg via Homebrew..."
+        installProgress = "Installing FFmpeg via Homebrew…"
         
         // Run brew install ffmpeg
         let process = Process()
@@ -141,7 +141,7 @@ final class FFmpegInstallManager: ObservableObject {
         process.standardError = errorPipe
         
         do {
-            installProgress = "Downloading and installing FFmpeg..."
+            installProgress = "Downloading and installing FFmpeg…"
 
             let status = try await runProcessAsync(process)
 
@@ -167,7 +167,7 @@ final class FFmpegInstallManager: ObservableObject {
     
     func uninstallFFmpeg() async {
         isInstalling = true
-        installProgress = "Removing FFmpeg..."
+        installProgress = "Removing FFmpeg…"
         
         defer {
             isInstalling = false

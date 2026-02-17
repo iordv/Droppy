@@ -573,7 +573,7 @@ final class ElementCaptureManager: ObservableObject {
     
     private func showPermissionAlert() {
         // Use ONLY macOS native dialogs - no Droppy custom dialogs
-        print("🔐 ElementCaptureManager: Checking which permissions are missing...")
+        print("🔐 ElementCaptureManager: Checking which permissions are missing…")
         
         if !PermissionManager.shared.isAccessibilityGranted {
             print("🔐 ElementCaptureManager: Requesting Accessibility via native dialog")
@@ -1080,7 +1080,7 @@ final class ElementCaptureManager: ObservableObject {
                         return Unmanaged.passRetained(event)
                     }
                     
-                    print("⚠️ ElementCapture: Tap disabled, re-enabling...")
+                    print("⚠️ ElementCapture: Tap disabled, re-enabling…")
                     if let tap = manager.eventTap {
                         CGEvent.tapEnable(tap: tap, enable: true)
                     }

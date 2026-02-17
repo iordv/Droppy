@@ -145,7 +145,7 @@ class BasketDragContainer: NSView {
         
         // Debug logging for Issue #62
         if result {
-            print("📡 AirDrop Zone HIT: point.x=\(Int(point.x)) zone=[\(Int(airDropLeftEdge))...\(Int(basketRightEdge))]")
+            print("📡 AirDrop Zone HIT: point.x=\(Int(point.x)) zone=[\(Int(airDropLeftEdge))…\(Int(basketRightEdge))]")
         }
         
         return result
@@ -180,7 +180,7 @@ class BasketDragContainer: NSView {
             let basketRightEdge = windowCenterX + currentBasketWidth / 2
             let airDropLeftEdge = basketRightEdge - airDropZoneWidth
             let basketLeftEdge = windowCenterX - currentBasketWidth / 2
-            print("🎯 Zone: point.x=\(Int(point.x)) basket=[\(Int(basketLeftEdge))...\(Int(airDropLeftEdge))] airdrop=[\(Int(airDropLeftEdge))...\(Int(basketRightEdge))] isAirDrop=\(isOverAirDrop) isBasket=\(isOverBasket)")
+            print("🎯 Zone: point.x=\(Int(point.x)) basket=[\(Int(basketLeftEdge))…\(Int(airDropLeftEdge))] airdrop=[\(Int(airDropLeftEdge))…\(Int(basketRightEdge))] isAirDrop=\(isOverAirDrop) isBasket=\(isOverBasket)")
             
             // Synchronous update for responsive feedback
             basketState.isAirDropZoneTargeted = isOverAirDrop
@@ -283,7 +283,7 @@ class BasketDragContainer: NSView {
             if let promiseReceivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
                !promiseReceivers.isEmpty {
                 
-                print("📡 AirDrop: Receiving file promises from Photos.app...")
+                print("📡 AirDrop: Receiving file promises from Photos.app…")
                 
                 // Create a temp location for promised files
                 let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -391,7 +391,7 @@ class BasketDragContainer: NSView {
             return handleAirDropShare(pasteboard)
         }
         
-        // Normal basket behavior below...
+        // Normal basket behavior below…
         
         // Handle Mail.app emails directly via AppleScript
         let mailTypes: [NSPasteboard.PasteboardType] = [
@@ -401,7 +401,7 @@ class BasketDragContainer: NSView {
         let isMailAppEmail = mailTypes.contains(where: { pasteboard.types?.contains($0) ?? false })
         
         if isMailAppEmail {
-            print("📧 Basket: Mail.app email detected, using AppleScript to export...")
+            print("📧 Basket: Mail.app email detected, using AppleScript to export…")
             
             Task { @MainActor in
                 let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())

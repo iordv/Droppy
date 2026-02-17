@@ -134,25 +134,25 @@ class AutoUpdater {
         OLD_PID=\(pid)
         
         # Kill and wait
-        echo -e "${CYAN}⏳ Closing Droppy...${NC}"
+        echo -e "${CYAN}⏳ Closing Droppy…${NC}"
         kill -9 $OLD_PID 2>/dev/null || true
         sleep 2
         
         # Mount
-        echo -e "${CYAN}📦 Mounting update image...${NC}"
+        echo -e "${CYAN}📦 Mounting update image…${NC}"
         hdiutil attach "$DMG_PATH" -nobrowse -mountpoint /Volumes/DroppyUpdate > /dev/null 2>&1
         
         # Remove old
-        echo -e "${CYAN}🗑️  Removing old version...${NC}"
+        echo -e "${CYAN}🗑️  Removing old version…${NC}"
         rm -rf "$APP_PATH" 2>/dev/null || osascript -e "do shell script \\"rm -rf '$APP_PATH'\\" with administrator privileges" 2>/dev/null
         
         # Install
-        echo -e "${CYAN}🚀 Installing new Droppy...${NC}"
+        echo -e "${CYAN}🚀 Installing new Droppy…${NC}"
         cp -R "/Volumes/DroppyUpdate/$APP_NAME" "$APP_PATH"
         xattr -rd com.apple.quarantine "$APP_PATH" 2>/dev/null || true
         
         # Cleanup
-        echo -e "${CYAN}🧹 Cleaning up...${NC}"
+        echo -e "${CYAN}🧹 Cleaning up…${NC}"
         hdiutil detach /Volumes/DroppyUpdate > /dev/null 2>&1 || true
         rm -f "$DMG_PATH" 2>/dev/null || true
         

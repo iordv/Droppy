@@ -16,8 +16,8 @@ enum FFmpegInstallStep: Int, CaseIterable {
     
     var title: String {
         switch self {
-        case .checkingHomebrew: return "Checking Homebrew..."
-        case .installingFFmpeg: return "Installing FFmpeg..."
+        case .checkingHomebrew: return "Checking Homebrew…"
+        case .installingFFmpeg: return "Installing FFmpeg…"
         case .complete: return "Installation Complete!"
         }
     }
@@ -219,7 +219,7 @@ struct FFmpegInstallView: View {
         } else if manager.isInstalled && !manager.isInstalling {
             return "Installed & Ready"
         } else if manager.isInstalling {
-            return "Installing..."
+            return "Installing…"
         } else {
             return "Video Target Size"
         }

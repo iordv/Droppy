@@ -100,14 +100,14 @@ final class VoiceTranscribeMenuBar {
         invisiItem.image = NSImage(systemSymbolName: "eye.slash.circle", accessibilityDescription: nil)
         menu.addItem(invisiItem)
 
-        let uploadItem = NSMenuItem(title: "Upload Audio File...", action: #selector(uploadAudioFile), keyEquivalent: "")
+        let uploadItem = NSMenuItem(title: "Upload Audio File…", action: #selector(uploadAudioFile), keyEquivalent: "")
         uploadItem.target = self
         uploadItem.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
         menu.addItem(uploadItem)
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "Voice Transcribe Settings...", action: #selector(openSettings), keyEquivalent: "")
+        let settingsItem = NSMenuItem(title: "Voice Transcribe Settings…", action: #selector(openSettings), keyEquivalent: "")
         settingsItem.target = self
         settingsItem.image = NSImage(systemSymbolName: "gear", accessibilityDescription: nil)
         menu.addItem(settingsItem)

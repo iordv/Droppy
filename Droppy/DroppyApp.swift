@@ -74,7 +74,7 @@ struct DroppyMenuContent: View {
             Button {
                 LicenseWindowController.shared.show()
             } label: {
-                Label("Activate License...", systemImage: "key.fill")
+                Label("Activate License…", systemImage: "key.fill")
             }
             
             if licenseManager.canStartTrial {
@@ -122,7 +122,7 @@ struct DroppyMenuContent: View {
                 Button {
                     LicenseWindowController.shared.show()
                 } label: {
-                    Label("Activate License...", systemImage: "key.fill")
+                    Label("Activate License…", systemImage: "key.fill")
                 }
                 Divider()
             }
@@ -149,7 +149,7 @@ struct DroppyMenuContent: View {
             Button {
                 UpdateChecker.shared.checkAndNotify()
             } label: {
-                Label("Check for Updates...", systemImage: "arrow.clockwise")
+                Label("Check for Updates…", systemImage: "arrow.clockwise")
             }
             
             Divider()
@@ -192,7 +192,7 @@ struct DroppyMenuContent: View {
                     Button {
                         ClipboardWindowController.shared.show()
                     } label: {
-                        Label("Manage...", systemImage: "list.bullet.rectangle")
+                        Label("Manage…", systemImage: "list.bullet.rectangle")
                     }
                     
                 } label: {
@@ -289,7 +289,7 @@ struct DroppyMenuContent: View {
                     Button {
                         SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
                     } label: {
-                        Label("Configure Window Snap...", systemImage: "keyboard")
+                        Label("Configure Window Snap…", systemImage: "keyboard")
                     }
                 } label: {
                     Label("Window Snap", systemImage: "rectangle.split.2x1")
@@ -301,7 +301,7 @@ struct DroppyMenuContent: View {
             Button {
                 SettingsWindowController.shared.showSettings()
             } label: {
-                Label("Settings...", systemImage: "gear")
+                Label("Settings…", systemImage: "gear")
             }
             .keyboardShortcut(",", modifiers: .command)
             
@@ -378,7 +378,7 @@ struct DroppyMenuContent: View {
     private func upcomingTitle(for item: ToDoItem) -> String {
         let baseTitle: String
         if item.title.count > 52 {
-            baseTitle = String(item.title.prefix(49)) + "..."
+            baseTitle = String(item.title.prefix(49)) + "…"
         } else {
             baseTitle = item.title
         }
@@ -718,7 +718,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("🔐 DEBUG: AXIsProcessTrusted()=\(axTrusted) cache=\(cacheValue) isGranted=\(isGranted)")
 
             if needsAccessibility && !isGranted {
-                print("🔐 Droppy: Accessibility needed for enabled features - prompting...")
+                print("🔐 Droppy: Accessibility needed for enabled features - prompting…")
                 PermissionManager.shared.requestAccessibility(context: .automatic)
             } else {
                 print("🔐 DEBUG: NOT prompting - needsAccessibility=\(needsAccessibility) isGranted=\(isGranted)")

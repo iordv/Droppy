@@ -465,7 +465,7 @@ struct WindowSnapInfoView: View {
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
 
-                    TextField("Search apps...", text: $appSearchQuery)
+                    TextField("Search apps…", text: $appSearchQuery)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, weight: .medium))
 
@@ -617,7 +617,7 @@ struct WindowSnapInfoView: View {
                         Circle()
                             .fill(Color.red)
                             .frame(width: 6, height: 6)
-                        Text("...")
+                        Text("…")
                             .font(.system(size: 11, weight: .medium))
                     } else if let shortcut = shortcuts[action] {
                         Text(shortcut.description)

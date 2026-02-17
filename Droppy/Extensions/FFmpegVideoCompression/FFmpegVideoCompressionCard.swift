@@ -98,7 +98,7 @@ struct FFmpegVideoCompressionCard: View {
                             .foregroundStyle(.green)
                     }
                 } else if manager.isInstalling {
-                    Text("Installing...")
+                    Text("Installing…")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 } else {

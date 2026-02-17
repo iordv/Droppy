@@ -176,7 +176,7 @@ final class PermissionManager: ObservableObject {
         UserDefaults.standard.set(now, forKey: lastAccessibilityPromptBootTimeKey)
         UserDefaults.standard.set(now, forKey: lastAccessibilityPromptDateKey)
         
-        print("🔐 PermissionManager: Requesting accessibility permission (showing macOS dialog)...")
+        print("🔐 PermissionManager: Requesting accessibility permission (showing macOS dialog)…")
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         
@@ -199,7 +199,7 @@ final class PermissionManager: ObservableObject {
         pollingTimer?.invalidate()
         var attempts = 0
         
-        print("🔐 PermissionManager: Starting accessibility polling (0.5s interval, max 20s)...")
+        print("🔐 PermissionManager: Starting accessibility polling (0.5s interval, max 20s)…")
         pollingTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
             guard let self = self else { return }
             attempts += 1
@@ -276,7 +276,7 @@ final class PermissionManager: ObservableObject {
         hasPromptedScreenRecording = true
         UserDefaults.standard.set(Date(), forKey: lastScreenRecordingPromptBootTimeKey)
         
-        print("🔐 PermissionManager: Requesting screen recording permission (showing macOS dialog)...")
+        print("🔐 PermissionManager: Requesting screen recording permission (showing macOS dialog)…")
         return CGRequestScreenCaptureAccess()
     }
     
@@ -310,21 +310,21 @@ final class PermissionManager: ObservableObject {
     // MARK: - Settings URLs
     
     func openAccessibilitySettings() {
-        print("🔐 PermissionManager: Opening Accessibility settings...")
+        print("🔐 PermissionManager: Opening Accessibility settings…")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
     }
     
     func openScreenRecordingSettings() {
-        print("🔐 PermissionManager: Opening Screen Recording settings...")
+        print("🔐 PermissionManager: Opening Screen Recording settings…")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
     }
     
     func openInputMonitoringSettings() {
-        print("🔐 PermissionManager: Opening Input Monitoring settings...")
+        print("🔐 PermissionManager: Opening Input Monitoring settings…")
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(url)
         }

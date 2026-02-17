@@ -1003,7 +1003,7 @@ private struct ExtensionsContent: View {
                         .frame(maxWidth: .infinity)
                 }
                 
-                Text("And many more...")
+                Text("And many more…")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }

@@ -47,7 +47,7 @@ struct SavedShortcut: Codable, Equatable {
 struct KeyShortcutRecorder: View {
     @Binding var shortcut: SavedShortcut?
     var recordButtonTitle: String = "Record Shortcut"
-    var recordingButtonTitle: String = "Press Keys..."
+    var recordingButtonTitle: String = "Press Keys…"
     var recordButtonColor: Color = .blue
     var recordButtonWidth: CGFloat = 120
     @State private var isRecording = false

@@ -723,7 +723,7 @@ class NotchDragContainer: NSView {
         let isMailAppEmail = mailTypes.contains(where: { pasteboard.types?.contains($0) ?? false })
         
         if isMailAppEmail {
-            print("📧 Mail.app email detected, using AppleScript to export...")
+            print("📧 Mail.app email detected, using AppleScript to export…")
             
             Task { @MainActor in
                 let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())

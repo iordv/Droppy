@@ -402,7 +402,7 @@ struct ClipboardManagerView: View {
             HStack(spacing: 12) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("Copied to Clipboard & Pasting...")
+                Text("Copied to Clipboard & Pasting…")
                     .font(.system(size: 13, weight: .medium))
             }
             .padding(.horizontal, 16)
@@ -591,7 +591,7 @@ struct ClipboardManagerView: View {
                         .foregroundStyle(.secondary)
                         .font(.system(size: 14))
                     
-                    TextField("Search history...", text: $searchText)
+                    TextField("Search history…", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, weight: .medium))
                         .focused($isSearchFocused)
@@ -1876,7 +1876,7 @@ struct ClipboardPreviewView: View {
                                     } else {
                                         Image(systemName: "text.viewfinder")
                                     }
-                                    Text(isExtractingText ? "Extracting..." : "Extract Text")
+                                    Text(isExtractingText ? "Extracting…" : "Extract Text")
                                 }
                             }
                             .buttonStyle(DroppyPillButtonStyle(size: .small))
@@ -3179,7 +3179,7 @@ struct URLPreviewCard: View {
             if isLoading {
                 VStack(spacing: 12) {
                     ProgressView().controlSize(.regular)
-                    Text("Fetching preview...")
+                    Text("Fetching preview…")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -3486,7 +3486,7 @@ struct TagManagementSheet: View {
                         .font(.system(size: 14))
                         .animation(.easeInOut(duration: 0.2), value: selectedColorIndex)
                     
-                    TextField("New tag name...", text: $newTagName)
+                    TextField("New tag name…", text: $newTagName)
                         .textFieldStyle(.plain)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(AdaptiveColors.primaryTextAuto)

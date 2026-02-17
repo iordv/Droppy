@@ -847,7 +847,7 @@ struct ScreenshotEditorView: View {
                     Button {
                         saveToFile()
                     } label: {
-                        Label("Save to File...", systemImage: "square.and.arrow.down")
+                        Label("Save to File…", systemImage: "square.and.arrow.down")
                     }
                     
                     if !ExtensionType.quickshare.isRemoved {
@@ -1227,7 +1227,7 @@ struct ScreenshotEditorView: View {
             
             // Text field with dotted outline
             VStack(spacing: 12) {
-                TextField("Enter text...", text: $textInput)
+                TextField("Enter text…", text: $textInput)
                     .textFieldStyle(.plain)
                     .font(.custom(selectedFont == "SF Pro" ? ".AppleSystemUIFont" : selectedFont, size: 14))
                     .droppyTextInputChrome(

@@ -526,7 +526,7 @@ struct VoiceTranscribeInfoView: View {
                         startRecording(for: mode)
                     }
                 } label: {
-                    Text(recordingMode == mode ? "Press..." : "Record")
+                    Text(recordingMode == mode ? "Press…" : "Record")
                 }
                 .buttonStyle(DroppyAccentButtonStyle(color: recordingMode == mode ? .red : .blue, size: .small))
             }

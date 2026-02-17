@@ -27,7 +27,7 @@ struct QuickshareMenuContent: View {
             Button {
                 selectAndUploadFile()
             } label: {
-                Label("Select File to Upload...", systemImage: "doc.badge.plus")
+                Label("Select File to Upload…", systemImage: "doc.badge.plus")
             }
             
             Divider()
@@ -69,7 +69,7 @@ struct QuickshareMenuContent: View {
                     QuickshareManagerWindowController.show()
                 }
             } label: {
-                Label("Manage Uploads...", systemImage: "list.bullet")
+                Label("Manage Uploads…", systemImage: "list.bullet")
             }
         }
         .onAppear {

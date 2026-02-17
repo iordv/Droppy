@@ -60,7 +60,7 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
             var lines = displayItems.map { "• \($0.lastPathComponent)" }
             
             if contents.count > maxItems {
-                lines.append("...and \(contents.count - maxItems) more")
+                lines.append("…and \(contents.count - maxItems) more")
             }
             
             return lines.joined(separator: "\n")

@@ -237,7 +237,7 @@ struct QuickshareItemRow: View {
                 }
                 
                 Button(action: onShare) {
-                    Label("Share...", systemImage: "square.and.arrow.up")
+                    Label("Share…", systemImage: "square.and.arrow.up")
                 }
                 
                 Divider()

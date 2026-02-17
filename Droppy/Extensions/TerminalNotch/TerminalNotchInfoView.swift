@@ -267,7 +267,7 @@ struct TerminalNotchInfoView: View {
                             startRecording()
                         }
                     } label: {
-                        Text(isRecordingShortcut ? "Press..." : "Record")
+                        Text(isRecordingShortcut ? "Press…" : "Record")
                     }
                     .buttonStyle(DroppyAccentButtonStyle(color: isRecordingShortcut ? .red : .green, size: .small))
                 }

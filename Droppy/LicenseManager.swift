@@ -401,7 +401,7 @@ final class LicenseManager: ObservableObject {
             defaults.set(activatedDeviceName, forKey: AppPreferenceKey.gumroadLicenseDeviceName)
         }
         if isActivated {
-            statusMessage = hasStoredActivationFlag ? "License active." : "Saved license found. Verifying..."
+            statusMessage = hasStoredActivationFlag ? "License active." : "Saved license found. Verifying…"
         } else {
             statusMessage = "License not activated."
         }

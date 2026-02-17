@@ -410,7 +410,7 @@ class FileCompressor {
             "-f", "null", "/dev/null"
         ]
         
-        print("Video compression: Running pass 1...")
+        print("Video compression: Running pass 1…")
         let pass1Success = await runFFmpeg(path: ffmpegPath, arguments: pass1Args)
         guard pass1Success else {
             print("Video compression: Pass 1 failed")
@@ -431,7 +431,7 @@ class FileCompressor {
             outputURL.path
         ]
         
-        print("Video compression: Running pass 2...")
+        print("Video compression: Running pass 2…")
         let pass2Success = await runFFmpeg(path: ffmpegPath, arguments: pass2Args)
         
         // Cleanup pass log files

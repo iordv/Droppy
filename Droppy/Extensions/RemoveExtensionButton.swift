@@ -78,7 +78,7 @@ struct DisableExtensionButton: View {
     
     private var buttonText: String {
         if isProcessing {
-            return isDisabled ? "Turning On..." : "Turning Off..."
+            return isDisabled ? "Turning On…" : "Turning Off…"
         }
         return isDisabled ? "Turn On" : "Turn Off"
     }
