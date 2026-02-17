@@ -2866,6 +2866,9 @@ struct SettingsView: View {
                         case .appleMusic:
                             AppleMusicController.shared.refreshState()
                         case .tidal:
+                            if let url = URL(string: "tidal://") {
+                                NSWorkspace.shared.open(url)
+                            }
                             TidalController.shared.refreshState()
                         case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .camera, .quickshare, .notificationHUD, .caffeine, .menuBarManager, .todo:
                             break // No action needed - these have their own configuration UI
