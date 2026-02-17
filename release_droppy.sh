@@ -449,9 +449,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git add "$DMG_NAME"
     git add .
     git commit -m "Release v$VERSION" --quiet
-    git tag "v$VERSION"
     git push origin main --quiet
-    git push origin "v$VERSION" --quiet
+    if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+        warning "Tag v$VERSION already exists on origin. Skipping tag create/push."
+    else
+        git tag "v$VERSION"
+        git push origin "v$VERSION" --quiet
+    fi
     
     # Tap Repo Commit
     cd "$TAP_REPO"
