@@ -655,7 +655,7 @@ final class MenuBarFloatingBarManager: ObservableObject {
             alwaysHiddenSectionEnabled: manager.isSectionEnabled(.alwaysHidden)
         )
 
-        // Match SaneBar behavior:
+        // Match legacy app behavior:
         // 1) reveal first, 2) wait for layout settle, 3) resolve target, 4) click.
         applyMenuInteractionMask(except: requested, captureBackground: true)
         await applyShowAllShield(using: manager)

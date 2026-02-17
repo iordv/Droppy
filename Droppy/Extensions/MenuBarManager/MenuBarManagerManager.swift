@@ -1610,7 +1610,7 @@ final class MenuBarManager: ObservableObject {
         cancelPendingHoverHide()
         setAlwaysHiddenSectionEnabled(true)
 
-        // Shield transition (SaneBar pattern):
+        // Shield transition (legacy pattern):
         // 1) main hidden separator expands (shield),
         // 2) always-hidden separator contracts to visual,
         // 3) main separator contracts to reveal everything.
