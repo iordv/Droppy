@@ -1099,7 +1099,7 @@ private struct ReadyContent: View {
     }
     
     private var clipboardGuideAction: String {
-        enableClipboard ? "Press ⌘⇧Space (default)" : "Enable Clipboard in Settings"
+        enableClipboard ? "Press ⇧⌘Space (default)" : "Enable Clipboard in Settings"
     }
     
     private var clipboardGuideResult: String {

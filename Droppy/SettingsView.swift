@@ -5142,13 +5142,13 @@ struct ClipboardShortcutInfoButton: View {
     
     /// Parse shortcut into display string
     private var shortcutString: String {
-        guard let s = shortcut else { return "⌘⇧Space" }
+        guard let s = shortcut else { return "⇧⌘Space" }
         var parts: [String] = []
         let flags = NSEvent.ModifierFlags(rawValue: s.modifiers)
-        if flags.contains(.command) { parts.append("⌘") }
-        if flags.contains(.shift) { parts.append("⇧") }
-        if flags.contains(.option) { parts.append("⌥") }
         if flags.contains(.control) { parts.append("⌃") }
+        if flags.contains(.option) { parts.append("⌥") }
+        if flags.contains(.shift) { parts.append("⇧") }
+        if flags.contains(.command) { parts.append("⌘") }
         parts.append(KeyCodeHelper.string(for: UInt16(s.keyCode)))
         return parts.joined()
     }
