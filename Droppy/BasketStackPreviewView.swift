@@ -537,7 +537,7 @@ struct BasketBackButton: View {
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: "chevron.left")
+            Image(systemName: "chevron.backward")
         }
         .buttonStyle(DroppyCircleButtonStyle(size: 32))
     }

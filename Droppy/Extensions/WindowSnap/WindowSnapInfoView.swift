@@ -301,7 +301,7 @@ struct WindowSnapInfoView: View {
 
                     HStack(spacing: 10) {
                         SettingsSegmentButton(
-                            icon: "arrow.down.right",
+                            icon: "arrow.down.forward",
                             label: "Classic",
                             isSelected: resizeMode == .classic,
                             tileWidth: 120,
@@ -311,7 +311,7 @@ struct WindowSnapInfoView: View {
                         }
 
                         SettingsSegmentButton(
-                            icon: "arrow.up.left.and.arrow.down.right",
+                            icon: "arrow.up.backward.and.arrow.down.forward",
                             label: "Closest Corner",
                             isSelected: resizeMode == .closestCorner,
                             tileWidth: 140,

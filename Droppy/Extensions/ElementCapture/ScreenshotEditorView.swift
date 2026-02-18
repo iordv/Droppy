@@ -52,7 +52,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
     var symbolName: String {
         switch self {
-        case .arrow: return "arrow.up.right"
+        case .arrow: return "arrow.up.forward"
         case .curvedArrow: return "arrow.uturn.up"
         case .line: return "line.diagonal"
         case .rectangle: return "rectangle"

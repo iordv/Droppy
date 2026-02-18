@@ -64,7 +64,7 @@ private struct DroppyPillButtonContent: View {
                 .foregroundStyle(labelColor)
             
             if showChevron {
-                Image(systemName: "chevron.right")
+                Image(systemName: "chevron.forward")
                     .font(.system(size: fontSize - 3, weight: .semibold))
                     .foregroundStyle(chevronColor)
             }
@@ -695,7 +695,7 @@ struct DroppyIconButton: View {
             // Icon buttons
             HStack(spacing: 12) {
                 DroppyIconButton(icon: "xmark") { }
-                DroppyIconButton(icon: "chevron.left") { }
+                DroppyIconButton(icon: "chevron.backward") { }
                 DroppyIconButton(icon: "gear") { }
             }
         }

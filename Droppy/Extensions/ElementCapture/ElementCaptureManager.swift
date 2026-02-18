@@ -105,7 +105,7 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
-        case .arrow: return "arrow.up.right"
+        case .arrow: return "arrow.up.forward"
         case .curvedArrow: return "arrow.uturn.up"
         case .line: return "line.diagonal"
         case .rectangle: return "rectangle"

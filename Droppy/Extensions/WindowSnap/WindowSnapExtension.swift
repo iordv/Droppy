@@ -20,7 +20,7 @@ struct WindowSnapExtension: ExtensionDefinition {
         ("keyboard", "Configurable keyboard shortcuts"),
         ("cursorarrow.motionlines", "Modifier-drag move and resize"),
         ("rectangle.split.2x2", "Halves, quarters, and thirds"),
-        ("arrow.up.left.and.arrow.down.right", "Maximize and restore"),
+        ("arrow.up.backward.and.arrow.down.forward", "Maximize and restore"),
         ("display", "Multi-monitor support")
     ]
     

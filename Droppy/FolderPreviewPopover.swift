@@ -365,7 +365,7 @@ class FolderItemNSView: NSView {
         addSubview(nameLabel)
         
         // Chevron for directories
-        chevronView.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
+        chevronView.image = NSImage(systemSymbolName: "chevron.forward", accessibilityDescription: nil)
         chevronView.contentTintColor = .secondaryLabelColor.withAlphaComponent(0.5)
         chevronView.imageScaling = .scaleProportionallyDown
         addSubview(chevronView)

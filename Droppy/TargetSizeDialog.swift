@@ -23,7 +23,7 @@ struct TargetSizeDialogView: View {
         VStack(spacing: 0) {
             // Header
             HStack(spacing: 14) {
-                Image(systemName: "arrow.down.right.and.arrow.up.left")
+                Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                     .font(.system(size: 28))
                     .foregroundStyle(.blue)
                 
@@ -98,7 +98,7 @@ struct TargetSizeDialogView: View {
                     compress()
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                         Text("Compress")
                     }
                 }

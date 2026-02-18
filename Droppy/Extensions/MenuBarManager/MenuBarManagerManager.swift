@@ -606,11 +606,11 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
     var visibleSymbol: String {
         switch self {
         case .eye: return "eye.fill"
-        case .chevron: return "chevron.left"
+        case .chevron: return "chevron.backward"
         case .circle: return "circle.fill"
         case .line: return "line.3.horizontal"
         case .dot: return "smallcircle.filled.circle"
-        case .arrow: return "arrowtriangle.right.fill"
+        case .arrow: return "arrowtriangle.forward.fill"
         case .square: return "square.fill"
         case .diamond: return "diamond.fill"
         case .umbrella: return "umbrella.fill"
@@ -621,11 +621,11 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
     var hiddenSymbol: String {
         switch self {
         case .eye: return "eye.slash.fill"
-        case .chevron: return "chevron.right"
+        case .chevron: return "chevron.forward"
         case .circle: return "circle"
         case .line: return "line.3.horizontal.decrease"
         case .dot: return "smallcircle.circle"
-        case .arrow: return "arrowtriangle.left.fill"
+        case .arrow: return "arrowtriangle.backward.fill"
         case .square: return "square"
         case .diamond: return "diamond"
         case .umbrella: return "umbrella"

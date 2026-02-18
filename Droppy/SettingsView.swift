@@ -1211,7 +1211,7 @@ struct SettingsView: View {
                             isSelected: autoCollapseShelf,
                             action: { autoCollapseShelf.toggle() }
                         ) {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(autoCollapseShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
@@ -1222,7 +1222,7 @@ struct SettingsView: View {
                             isSelected: autoExpandShelf,
                             action: { autoExpandShelf.toggle() }
                         ) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(autoExpandShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
@@ -5452,7 +5452,7 @@ struct TrackedFoldersInfoButton: View {
                     
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Watch Downloads, Desktop, or any folder", systemImage: "folder")
-                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.right.circle")
+                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.forward.circle")
                         Label("Choose destination per folder", systemImage: "tray.2")
                     }
                     .font(.caption)

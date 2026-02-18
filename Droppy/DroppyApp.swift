@@ -307,7 +307,7 @@ struct DroppyMenuContent: View {
                     Button {
                         WindowSnapManager.shared.executeAction(.maximize)
                     } label: {
-                        Label("Maximize", systemImage: "arrow.up.left.and.arrow.down.right")
+                        Label("Maximize", systemImage: "arrow.up.backward.and.arrow.down.forward")
                     }
                     Button {
                         WindowSnapManager.shared.executeAction(.center)

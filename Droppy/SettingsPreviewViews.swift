@@ -1064,7 +1064,7 @@ struct FloatingBasketPreview: View {
                 HStack(spacing: 4) {
                     Text("2 Files")
                         .font(.system(size: 13, weight: .medium))
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.62))
                 }

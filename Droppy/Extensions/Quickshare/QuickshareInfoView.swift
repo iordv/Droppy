@@ -202,7 +202,7 @@ struct QuickshareInfoView: View {
                     .padding(.vertical, DroppySpacing.md)
 
                 quickshareToggleRow(
-                    icon: "sidebar.left",
+                    icon: "sidebar.leading",
                     title: "Show in Settings Sidebar",
                     subtitle: "Quick access to file management from Settings",
                     binding: $showInSidebar

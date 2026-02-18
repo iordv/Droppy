@@ -653,9 +653,9 @@ struct NotchItemView: View {
                         }
                     } label: {
                         if isMultiSelect {
-                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         } else {
-                            Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         }
                     }
                     .disabled(isCompressing)
@@ -669,9 +669,9 @@ struct NotchItemView: View {
                         }
                     } label: {
                         if isMultiSelect {
-                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         } else {
-                            Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         }
                     }
                     .disabled(isCompressing)

@@ -825,7 +825,7 @@ struct LinkButton: View {
                 
                 Spacer()
                 
-                Image(systemName: "arrow.up.right")
+                Image(systemName: "arrow.up.forward")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.tertiary)
             }

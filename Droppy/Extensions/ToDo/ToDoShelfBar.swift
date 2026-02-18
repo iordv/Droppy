@@ -1043,7 +1043,7 @@ struct ToDoShelfBar: View {
                 )
             } else {
                 VStack(spacing: 8) {
-                    Image(systemName: "sidebar.right")
+                    Image(systemName: "sidebar.trailing")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.6) : .white.opacity(0.45))
                     Text("Select an item")
@@ -1572,14 +1572,14 @@ private struct ToDoDueDatePopoverContentLocal: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
-                stepButton("chevron.left") { shiftDays(-1) }
+                stepButton("chevron.backward") { shiftDays(-1) }
                 Text(resolvedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
-                stepButton("chevron.right") { shiftDays(1) }
+                stepButton("chevron.forward") { shiftDays(1) }
             }
             .padding(.horizontal, 6)
             .frame(height: 30)

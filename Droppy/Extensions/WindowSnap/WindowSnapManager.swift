@@ -85,9 +85,9 @@ enum SnapAction: String, CaseIterable, Identifiable, Codable {
         case .leftThird: return "rectangle.split.3x1"
         case .centerThird: return "rectangle.center.inset.filled"
         case .rightThird: return "rectangle.split.3x1"
-        case .maximize: return "arrow.up.left.and.arrow.down.right"
+        case .maximize: return "arrow.up.backward.and.arrow.down.forward"
         case .center: return "arrow.up.and.down.and.arrow.left.and.right"
-        case .restore: return "arrow.down.right.and.arrow.up.left"
+        case .restore: return "arrow.down.forward.and.arrow.up.backward"
         case .moveToLeftDisplay: return "arrow.left.to.line"
         case .moveToRightDisplay: return "arrow.right.to.line"
         case .moveToDisplay1: return "1.circle"
@@ -95,7 +95,7 @@ enum SnapAction: String, CaseIterable, Identifiable, Codable {
         case .moveToDisplay3: return "3.circle"
         case .leftHalfDisplay2: return "rectangle.lefthalf.filled"
         case .rightHalfDisplay2: return "rectangle.righthalf.filled"
-        case .maximizeDisplay2: return "arrow.up.left.and.arrow.down.right"
+        case .maximizeDisplay2: return "arrow.up.backward.and.arrow.down.forward"
         }
     }
     
