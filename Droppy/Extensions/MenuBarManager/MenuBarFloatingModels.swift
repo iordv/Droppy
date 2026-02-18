@@ -11,6 +11,7 @@ import CoreGraphics
 
 struct MenuBarFloatingItemSnapshot: Identifiable {
     let id: String
+    let windowID: CGWindowID?
     let axElement: AXUIElement
     let quartzFrame: CGRect
     let appKitFrame: CGRect
@@ -57,7 +58,89 @@ enum MenuBarFloatingIconLayout {
     }
 }
 
+enum MenuBarFloatingFallbackIconProvider {
+    private static var cachedIconsByKey = [String: NSImage]()
+
+    static func clearCache() {
+        cachedIconsByKey.removeAll(keepingCapacity: false)
+    }
+
+    static func icon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
+        let identityToken = [
+            item.ownerBundleID.lowercased(),
+            item.axIdentifier?.lowercased() ?? "",
+            item.title?.lowercased() ?? "",
+            item.detail?.lowercased() ?? "",
+        ]
+        .joined(separator: "|")
+
+        if let cached = cachedIconsByKey[identityToken] {
+            return cached
+        }
+
+        if let systemSymbol = mappedSystemSymbolIcon(for: item) {
+            cachedIconsByKey[identityToken] = systemSymbol
+            return systemSymbol
+        }
+
+        let bundleKey = item.ownerBundleID.lowercased()
+        if let cachedBundleIcon = cachedIconsByKey[bundleKey] {
+            cachedIconsByKey[identityToken] = cachedBundleIcon
+            return cachedBundleIcon
+        }
+
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.ownerBundleID) else {
+            return nil
+        }
+
+        let bundleIcon = NSWorkspace.shared.icon(forFile: appURL.path)
+        let iconDimension = max(16, min(24, round(NSStatusBar.system.thickness)))
+        bundleIcon.size = NSSize(width: iconDimension, height: iconDimension)
+        bundleIcon.isTemplate = false
+        cachedIconsByKey[bundleKey] = bundleIcon
+        cachedIconsByKey[identityToken] = bundleIcon
+        return bundleIcon
+    }
+
+    private static func mappedSystemSymbolIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
+        let normalized = [
+            item.axIdentifier?.lowercased(),
+            item.title?.lowercased(),
+            item.detail?.lowercased(),
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+
+        func makeSymbol(_ name: String) -> NSImage? {
+            let image = NSImage(systemSymbolName: name, accessibilityDescription: item.displayName)
+            image?.isTemplate = true
+            return image
+        }
+
+        if normalized.contains("wifi") || normalized.contains("wi-fi") { return makeSymbol("wifi") }
+        if normalized.contains("battery") { return makeSymbol("battery.100") }
+        if normalized.contains("bluetooth") { return makeSymbol("bolt.horizontal.circle") }
+        if normalized.contains("volume") || normalized.contains("sound") { return makeSymbol("speaker.wave.2") }
+        if normalized.contains("spotlight") || normalized.contains("search") { return makeSymbol("magnifyingglass") }
+        if normalized.contains("clock") || normalized.contains("date") || normalized.contains("calendar") {
+            return makeSymbol("clock")
+        }
+        if normalized.contains("now playing") || normalized.contains("music") { return makeSymbol("music.note") }
+        if normalized.contains("control center") || normalized.contains("controlcentre") { return makeSymbol("switch.2") }
+        if normalized.contains("siri") { return makeSymbol("sparkles") }
+        if normalized.contains("vpn") { return makeSymbol("lock.shield") }
+        if normalized.contains("screen") || normalized.contains("display") { return makeSymbol("display") }
+        if normalized.contains("keyboard") || normalized.contains("input") { return makeSymbol("keyboard") }
+        return nil
+    }
+}
+
 enum MenuBarAXTools {
+    private static func validatedAXValue(_ rawValue: AnyObject) -> AXValue {
+        // Safe because callers gate with CFGetTypeID(rawValue) == AXValueGetTypeID().
+        unsafeBitCast(rawValue, to: AXValue.self)
+    }
+
     static func copyAttribute(_ element: AXUIElement, _ attribute: CFString) -> AnyObject? {
         var value: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(element, attribute, &value)
@@ -80,7 +163,7 @@ enum MenuBarAXTools {
               CFGetTypeID(rawValue) == AXValueGetTypeID() else {
             return nil
         }
-        let value = rawValue as! AXValue
+        let value = validatedAXValue(rawValue)
         guard
               AXValueGetType(value) == .cgPoint else {
             return nil
@@ -95,7 +178,7 @@ enum MenuBarAXTools {
               CFGetTypeID(rawValue) == AXValueGetTypeID() else {
             return nil
         }
-        let value = rawValue as! AXValue
+        let value = validatedAXValue(rawValue)
         guard
               AXValueGetType(value) == .cgSize else {
             return nil
@@ -148,12 +231,16 @@ enum MenuBarFloatingCoordinateConverter {
     }
 
     static func screenContaining(quartzPoint: CGPoint) -> NSScreen? {
-        NSScreen.screens.first(where: { screen in
+        let screens = NSScreen.screens
+        if let exact = screens.first(where: { screen in
             guard let bounds = displayBounds(of: screen) else {
                 return false
             }
-            return bounds.contains(quartzPoint)
-        })
+            return bounds.insetBy(dx: -1, dy: -1).contains(quartzPoint)
+        }) {
+            return exact
+        }
+        return nearestScreenToQuartzPoint(quartzPoint)
     }
 
     static func quartzToAppKit(_ quartzRect: CGRect) -> CGRect {
@@ -183,7 +270,7 @@ enum MenuBarFloatingCoordinateConverter {
 
     static func appKitToQuartz(_ appKitRect: CGRect) -> CGRect {
         let point = CGPoint(x: appKitRect.midX, y: appKitRect.midY)
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) ?? NSScreen.main,
+        guard let screen = screenContaining(appKitPoint: point) ?? NSScreen.main,
               let displayBounds = displayBounds(of: screen) else {
             let mainHeight = NSScreen.main?.frame.height ?? 0
             return CGRect(
@@ -204,5 +291,53 @@ enum MenuBarFloatingCoordinateConverter {
             width: appKitRect.width,
             height: appKitRect.height
         )
+    }
+
+    private static func screenContaining(appKitPoint: CGPoint) -> NSScreen? {
+        let screens = NSScreen.screens
+        if let exact = screens.first(where: { $0.frame.insetBy(dx: -1, dy: -1).contains(appKitPoint) }) {
+            return exact
+        }
+        return nearestScreenToAppKitPoint(appKitPoint)
+    }
+
+    private static func nearestScreenToQuartzPoint(_ point: CGPoint) -> NSScreen? {
+        var best: (screen: NSScreen, distanceSquared: CGFloat)?
+
+        for screen in NSScreen.screens {
+            guard let bounds = displayBounds(of: screen) else { continue }
+            let nearestX = min(max(point.x, bounds.minX), bounds.maxX)
+            let nearestY = min(max(point.y, bounds.minY), bounds.maxY)
+            let dx = point.x - nearestX
+            let dy = point.y - nearestY
+            let distanceSquared = (dx * dx) + (dy * dy)
+
+            if let best, best.distanceSquared <= distanceSquared {
+                continue
+            }
+            best = (screen, distanceSquared)
+        }
+
+        return best?.screen
+    }
+
+    private static func nearestScreenToAppKitPoint(_ point: CGPoint) -> NSScreen? {
+        var best: (screen: NSScreen, distanceSquared: CGFloat)?
+
+        for screen in NSScreen.screens {
+            let frame = screen.frame
+            let nearestX = min(max(point.x, frame.minX), frame.maxX)
+            let nearestY = min(max(point.y, frame.minY), frame.maxY)
+            let dx = point.x - nearestX
+            let dy = point.y - nearestY
+            let distanceSquared = (dx * dx) + (dy * dy)
+
+            if let best, best.distanceSquared <= distanceSquared {
+                continue
+            }
+            best = (screen, distanceSquared)
+        }
+
+        return best?.screen
     }
 }

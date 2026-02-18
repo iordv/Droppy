@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Extensions — Droppy</title>
     <meta name="description"
-        content="Explore powerful extensions for Droppy. Spotify, Alfred, AI Background Removal, Voice Transcribe, Reminders, and more.">
+        content="Explore powerful extensions for Droppy. Spotify, Alfred, AI Background Removal, Floating Bar Manager, Voice Transcribe, Reminders, and more.">
     <link rel="icon" type="image/png" href="assets/app-icon.png">
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
@@ -1473,10 +1473,10 @@
                     </svg><span class="stat-value" data-rating="menu-bar-manager">—</span><span
                         data-rating-count="menu-bar-manager">(0)</span></div>
             </div>
-            <p class="extension-description">Clean up your menu bar with an eye icon toggle. Click to hide icons — a
-                chevron shows where to drag icons.</p>
+            <p class="extension-description">Manage your menu bar with hidden-icon zones and the new Floating Bar
+                Manager — a major new feature that puts fast controls directly below the menu bar.</p>
             <div class="extension-tags"><span class="extension-tag">Menu Bar</span><span
-                    class="extension-tag">Organization</span></div>
+                    class="extension-tag">Floating Bar</span></div>
         </div>
     </div>
 
@@ -1576,7 +1576,7 @@
             'notify-me': { icon: 'assets/icons/notification-hud.png', title: 'Notify me!', category: 'Productivity • Community', deepUrl: 'droppy://extension/notification-hud', screenshot: 'assets/images/notification-hud-screenshot.png', description: 'Capture macOS notifications and display them directly in the notch, like iPhone\'s Dynamic Island. Click to open the source app, swipe up to dismiss. A community extension by Valetivivek.', features: ['Display notifications in the notch', 'Show app icon and preview text', 'Click to open, swipe to dismiss', 'Per-app notification filtering', 'Requires Full Disk Access'] },
             'high-alert': { icon: 'assets/icons/high-alert.jpg', title: 'High Alert', category: 'Productivity • Community', deepUrl: 'droppy://extension/caffeine', screenshot: 'assets/images/high-alert-screenshot.gif', description: 'Prevent your Mac from going to sleep. Choose indefinite mode or set a timer for hours or minutes. Perfect for downloads, presentations, or long-running tasks. A community extension by Valetivivek.', features: ['Keep Mac awake indefinitely', 'Set sleep prevention timer', 'Hover notch to see remaining time', 'Lightweight, no battery drain', 'Quick toggle from notch'] },
             'todo': { icon: 'assets/icons/reminders.png', title: 'Reminders', category: 'Productivity • Community', deepUrl: 'droppy://extension/todo', screenshot: 'assets/images/reminders-screenshot.gif', description: 'Capture tasks in natural language, mention lists and dates, and sync with Apple Reminders. Supports multilingual input, priorities, and auto-cleanup. Shared extension by Jordy (dev) and Valetivivek.', features: ['Natural-language task capture', 'List support with list mentions', 'Date mentions like tomorrow and next Friday', 'Multilingual task input', 'Priority levels and auto-cleanup'] },
-            'menu-bar-manager': { icon: 'assets/icons/menubarmanager.png', title: 'Menu Bar Manager', category: 'Productivity • Community', deepUrl: 'droppy://extension/menu-bar-manager', screenshot: null, description: 'Clean up your menu bar with an eye icon toggle. Click to hide icons — a chevron appears showing where to drag icons for hiding. Simple and intuitive.', features: ['Eye icon toggles visibility', 'Chevron indicates hidden zone', 'Drag icons left of chevron to hide', 'Rearrange with ⌘+drag', 'Remembers your layout'] }
+            'menu-bar-manager': { icon: 'assets/icons/menubarmanager.png', title: 'Menu Bar Manager', category: 'Productivity • Community', deepUrl: 'droppy://extension/menu-bar-manager', screenshot: null, description: 'Clean up your menu bar and manage icons with the Floating Bar Manager below the menu bar. Hide, reveal, and organize icons without clutter.', features: ['Floating Bar Manager (major new feature)', 'Eye icon toggles visibility', 'Chevron indicates hidden zone', 'Drag icons left of chevron to hide', 'Rearrange with ⌘+drag', 'Remembers your layout'] }
         };
 
         let installCounts = {}, ratings = {}, currentExtension = null;

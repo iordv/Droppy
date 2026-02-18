@@ -422,7 +422,7 @@ struct TerminalNotchView: View {
     
     private var terminalBackground: some View {
         RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .droppyGlassFill()
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
                     .fill(Color.black.opacity(0.7))

@@ -159,7 +159,7 @@ struct QuickshareManagerView: View {
     @ViewBuilder
     private var backgroundStyle: some View {
         if useTransparentBackground {
-            Rectangle().fill(.ultraThinMaterial)
+            Rectangle().droppyGlassFill()
         } else {
             AdaptiveColors.panelBackgroundAuto
         }

@@ -75,6 +75,15 @@ final class FloatingBasketWindowController: NSObject {
         // Then check any spawned baskets
         return activeBaskets.contains { $0.basketWindow?.isVisible == true }
     }
+
+    private struct DeferredBasketShowRequest {
+        let position: NSPoint?
+        let atLastPosition: Bool
+    }
+
+    private var isPreparingInitialBasketPreviews = false
+    private var deferredBasketShowRequest: DeferredBasketShowRequest?
+    private var previewPrimingAttemptedItemIDs: Set<UUID> = []
     
     /// Get all visible baskets (includes shared if visible)
     /// NOTE: Only returns baskets with actually visible windows
@@ -472,6 +481,12 @@ final class FloatingBasketWindowController: NSObject {
     static func removeBasket(_ basket: FloatingBasketWindowController) {
         activeBaskets.removeAll { $0 === basket }
     }
+
+    /// Aggressively reclaim transient image/link caches when no baskets are visible.
+    private static func releaseTransientMemoryIfIdle() {
+        guard !isAnyBasketVisible else { return }
+        MemoryRecoveryCoordinator.reclaimTransientMemory(forceAllocatorTrim: false)
+    }
     
     /// Called by DragMonitor when drag ends
     func onDragEnded() {
@@ -583,6 +598,9 @@ final class FloatingBasketWindowController: NSObject {
     /// Shows the basket at a specific position (used for staggered multi-basket reveal)
     /// - Parameter position: The center point where the basket should appear
     func showBasket(at position: NSPoint) {
+        if deferInitialBasketShowUntilPreviewsReady(position: position, atLastPosition: false) {
+            return
+        }
         guard !isShowingOrHiding else { return }
         DragMonitor.shared.stopIdleJiggleMonitoring()
         resetNotchInteractionState()
@@ -614,6 +632,9 @@ final class FloatingBasketWindowController: NSObject {
     /// Shows the basket near the current mouse location (or last position if specified)
     /// - Parameter atLastPosition: If true, opens at last used position instead of mouse location
     func showBasket(atLastPosition: Bool = false) {
+        if deferInitialBasketShowUntilPreviewsReady(position: nil, atLastPosition: atLastPosition) {
+            return
+        }
         guard !isShowingOrHiding else { return }
         DragMonitor.shared.stopIdleJiggleMonitoring()
         resetNotchInteractionState()
@@ -747,6 +768,47 @@ final class FloatingBasketWindowController: NSObject {
         
         // Start mouse tracking for auto-hide peek mode
         startMouseTrackingMonitor()
+    }
+
+    /// Ensures first basket paint uses real file previews by preloading missing thumbnails.
+    /// Returns true when show is deferred and will be retried automatically.
+    private func deferInitialBasketShowUntilPreviewsReady(position: NSPoint?, atLastPosition: Bool) -> Bool {
+        let isInitialPresentation = basketWindow?.isVisible != true
+        guard isInitialPresentation else { return false }
+
+        let itemsNeedingPreview = basketState.items.filter { item in
+            !item.isDirectory &&
+            ThumbnailCache.shared.cachedThumbnail(for: item) == nil &&
+            !previewPrimingAttemptedItemIDs.contains(item.id)
+        }
+        guard !itemsNeedingPreview.isEmpty else { return false }
+
+        previewPrimingAttemptedItemIDs.formUnion(itemsNeedingPreview.map(\.id))
+
+        deferredBasketShowRequest = DeferredBasketShowRequest(position: position, atLastPosition: atLastPosition)
+        guard !isPreparingInitialBasketPreviews else { return true }
+
+        isPreparingInitialBasketPreviews = true
+
+        Task { [weak self] in
+            guard let self else { return }
+            await ThumbnailCache.shared.preloadThumbnails(
+                for: itemsNeedingPreview,
+                size: CGSize(width: 120, height: 120)
+            )
+            await MainActor.run {
+                self.isPreparingInitialBasketPreviews = false
+                guard let request = self.deferredBasketShowRequest else { return }
+                self.deferredBasketShowRequest = nil
+                if let point = request.position {
+                    self.showBasket(at: point)
+                } else {
+                    self.showBasket(atLastPosition: request.atLastPosition)
+                }
+            }
+        }
+
+        return true
     }
     
     /// Global keyboard monitor (fallback when panel isn't key window)
@@ -902,13 +964,16 @@ final class FloatingBasketWindowController: NSObject {
         // Faster, no-wobble collapse animation
         AppKitMotion.animateOut(panel, targetScale: 0.95, duration: 0.2) { [weak self] in
             panel.orderOut(nil)
+            panel.contentView = nil
             AppKitMotion.resetPresentationState(panel)
             if let self = self {
                 Self.removeBasket(self) // Clean up from multi-basket tracking
                 self.basketWindow = nil
+                self.previewPrimingAttemptedItemIDs.removeAll()
                 DroppyState.shared.isBasketVisible = Self.isAnyBasketVisible
                 DroppyState.shared.isBasketTargeted = false
                 self.isShowingOrHiding = false
+                Self.releaseTransientMemoryIfIdle()
             }
         }
     }
@@ -920,6 +985,7 @@ final class FloatingBasketWindowController: NSObject {
 
     private func hideBasketPreservingState(_ panel: NSPanel) {
         isShowingOrHiding = true
+        lastBasketFrame = panel.frame
         basketState.isTargeted = false
         basketState.isAirDropZoneTargeted = false
         basketState.isQuickActionsTargeted = false
@@ -934,10 +1000,14 @@ final class FloatingBasketWindowController: NSObject {
         AppKitMotion.animateOut(panel, targetScale: 0.96, duration: 0.18) { [weak self] in
             guard let self else { return }
             panel.orderOut(nil)
+            panel.contentView = nil
             AppKitMotion.resetPresentationState(panel)
+            self.basketWindow = nil
+            self.previewPrimingAttemptedItemIDs.removeAll()
             DroppyState.shared.isBasketVisible = Self.isAnyBasketVisible
             DroppyState.shared.isBasketTargeted = false
             self.isShowingOrHiding = false
+            Self.releaseTransientMemoryIfIdle()
 
         }
     }

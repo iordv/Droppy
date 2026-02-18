@@ -4,6 +4,11 @@ import AppKit
 // MARK: - Sharing Services Cache
 var sharingServicesCache: [String: (services: [NSSharingService], timestamp: Date)] = [:]
 let sharingServicesCacheTTL: TimeInterval = 60
+let sharingServicesCacheMaxEntries = 48
+
+func clearSharingServicesCache() {
+    sharingServicesCache.removeAll()
+}
 
 /// Wrapper function that uses the deprecated sharingServices(forItems:) API.
 /// Apple recommends NSSharingServicePicker.standardShareMenuItem but that doesn't work
@@ -19,15 +24,30 @@ private nonisolated(unsafe) let _getSharingServices: ([Any]) -> [NSSharingServic
 
 /// Get sharing services for items with caching. Uses deprecated API but no alternative exists for context menus.
 func sharingServicesForItems(_ items: [Any]) -> [NSSharingService] {
+    let now = Date()
+    sharingServicesCache = sharingServicesCache.filter {
+        now.timeIntervalSince($0.value.timestamp) < sharingServicesCacheTTL
+    }
+    if sharingServicesCache.count > sharingServicesCacheMaxEntries {
+        let overflow = sharingServicesCache.count - sharingServicesCacheMaxEntries
+        let oldestKeys = sharingServicesCache
+            .sorted { $0.value.timestamp < $1.value.timestamp }
+            .prefix(overflow)
+            .map { $0.key }
+        for key in oldestKeys {
+            sharingServicesCache.removeValue(forKey: key)
+        }
+    }
+
     // Check if first item is a URL for caching
     if let url = items.first as? URL {
         let ext = url.pathExtension.lowercased()
         if let cached = sharingServicesCache[ext],
-           Date().timeIntervalSince(cached.timestamp) < sharingServicesCacheTTL {
+           now.timeIntervalSince(cached.timestamp) < sharingServicesCacheTTL {
             return cached.services
         }
         let services = _getSharingServices(items)
-        sharingServicesCache[ext] = (services: services, timestamp: Date())
+        sharingServicesCache[ext] = (services: services, timestamp: now)
         return services
     }
     return _getSharingServices(items)

@@ -188,6 +188,20 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     /// Pending size update work items (for coalesced deferred updates)
     private var pendingSizeUpdates: [CGDirectDisplayID: DispatchWorkItem] = [:]
+
+    /// Signature used to skip redundant size recomputation when only hover/click-only
+    /// interaction state changed.
+    private struct WindowSizeSignature: Equatable {
+        let isExpanded: Bool
+        let isDropTargeted: Bool
+        let shelfDisplaySlotCount: Int
+        let todoListExpanded: Bool
+        let todoItemCount: Int
+        let todoShowsUndoToast: Bool
+    }
+
+    /// Last applied size signature. Updated when scheduling a size pass.
+    private var lastWindowSizeSignature: WindowSizeSignature?
     
     /// Last click time for debounce (prevents rapid toggle storms)
     private var lastNotchClickTime: Date = .distantPast
@@ -959,6 +973,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             
             // Find the window whose screen contains the mouse
             guard let (targetWindow, targetScreen) = self.findWindowForMouseLocation(mouseLocation) else { return }
+            guard self.shouldAllowShelfInteractions(for: targetWindow, on: targetScreen) else { return }
 
             // While Notification HUD is visible on this display, don't run notch-click
             // shelf toggles from the global monitor.
@@ -1057,6 +1072,7 @@ final class NotchWindowController: NSObject, ObservableObject {
             
             // Find the window whose screen contains the mouse
             guard let (targetWindow, targetScreen) = self.findWindowForMouseLocation(mouseLocation) else { return }
+            guard self.shouldAllowShelfInteractions(for: targetWindow, on: targetScreen) else { return }
             
             // Use media-aware collapsed hit zone so right-click follows visible surface.
             let notchRect = targetWindow.collapsedInteractionRect()
@@ -1111,6 +1127,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 
                 // Find window for this click
                 guard let (targetWindow, targetScreen) = self.findWindowForMouseLocation(mouseLocation) else { return event }
+                guard self.shouldAllowShelfInteractions(for: targetWindow, on: targetScreen) else { return event }
                 
                 let notchRect = targetWindow.collapsedInteractionRect()
                 let screenTopY = targetScreen.frame.maxY
@@ -1145,6 +1162,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 
                 // Find the window whose screen contains the mouse
                 guard let (targetWindow, targetScreen) = self.findWindowForMouseLocation(mouseLocation) else { return event }
+                guard self.shouldAllowShelfInteractions(for: targetWindow, on: targetScreen) else { return event }
 
                 let notchRect = targetWindow.collapsedInteractionRect()
 
@@ -1384,6 +1402,15 @@ final class NotchWindowController: NSObject, ObservableObject {
                     extraPadding: 10
                 )
                 
+                if isWithinNotchX {
+                    // Fullscreen "Hide All": reveal first, then allow hover/expand interactions.
+                    if isFullscreenOnThisDisplay && !self.fullscreenHoverRevealedDisplays.contains(screen.displayID) {
+                        self.fullscreenHoverRevealedDisplays.insert(screen.displayID)
+                        window.revealInFullscreen()
+                    }
+                    guard self.shouldAllowShelfInteractions(for: window, on: screen) else { continue }
+                }
+
                 if isWithinNotchX && !DroppyState.shared.isHovering(for: screen.displayID) {
                     // Cursor is at top edge of this screen within notch range - trigger hover!
                     let displayID = screen.displayID  // Capture for async block
@@ -1547,6 +1574,12 @@ final class NotchWindowController: NSObject, ObservableObject {
                 guard let self = self, !self.isTemporarilyHidden else { return }
                 
                 self.updateAllWindowsMouseEventHandling()
+
+                let nextSizeSignature = self.currentWindowSizeSignature()
+                let shouldRecalculateSizes = nextSizeSignature != self.lastWindowSizeSignature
+                if shouldRecalculateSizes {
+                    self.lastWindowSizeSignature = nextSizeSignature
+                }
                 
                 // CONSTRAINT CASCADE SAFETY: Skip window resize while a drag session is active.
                 // During drag, DispatchQueue.main.async runs inside AppKit's nested drag run loop.
@@ -1557,7 +1590,9 @@ final class NotchWindowController: NSObject, ObservableObject {
                 // - isDropTargeted can be false for parts of an active drag gesture
                 // - DragMonitor.isDragging stays true for the full drag lifecycle
                 // This ensures we never resize inside AppKit's drag loop.
-                if !DroppyState.shared.isDropTargeted && !DragMonitor.shared.isDragging {
+                if shouldRecalculateSizes &&
+                    !DroppyState.shared.isDropTargeted &&
+                    !DragMonitor.shared.isDragging {
                     self.updateAllWindowsSize()
                 }
                 
@@ -1565,6 +1600,17 @@ final class NotchWindowController: NSObject, ObservableObject {
                 self.setupStateObservation()
             }
         }
+    }
+
+    private func currentWindowSizeSignature() -> WindowSizeSignature {
+        WindowSizeSignature(
+            isExpanded: DroppyState.shared.isExpanded,
+            isDropTargeted: DroppyState.shared.isDropTargeted,
+            shelfDisplaySlotCount: DroppyState.shared.shelfDisplaySlotCount,
+            todoListExpanded: ToDoManager.shared.isShelfListExpanded,
+            todoItemCount: ToDoManager.shared.items.count,
+            todoShowsUndoToast: ToDoManager.shared.showUndoToast
+        )
     }
     
     /// Dynamically resizes all notch windows to fit current shelf content
@@ -1736,7 +1782,25 @@ final class NotchWindowController: NSObject, ObservableObject {
             }
         }
         return nil
-    }    
+    }
+
+    /// True only when this display's notch surface is intended to be interactive.
+    /// Prevents hidden fullscreen windows from consuming hover/click logic.
+    private func shouldAllowShelfInteractions(for window: NotchWindow, on screen: NSScreen) -> Bool {
+        guard !isTemporarilyHidden else { return false }
+
+        let displayID = screen.displayID
+        if fullscreenDisplayIDs.contains(displayID) {
+            let hideMediaOnly = (UserDefaults.standard.object(forKey: AppPreferenceKey.hideMediaOnlyOnFullscreen) as? Bool)
+                ?? PreferenceDefault.hideMediaOnlyOnFullscreen
+            let isHoverRevealed = fullscreenHoverRevealedDisplays.contains(displayID)
+            if !hideMediaOnly && !isHoverRevealed {
+                return false
+            }
+        }
+
+        return window.isVisibleForInteraction()
+    }
 
     fileprivate func isAtAbsoluteTopEdge(_ mouseLocation: NSPoint, on screen: NSScreen) -> Bool {
         mouseLocation.y >= (screen.frame.maxY - fullscreenTopEdgeRevealTolerance)
@@ -2280,7 +2344,9 @@ final class NotchWindowController: NSObject, ObservableObject {
             // Find the target screen and check if mouse is in notch zone
             var isMouseOverNotchZone = false
             if let targetDisplayID = displayID,
-               let targetWindow = self.notchWindows[targetDisplayID] {
+               let targetWindow = self.notchWindows[targetDisplayID],
+               let targetScreen = targetWindow.notchScreen,
+               self.shouldAllowShelfInteractions(for: targetWindow, on: targetScreen) {
                 isMouseOverNotchZone = self.isMouseInAutoExpandIntentZone(
                     mouseLocation: currentMouse,
                     window: targetWindow
@@ -2408,6 +2474,16 @@ final class NotchWindowController: NSObject, ObservableObject {
                         window.revealInFullscreen()
                     }
                 }
+            }
+
+            guard shouldAllowShelfInteractions(for: window, on: screen) else {
+                if DroppyState.shared.isHovering(for: displayID) {
+                    DispatchQueue.main.async {
+                        DroppyState.shared.setHovering(for: displayID, isHovering: false)
+                    }
+                }
+                cancelAutoExpandTimer()
+                return
             }
             
             // Route event only to the window for this screen
@@ -2811,6 +2887,12 @@ class NotchWindow: NSPanel {
         rect.origin.x -= mediaWingWidth
         rect.size.width += (mediaWingWidth * 2)
         return rect
+    }
+
+    /// Interaction visibility guard used by controller-level click/hover monitors.
+    /// `targetAlpha` avoids a race where reveal starts before `alphaValue` updates.
+    func isVisibleForInteraction() -> Bool {
+        alphaValue > 0.01 || targetAlpha > 0.01
     }
 
     /// Mirrors collapsed mini-media visibility conditions closely enough for hit-testing.
@@ -3238,6 +3320,14 @@ class NotchWindow: NSPanel {
             }
             return
         }
+
+        // Fullscreen hidden state: never allow an invisible notch window to intercept clicks.
+        if !isVisibleForInteraction() {
+            if !self.ignoresMouseEvents {
+                self.ignoresMouseEvents = true
+            }
+            return
+        }
         
         // Safely capture state - avoid accessing shared singletons if they might be nil
         // Use local variables to minimize property access time
@@ -3488,6 +3578,16 @@ class NotchWindow: NSPanel {
         // This allows volume/brightness HUDs to still appear while media is hidden
         // Also respect hover-reveal state - don't hide if user has triggered reveal via top-edge hover
         let shouldHide = isFullscreen && !hideMediaOnly && !isHoverRevealed
+        if shouldHide {
+            let state = DroppyState.shared
+            if state.expandedDisplayID == displayID {
+                state.expandedDisplayID = nil
+            }
+            if state.hoveringDisplayID == displayID {
+                state.hoveringDisplayID = nil
+            }
+            NotchWindowController.shared.cancelAutoExpandTimer()
+        }
         let newTargetAlpha: CGFloat = shouldHide ? 0.0 : 1.0
         
         // Only trigger animation if the TARGET has changed

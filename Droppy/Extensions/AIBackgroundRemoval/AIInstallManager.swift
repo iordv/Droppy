@@ -107,7 +107,8 @@ final class AIInstallManager: ObservableObject {
     @Published private(set) var detectedPythonPath: String?
     
     private let installedCacheKey = "aiBackgroundRemovalInstalled"
-    private let transparentBackgroundRequirement = "transparent-background==1.2.10"
+    private let runtimeModuleChecks = ["transparent_background", "wget"]
+    private let runtimePackageRequirements = ["transparent-background==1.2.10", "wget"]
     
     private init() {
         // Load cached status immediately for instant UI response
@@ -142,15 +143,16 @@ final class AIInstallManager: ObservableObject {
     var recommendedManualInstallCommand: String {
         let venvPath = Self.managedVenvURL.path
         let venvPython = Self.managedVenvPythonPath
+        let requirements = runtimePackageRequirements.joined(separator: " ")
 
         if FileManager.default.fileExists(atPath: venvPython) {
-            return "\(shellQuote(venvPython)) -m pip install --upgrade \(transparentBackgroundRequirement)"
+            return "\(shellQuote(venvPython)) -m pip install --upgrade \(requirements)"
         }
 
         let preferredPath = activePythonPath ?? detectedPythonPath
         let python = (preferredPath.flatMap { FileManager.default.fileExists(atPath: $0) ? $0 : nil }) ?? "python3"
 
-        return "\(shellQuote(python)) -m venv \(shellQuote(venvPath)) && \(shellQuote(venvPython)) -m pip install --upgrade \(transparentBackgroundRequirement)"
+        return "\(shellQuote(python)) -m venv \(shellQuote(venvPath)) && \(shellQuote(venvPython)) -m pip install --upgrade \(requirements)"
     }
     
     var hasDetectedPythonPath: Bool {
@@ -187,10 +189,14 @@ final class AIInstallManager: ObservableObject {
     }
     
     private func isTransparentBackgroundInstalled(at pythonPath: String) async -> Bool {
+        let moduleList = runtimeModuleChecks
+            .map { "'\($0)'" }
+            .joined(separator: ", ")
+
         do {
             let result = try await runAIInstallProcess(
                 executable: pythonPath,
-                arguments: ["-c", "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('transparent_background') else 1)"]
+                arguments: ["-c", "import importlib.util, sys; modules=[\(moduleList)]; missing=[m for m in modules if importlib.util.find_spec(m) is None]; sys.exit(0 if not missing else 1)"]
             )
             return result.status == 0
         } catch {
@@ -483,8 +489,7 @@ final class AIInstallManager: ObservableObject {
             "-m", "pip", "install",
             "--upgrade",
             "--disable-pip-version-check",
-            transparentBackgroundRequirement
-        ]
+        ] + runtimePackageRequirements
 
         var lastError: String?
 

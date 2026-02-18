@@ -11,6 +11,221 @@ import QuickLookThumbnailing
 import AppKit
 import AVKit
 
+/// Utilities for handling dropped web links as first-class Droppy items.
+enum DroppyLinkSupport {
+    private static let supportedWebSchemes: Set<String> = ["http", "https"]
+    private static let remoteURLType = NSPasteboard.PasteboardType("public.url")
+
+    static func parseWebURL(from raw: String) -> URL? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              isSupportedRemoteURL(url),
+              url.host != nil else {
+            return nil
+        }
+        return url
+    }
+
+    static func isSupportedRemoteURL(_ url: URL) -> Bool {
+        guard !url.isFileURL, let scheme = url.scheme?.lowercased() else { return false }
+        return supportedWebSchemes.contains(scheme)
+    }
+
+    static func extractRemoteURLs(from pasteboard: NSPasteboard) -> [URL] {
+        var remoteURLs: [URL] = []
+        var seen: Set<String> = []
+
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
+            for url in urls where isSupportedRemoteURL(url) {
+                appendUniqueRemoteURL(url, to: &remoteURLs, seen: &seen)
+            }
+        }
+
+        if let items = pasteboard.pasteboardItems {
+            for item in items {
+                if let rawURL = item.string(forType: .URL) ?? item.string(forType: remoteURLType),
+                   let parsed = parseWebURL(from: rawURL) {
+                    appendUniqueRemoteURL(parsed, to: &remoteURLs, seen: &seen)
+                    continue
+                }
+
+                if let rawText = item.string(forType: .string),
+                   let parsed = parseWebURL(from: rawText) {
+                    appendUniqueRemoteURL(parsed, to: &remoteURLs, seen: &seen)
+                }
+            }
+        }
+
+        return remoteURLs
+    }
+
+    static func createTextOrLinkFiles(from pasteboard: NSPasteboard, in directory: URL) -> [URL] {
+        let remoteURLs = extractRemoteURLs(from: pasteboard)
+        if !remoteURLs.isEmpty {
+            return createWeblocFiles(for: remoteURLs, in: directory)
+        }
+
+        guard let text = pasteboard.string(forType: .string), !text.isEmpty else {
+            return []
+        }
+
+        guard let textFileURL = createTextFile(with: text, in: directory) else {
+            return []
+        }
+        return [textFileURL]
+    }
+
+    static func createWeblocFiles(for remoteURLs: [URL], in directory: URL) -> [URL] {
+        guard !remoteURLs.isEmpty else { return [] }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+
+        var created: [URL] = []
+        var seen: Set<String> = []
+        for remoteURL in remoteURLs where isSupportedRemoteURL(remoteURL) {
+            let key = remoteURL.absoluteString
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+
+            if let fileURL = createWeblocFile(for: remoteURL, in: directory) {
+                created.append(fileURL)
+            }
+        }
+        return created
+    }
+
+    static func resolveRemoteURL(from fileURL: URL) -> URL? {
+        guard fileURL.isFileURL else { return nil }
+        let ext = fileURL.pathExtension.lowercased()
+
+        switch ext {
+        case "webloc":
+            guard let data = try? Data(contentsOf: fileURL) else { return nil }
+            if let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+               let urlString = plist["URL"] as? String,
+               let parsed = parseWebURL(from: urlString) {
+                return parsed
+            }
+            if let raw = String(data: data, encoding: .utf8) {
+                return parseWebURL(from: raw)
+            }
+            return nil
+
+        case "url":
+            guard let raw = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
+            let lines = raw.components(separatedBy: .newlines)
+            if let urlLine = lines.first(where: { $0.lowercased().hasPrefix("url=") }) {
+                let value = String(urlLine.dropFirst(4))
+                return parseWebURL(from: value)
+            }
+            return parseWebURL(from: raw)
+
+        case "txt":
+            let isLegacyDroppedLink =
+                fileURL.lastPathComponent.hasPrefix("Text ") &&
+                fileURL.path.contains("DroppyDrops-")
+            guard isLegacyDroppedLink else { return nil }
+            guard let raw = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
+            return parseWebURL(from: raw)
+
+        default:
+            return nil
+        }
+    }
+
+    static func normalizeQuickshareInputURLs(_ urls: [URL]) -> (fileURLs: [URL], remoteURLs: [URL]) {
+        var fileURLs: [URL] = []
+        var remoteURLs: [URL] = []
+        var seenFilePaths: Set<String> = []
+        var seenRemoteURLs: Set<String> = []
+
+        for url in urls {
+            if url.isFileURL {
+                if let remoteURL = resolveRemoteURL(from: url) {
+                    let key = remoteURL.absoluteString
+                    guard !seenRemoteURLs.contains(key) else { continue }
+                    seenRemoteURLs.insert(key)
+                    remoteURLs.append(remoteURL)
+                    continue
+                }
+
+                let key = url.standardizedFileURL.path
+                guard !seenFilePaths.contains(key) else { continue }
+                seenFilePaths.insert(key)
+                fileURLs.append(url)
+                continue
+            }
+
+            guard isSupportedRemoteURL(url) else { continue }
+            let key = url.absoluteString
+            guard !seenRemoteURLs.contains(key) else { continue }
+            seenRemoteURLs.insert(key)
+            remoteURLs.append(url)
+        }
+
+        return (fileURLs, remoteURLs)
+    }
+
+    private static func createWeblocFile(for remoteURL: URL, in directory: URL) -> URL? {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+
+        let host = remoteURL.host ?? "Link"
+        let fileName = uniqueFileName(
+            baseName: sanitizeFileName(host),
+            ext: "webloc"
+        )
+        let fileURL = directory.appendingPathComponent(fileName)
+
+        let plist = ["URL": remoteURL.absoluteString]
+        guard let data = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0) else {
+            return nil
+        }
+
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return fileURL
+        } catch {
+            return nil
+        }
+    }
+
+    private static func createTextFile(with text: String, in directory: URL) -> URL? {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+        let fileName = uniqueFileName(baseName: "Text", ext: "txt")
+        let fileURL = directory.appendingPathComponent(fileName)
+
+        do {
+            try text.write(to: fileURL, atomically: true, encoding: .utf8)
+            return fileURL
+        } catch {
+            return nil
+        }
+    }
+
+    private static func appendUniqueRemoteURL(_ url: URL, to urls: inout [URL], seen: inout Set<String>) {
+        let key = url.absoluteString
+        guard !seen.contains(key) else { return }
+        seen.insert(key)
+        urls.append(url)
+    }
+
+    private static func uniqueFileName(baseName: String, ext: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH-mm-ss"
+        let timestamp = formatter.string(from: Date())
+        return "\(baseName) \(timestamp)-\(String(UUID().uuidString.prefix(8))).\(ext)"
+    }
+
+    private static func sanitizeFileName(_ name: String) -> String {
+        let invalid = CharacterSet(charactersIn: "/\\:*?\"<>|")
+        var sanitized = name.components(separatedBy: invalid).joined(separator: "_")
+        sanitized = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+        if sanitized.isEmpty { sanitized = "Link" }
+        if sanitized.count > 40 { sanitized = String(sanitized.prefix(40)) }
+        return sanitized
+    }
+}
+
 /// Represents a file or item dropped onto the Droppy shelf
 struct DroppedItem: Identifiable, Hashable, Transferable {
     let id = UUID()
@@ -40,6 +255,18 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     var isDirectory: Bool {
         var isDir: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    /// Remote web link represented by this item, if it is a link file.
+    var remoteLinkURL: URL? {
+        DroppyLinkSupport.resolveRemoteURL(from: url)
+    }
+
+    /// Preferred URL to share for this item.
+    /// For link files, this is the remote HTTP(S) URL.
+    /// For normal files, this is the file URL itself.
+    var preferredShareURL: URL {
+        remoteLinkURL ?? url
     }
     
     /// Generates a tooltip string listing the folder's contents (up to 8 items)
@@ -177,6 +404,15 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     func copyToClipboard() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+
+        // Link files copy as actual URLs (not .webloc/.txt files).
+        if let remoteLinkURL {
+            let absolute = remoteLinkURL.absoluteString
+            pasteboard.setString(absolute, forType: .string)
+            pasteboard.setString(absolute, forType: .URL)
+            pasteboard.writeObjects([remoteLinkURL as NSURL])
+            return
+        }
         
         // For images, copy the actual image data so it pastes into apps like Outlook
         if let fileType = fileType, fileType.conforms(to: .image) {
@@ -212,6 +448,10 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     
     /// Opens the file with the default application
     func openFile() {
+        if let remoteLinkURL {
+            NSWorkspace.shared.open(remoteLinkURL)
+            return
+        }
         NSWorkspace.shared.open(url)
     }
     
@@ -277,6 +517,10 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         for key in keysToDrop {
             availableAppsCache.removeValue(forKey: key)
         }
+    }
+
+    static func clearAvailableAppsCache() {
+        availableAppsCache.removeAll()
     }
     
     /// Reveals the file in Finder

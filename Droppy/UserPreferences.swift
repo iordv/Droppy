@@ -21,6 +21,7 @@ enum AppPreferenceKey {
     static let enableHUDReplacement = "enableHUDReplacement"
     static let enableVolumeHUDReplacement = "enableVolumeHUDReplacement"
     static let enableBrightnessHUDReplacement = "enableBrightnessHUDReplacement"
+    static let enableVolumeKeyFeedbackSound = "enableVolumeKeyFeedbackSound"
     
     // MARK: - Appearance
     static let useDynamicIslandStyle = "useDynamicIslandStyle"
@@ -120,6 +121,7 @@ enum AppPreferenceKey {
     
     // MARK: - System
     static let showInMenuBar = "showInMenuBar"
+    static let showInDock = "showInDock"
     static let showQuickshareInMenuBar = "showQuickshareInMenuBar"
     static let showQuickshareInSidebar = "showQuickshareInSidebar"
     static let quickshareRequireUploadConfirmation = "quickshareRequireUploadConfirmation"
@@ -224,6 +226,7 @@ enum PreferenceDefault {
     static let enableHUDReplacement = true
     static let enableVolumeHUDReplacement = true
     static let enableBrightnessHUDReplacement = true
+    static let enableVolumeKeyFeedbackSound = true
     
     // MARK: - Appearance
     static let useDynamicIslandStyle = true
@@ -322,6 +325,7 @@ enum PreferenceDefault {
     
     // MARK: - System
     static let showInMenuBar = true
+    static let showInDock = false
     static let showQuickshareInMenuBar = true
     static let showQuickshareInSidebar = true  // On by default, can be turned off
     static let quickshareRequireUploadConfirmation = false  // Off by default to preserve current flow

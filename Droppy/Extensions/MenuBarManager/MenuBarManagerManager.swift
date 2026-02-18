@@ -583,6 +583,8 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
     case arrow = "arrow"
     case square = "square"
     case diamond = "diamond"
+    case umbrella = "umbrella"
+    case sunglasses = "sunglasses"
     
     var id: String { rawValue }
     
@@ -596,6 +598,8 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
         case .arrow: return "Arrow"
         case .square: return "Square"
         case .diamond: return "Diamond"
+        case .umbrella: return "Umbrella"
+        case .sunglasses: return "Sunglasses"
         }
     }
     
@@ -609,6 +613,8 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
         case .arrow: return "arrowtriangle.right.fill"
         case .square: return "square.fill"
         case .diamond: return "diamond.fill"
+        case .umbrella: return "umbrella.fill"
+        case .sunglasses: return "sunglasses"
         }
     }
     
@@ -622,6 +628,72 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
         case .arrow: return "arrowtriangle.left.fill"
         case .square: return "square"
         case .diamond: return "diamond"
+        case .umbrella: return "umbrella"
+        case .sunglasses: return "sunglasses"
+        }
+    }
+}
+
+// MARK: - RehideStrategy
+
+/// How hidden menu bar items rehide after being revealed.
+enum RehideStrategy: String, CaseIterable, Identifiable {
+    /// Rehide when clicking outside the menu bar area.
+    case smart = "smart"
+    /// Rehide after a configurable timer delay.
+    case timed = "timed"
+    /// Rehide when the frontmost application changes.
+    case focusLoss = "focusLoss"
+    /// Never auto-rehide; only hide on explicit click.
+    case manual = "manual"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .smart: return "Smart"
+        case .timed: return "Timed"
+        case .focusLoss: return "Focus Loss"
+        case .manual: return "Manual"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .smart: return "Rehide when you click outside the menu bar"
+        case .timed: return "Rehide after a delay"
+        case .focusLoss: return "Rehide when switching apps"
+        case .manual: return "Only hide when you click the toggle"
+        }
+    }
+}
+
+// MARK: - HoverModifierKey
+
+/// Optional modifier key that must be held while hovering to reveal hidden icons.
+enum HoverModifierKey: String, CaseIterable, Identifiable {
+    case none = "none"
+    case option = "option"
+    case command = "command"
+    case control = "control"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .none: return "None"
+        case .option: return "⌥ Option"
+        case .command: return "⌘ Command"
+        case .control: return "⌃ Control"
+        }
+    }
+    
+    var eventFlags: NSEvent.ModifierFlags? {
+        switch self {
+        case .none: return nil
+        case .option: return .option
+        case .command: return .command
+        case .control: return .control
         }
     }
 }
@@ -691,9 +763,24 @@ final class MenuBarManager: ObservableObject {
         }
     }
     
-    /// Auto-hide delay in seconds (0 means don't auto-hide)
+    /// Auto-hide delay in seconds (used by `.timed` rehide strategy)
     @Published var autoHideDelay: Double {
         didSet { UserDefaults.standard.set(autoHideDelay, forKey: "MenuBarManager_AutoHideDelay") }
+    }
+    
+    /// How hidden icons should rehide after being revealed.
+    @Published var rehideStrategy: RehideStrategy {
+        didSet {
+            UserDefaults.standard.set(rehideStrategy.rawValue, forKey: "MenuBarManager_RehideStrategy")
+            setupRehideObservers()
+        }
+    }
+    
+    /// Optional modifier key that must be held when hovering to reveal.
+    @Published var hoverModifierKey: HoverModifierKey {
+        didSet {
+            UserDefaults.standard.set(hoverModifierKey.rawValue, forKey: "MenuBarManager_HoverModifierKey")
+        }
     }
     
     /// Whether to show a separator between visible and hidden icons.
@@ -862,6 +949,12 @@ final class MenuBarManager: ObservableObject {
     
     /// Mouse monitoring
     private var mouseMonitor: Any?
+    
+    /// Global mouse-down monitor for `.smart` rehide strategy.
+    private var smartRehideMouseDownMonitor: Any?
+    
+    /// Workspace observation for `.focusLoss` rehide strategy.
+    private var focusLossObserver: NSObjectProtocol?
 
     /// Last processed mouse-move timestamp for hover handling.
     private var lastMouseMoveProcessTime: TimeInterval = 0
@@ -1042,6 +1135,8 @@ final class MenuBarManager: ObservableObject {
         self.useGradientIcon = UserDefaults.standard.bool(forKey: "MenuBarManager_UseGradientIcon")
         let storedAutoHide = UserDefaults.standard.double(forKey: "MenuBarManager_AutoHideDelay")
         self.autoHideDelay = storedAutoHide  // 0 means don't auto-hide
+        self.rehideStrategy = RehideStrategy(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_RehideStrategy") ?? "") ?? .timed
+        self.hoverModifierKey = HoverModifierKey(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_HoverModifierKey") ?? "") ?? .none
         // Default to true for separator display
         self.showChevronSeparator = true
         UserDefaults.standard.set(true, forKey: "MenuBarManager_ShowChevronSeparator")
@@ -1073,6 +1168,7 @@ final class MenuBarManager: ObservableObject {
         }
 
         isInitializing = false
+        setupRehideObservers()
     }
     
     deinit {
@@ -1082,6 +1178,13 @@ final class MenuBarManager: ObservableObject {
         pendingHoverHideWorkItem = nil
         if let mouseMonitor {
             NSEvent.removeMonitor(mouseMonitor)
+        }
+        // Inline teardown — deinit is nonisolated so we can't call @MainActor methods
+        if let smartRehideMouseDownMonitor {
+            NSEvent.removeMonitor(smartRehideMouseDownMonitor)
+        }
+        if let focusLossObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(focusLossObserver)
         }
     }
     
@@ -1224,25 +1327,27 @@ final class MenuBarManager: ObservableObject {
         // When icons are locked visible via eye click, skip hover behavior
         guard !isLockedVisible else { return }
         
-        guard let screen = NSScreen.main else { return }
         let mouseLocation = NSEvent.mouseLocation
+        guard let screen = interactionScreen(for: mouseLocation) else { return }
+        let menuBarHeight = effectiveMenuBarHeight(for: screen)
         
         // Check if mouse is in the menu bar area
-        let menuBarHeight: CGFloat = 24
         let isAtTop = mouseLocation.y >= screen.frame.maxY - menuBarHeight
         
         // CRITICAL: Only reveal on the RIGHT side of the notch
         // Left side contains Apple menu bar items, right side contains app/third-party items
         // The notch/Dynamic Island belongs to Droppy's shelf, not the menu bar
-        let screenCenterX = screen.frame.midX
-        let notchExclusionWidth: CGFloat = 200  // ±100px from center
-        let isOnRightSideOfNotch = mouseLocation.x > screenCenterX + (notchExclusionWidth / 2)
+        let isOnRightSideOfNotch = isOnRightSideMenuBarArea(mouseLocation: mouseLocation, screen: screen)
         
         let isInMenuBar = isAtTop && isOnRightSideOfNotch
 
         
         if let hiddenSection = section(withName: .hidden) {
             if isInMenuBar && hiddenSection.isHidden {
+                // Check if a modifier key is required and if it's held
+                if let requiredFlags = hoverModifierKey.eventFlags {
+                    guard NSEvent.modifierFlags.contains(requiredFlags) else { return }
+                }
                 // Cursor entered menu bar - cancel any auto-hide timer and show
                 cancelAutoHide()
                 cancelPendingHoverHide()
@@ -1252,42 +1357,93 @@ final class MenuBarManager: ObservableObject {
                 cancelAutoHide()
                 cancelPendingHoverHide()
             } else if !isInMenuBar && !hiddenSection.isHidden {
-                // Cursor left menu bar - schedule auto-hide if enabled, otherwise use hover delay
-                if autoHideDelay > 0 {
-                    cancelPendingHoverHide()
-                    // Start auto-hide timer when cursor leaves (not already running)
-                    if autoHideTimer == nil {
-                        scheduleAutoHide()
-                    }
-                } else {
-                    // Auto-hide disabled - debounce delayed hide to a single pending task.
-                    guard pendingHoverHideWorkItem == nil else { return }
-
-                    let screenFrame = screen.frame
-                    let delay = showOnHoverDelay
-                    let workItem = DispatchWorkItem { [weak self, weak hiddenSection] in
-                        guard let self else { return }
-                        self.pendingHoverHideWorkItem = nil
-                        guard let hiddenSection else { return }
-                        guard !self.isLockedVisible else { return }
-
-                        let currentLocation = NSEvent.mouseLocation
-                        let stillAtTop = currentLocation.y >= screenFrame.maxY - menuBarHeight
-                        let screenCenterX = screenFrame.midX
-                        let notchExclusionWidth: CGFloat = 200
-                        let stillOnRightSideOfNotch = currentLocation.x > screenCenterX + (notchExclusionWidth / 2)
-                        let stillInMenuBar = stillAtTop && stillOnRightSideOfNotch
-
-                        if !stillInMenuBar {
-                            hiddenSection.hide()
+                // Cursor left menu bar — apply rehide strategy
+                switch rehideStrategy {
+                case .timed:
+                    if autoHideDelay > 0 {
+                        cancelPendingHoverHide()
+                        if autoHideTimer == nil {
+                            scheduleAutoHide()
                         }
+                    } else {
+                        scheduleHoverDelayedHide(screen: screen, menuBarHeight: menuBarHeight, hiddenSection: hiddenSection)
                     }
-
-                    pendingHoverHideWorkItem = workItem
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+                case .smart:
+                    // Smart strategy hides on mouse-down outside menu bar (handled by monitor).
+                    // Still schedule a hover-delayed hide as a fallback when cursor leaves.
+                    scheduleHoverDelayedHide(screen: screen, menuBarHeight: menuBarHeight, hiddenSection: hiddenSection)
+                case .focusLoss:
+                    // FocusLoss strategy hides on app switch (handled by observer).
+                    // No timer-based hide needed.
+                    break
+                case .manual:
+                    // Manual strategy — never auto-hide.
+                    break
                 }
             }
         }
+    }
+    
+    /// Schedules a hover-delayed hide task for when the cursor leaves the menu bar.
+    private func scheduleHoverDelayedHide(
+        screen: NSScreen,
+        menuBarHeight: CGFloat,
+        hiddenSection: MenuBarSection
+    ) {
+        guard pendingHoverHideWorkItem == nil else { return }
+
+        let screenFrame = screen.frame
+        let delay = showOnHoverDelay
+        let workItem = DispatchWorkItem { [weak self, weak hiddenSection] in
+            guard let self else { return }
+            self.pendingHoverHideWorkItem = nil
+            guard let hiddenSection else { return }
+            guard !self.isLockedVisible else { return }
+
+            let currentLocation = NSEvent.mouseLocation
+            let stillAtTop = currentLocation.y >= screenFrame.maxY - menuBarHeight
+            let stillOnRightSideOfNotch = self.isOnRightSideMenuBarArea(
+                mouseLocation: currentLocation,
+                screen: screen
+            )
+            let stillInMenuBar = stillAtTop && stillOnRightSideOfNotch
+
+            if !stillInMenuBar {
+                hiddenSection.hide()
+            }
+        }
+
+        pendingHoverHideWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func interactionScreen(for mouseLocation: CGPoint) -> NSScreen? {
+        if let hiddenFrame = controlItemFrame(for: .hidden),
+           let hiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(hiddenFrame) }) {
+            return hiddenScreen
+        }
+        if let alwaysHiddenFrame = controlItemFrame(for: .alwaysHidden),
+           let alwaysHiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(alwaysHiddenFrame) }) {
+            return alwaysHiddenScreen
+        }
+        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main
+    }
+
+    private func effectiveMenuBarHeight(for screen: NSScreen) -> CGFloat {
+        let inferredHeight = screen.frame.maxY - screen.visibleFrame.maxY
+        if inferredHeight > 0 {
+            return inferredHeight
+        }
+        return max(24, NSStatusBar.system.thickness)
+    }
+
+    private func isOnRightSideMenuBarArea(mouseLocation: CGPoint, screen: NSScreen) -> Bool {
+        let hasNotch = screen.safeAreaInsets.top > 0
+        if !hasNotch {
+            return mouseLocation.x > screen.frame.midX
+        }
+        let notchExclusionWidth: CGFloat = 200
+        return mouseLocation.x > screen.frame.midX + (notchExclusionWidth / 2)
     }
 
     private func hasActiveMenuWindow(now: TimeInterval) -> Bool {
@@ -1336,6 +1492,78 @@ final class MenuBarManager: ObservableObject {
         lastMenuTrackingEventTime = 0
     }
     
+    // MARK: - Rehide Strategy Observers
+    
+    /// Installs or tears down observers for the current rehide strategy.
+    private func setupRehideObservers() {
+        tearDownRehideObservers()
+        
+        switch rehideStrategy {
+        case .smart:
+            smartRehideMouseDownMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+                self?.handleSmartRehideMouseDown(event)
+            }
+        case .focusLoss:
+            focusLossObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.handleFocusLossAppSwitch()
+                }
+            }
+        case .timed, .manual:
+            break
+        }
+    }
+    
+    /// Removes all rehide strategy observers.
+    private func tearDownRehideObservers() {
+        if let smartRehideMouseDownMonitor {
+            NSEvent.removeMonitor(smartRehideMouseDownMonitor)
+            self.smartRehideMouseDownMonitor = nil
+        }
+        if let focusLossObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(focusLossObserver)
+            self.focusLossObserver = nil
+        }
+    }
+    
+    /// Smart strategy: hide when clicking outside the menu bar area.
+    private func handleSmartRehideMouseDown(_ event: NSEvent) {
+        guard !isLockedVisible else { return }
+        guard let hiddenSection = section(withName: .hidden), !hiddenSection.isHidden else { return }
+        
+        // Don't rehide if clicking inside a menu that's already open
+        let now = ProcessInfo.processInfo.systemUptime
+        if hasActiveMenuWindow(now: now) || hasAnyOnScreenPopupMenuWindow() { return }
+        
+        let mouseLocation = NSEvent.mouseLocation
+        guard let screen = interactionScreen(for: mouseLocation) else { return }
+        let menuBarHeight = effectiveMenuBarHeight(for: screen)
+        let isAtTop = mouseLocation.y >= screen.frame.maxY - menuBarHeight
+        let isOnRightSide = isOnRightSideMenuBarArea(mouseLocation: mouseLocation, screen: screen)
+        
+        if !(isAtTop && isOnRightSide) {
+            hiddenSection.hide()
+        }
+    }
+    
+    /// Focus loss strategy: hide when the frontmost application changes.
+    private func handleFocusLossAppSwitch() {
+        guard !isLockedVisible else { return }
+        guard let hiddenSection = section(withName: .hidden), !hiddenSection.isHidden else { return }
+        
+        // Small delay to avoid racing with menu bar item click → app activation sequences
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self else { return }
+            guard !self.isLockedVisible else { return }
+            guard let section = self.section(withName: .hidden), !section.isHidden else { return }
+            section.hide()
+        }
+    }
+    
     /// Returns the menu bar section with the given name.
     func section(withName name: MenuBarSection.Name) -> MenuBarSection? {
         sections.first { $0.name == name }
@@ -1382,7 +1610,7 @@ final class MenuBarManager: ObservableObject {
         cancelPendingHoverHide()
         setAlwaysHiddenSectionEnabled(true)
 
-        // Shield transition (SaneBar pattern):
+        // Shield transition (legacy pattern):
         // 1) main hidden separator expands (shield),
         // 2) always-hidden separator contracts to visual,
         // 3) main separator contracts to reveal everything.
@@ -1433,6 +1661,12 @@ final class MenuBarManager: ObservableObject {
     
     /// Enables the menu bar manager.
     func enable() {
+        // Support direct callers that don't flip the published toggle first.
+        if !isEnabled {
+            isEnabled = true
+            return
+        }
+
         // Clear both legacy and unified removed flags
         UserDefaults.standard.set(false, forKey: "MenuBarManager_Removed")
         ExtensionType.menuBarManager.setRemoved(false)
@@ -1453,9 +1687,16 @@ final class MenuBarManager: ObservableObject {
     
     /// Disables the menu bar manager.
     func disable() {
+        // Support direct callers that don't flip the published toggle first.
+        if isEnabled {
+            isEnabled = false
+            return
+        }
+
         cancelAutoHide()
         cancelPendingHoverHide()
         resetMenuWindowDetectionState()
+        tearDownRehideObservers()
         if let mouseMonitor {
             NSEvent.removeMonitor(mouseMonitor)
             self.mouseMonitor = nil
@@ -1485,6 +1726,7 @@ final class MenuBarManager: ObservableObject {
         cancelAutoHide()
         cancelPendingHoverHide()
         resetMenuWindowDetectionState()
+        tearDownRehideObservers()
         if let mouseMonitor {
             NSEvent.removeMonitor(mouseMonitor)
             self.mouseMonitor = nil

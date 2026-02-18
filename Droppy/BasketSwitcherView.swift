@@ -85,7 +85,7 @@ struct BasketSwitcherView: View {
             .background(
                 // Glassmorphism container
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                    .droppyGlassFill()
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)
@@ -153,7 +153,7 @@ struct BasketSelectionView: View {
             .background(
                 // Glassmorphism container
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                    .droppyGlassFill()
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)
@@ -468,7 +468,7 @@ struct TrackedFolderSwitcherView: View {
             .background(
                 // Glassmorphism container
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(.ultraThinMaterial)
+                    .droppyGlassFill()
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(AdaptiveColors.overlayAuto(0.2), lineWidth: 0.5)

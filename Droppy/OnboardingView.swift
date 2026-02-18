@@ -109,7 +109,7 @@ struct OnboardingView: View {
         .frame(width: windowSize.width, height: windowSize.height)
         .background {
             if useTransparentBackground {
-                AnyView(Rectangle().fill(.ultraThinMaterial))
+                AnyView(Rectangle().droppyGlassFill())
             } else {
                 AnyView(AdaptiveColors.panelBackgroundAuto)
             }

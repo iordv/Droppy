@@ -589,6 +589,30 @@ final class ElementCaptureManager: ObservableObject {
     // MARK: - Highlight Window Setup
     
     private var currentScreenDisplayID: CGDirectDisplayID = 0
+
+    /// Resolves the active screen robustly for multi-display setups.
+    /// Falls back to nearest screen when coordinate edge cases land just outside a frame.
+    private func screenForMouseLocation(_ mouseLocation: NSPoint) -> NSScreen? {
+        if let containing = NSScreen.screens.first(where: {
+            $0.frame.insetBy(dx: -1, dy: -1).contains(mouseLocation)
+        }) {
+            return containing
+        }
+
+        let nearest = NSScreen.screens.min { lhs, rhs in
+            distanceSquared(from: mouseLocation, to: lhs.frame) < distanceSquared(from: mouseLocation, to: rhs.frame)
+        }
+
+        return nearest ?? NSScreen.main ?? NSScreen.screens.first
+    }
+
+    private func distanceSquared(from point: CGPoint, to rect: CGRect) -> CGFloat {
+        let clampedX = min(max(point.x, rect.minX), rect.maxX)
+        let clampedY = min(max(point.y, rect.minY), rect.maxY)
+        let dx = point.x - clampedX
+        let dy = point.y - clampedY
+        return (dx * dx) + (dy * dy)
+    }
     
     private func setupHighlightWindow() {
         // Find the screen where the mouse currently is, not just NSScreen.main
@@ -601,7 +625,7 @@ final class ElementCaptureManager: ObservableObject {
         }
         
         // Find the screen containing the mouse
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let screen = screenForMouseLocation(mouseLocation) else {
             print("[ElementCapture] ERROR: No screen found!")
             return
         }
@@ -645,7 +669,7 @@ final class ElementCaptureManager: ObservableObject {
         
         let mouseLocation = NSEvent.mouseLocation
         
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let screen = screenForMouseLocation(mouseLocation) else {
             print("[ElementCapture] ERROR: No screen found for area selection!")
             return false
         }
@@ -793,7 +817,7 @@ final class ElementCaptureManager: ObservableObject {
         let mouseLocation = NSEvent.mouseLocation
         
         // Find the screen containing the mouse
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) else {
+        guard let screen = screenForMouseLocation(mouseLocation) else {
             hideHighlight()
             return
         }
@@ -1099,7 +1123,9 @@ final class ElementCaptureManager: ObservableObject {
                         DispatchQueue.main.async {
                             manager.stopCaptureMode()
                         }
-                        return nil
+                        // Never consume Escape globally here; just stop capture and
+                        // allow the key event to continue to the focused app.
+                        return Unmanaged.passRetained(event)
                     }
                     return Unmanaged.passRetained(event)
                 }
@@ -1286,7 +1312,7 @@ final class ElementCaptureManager: ObservableObject {
     private func captureFullscreen() async {
         // Get the screen under the mouse cursor
         let mouseLocation = NSEvent.mouseLocation
-        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let screen = screenForMouseLocation(mouseLocation) else {
             stopCaptureMode()
             return
         }
@@ -1320,7 +1346,7 @@ final class ElementCaptureManager: ObservableObject {
     
     private func captureWindowUnderCursor() async {
         let mouseLocation = NSEvent.mouseLocation
-        guard let mouseScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let mouseScreen = screenForMouseLocation(mouseLocation) else {
             print("[ElementCapture] Could not resolve target screen for window capture")
             stopCaptureMode()
             return
@@ -1541,7 +1567,7 @@ final class ElementCaptureManager: ObservableObject {
         guard isActive else { return }
 
         let mouseLocation = NSEvent.mouseLocation
-        guard let activeScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main else {
+        guard let activeScreen = screenForMouseLocation(mouseLocation) else {
             return
         }
 

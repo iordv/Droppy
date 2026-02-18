@@ -311,20 +311,54 @@ class FileCompressor {
         let asset = AVURLAsset(url: url)
         
         let fileName = url.deletingPathExtension().lastPathComponent
-        let outputURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(fileName)_compressed")
-            .appendingPathExtension("mp4")
-        
-        // Remove existing file if present
-        try? FileManager.default.removeItem(at: outputURL)
         
         switch mode {
         case .preset(let quality):
+            let outputURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(fileName)_compressed")
+                .appendingPathExtension("mp4")
+            // Remove existing file if present
+            try? FileManager.default.removeItem(at: outputURL)
             return await compressVideoWithPreset(asset: asset, preset: quality.videoPreset, outputURL: outputURL)
             
         case .targetSize(let targetBytes):
+            let outputDirectory = preferredOutputDirectory(for: url)
+            let outputURL = uniqueOutputURL(
+                baseName: "\(fileName)_compressed",
+                ext: "mp4",
+                in: outputDirectory
+            )
             return await compressVideoToTargetSize(asset: asset, targetBytes: targetBytes, outputURL: outputURL)
         }
+    }
+
+    /// Prefer exporting next to the source file, unless the source lives in temporary storage.
+    /// In that case, export to Downloads so users can actually find the result.
+    private func preferredOutputDirectory(for sourceURL: URL) -> URL {
+        let sourceDirectory = sourceURL.deletingLastPathComponent().standardizedFileURL
+        let tempDirectory = FileManager.default.temporaryDirectory.standardizedFileURL
+
+        if sourceDirectory.path.hasPrefix(tempDirectory.path) {
+            if let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first {
+                return downloads
+            }
+        }
+
+        return sourceDirectory
+    }
+
+    private func uniqueOutputURL(baseName: String, ext: String, in directory: URL) -> URL {
+        var candidate = directory.appendingPathComponent(baseName).appendingPathExtension(ext)
+        var counter = 1
+
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = directory
+                .appendingPathComponent("\(baseName)_\(counter)")
+                .appendingPathExtension(ext)
+            counter += 1
+        }
+
+        return candidate
     }
     
     private func compressVideoWithPreset(asset: AVAsset, preset: String, outputURL: URL) async -> URL? {
@@ -401,13 +435,17 @@ class FileCompressor {
         
         // Pass 1: Analyze video
         let pass1Args = [
+            "-hide_banner",
             "-y", "-i", inputURL.path,
+            "-map", "0:v:0",
             "-c:v", "libx264",
             "-b:v", "\(videoBitrateKbps)k",
             "-pass", "1",
             "-passlogfile", passLogPrefix,
             "-an", // No audio in pass 1
-            "-f", "null", "/dev/null"
+            "-sn", // Skip subtitles (often incompatible with MP4 output)
+            "-dn", // Skip data streams/attachments
+            "-f", "null", "-"
         ]
         
         print("Video compression: Running pass 1…")
@@ -420,13 +458,18 @@ class FileCompressor {
         
         // Pass 2: Encode with target bitrate
         let pass2Args = [
+            "-hide_banner",
             "-y", "-i", inputURL.path,
+            "-map", "0:v:0",
+            "-map", "0:a?",
             "-c:v", "libx264",
             "-b:v", "\(videoBitrateKbps)k",
             "-pass", "2",
             "-passlogfile", passLogPrefix,
             "-c:a", "aac",
             "-b:a", "\(audioBitrateKbps)k",
+            "-sn", // Skip subtitle streams (prevents MKV->MP4 failures)
+            "-dn", // Skip data streams/attachments
             "-movflags", "+faststart",
             outputURL.path
         ]
@@ -453,24 +496,19 @@ class FileCompressor {
             process.executableURL = URL(fileURLWithPath: path)
             process.arguments = arguments
             
-            // Capture stderr for debugging
-            let errorPipe = Pipe()
-            process.standardError = errorPipe
+            // Route output to null to avoid pipe backpressure deadlocks with verbose ffmpeg logs.
+            process.standardError = FileHandle.nullDevice
             process.standardOutput = FileHandle.nullDevice
             
             do {
-                try process.run()
-                process.waitUntilExit()
-                
-                if process.terminationStatus == 0 {
-                    continuation.resume(returning: true)
-                } else {
-                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                    if let errorString = String(data: errorData, encoding: .utf8) {
-                        print("FFmpeg error: \(errorString.suffix(500))")
+                process.terminationHandler = { process in
+                    let didSucceed = process.terminationStatus == 0
+                    if !didSucceed {
+                        print("FFmpeg process exited with status \(process.terminationStatus)")
                     }
-                    continuation.resume(returning: false)
+                    continuation.resume(returning: didSucceed)
                 }
+                try process.run()
             } catch {
                 print("FFmpeg process error: \(error)")
                 continuation.resume(returning: false)

@@ -55,9 +55,9 @@ struct DraggableArea<Content: View>: NSViewRepresentable {
     
     func updateNSView(_ nsView: DraggableAreaView<Content>, context: Context) {
         // Skip content updates only while THIS draggable view is actively presenting
-        // its context menu. A global high-level-window check causes false positives
-        // (for example OCR/basket panels) and breaks hover/thumbnail updates.
-        guard !nsView.isPresentingContextMenu else { return }
+        // its context menu, or while an actual AppKit menu window is visible.
+        // This avoids re-hosting the view while submenus are tracking.
+        guard !nsView.isPresentingContextMenu, !nsView.isAnyMenuWindowVisible else { return }
         
         nsView.update(rootView: content, items: items, onTap: onTap, onDoubleClick: onDoubleClick, onRightClick: onRightClick, onDragStart: onDragStart, onDragComplete: onDragComplete, onRemoveButton: onRemoveButton, onPinButton: onPinButton)
     }
@@ -77,6 +77,9 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
     private var mouseDownEvent: NSEvent?
     private var mouseDownModifierFlags: NSEvent.ModifierFlags = []
     fileprivate private(set) var isPresentingContextMenu = false
+    fileprivate var isAnyMenuWindowVisible: Bool {
+        hasVisibleMenuWindow()
+    }
     
     /// CRITICAL: Retain drag preview images for the duration of the drag session.
     /// Without this, Core Animation may try to release images that ARC has already deallocated,
@@ -238,11 +241,39 @@ class DraggableAreaView<Content: View>: NSView, NSDraggingSource {
         // The previous async dispatch was causing the 500ms lag
         super.rightMouseDown(with: event)
         
-        // Menu has closed at this point - unblock interactions immediately
-        // Use minimal delay just to ensure menu window is fully deallocated
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            DroppyState.shared.isInteractionBlocked = false
-            self?.isPresentingContextMenu = false
+        // Keep interactions blocked until the menu window is really gone.
+        // This prevents view re-hosting while a submenu is open (flicker).
+        waitForContextMenuDismissal()
+    }
+
+    private func waitForContextMenuDismissal(attempt: Int = 0) {
+        guard isPresentingContextMenu else { return }
+
+        // Give AppKit one cycle to instantiate the menu window.
+        if attempt == 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+                self?.waitForContextMenuDismissal(attempt: 1)
+            }
+            return
+        }
+
+        let maxAttempts = 200
+        if hasVisibleMenuWindow(), attempt < maxAttempts {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
+                self?.waitForContextMenuDismissal(attempt: attempt + 1)
+            }
+            return
+        }
+
+        DroppyState.shared.isInteractionBlocked = false
+        isPresentingContextMenu = false
+    }
+
+    private func hasVisibleMenuWindow() -> Bool {
+        NSApp.windows.contains { window in
+            guard window.isVisible else { return false }
+            guard window.level.rawValue >= NSWindow.Level.popUpMenu.rawValue else { return false }
+            return NSStringFromClass(type(of: window)).lowercased().contains("menu")
         }
     }
     

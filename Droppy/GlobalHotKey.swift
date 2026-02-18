@@ -68,6 +68,15 @@ class GlobalHotKey {
         Self.uniqueID += 1
         
         print("⌨️ GlobalHotKey: Init (Code: \(keyCode), Mods: \(modifiers))")
+
+        // Safety guard: never capture plain Escape globally.
+        // This key is expected to keep working system-wide (vim, modals, etc.).
+        let normalizedModifiers = NSEvent.ModifierFlags(rawValue: modifiers)
+            .intersection([.command, .option, .control, .shift, .function])
+        if keyCode == Int(kVK_Escape) && normalizedModifiers.isEmpty {
+            print("⚠️ GlobalHotKey: Refusing to register plain Escape as a global shortcut")
+            return
+        }
         
         // 1. Register Carbon when supported by the shortcut shape.
         if shouldRegisterCarbon(keyCode: keyCode, modifiers: modifiers) {

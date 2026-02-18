@@ -23,7 +23,7 @@ error() { echo -e "${RED}✖ Error: $1${RESET}"; exit 1; }
 step() { echo -e "   ${DIM}→ $1${RESET}"; }
 
 header() {
-    clear
+    clear || true
     echo -e "${BLUE}"
     cat << "EOF"
     ____                                
@@ -59,9 +59,9 @@ info "Preparing Release: ${GREEN}v$VERSION${RESET}"
 [ -d "$TAP_REPO" ] || error "Tap repo not found at $TAP_REPO"
 cd "$MAIN_REPO" || error "Cannot enter main repo at $MAIN_REPO"
 
-# Validate version format early (X.Y.Z)
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    error "Version must follow semantic format X.Y.Z (received: $VERSION)"
+# Validate version format early (X.Y or X.Y.Z)
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    error "Version must follow semantic format X.Y or X.Y.Z (received: $VERSION)"
 fi
 
 # Ensure git is clean
@@ -90,7 +90,7 @@ if [ -n "$NOTES_FILE" ] && [ -f "$NOTES_FILE" ]; then
     
     # Update centralized version.js
     sed -i '' "s/version: '[^']*'/version: '$VERSION'/" docs/assets/js/version.js
-    sed -i '' "s/Droppy-[0-9]*\.[0-9]*\.[0-9]*\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
+    sed -E -i '' "s/Droppy-[0-9]+\.[0-9]+(\.[0-9]+)?\.dmg/Droppy-$VERSION.dmg/g" docs/assets/js/version.js
 else
     warning "No valid notes file provided. Skipping doc updates."
 fi
@@ -449,9 +449,13 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git add "$DMG_NAME"
     git add .
     git commit -m "Release v$VERSION" --quiet
-    git tag "v$VERSION"
     git push origin main --quiet
-    git push origin "v$VERSION" --quiet
+    if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+        warning "Tag v$VERSION already exists on origin. Skipping tag create/push."
+    else
+        git tag "v$VERSION"
+        git push origin "v$VERSION" --quiet
+    fi
     
     # Tap Repo Commit
     cd "$TAP_REPO"

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MenuBarManagerCard: View {
-    @StateObject private var manager = MenuBarManager.shared
+    @ObservedObject private var manager = MenuBarManager.shared
     @State private var showInfoSheet = false
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?

@@ -27,7 +27,7 @@ struct TerminalNotchButton: View {
     
     private var buttonBackground: some View {
         RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .droppyGlassFill()
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
                     .fill(Color.black.opacity(0.4))

@@ -508,6 +508,16 @@ final class DroppyState {
             self?.isBulkUpdating = false
         }
     }
+
+    private func invalidateThumbnailCache(for item: DroppedItem) {
+        ThumbnailCache.shared.invalidate(itemId: item.id)
+    }
+
+    private func invalidateThumbnailCache(for items: [DroppedItem]) {
+        for item in items {
+            ThumbnailCache.shared.invalidate(itemId: item.id)
+        }
+    }
     
     /// Removes an item from the shelf
     func removeItem(_ item: DroppedItem, allowPinnedRemoval: Bool = false) {
@@ -515,6 +525,7 @@ final class DroppyState {
         guard allowPinnedRemoval || !item.isPinned else { return }
 
         item.cleanupIfTemporary()
+        invalidateThumbnailCache(for: item)
         
         // Remove from power folders
         shelfPowerFolders.removeAll { $0.id == item.id }
@@ -540,12 +551,14 @@ final class DroppyState {
         for item in shelfPowerFolders.filter({ idsToRemove.contains($0.id) }) {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: shelfPowerFolders.filter { idsToRemove.contains($0.id) })
         shelfPowerFolders.removeAll { idsToRemove.contains($0.id) }
         
         // Remove from regular items
         for item in shelfItems.filter({ idsToRemove.contains($0.id) }) {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: shelfItems.filter { idsToRemove.contains($0.id) })
         shelfItems.removeAll { idsToRemove.contains($0.id) }
         
         selectedItems.removeAll()
@@ -562,15 +575,18 @@ final class DroppyState {
         for item in removableShelfItems {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: removableShelfItems)
         for item in removablePowerFolders {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: removablePowerFolders)
 
         shelfItems.removeAll { !$0.isPinned }
         shelfPowerFolders.removeAll { !$0.isPinned }
 
         selectedItems.removeAll()
         cleanupTempFoldersIfEmpty()
+        MemoryRecoveryCoordinator.reclaimTransientMemory(forceAllocatorTrim: false)
     }
     
     // MARK: - Folder Pinning
@@ -698,6 +714,7 @@ final class DroppyState {
     func replaceItem(_ oldItem: DroppedItem, with newItem: DroppedItem) {
         if let index = items.firstIndex(where: { $0.id == oldItem.id }) {
             items[index] = newItem
+            invalidateThumbnailCache(for: oldItem)
             // Transfer selection if the old item was selected
             if selectedItems.contains(oldItem.id) {
                 selectedItems.remove(oldItem.id)
@@ -710,6 +727,7 @@ final class DroppyState {
     func replaceBasketItem(_ oldItem: DroppedItem, with newItem: DroppedItem) {
         if let index = basketItems.firstIndex(where: { $0.id == oldItem.id }) {
             basketItems[index] = newItem
+            invalidateThumbnailCache(for: oldItem)
             // Transfer selection if the old item was selected
             if selectedBasketItems.contains(oldItem.id) {
                 selectedBasketItems.remove(oldItem.id)
@@ -726,6 +744,7 @@ final class DroppyState {
         var newItems = items.filter { !idsToRemove.contains($0.id) }
         newItems.append(newItem)
         items = newItems
+        invalidateThumbnailCache(for: oldItems)
         // Update selection
         selectedItems.subtract(idsToRemove)
         selectedItems.insert(newItem.id)
@@ -739,6 +758,7 @@ final class DroppyState {
         var newBasketItems = basketItems.filter { !idsToRemove.contains($0.id) }
         newBasketItems.append(newItem)
         basketItems = newBasketItems
+        invalidateThumbnailCache(for: oldItems)
         // Update selection
         selectedBasketItems.subtract(idsToRemove)
         selectedBasketItems.insert(newItem.id)
@@ -816,6 +836,7 @@ final class DroppyState {
         guard allowPinnedRemoval || !item.isPinned else { return }
 
         item.cleanupIfTemporary()
+        invalidateThumbnailCache(for: item)
         
         basketPowerFolders.removeAll { $0.id == item.id }
         basketItemsList.removeAll { $0.id == item.id }
@@ -847,6 +868,7 @@ final class DroppyState {
         for item in removableBasketItems {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: removableBasketItems)
         basketItemsList.removeAll { !$0.isPinned }
         
         // Only remove unpinned power folders - pinned folders stay
@@ -854,10 +876,12 @@ final class DroppyState {
         for item in unpinnedFolders {
             item.cleanupIfTemporary()
         }
+        invalidateThumbnailCache(for: unpinnedFolders)
         basketPowerFolders.removeAll { !$0.isPinned }
         
         selectedBasketItems.removeAll()
         cleanupTempFoldersIfEmpty()
+        MemoryRecoveryCoordinator.reclaimTransientMemory(forceAllocatorTrim: false)
     }
     
     /// Moves all basket items to the shelf
@@ -1015,7 +1039,13 @@ final class DroppyState {
         
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects(itemsToCopy.map { $0.url as NSURL })
+        let shareURLs = itemsToCopy.map(\.preferredShareURL)
+        pasteboard.writeObjects(shareURLs as [NSURL])
+        if shareURLs.count == 1, let onlyURL = shareURLs.first, !onlyURL.isFileURL {
+            let absolute = onlyURL.absoluteString
+            pasteboard.setString(absolute, forType: .URL)
+            pasteboard.setString(absolute, forType: .string)
+        }
         HapticFeedback.copy()
     }
     

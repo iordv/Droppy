@@ -98,7 +98,29 @@ enum QuickActionsCloudShare {
     }
 
     private static func shareToICloudDrive(urls: [URL], completion: (() -> Void)? = nil) {
-        let fileURLs = urls.filter(\.isFileURL)
+        let normalizedInputs = DroppyLinkSupport.normalizeQuickshareInputURLs(urls)
+        var fileURLs = normalizedInputs.fileURLs
+        var temporaryLinkFiles: [URL] = []
+
+        if !normalizedInputs.remoteURLs.isEmpty {
+            let tempLinksFolder = FileManager.default.temporaryDirectory
+                .appendingPathComponent("DroppyICloudLinks-\(UUID().uuidString)", isDirectory: true)
+            let linkFiles = DroppyLinkSupport.createWeblocFiles(for: normalizedInputs.remoteURLs, in: tempLinksFolder)
+            if !linkFiles.isEmpty {
+                fileURLs.append(contentsOf: linkFiles)
+                temporaryLinkFiles = linkFiles
+            }
+        }
+
+        defer {
+            for tempURL in temporaryLinkFiles {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+            if let tempFolder = temporaryLinkFiles.first?.deletingLastPathComponent() {
+                try? FileManager.default.removeItem(at: tempFolder)
+            }
+        }
+
         guard !fileURLs.isEmpty else {
             HapticFeedback.error()
             return
@@ -298,8 +320,9 @@ enum DroppyQuickshare {
         guard !urls.isEmpty else { return }
         guard !DroppyState.shared.isSharingInProgress else { return }
 
-        let fileURLs = urls.filter(\.isFileURL)
-        let remoteURLs = urls.filter { isSupportedRemoteURL($0) }
+        let normalizedInputs = DroppyLinkSupport.normalizeQuickshareInputURLs(urls)
+        let fileURLs = normalizedInputs.fileURLs
+        let remoteURLs = normalizedInputs.remoteURLs
         let itemCount = fileURLs.count + remoteURLs.count
 
         guard itemCount > 0 else { return }
@@ -851,11 +874,6 @@ enum DroppyQuickshare {
         } catch {
             return nil
         }
-    }
-
-    private static func isSupportedRemoteURL(_ url: URL) -> Bool {
-        guard !url.isFileURL, let scheme = url.scheme?.lowercased() else { return false }
-        return scheme == "http" || scheme == "https"
     }
 
 }

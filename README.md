@@ -106,7 +106,7 @@ Modular extensions add even more power. **Install only what you need.**
 | <img src="https://getdroppy.app/assets/icons/element-capture.jpg" width="24"> | [**Element Capture**](https://getdroppy.app/extensions.html) | Screenshot & annotate with full editor: arrows, blur, text, shapes, configurable shortcuts |
 | <img src="https://getdroppy.app/assets/icons/voice-transcribe.jpg" width="24"> | [**Voice Transcribe**](https://getdroppy.app/extensions.html) | Transcribe audio to text using on-device AI |
 | <img src="https://getdroppy.app/assets/icons/ai-bg.jpg" width="24"> | [**Background Removal**](https://getdroppy.app/extensions.html) | Remove image backgrounds with AI — one click |
-| <img src="https://getdroppy.app/assets/icons/menubarmanager.png" width="24"> | [**Menu Bar Manager**](https://getdroppy.app/extensions.html) | Hide & organize menu bar icons with hover reveal |
+| <img src="https://getdroppy.app/assets/icons/menubarmanager.png" width="24"> | [**Menu Bar Manager**](https://getdroppy.app/extensions.html) | Hide & organize menu bar icons with hover reveal, plus the new Floating Bar Manager under the menu bar |
 | <img src="https://getdroppy.app/assets/icons/reminders.png" width="24"> | [**Reminders**](https://getdroppy.app/extensions.html) | Capture tasks in natural language & sync with Apple Reminders |
 | <img src="https://getdroppy.app/assets/icons/snap-camera-v2.png" width="24"> | [**Notchface**](https://getdroppy.app/extensions.html) | Floating camera button with full live preview in your notch |
 

@@ -1,3 +1,48 @@
+<!-- Template for future versions: keep only **New Features** and **Bug Fixes** with compact bullets and no blank lines between bullets. -->
+## 🚀 Droppy v11.2
+**New Features**
+- Added the new Floating Bar (alpha): a full icon bar that floats under the menu bar for early testing and feedback.
+- Added crop mode to the screenshot editor toolbar, including crop, clear crop, and live crop dimensions.
+- Added new screenshot-editor stickers: cursor/pointer variants (with and without circle) plus a typing indicator.
+- Added full link support across Shelf, Basket, Quick Actions, and Quickshare.
+- Removed the separate Disabled category in Extensions; disabled extensions now stay in All with a gray Disabled badge and right-click Enable.
+- Updated the shortcut behavior from open-only to open/close toggle, including proper close handling for calendar/reminder view.
+- Added Umbrella and Sunglasses as first-class toggle icon sets in the Menu Bar Manager icon picker.
+- Made the initial/collapsed basket view smaller.
+- Droppy is now hidden from the Dock by default while still being reliably toggleable.
+**Bug Fixes**
+- Removed an old unused setting from Settings.
+- Reduced unnecessary background refreshing to lower RAM usage.
+- Patched notch detection so Notch Width now appears consistently on M2/M3/M4 notch MacBooks.
+- Added a Shelf-off safety fix that clears stale hover/auto-expand state and limits interactions to genuinely visible collapsed media/HUD surfaces.
+- Mini media album-art taps now open the source app when Shelf is off, and source-app activation now always force-brings app windows to front.
+- Updated the Discord link across website, in-app surfaces, and README.
+- Clearing clipboard history now also clears the menu bar dropdown consistently (no stale entries).
+- Improved BetterDisplay compatibility by letting BetterDisplay own brightness keys while Droppy mirrors brightness changes into HUD via polling.
+- Fixed multi-display coordinate math that pushed captures into top regions.
+- Made auto-expand self-healing so rapid repeated hover-expand cycles no longer miss expands due to timer desync.
+- DragMonitor now recognizes Dock smart-folder drags earlier, so jiggle-to-show basket works for files dragged from Dock smart folders.
+- Added MusicManager guards so paused Spotify cannot briefly hijack HUD state during source switches.
+- Removed media handoff flashes: no fade-out/reappear on song switch, no Not Playing flash, and no brief Spotify override while idle in background.
+- Fixed MKV immediate failure by tightening stream mapping.
+- Fixed MP4 freeze by removing blocking FFmpeg wait/deadlock behavior.
+- Stabilized extension-view open flow by fixing singleton ownership, guarding inspection-mode transitions, and removing crash-prone cast/duplicate-key paths.
+- Voice Transcribe no longer binds raw media keys that caused volume HUD flashes on start/stop.
+- Implemented #232 by restoring confirmation sound for Droppy-handled volume keys and adding a user-facing toggle.
+- Fixed #238 by tightening notch hit-zone interaction so hidden fullscreen surfaces cannot open Shelf in the background.
+- Shelf toggle and Notch/Island idle visibility now behave independently.
+- Fixed disabled Menu Bar Manager state flow so opening while disabled no longer triggers heavy active paths and re-enable recovers reliably.
+- Updated tracked-folder ingestion to ignore in-progress download artifacts so they are never added to Shelf/Basket.
+- Private/incognito playback updates no longer trigger phantom empty media HUD animation.
+- Added scanner-level and UI-level filtering so mandatory Menu Bar Manager controls cannot leak into the extension layout editor.
+- Fixed basket flicker by preventing item re-host/re-render during submenu tracking and pausing music-stream updates while menus are open.
+- Album-art updates now react to real artwork-data changes, fixing stale/wrong radio-stream art.
+- Video target-size output now writes to a visible persistent location.
+- AI background-removal output now avoids hidden temp output folders.
+- Element Capture display selection is now more robust across MacBook and external screens.
+
+---
+
 ## 🚀 Droppy v11.1.0
 
 Sorry from Jordy (the developer). The move to paid could have been introduced more subtly, so v11.1.0 starts with a full **3-day trial** to give everyone a fair chance to try Droppy first.

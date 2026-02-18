@@ -29,7 +29,7 @@ struct DroppedItemView: View {
             ZStack(alignment: .topTrailing) {
                 // Glass card background
                 RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .droppyGlassFill()
                     .frame(width: 64, height: 64)
                     .overlay {
                         RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)

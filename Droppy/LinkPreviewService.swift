@@ -159,9 +159,18 @@ class LinkPreviewService {
     }
     
     /// Clear caches (for memory management if needed)
-    func clearCache() {
+    func clearCache(cancelPending: Bool = true) {
         metadataCache.removeAllObjects()
         imageCache.removeAllObjects()
+
+        guard cancelPending else { return }
+        pendingRequestsLock.lock()
+        let tasks = Array(pendingRequests.values)
+        pendingRequests.removeAll()
+        pendingRequestsLock.unlock()
+        for task in tasks {
+            task.cancel()
+        }
     }
 
     private func decodePreviewImage(from data: Data) -> NSImage? {

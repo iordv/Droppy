@@ -10,9 +10,9 @@ import UniformTypeIdentifiers
 
 struct MenuBarManagerInfoView: View {
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
-    @StateObject private var manager = MenuBarManager.shared
-    @StateObject private var floatingBarManager = MenuBarFloatingBarManager.shared
-    @StateObject private var permissionManager = PermissionManager.shared
+    @ObservedObject private var manager = MenuBarManager.shared
+    @ObservedObject private var floatingBarManager = MenuBarFloatingBarManager.shared
+    @ObservedObject private var permissionManager = PermissionManager.shared
     @Environment(\.dismiss) private var dismiss
     
     var installCount: Int?
@@ -29,6 +29,7 @@ struct MenuBarManagerInfoView: View {
     @State private var draggingPlacementItemSnapshot: MenuBarFloatingItemSnapshot?
     @State private var mouseDownEventMonitor: Any?
     @State private var mouseUpEventMonitor: Any?
+    @State private var didEnterSettingsInspectionMode = false
 
     private var panelHeight: CGFloat {
         let availableHeight = NSScreen.main?.visibleFrame.height ?? 800
@@ -77,17 +78,17 @@ struct MenuBarManagerInfoView: View {
             buttonSection
         }
         .frame(width: 450, height: panelHeight)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .sheet(isPresented: $showReviewsSheet) {
             ExtensionReviewsSheet(extensionType: .menuBarManager)
         }
         .onAppear {
+            didEnterSettingsInspectionMode = false
+            guard isActive else { return }
             installMouseDownEventMonitor()
             installMouseUpEventMonitor()
-            if manager.isEnabled {
-                floatingBarManager.start()
-            }
+            floatingBarManager.start()
             let hiddenSection = manager.section(withName: .hidden)
             let alwaysHiddenSection = manager.section(withName: .alwaysHidden)
             hiddenSectionWasVisibleBeforeSettings = hiddenSection?.isHidden == false
@@ -97,16 +98,15 @@ struct MenuBarManagerInfoView: View {
             manager.isLockedVisible = true
             manager.showAllSectionsForSettingsInspection()
             floatingBarManager.enterSettingsInspectionMode()
-            floatingBarManager.rescan(refreshIcons: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                floatingBarManager.rescan(force: true, refreshIcons: true)
-            }
+            didEnterSettingsInspectionMode = true
         }
         .onDisappear {
             removeMouseDownEventMonitor()
             removeMouseUpEventMonitor()
             hoveredPlacementItemID = nil
             draggingPlacementItemID = nil
+            draggingPlacementItemSnapshot = nil
+            guard didEnterSettingsInspectionMode else { return }
             floatingBarManager.exitSettingsInspectionMode()
             manager.isLockedVisible = wasLockedVisibleBeforeSettings
             let shouldEnableAlwaysHiddenOnRestore =
@@ -209,7 +209,7 @@ struct MenuBarManagerInfoView: View {
                 featureRow(icon: "line.vertical", text: "Separator line shows when icons are hidden")
                 featureRow(icon: "hand.raised.fill", text: "Drag icons left of the separator to hide")
                 featureRow(icon: "arrow.left.arrow.right", text: "Rearrange by holding ⌘ and dragging")
-                featureRow(icon: "rectangle.bottomthird.inset.filled", text: "Pin always-hidden icons to the floating bar")
+                featureRow(icon: "rectangle.bottomthird.inset.filled", text: "Pin always-hidden icons to the Floating Bar (Alpha)")
             }
         }
     }
@@ -247,7 +247,7 @@ struct MenuBarManagerInfoView: View {
                 instructionRow(step: "1", text: "Look for the eye icon in your menu bar")
                 instructionRow(step: "2", text: "Click it to hide icons — a separator line ( | ) will appear")
                 instructionRow(step: "3", text: "Hold ⌘ and drag icons LEFT of the separator to hide them")
-                instructionRow(step: "4", text: "In settings, mark icons as Always Hidden to move them into the floating bar")
+                instructionRow(step: "4", text: "In settings, mark icons as Always Hidden to move them into the Floating Bar (Alpha)")
             }
             
             HStack(spacing: 8) {
@@ -305,30 +305,72 @@ struct MenuBarManagerInfoView: View {
                     Slider(value: $manager.showOnHoverDelay, in: 0.0...2.0, step: 0.1)
                         .sliderHaptics(value: manager.showOnHoverDelay, range: 0.0...2.0)
                         .controlSize(.small)
+                    
+                    // Modifier key picker
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Require Modifier Key")
+                                .font(.callout)
+                            Text("Hold this key while hovering to reveal icons")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Picker("", selection: $manager.hoverModifierKey) {
+                            ForEach(HoverModifierKey.allCases) { key in
+                                Text(key.displayName).tag(key)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 120)
+                    }
                 }
                 .padding(.leading, 4)
             }
             
             Divider()
             
-            // Auto-hide delay
+            // Rehide strategy
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Auto-Hide Delay")
+                        Text("Rehide Behavior")
                             .font(.callout)
-                        Text("Automatically hide after revealing (0 = never)")
+                        Text(manager.rehideStrategy.description)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text(manager.autoHideDelay == 0 ? "Off" : String(format: "%.1fs", manager.autoHideDelay))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                    Picker("", selection: $manager.rehideStrategy) {
+                        ForEach(RehideStrategy.allCases) { strategy in
+                            Text(strategy.displayName).tag(strategy)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 120)
                 }
-                Slider(value: $manager.autoHideDelay, in: 0.0...5.0, step: 0.5)
-                    .sliderHaptics(value: manager.autoHideDelay, range: 0.0...5.0)
-                    .controlSize(.small)
+                
+                // Show auto-hide delay only for timed strategy
+                if manager.rehideStrategy == .timed {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Auto-Hide Delay")
+                                .font(.callout)
+                            Text("Automatically hide after revealing")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(manager.autoHideDelay == 0 ? "Off" : String(format: "%.1fs", manager.autoHideDelay))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(value: $manager.autoHideDelay, in: 0.0...5.0, step: 0.5)
+                        .sliderHaptics(value: manager.autoHideDelay, range: 0.0...5.0)
+                        .controlSize(.small)
+                }
             }
             
             Divider()
@@ -441,7 +483,7 @@ struct MenuBarManagerInfoView: View {
                     Text(
                         floatingBarManager.isFeatureEnabled
                         ? "Drag icons between rows to place them in Visible, Hidden, or Floating Bar."
-                        : "Drag icons between rows to place them in Visible or Hidden. Enable Floating Bar to use the Floating Bar row."
+                        : "Drag icons between rows to place them in Visible or Hidden. Enable Floating Bar (Alpha) to use the Floating Bar row."
                     )
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -491,7 +533,7 @@ struct MenuBarManagerInfoView: View {
                     tileWidth: 92,
                     tileHeight: 42,
                     action: {
-                        floatingBarManager.rescan(force: true, refreshIcons: true)
+                        floatingBarManager.rescan(force: true)
                     }
                 ) {
                     Image(systemName: "arrow.clockwise")
@@ -507,7 +549,7 @@ struct MenuBarManagerInfoView: View {
                     action: {
                         floatingBarManager.isFeatureEnabled.toggle()
                         if floatingBarManager.isFeatureEnabled {
-                            floatingBarManager.rescan(force: true, refreshIcons: true)
+                            floatingBarManager.rescan(force: true)
                         }
                     }
                 ) {
@@ -522,7 +564,7 @@ struct MenuBarManagerInfoView: View {
             }
 
             if !permissionManager.isAccessibilityGranted {
-                Text("Grant Accessibility to discover and trigger menu bar items from the floating bar.")
+                Text("Grant Accessibility to discover and trigger menu bar items from the Floating Bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if floatingBarManager.settingsItems.isEmpty {
@@ -561,9 +603,28 @@ struct MenuBarManagerInfoView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    if placement == .floating {
+                        Text("ALPHA")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundStyle(Color.orange)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.orange.opacity(0.14))
+                            )
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(Color.orange.opacity(0.35), lineWidth: 0.8)
+                            )
+                    }
+                }
                 Spacer()
                 Text("\(items.count)")
                     .font(.caption2.monospacedDigit())
@@ -625,13 +686,21 @@ struct MenuBarManagerInfoView: View {
         let canDrag = !isBlockedInVisibleLane
         let isHovered = hoveredPlacementItemID == item.id && draggingPlacementItemID == nil
         let isDragging = draggingPlacementItemID == item.id
+        let helpText: String = {
+            let base = "\(item.displayName) (\(item.ownerBundleID))"
+            if let nonHideableReason {
+                return "\(base)\n\(nonHideableReason)"
+            }
+            return base
+        }()
 
         let chip = placementItemChipContent(
             item: item,
             isDimmed: isBlockedInVisibleLane,
             showLockBadge: isBlockedInVisibleLane,
             isHovered: isHovered,
-            isDragging: isDragging
+            isDragging: isDragging,
+            helpText: helpText
         )
 
         if !canDrag {
@@ -653,7 +722,8 @@ struct MenuBarManagerInfoView: View {
         isDimmed: Bool,
         showLockBadge: Bool,
         isHovered: Bool,
-        isDragging: Bool
+        isDragging: Bool,
+        helpText: String
     ) -> some View {
         let iconSize = MenuBarFloatingIconLayout.nativeIconSize(for: item)
 
@@ -693,6 +763,7 @@ struct MenuBarManagerInfoView: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .help(helpText)
             .onHover { hovering in
                 if hovering {
                     guard draggingPlacementItemID == nil else { return }
@@ -723,7 +794,7 @@ struct MenuBarManagerInfoView: View {
                     .scaledToFit()
             }
         } else {
-            Image(systemName: "questionmark.circle")
+            Image(systemName: "app.dashed")
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(.secondary)
@@ -747,29 +818,50 @@ struct MenuBarManagerInfoView: View {
         providers: [NSItemProvider],
         to placement: MenuBarFloatingPlacement
     ) -> Bool {
-        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
-            return false
-        }
-
         let draggedSnapshot = draggingPlacementItemSnapshot
         draggingPlacementItemID = nil
         hoveredPlacementItemID = nil
+        activeDropPlacement = nil
+
+        if let draggedSnapshot {
+            let immediateItem = resolveDroppedPlacementItem(
+                itemID: draggedSnapshot.id,
+                fallback: draggedSnapshot
+            ) ?? draggedSnapshot
+            applyDroppedPlacement(immediateItem, to: placement)
+            draggingPlacementItemSnapshot = nil
+            return true
+        }
+
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
+            draggingPlacementItemSnapshot = nil
+            return false
+        }
 
         provider.loadObject(ofClass: NSString.self) { object, _ in
             guard let itemID = object as? String else { return }
             DispatchQueue.main.async {
-                guard let item = resolveDroppedPlacementItem(itemID: itemID, fallback: draggedSnapshot) else { return }
-                if placement != .visible,
-                   floatingBarManager.nonHideableReason(for: item) != nil {
+                guard let item = resolveDroppedPlacementItem(itemID: itemID, fallback: draggedSnapshot) ?? draggedSnapshot else {
                     draggingPlacementItemSnapshot = nil
                     return
                 }
-                floatingBarManager.setPlacement(placement, for: item)
+                applyDroppedPlacement(item, to: placement)
                 draggingPlacementItemSnapshot = nil
             }
         }
 
         return true
+    }
+
+    private func applyDroppedPlacement(
+        _ item: MenuBarFloatingItemSnapshot,
+        to placement: MenuBarFloatingPlacement
+    ) {
+        if placement != .visible,
+           floatingBarManager.nonHideableReason(for: item) != nil {
+            return
+        }
+        floatingBarManager.setPlacement(placement, for: item)
     }
 
     private func resolveDroppedPlacementItem(
@@ -875,7 +967,7 @@ struct MenuBarManagerInfoView: View {
     }
 
     private func resolvedIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
-        item.icon
+        item.icon ?? MenuBarFloatingFallbackIconProvider.icon(for: item)
     }
     
     private func iconOption(_ iconSet: MBMIconSet) -> some View {
@@ -932,11 +1024,7 @@ struct MenuBarManagerInfoView: View {
                 DisableExtensionButton(extensionType: .menuBarManager)
             } else {
                 Button {
-                    // Enable via ExtensionType and manager
-                    ExtensionType.menuBarManager.setRemoved(false)
-                    manager.isEnabled = true
-                    AnalyticsService.shared.trackExtensionActivation(extensionId: "menuBarManager")
-                    NotificationCenter.default.post(name: .extensionStateChanged, object: ExtensionType.menuBarManager)
+                    enableMenuBarManager()
                 } label: {
                     Text("Enable")
                 }
@@ -944,5 +1032,16 @@ struct MenuBarManagerInfoView: View {
             }
         }
         .padding(DroppySpacing.lg)
+    }
+
+    private func enableMenuBarManager() {
+        ExtensionType.menuBarManager.setRemoved(false)
+        if manager.isEnabled {
+            manager.enable()
+        } else {
+            manager.isEnabled = true
+        }
+        AnalyticsService.shared.trackExtensionActivation(extensionId: "menuBarManager")
+        NotificationCenter.default.post(name: .extensionStateChanged, object: ExtensionType.menuBarManager)
     }
 }

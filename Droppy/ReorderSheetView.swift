@@ -69,7 +69,7 @@ struct ReorderSheetView: View {
         }
         .frame(minWidth: 340, idealWidth: 400, maxWidth: 500)  // 2-column width
         .frame(minHeight: 400, idealHeight: 500, maxHeight: 700)  // Taller default
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
         .onAppear {
             reorderableItems = sourceItems

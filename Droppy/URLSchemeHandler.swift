@@ -12,11 +12,13 @@ import SwiftUI
 /// URL Format:
 /// - droppy://add?target=shelf&path=/path/to/file1&path=/path/to/file2
 /// - droppy://add?target=basket&path=/path/to/file
+/// - droppy://add?target=shelf&url=https%3A%2F%2Fexample.com
 /// - droppy://extension/{id} - Opens extension info sheet
 ///
 /// Parameters:
 /// - target: "shelf" or "basket" - where to add the files
 /// - path: URL-encoded file path (can repeat for multiple files)
+/// - url: URL-encoded web link (can repeat for multiple links)
 struct URLSchemeHandler {
     
     /// Handles an incoming droppy:// URL
@@ -68,32 +70,46 @@ struct URLSchemeHandler {
         let target = queryItems.first(where: { $0.name == "target" })?.value ?? "shelf"
         
         // Get all file paths
-        let paths = queryItems
+        let fileURLs = queryItems
             .filter { $0.name == "path" }
             .compactMap { $0.value }
             .map { URL(fileURLWithPath: $0) }
+
+        // Get all remote links and convert them to .webloc files
+        let remoteURLs = queryItems
+            .filter { $0.name == "url" }
+            .compactMap { $0.value }
+            .compactMap { DroppyLinkSupport.parseWebURL(from: $0) }
+
+        var itemsToAdd = fileURLs
+        if !remoteURLs.isEmpty {
+            let tempLinksFolder = FileManager.default.temporaryDirectory
+                .appendingPathComponent("DroppyURLScheme-\(UUID().uuidString)", isDirectory: true)
+            let linkFiles = DroppyLinkSupport.createWeblocFiles(for: remoteURLs, in: tempLinksFolder)
+            itemsToAdd.append(contentsOf: linkFiles)
+        }
         
-        guard !paths.isEmpty else {
-            print("⚠️ URLSchemeHandler: No file paths provided")
+        guard !itemsToAdd.isEmpty else {
+            print("⚠️ URLSchemeHandler: No valid paths or links provided")
             return
         }
         
-        print("🔗 URLSchemeHandler: Adding \(paths.count) file(s) to \(target)")
+        print("🔗 URLSchemeHandler: Adding \(itemsToAdd.count) item(s) to \(target)")
         
         // Add files to the appropriate destination
         let state = DroppyState.shared
         
         switch target.lowercased() {
         case "basket":
-            FloatingBasketWindowController.addItemsFromExternalSource(paths)
+            FloatingBasketWindowController.addItemsFromExternalSource(itemsToAdd)
             
-            print("✅ URLSchemeHandler: Added \(paths.count) file(s) to basket")
+            print("✅ URLSchemeHandler: Added \(itemsToAdd.count) item(s) to basket")
             
         case "shelf":
             fallthrough
         default:
             // Add to notch shelf
-            state.addItems(from: paths)
+            state.addItems(from: itemsToAdd)
             
             // Show the shelf if it's not visible (use main display for URL scheme triggers)
             if !state.isExpanded {
@@ -102,7 +118,7 @@ struct URLSchemeHandler {
                 }
             }
             
-            print("✅ URLSchemeHandler: Added \(paths.count) file(s) to shelf")
+            print("✅ URLSchemeHandler: Added \(itemsToAdd.count) item(s) to shelf")
         }
     }
     

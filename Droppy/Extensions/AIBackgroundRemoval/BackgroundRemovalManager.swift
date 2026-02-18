@@ -9,10 +9,34 @@ import Foundation
 import AppKit
 import Combine
 
+private nonisolated final class BGRemovalOutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        guard !chunk.isEmpty else { return }
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    func outputString() -> String {
+        lock.lock()
+        let snapshot = data
+        lock.unlock()
+        return String(data: snapshot, encoding: .utf8) ?? ""
+    }
+}
+
 /// Manages AI-powered background removal using transparent-background Python library
 @MainActor
 final class BackgroundRemovalManager: ObservableObject {
     static let shared = BackgroundRemovalManager()
+    nonisolated private static let requiredRuntimeModules = ["transparent_background", "wget"]
+    nonisolated private static let runtimePackageByModule: [String: String] = [
+        "transparent_background": "transparent-background==1.2.10",
+        "wget": "wget"
+    ]
     
     @Published var isProcessing = false
     @Published var progress: Double = 0
@@ -51,12 +75,15 @@ final class BackgroundRemovalManager: ObservableObject {
         
         // Generate output path
         let baseName = url.deletingPathExtension().lastPathComponent
-        let directory = url.deletingLastPathComponent()
+        let directory = preferredOutputDirectory(for: url)
         let outputURL = directory.appendingPathComponent("\(baseName)_nobg.png")
         let finalURL = generateUniqueURL(for: outputURL)
         
         // Write to file
         try outputData.write(to: finalURL)
+        guard FileManager.default.fileExists(atPath: finalURL.path) else {
+            throw BackgroundRemovalError.failedToLoadImage
+        }
         
         progress = 1.0
         
@@ -82,6 +109,20 @@ final class BackgroundRemovalManager: ObservableObject {
         
         return finalURL
     }
+
+    /// When source files come from temporary drop locations, save outputs to Downloads
+    /// so users can find the generated file outside Droppy's temp folders.
+    private func preferredOutputDirectory(for sourceURL: URL) -> URL {
+        let sourceDirectory = sourceURL.deletingLastPathComponent().standardizedFileURL
+        let tempDirectory = FileManager.default.temporaryDirectory.standardizedFileURL
+
+        if sourceDirectory.path.hasPrefix(tempDirectory.path),
+           let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first {
+            return downloads
+        }
+
+        return sourceDirectory
+    }
     
     /// Remove background using Python transparent-background library
     nonisolated func removeBackgroundWithPython(imageURL: URL) async throws -> Data {
@@ -91,6 +132,10 @@ final class BackgroundRemovalManager: ObservableObject {
         
         // Use the same Python environment that has transparent-background installed.
         guard let python = Self.findPythonWithTransparentBackground() else {
+            throw BackgroundRemovalError.pythonNotInstalled
+        }
+
+        guard Self.ensureRuntimeDependencies(at: python) else {
             throw BackgroundRemovalError.pythonNotInstalled
         }
         
@@ -199,6 +244,110 @@ final class BackgroundRemovalManager: ObservableObject {
         }
         
         return unique
+    }
+
+    nonisolated private static func ensureRuntimeDependencies(at pythonPath: String) -> Bool {
+        guard let missingModules = missingRuntimeModules(at: pythonPath) else { return false }
+        guard !missingModules.isEmpty else { return true }
+
+        guard hasPip(at: pythonPath) else {
+            print("[BG Removal] pip unavailable for \(pythonPath)")
+            return false
+        }
+
+        let packagesToInstall = missingModules.compactMap { runtimePackageByModule[$0] }
+        guard !packagesToInstall.isEmpty else {
+            print("[BG Removal] Missing modules had no mapped package names: \(missingModules)")
+            return false
+        }
+
+        print("[BG Removal] Installing missing Python dependencies: \(packagesToInstall.joined(separator: ", "))")
+        guard let installResult = runProcess(
+            executable: pythonPath,
+            arguments: ["-m", "pip", "install", "--upgrade", "--disable-pip-version-check"] + packagesToInstall
+        ) else {
+            return false
+        }
+
+        guard installResult.status == 0 else {
+            let output = installResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            print("[BG Removal] Failed to install missing dependencies: \(output)")
+            return false
+        }
+
+        guard let unresolved = missingRuntimeModules(at: pythonPath), unresolved.isEmpty else {
+            print("[BG Removal] Dependencies still missing after install attempt")
+            return false
+        }
+
+        return true
+    }
+
+    nonisolated private static func missingRuntimeModules(at pythonPath: String) -> [String]? {
+        let moduleList = requiredRuntimeModules
+            .map { "'\($0)'" }
+            .joined(separator: ", ")
+
+        let script = """
+        import importlib.util
+        modules = [\(moduleList)]
+        missing = [module for module in modules if importlib.util.find_spec(module) is None]
+        print("MISSING:" + ",".join(missing))
+        """
+
+        guard let result = runProcess(executable: pythonPath, arguments: ["-c", script]),
+              result.status == 0 else {
+            return nil
+        }
+
+        let lines = result.output
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard let missingLine = lines.last(where: { $0.hasPrefix("MISSING:") }) else {
+            return nil
+        }
+
+        let payload = String(missingLine.dropFirst("MISSING:".count))
+        if payload.isEmpty {
+            return []
+        }
+        return payload.split(separator: ",").map(String.init)
+    }
+
+    nonisolated private static func hasPip(at pythonPath: String) -> Bool {
+        guard let result = runProcess(executable: pythonPath, arguments: ["-m", "pip", "--version"]) else {
+            return false
+        }
+        return result.status == 0
+    }
+
+    nonisolated private static func runProcess(executable: String, arguments: [String]) -> (status: Int32, output: String)? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+        let outputBuffer = BGRemovalOutputBuffer()
+        let handle = outputPipe.fileHandleForReading
+        handle.readabilityHandler = { fileHandle in
+            let chunk = fileHandle.availableData
+            outputBuffer.append(chunk)
+        }
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            handle.readabilityHandler = nil
+            return nil
+        }
+
+        handle.readabilityHandler = nil
+        outputBuffer.append(handle.readDataToEndOfFile())
+        return (status: process.terminationStatus, output: outputBuffer.outputString())
     }
     
     nonisolated private static func isTransparentBackgroundInstalled(at pythonPath: String) -> Bool {

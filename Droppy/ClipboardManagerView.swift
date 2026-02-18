@@ -275,7 +275,7 @@ struct ClipboardManagerView: View {
                     }
             }
         }
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .frame(minWidth: 1040, maxWidth: .infinity, minHeight: 640, maxHeight: .infinity)
         .background(pasteShortcutButton)
         .background(navigationShortcutButtons)
@@ -407,7 +407,7 @@ struct ClipboardManagerView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+            .droppyTransparentBackground(useTransparentBackground)
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
@@ -2286,7 +2286,7 @@ struct ClipboardPreviewView: View {
                         }
                         .padding(DroppySpacing.sm)
                         .frame(minWidth: 140)
-                        .background(.ultraThinMaterial)
+                        .background { Rectangle().droppyGlassFill() }
                     }
                 }
                 
@@ -2707,7 +2707,7 @@ struct ZoomedDocumentPreviewSheet: View {
                                 .padding(DroppySpacing.sm)
                                 .background(
                                     RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
-                                        .fill(.ultraThinMaterial)
+                                        .droppyGlassFill()
                                 )
                             }
                             .padding(DroppySpacing.md)
@@ -3112,7 +3112,7 @@ struct StackedCardView: View {
         .frame(width: 130, height: 120)
         .background(
             RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .droppyGlassFill()
         )
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
@@ -3323,7 +3323,7 @@ struct URLTypeBadge: View {
             .foregroundStyle(AdaptiveColors.primaryTextAuto)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(.ultraThinMaterial)
+            .background { Rectangle().droppyGlassFill() }
             .background(AdaptiveColors.overlayAuto(0.2))
             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
             .overlay(

@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import CoreFoundation
 import CoreGraphics
 import Foundation
 
@@ -29,6 +30,7 @@ private let NX_KEYTYPE_PREVIOUS: UInt32 = 19   // Previous track (other keyboard
 /// Requires Accessibility permissions to function
 final class MediaKeyInterceptor {
     static let shared = MediaKeyInterceptor()
+    private static let systemVolumeFeedbackKey = "com.apple.sound.beep.feedback" as CFString
     
     static func shouldRunForCurrentPreferences() -> Bool {
         let defaults = UserDefaults.standard
@@ -173,6 +175,44 @@ final class MediaKeyInterceptor {
             stop()
         }
     }
+
+    private func shouldPlayVolumeFeedbackSound() -> Bool {
+        let appFeedbackEnabled = UserDefaults.standard.preference(
+            AppPreferenceKey.enableVolumeKeyFeedbackSound,
+            default: PreferenceDefault.enableVolumeKeyFeedbackSound
+        )
+        guard appFeedbackEnabled else { return false }
+
+        if let hostValue = CFPreferencesCopyValue(
+            Self.systemVolumeFeedbackKey,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        ) as? NSNumber {
+            return hostValue.boolValue
+        }
+
+        if let globalValue = CFPreferencesCopyValue(
+            Self.systemVolumeFeedbackKey,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        ) as? NSNumber {
+            return globalValue.boolValue
+        }
+
+        return true
+    }
+
+    private func playVolumeFeedbackIfNeeded(previousVolume: Float32, previousMuted: Bool) {
+        guard shouldPlayVolumeFeedbackSound() else { return }
+
+        let volumeChanged = abs(VolumeManager.shared.rawVolume - previousVolume) > 0.0005
+        let muteChanged = VolumeManager.shared.isMuted != previousMuted
+        guard volumeChanged || muteChanged else { return }
+
+        NSSound.beep()
+    }
     
     /// Handle a media key event
     /// Returns true if the event was handled (should be suppressed)
@@ -235,11 +275,17 @@ final class MediaKeyInterceptor {
         DispatchQueue.main.async {
             switch keyCode {
             case NX_KEYTYPE_SOUND_UP:
+                let previousVolume = VolumeManager.shared.rawVolume
+                let previousMuted = VolumeManager.shared.isMuted
                 VolumeManager.shared.increase(screenHint: screenUnderMouse)
+                self.playVolumeFeedbackIfNeeded(previousVolume: previousVolume, previousMuted: previousMuted)
                 self.onVolumeUp?()
                 
             case NX_KEYTYPE_SOUND_DOWN:
+                let previousVolume = VolumeManager.shared.rawVolume
+                let previousMuted = VolumeManager.shared.isMuted
                 VolumeManager.shared.decrease(screenHint: screenUnderMouse)
+                self.playVolumeFeedbackIfNeeded(previousVolume: previousVolume, previousMuted: previousMuted)
                 self.onVolumeDown?()
                 
             case NX_KEYTYPE_MUTE:

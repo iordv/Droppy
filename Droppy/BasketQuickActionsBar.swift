@@ -58,7 +58,7 @@ struct BasketQuickActionsBar: View {
                 )
                 // Track when drag is over the bar area
                 // Include file promise types for Photos.app compatibility
-                .onDrop(of: [UTType.fileURL, UTType.image, UTType.movie, UTType.data], isTargeted: $isBarAreaTargeted) { _ in
+                .onDrop(of: [UTType.fileURL, UTType.url, UTType.text, UTType.image, UTType.movie, UTType.data], isTargeted: $isBarAreaTargeted) { _ in
                     return false  // Don't handle drop here
                 }
                 // Keep expanded when drag is over bar area
@@ -92,7 +92,7 @@ struct BasketQuickActionsBar: View {
                 
                 // Collapsed: Zap button
                 Circle()
-                    .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+                    .droppyTransparentFill(useTransparentBackground)
                     .frame(width: buttonSize, height: buttonSize)
                     .overlay(
                         Circle()
@@ -109,7 +109,7 @@ struct BasketQuickActionsBar: View {
                     .contentShape(Circle().scale(1.3))
                     // DRAG-TO-EXPAND: Detect when files are dragged over the collapsed bolt
                     // Include file promise types for Photos.app compatibility
-                    .onDrop(of: [UTType.fileURL, UTType.image, UTType.movie, UTType.data], isTargeted: $isBoltTargeted) { _ in
+                    .onDrop(of: [UTType.fileURL, UTType.url, UTType.text, UTType.image, UTType.movie, UTType.data], isTargeted: $isBoltTargeted) { _ in
                         // Don't handle the drop here - just expand so user can drop on specific action
                         return false
                     }
@@ -285,7 +285,7 @@ struct QuickDropActionButton: View {
             }
         ) {
             Circle()
-                .fill(useTransparent ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+                .droppyTransparentFill(useTransparent)
                 .frame(width: size, height: size)
                 .overlay(
                     // Border matches basket style exactly

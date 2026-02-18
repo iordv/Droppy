@@ -198,7 +198,7 @@ struct VoiceTranscriptionResultView: View {
         }
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
     }
 }
 

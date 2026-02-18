@@ -260,8 +260,12 @@ struct ExtensionsShopView: View {
                         title: ext.title,
                         subtitle: ext.subtitle,
                         isInstalled: ext.isInstalled,
+                        isDisabled: ext.extensionType.isRemoved,
                         installCount: extensionCounts[ext.analyticsKey],
-                        isCommunity: ext.isCommunity
+                        isCommunity: ext.isCommunity,
+                        onEnableAction: {
+                            enableExtension(ext.extensionType)
+                        }
                     ) {
                         ext.detailView()
                     }
@@ -555,19 +559,43 @@ struct ExtensionsShopView: View {
         
         // nil = show all, otherwise filter by category
         guard let category = selectedCategory else {
-            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.sorted { $0.title < $1.title }
         }
         
         switch category {
         case .all:
-            return allExtensions.filter { !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
+            return allExtensions.sorted { $0.title < $1.title }
         case .installed:
             return allExtensions.filter { $0.isInstalled && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
-        case .disabled:
-            return allExtensions.filter { $0.extensionType.isRemoved }.sorted { $0.title < $1.title }
         default:
             return allExtensions.filter { $0.category == category && !$0.extensionType.isRemoved }.sorted { $0.title < $1.title }
         }
+    }
+
+    private func enableExtension(_ extensionType: ExtensionType) {
+        extensionType.setRemoved(false)
+
+        switch extensionType {
+        case .windowSnap:
+            WindowSnapManager.shared.loadAndStartMonitoring()
+        case .elementCapture:
+            ElementCaptureManager.shared.loadAndStartMonitoring()
+        case .aiBackgroundRemoval:
+            AIInstallManager.shared.checkInstallationStatus()
+        case .spotify:
+            SpotifyController.shared.refreshState()
+        case .appleMusic:
+            AppleMusicController.shared.refreshState()
+        case .notificationHUD:
+            NotificationHUDManager.shared.startMonitoring()
+        case .menuBarManager:
+            MenuBarManager.shared.enable()
+        default:
+            break
+        }
+
+        AnalyticsService.shared.trackExtensionActivation(extensionId: extensionType.rawValue)
+        NotificationCenter.default.post(name: .extensionStateChanged, object: extensionType)
     }
 }
 
@@ -1143,8 +1171,10 @@ struct CompactExtensionRow<DetailView: View>: View {
     let title: String
     let subtitle: String
     let isInstalled: Bool
+    var isDisabled: Bool = false
     var installCount: Int?
     var isCommunity: Bool = false
+    var onEnableAction: (() -> Void)? = nil
     let detailView: () -> DetailView
 
     @State private var showSheet = false
@@ -1165,6 +1195,8 @@ struct CompactExtensionRow<DetailView: View>: View {
                     }
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
+                    .saturation(isDisabled ? 0 : 1)
+                    .opacity(isDisabled ? 0.65 : 1)
                 } else if let placeholder = iconPlaceholder {
                     Image(systemName: placeholder)
                         .font(.system(size: 20, weight: .medium))
@@ -1172,10 +1204,13 @@ struct CompactExtensionRow<DetailView: View>: View {
                         .frame(width: 44, height: 44)
                         .background((iconPlaceholderColor ?? .blue).opacity(0.15))
                         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ms, style: .continuous))
+                        .saturation(isDisabled ? 0 : 1)
+                        .opacity(isDisabled ? 0.65 : 1)
                 } else {
                     RoundedRectangle(cornerRadius: DroppyRadius.ms)
                         .fill(AdaptiveColors.overlayAuto(0.1))
                         .frame(width: 44, height: 44)
+                        .opacity(isDisabled ? 0.65 : 1)
                 }
                 
                 // Title + Subtitle
@@ -1183,7 +1218,20 @@ struct CompactExtensionRow<DetailView: View>: View {
                     HStack(spacing: 6) {
                         Text(title)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(isDisabled ? AdaptiveColors.secondaryTextAuto : AdaptiveColors.primaryTextAuto)
+
+                        if isDisabled {
+                            HStack(spacing: 3) {
+                                Image(systemName: "slash.circle.fill")
+                                    .font(.system(size: 8))
+                                Text("Disabled")
+                                    .font(.system(size: 9, weight: .medium))
+                            }
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.9))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(AdaptiveColors.overlayAuto(0.1)))
+                        }
                         
                         if isCommunity {
                             HStack(spacing: 3) {
@@ -1201,20 +1249,20 @@ struct CompactExtensionRow<DetailView: View>: View {
                     
                     Text(subtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(isDisabled ? AdaptiveColors.secondaryTextAuto : .secondary)
                 }
                 
                 Spacer()
                 
                 // Setup/Manage Button
-                Text(isInstalled ? "Manage" : "Set Up")
+                Text(isDisabled ? "Disabled" : (isInstalled ? "Manage" : "Set Up"))
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isDisabled ? AdaptiveColors.secondaryTextAuto.opacity(0.9) : .secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                     .background(
                         Capsule()
-                            .fill(AdaptiveColors.buttonBackgroundAuto)
+                            .fill(isDisabled ? AdaptiveColors.overlayAuto(0.08) : AdaptiveColors.buttonBackgroundAuto)
                     )
                     .overlay(
                         Capsule()
@@ -1227,6 +1275,15 @@ struct CompactExtensionRow<DetailView: View>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(DroppyCardButtonStyle())
+        .contextMenu {
+            if isDisabled {
+                Button {
+                    onEnableAction?()
+                } label: {
+                    Label("Enable Extension", systemImage: "power.circle.fill")
+                }
+            }
+        }
         .onHover { hovering in
             withAnimation(DroppyAnimation.hover) {
                 isHovering = hovering
@@ -1235,6 +1292,7 @@ struct CompactExtensionRow<DetailView: View>: View {
         .sheet(isPresented: $showSheet) {
             detailView()
         }
+        .opacity(isDisabled ? 0.78 : 1)
     }
 }
 

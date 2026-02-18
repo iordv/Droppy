@@ -36,7 +36,7 @@ struct LiquidSlider: View {
             ZStack(alignment: .leading) {
                 // Track background - concave glass well
                 Capsule()
-                    .fill(.ultraThinMaterial)
+                    .droppyGlassFill()
                     .overlay(
                         Capsule()
                             .fill(AdaptiveColors.buttonBackgroundAuto)

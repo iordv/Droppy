@@ -56,7 +56,7 @@ struct FinderServicesSetupView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
         .droppyFloatingShadow()
     }
@@ -221,7 +221,7 @@ struct FinderServicesSetupSheetView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .clipped()  // Same as AIInstallView
     }
     

@@ -113,7 +113,7 @@ struct ExtensionReviewsSheet: View {
             }
         }
         .frame(width: 450, height: 500)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .onAppear {
             Task {
                 guard !disableAnalytics else {

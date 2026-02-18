@@ -28,13 +28,13 @@ private struct StackedFilePeekStyle {
     let enableHoverHaptic: Bool
 
     static let basket = StackedFilePeekStyle(
-        containerSize: CGSize(width: 202, height: 138),
-        cardSize: 126,
-        iconSize: 58,
-        folderSymbolSize: 44,
+        containerSize: CGSize(width: 194, height: 144),
+        cardSize: 116,
+        iconSize: 52,
+        folderSymbolSize: 40,
         cornerRadius: DroppyRadius.medium,
-        thumbnailSize: CGSize(width: 240, height: 240),
-        stackYOffset: 32,
+        thumbnailSize: CGSize(width: 220, height: 220),
+        stackYOffset: 0,
         hoverLift: -4,
         hoverSpreadMultiplier: 1.4,
         horizontalOffsetMultiplier: 0.58,
@@ -100,7 +100,7 @@ private func peekCountText(for items: [DroppedItem]) -> String {
 
     switch firstKind {
     case .image:
-        return "\(count) \(count == 1 ? "Image" : "Images")"
+        return "\(count) \(count == 1 ? "Photo" : "Photos")"
     case .video:
         return "\(count) \(count == 1 ? "Video" : "Videos")"
     case .audio:
@@ -144,6 +144,7 @@ private struct StackedFilePeekView: View {
 
     @State private var thumbnails: [UUID: NSImage] = [:]
     @State private var loadingThumbnailIDs: Set<UUID> = []
+    @State private var thumbnailTasks: [UUID: Task<Void, Never>] = [:]
     @State private var hasAppeared = false
     @State private var isHovering = false
 
@@ -182,27 +183,56 @@ private struct StackedFilePeekView: View {
         .onChange(of: items.map(\.id)) { _, _ in
             loadThumbnails()
         }
+        .onDisappear {
+            cancelAndClearThumbnailState()
+        }
     }
 
     private func loadThumbnails() {
+        let visibleIDs = Set(displayItems.map(\.id))
+        pruneThumbnailState(keeping: visibleIDs)
+
         for item in displayItems where thumbnails[item.id] == nil && !loadingThumbnailIDs.contains(item.id) {
             loadingThumbnailIDs.insert(item.id)
-            Task {
+            let task = Task {
                 defer {
                     Task { @MainActor in
                         loadingThumbnailIDs.remove(item.id)
+                        thumbnailTasks.removeValue(forKey: item.id)
                     }
                 }
 
                 if let thumbnail = await generateThumbnailWithRetry(for: item, size: style.thumbnailSize) {
                     await MainActor.run {
+                        guard displayItems.contains(where: { $0.id == item.id }) else { return }
                         withAnimation(.easeOut(duration: 0.2)) {
                             thumbnails[item.id] = thumbnail
                         }
                     }
                 }
             }
+            thumbnailTasks[item.id] = task
         }
+    }
+
+    private func pruneThumbnailState(keeping visibleIDs: Set<UUID>) {
+        thumbnails = thumbnails.filter { visibleIDs.contains($0.key) }
+        loadingThumbnailIDs = loadingThumbnailIDs.intersection(visibleIDs)
+
+        let staleTaskIDs = thumbnailTasks.keys.filter { !visibleIDs.contains($0) }
+        for id in staleTaskIDs {
+            thumbnailTasks[id]?.cancel()
+            thumbnailTasks.removeValue(forKey: id)
+        }
+    }
+
+    private func cancelAndClearThumbnailState() {
+        for task in thumbnailTasks.values {
+            task.cancel()
+        }
+        thumbnailTasks.removeAll()
+        loadingThumbnailIDs.removeAll()
+        thumbnails.removeAll()
     }
 
     private func generateThumbnailWithRetry(for item: DroppedItem, size: CGSize) async -> NSImage? {
@@ -467,7 +497,7 @@ struct BasketFileCountLabel: View {
         Button(action: action) {
             Text(countText)
         }
-        .buttonStyle(DroppyPillButtonStyle(size: .medium, showChevron: true))
+        .buttonStyle(DroppyPillButtonStyle(size: .small, showChevron: true))
     }
 }
 

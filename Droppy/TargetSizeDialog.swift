@@ -110,7 +110,7 @@ struct TargetSizeDialogView: View {
         }
         .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         .onAppear {
             // Default to 50% of current size
             let suggestedMB = Double(currentSize) / (1024 * 1024) / 2

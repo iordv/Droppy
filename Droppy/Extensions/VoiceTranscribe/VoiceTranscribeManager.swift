@@ -1126,15 +1126,45 @@ extension VoiceTranscribeManager {
 // MARK: - Keyboard Shortcuts
 
 extension VoiceTranscribeManager {
+    private static let disallowedUnmodifiedShortcutKeyCodes: Set<Int> = [
+        96,  // F5 (Dictation / Keyboard brightness down)
+        97,  // F6 (Do Not Disturb / Keyboard brightness up)
+        98,  // F7 (Previous track)
+        99,  // F3 (Mission Control)
+        100, // F8 (Play/Pause)
+        101, // F9 (Next track)
+        103, // F11 (Volume down)
+        109, // F10 (Mute)
+        111, // F12 (Volume up)
+        118, // F4 (Spotlight)
+        120, // F2 (Brightness up)
+        122  // F1 (Brightness down)
+    ]
+
+    private static func sanitizeShortcut(_ shortcut: SavedShortcut?) -> SavedShortcut? {
+        guard let shortcut else { return nil }
+        let flags = NSEvent.ModifierFlags(rawValue: shortcut.modifiers)
+            .intersection([.command, .shift, .option, .control, .function])
+
+        // Unmodified top-row hardware/media keys still trigger system actions (OSD/sound/volume),
+        // so they are not safe global shortcuts for recording toggles.
+        if flags.isEmpty && disallowedUnmodifiedShortcutKeyCodes.contains(shortcut.keyCode) {
+            print("[VoiceTranscribe] Ignoring unsupported unmodified media key shortcut: \(shortcut.keyCode)")
+            return nil
+        }
+
+        return SavedShortcut(keyCode: shortcut.keyCode, modifiers: flags.rawValue)
+    }
+
     /// Load shortcut preferences from UserDefaults
     func loadShortcutPreferences() {
         if let data = UserDefaults.standard.data(forKey: "voiceTranscribeQuickRecordShortcut"),
            let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
-            quickRecordShortcut = shortcut
+            quickRecordShortcut = Self.sanitizeShortcut(shortcut)
         }
         if let data = UserDefaults.standard.data(forKey: "voiceTranscribeInvisiRecordShortcut"),
            let shortcut = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
-            invisiRecordShortcut = shortcut
+            invisiRecordShortcut = Self.sanitizeShortcut(shortcut)
         }
         
         // Start monitoring if we have any shortcuts
@@ -1237,11 +1267,12 @@ extension VoiceTranscribeManager {
     
     /// Set shortcut for a recording mode
     func setShortcut(_ shortcut: SavedShortcut?, for mode: VoiceRecordingMode) {
+        let sanitized = Self.sanitizeShortcut(shortcut)
         switch mode {
         case .quick:
-            quickRecordShortcut = shortcut
+            quickRecordShortcut = sanitized
         case .invisi:
-            invisiRecordShortcut = shortcut
+            invisiRecordShortcut = sanitized
         }
     }
     

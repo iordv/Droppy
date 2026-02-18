@@ -58,6 +58,16 @@ final class BasketState {
 
     /// Anchor item for shift-range selection.
     var lastSelectionAnchor: UUID?
+
+    private func invalidateThumbnailCache(for item: DroppedItem) {
+        ThumbnailCache.shared.invalidate(itemId: item.id)
+    }
+
+    private func invalidateThumbnailCache(for items: [DroppedItem]) {
+        for item in items {
+            ThumbnailCache.shared.invalidate(itemId: item.id)
+        }
+    }
     
     // MARK: - Item Management
     
@@ -108,6 +118,7 @@ final class BasketState {
         guard allowPinnedRemoval || !item.isPinned else { return }
 
         item.cleanupIfTemporary()
+        invalidateThumbnailCache(for: item)
         powerFolders.removeAll { $0.id == item.id }
         itemsList.removeAll { $0.id == item.id }
         selectedItems.remove(item.id)
@@ -124,19 +135,23 @@ final class BasketState {
     /// Clears all items (preserves pinned folders)
     func clearAll() {
         for item in itemsList { item.cleanupIfTemporary() }
+        invalidateThumbnailCache(for: itemsList)
         itemsList.removeAll()
         
         let unpinned = powerFolders.filter { !$0.isPinned }
         for item in unpinned { item.cleanupIfTemporary() }
+        invalidateThumbnailCache(for: unpinned)
         powerFolders.removeAll { !$0.isPinned }
         
         selectedItems.removeAll()
+        MemoryRecoveryCoordinator.reclaimTransientMemory(forceAllocatorTrim: false)
     }
     
     /// Replaces an item with a new one (for conversions)
     func replaceItem(_ oldItem: DroppedItem, with newItem: DroppedItem) {
         if let index = items.firstIndex(where: { $0.id == oldItem.id }) {
             items[index] = newItem
+            invalidateThumbnailCache(for: oldItem)
             if selectedItems.contains(oldItem.id) {
                 selectedItems.remove(oldItem.id)
                 selectedItems.insert(newItem.id)
@@ -150,6 +165,7 @@ final class BasketState {
         var newList = items.filter { !idsToRemove.contains($0.id) }
         newList.append(newItem)
         items = newList
+        invalidateThumbnailCache(for: oldItems)
         selectedItems.subtract(idsToRemove)
         selectedItems.insert(newItem.id)
     }

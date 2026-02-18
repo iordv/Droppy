@@ -106,6 +106,17 @@ final class ExtensionIconCache {
         cache.object(forKey: url as NSURL)
     }
 
+    func clearCache() {
+        lock.lock()
+        let tasks = Array(inFlightTasks.values)
+        inFlightTasks.removeAll()
+        lock.unlock()
+        for task in tasks {
+            task.cancel()
+        }
+        cache.removeAllObjects()
+    }
+
     func loadImage(for url: URL) async -> NSImage? {
         if let cached = cachedImage(for: url) {
             return cached

@@ -40,7 +40,7 @@ struct QuickShareSuccessView: View {
         .frame(width: 500, height: 330)
         .background {
             if useTransparentBackground {
-                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().droppyGlassFill()
             } else {
                 AdaptiveColors.panelBackgroundAuto
             }

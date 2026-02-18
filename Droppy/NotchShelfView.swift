@@ -98,7 +98,8 @@ struct NotchShelfView: View {
     @State private var mediaFadeWorkItem: DispatchWorkItem?
     @State private var autoShrinkWorkItem: DispatchWorkItem?  // Timer for auto-shrinking shelf
     @State private var isHoveringExpandedContent = false  // Tracks if mouse is over the expanded shelf
-    @State private var isSongTransitioning = false  // Temporarily hide media during song transitions
+    @State private var browserTrackLoadingWorkItem: DispatchWorkItem?
+    @State private var browserTrackLoadingUntil: Date = .distantPast
     @State private var mediaDebounceWorkItem: DispatchWorkItem?  // Debounce for media changes
     @State private var isMediaStable = false  // Only show media HUD after debounce delay
     
@@ -730,6 +731,8 @@ struct NotchShelfView: View {
     private var shouldShowMediaHUD: Bool {
         // Media features require macOS 15.0+
         guard musicManager.isMediaAvailable else { return false }
+        let browserTrackLoading = isBrowserTrackLoading
+        let mediaIsActive = (musicManager.isPlaying && !musicManager.songTitle.isEmpty) || browserTrackLoading
         
         // CAFFEINE HOVER TAKES PRIORITY: When hovering with caffeine active, suppress media
         if isCaffeineHoverActive { return false }
@@ -747,21 +750,27 @@ struct NotchShelfView: View {
             return showMediaPlayer
         }
         
-        // Don't show during song transitions (collapse-expand effect)
-        if isSongTransitioning { return false }
         // Don't show if auto-fade is enabled and it has faded out
         if autoFadeMediaHUD && mediaHUDFadedOut {
             return false
         }
         // Only apply debounce check when setting is enabled
-        if debounceMediaChanges && !isMediaStable { return false }
+        if debounceMediaChanges && !isMediaStable && !browserTrackLoading { return false }
         // Don't show when any HUD is visible (they take priority)
         if HUDManager.shared.isVisible { return false }
         if let displayID = targetScreen?.displayID,
            notchController.fullscreenDisplayIDs.contains(displayID) {
             return false
         }
-        return showMediaPlayer && musicManager.isPlaying && !hudIsVisible && !isExpandedOnThisScreen
+        return showMediaPlayer &&
+            mediaIsActive &&
+            !hudIsVisible &&
+            !isExpandedOnThisScreen
+    }
+
+    private var isBrowserTrackLoading: Bool {
+        guard musicManager.isBrowserSource else { return false }
+        return Date() < browserTrackLoadingUntil
     }
 
     private var isMediaHUDHoverEligible: Bool {
@@ -1104,20 +1113,20 @@ struct NotchShelfView: View {
         // Only reaches here if there's nothing to show
         if !isBuiltInDisplay {
             // Allow user to keep notch/island visible when idle on external displays
-            return showIdleNotchOnExternalDisplays && enableNotchShelf
+            return showIdleNotchOnExternalDisplays
         }
         
         // Built-in display: check if it has a physical notch to cover
         if let screen = targetScreen ?? NSScreen.builtInWithNotch {
             // Built-in display WITH notch: show idle notch to cover camera
             if screen.safeAreaInsets.top > 0 {
-                return enableNotchShelf
+                return enableNotchShelf || showIdleNotchOnExternalDisplays
             }
         }
         
         // Built-in display WITHOUT notch (old MacBook Air, etc.): same behavior as external
         // No physical camera to cover, so respect the idle visibility setting
-        return showIdleNotchOnExternalDisplays && enableNotchShelf
+        return showIdleNotchOnExternalDisplays
     }
 
     /// During lock-in we must hide the inline notch instantly (no opacity tween),
@@ -1505,14 +1514,15 @@ struct NotchShelfView: View {
     private var shelfContentWithMediaObservers: some View {
         shelfContentWithHUDObservers
             .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
-                if !oldTitle.isEmpty && !newTitle.isEmpty && oldTitle != newTitle {
-                    withAnimation(displayUnifiedOpenCloseAnimation) {
-                        isSongTransitioning = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        withAnimation(displayUnifiedOpenCloseAnimation) {
-                            isSongTransitioning = false
-                        }
+                let trimmedOld = oldTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedNew = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                let titleChanged = trimmedOld != trimmedNew
+
+                if titleChanged {
+                    if musicManager.isBrowserSource {
+                        // Browser players can briefly drop metadata between tracks.
+                        // Keep HUD pinned with loading placeholder during this handoff.
+                        beginBrowserTrackLoadingHold()
                     }
                     // Reset marquee scroll for new song
                     sharedMarqueeStartTime = Date()
@@ -1520,6 +1530,9 @@ struct NotchShelfView: View {
                 if !newTitle.isEmpty {
                     mediaHUDFadedOut = false
                     startMediaFadeTimer()
+                    if musicManager.isBrowserSource && musicManager.isPlaying {
+                        endBrowserTrackLoadingHold()
+                    }
                 }
             }
             .onChange(of: musicManager.isPlaying) { wasPlaying, isPlaying in
@@ -1537,10 +1550,16 @@ struct NotchShelfView: View {
                     mediaDebounceWorkItem = workItem
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
                     startMediaFadeTimer()
+                    if musicManager.isBrowserSource {
+                        endBrowserTrackLoadingHold()
+                    }
                 }
                 if !isPlaying && wasPlaying {
                     mediaDebounceWorkItem?.cancel()
                     isMediaStable = false
+                    if musicManager.isBrowserSource {
+                        beginBrowserTrackLoadingHold(duration: 2.6)
+                    }
                 }
             }
             .onChange(of: autoFadeMediaHUD) { wasEnabled, isEnabled in
@@ -1553,6 +1572,11 @@ struct NotchShelfView: View {
                     withAnimation(displayUnifiedOpenCloseAnimation) {
                         mediaHUDFadedOut = false
                     }
+                }
+            }
+            .onChange(of: musicManager.bundleIdentifier) { _, _ in
+                if !musicManager.isBrowserSource {
+                    endBrowserTrackLoadingHold()
                 }
             }
     }
@@ -1689,6 +1713,7 @@ struct NotchShelfView: View {
             }
             .onDisappear {
                 externalCollapseVisibilityWorkItem?.cancel()
+                browserTrackLoadingWorkItem?.cancel()
             }
             .background {
                 Button("") {
@@ -1793,6 +1818,26 @@ struct NotchShelfView: View {
         }
         mediaFadeWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func beginBrowserTrackLoadingHold(duration: TimeInterval = 2.2) {
+        guard musicManager.isBrowserSource else { return }
+        let holdUntil = Date().addingTimeInterval(duration)
+        if holdUntil > browserTrackLoadingUntil {
+            browserTrackLoadingUntil = holdUntil
+        }
+
+        browserTrackLoadingWorkItem?.cancel()
+        let workItem = DispatchWorkItem {
+            browserTrackLoadingUntil = .distantPast
+        }
+        browserTrackLoadingWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: workItem)
+    }
+
+    private func endBrowserTrackLoadingHold() {
+        browserTrackLoadingWorkItem?.cancel()
+        browserTrackLoadingUntil = .distantPast
     }
 
     private func toggleExpandedShelfMediaSurface() {
@@ -2125,6 +2170,7 @@ struct NotchShelfView: View {
         // Break up complex expressions for type checker
         let noHUDsVisible = !hudIsVisible && !HUDManager.shared.isVisible
         let notExpanded = !isExpandedOnThisScreen
+        let browserTrackLoading = isBrowserTrackLoading
         
         // CRITICAL (Issue #101): Hide media HUD when fullscreen app is active ON THIS DISPLAY
         // Multi-monitor support: Each screen independently tracks its fullscreen state
@@ -2132,22 +2178,22 @@ struct NotchShelfView: View {
         let notInFullscreen = !notchController.fullscreenDisplayIDs.contains(targetDisplayID)
         
         let shouldShowForced = musicManager.isMediaHUDForced &&
-            musicManager.isPlaying &&
-            !musicManager.isPlayerIdle &&
+            (musicManager.isPlaying || browserTrackLoading) &&
+            (!musicManager.isPlayerIdle || browserTrackLoading) &&
             showMediaPlayer &&
             noHUDsVisible &&
             notExpanded &&
             notInFullscreen &&
             !shouldLockMediaForTodo
         
-        let mediaIsPlaying = musicManager.isPlaying && !musicManager.songTitle.isEmpty
-        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
-        let debounceOk = !debounceMediaChanges || isMediaStable
+        let mediaIsPlaying = (musicManager.isPlaying && !musicManager.songTitle.isEmpty) || browserTrackLoading
+        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut)
+        let debounceOk = !debounceMediaChanges || isMediaStable || browserTrackLoading
         
         // FIX #95: Bypass ALL safeguards when forcing source switch (Spotify fallback)
         // When isMediaSourceForced is true, we know the source is playing (verified via AppleScript)
         let bypassSafeguards = musicManager.isMediaSourceForced
-        let hasContent = !musicManager.songTitle.isEmpty
+        let hasContent = !musicManager.songTitle.isEmpty || browserTrackLoading
         let shouldBlockAutoSwitch = shouldLockMediaForTodo
         let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && !shouldBlockAutoSwitch &&
                               (bypassSafeguards ? hasContent : (mediaIsPlaying && notFadedOrTransitioning && debounceOk))
@@ -2235,9 +2281,18 @@ struct NotchShelfView: View {
                     RoundedRectangle(cornerRadius: currentCornerRadius)
                         .fill(notchOverlayTone(isExpandedOnThisScreen ? 0.08 : 0.2))
                         .overlay(
-                            Image(systemName: "music.note")
-                                .font(.system(size: isExpandedOnThisScreen ? 36 : 10))
-                                .foregroundStyle(notchPrimaryText(isExpandedOnThisScreen ? 0.3 : 0.5))
+                            Group {
+                                if isBrowserTrackLoading {
+                                    LoadingSpinner(
+                                        color: notchPrimaryText(isExpandedOnThisScreen ? 0.8 : 0.7),
+                                        size: isExpandedOnThisScreen ? 34 : 12
+                                    )
+                                } else {
+                                    Image(systemName: "music.note")
+                                        .font(.system(size: isExpandedOnThisScreen ? 36 : 10))
+                                        .foregroundStyle(notchPrimaryText(isExpandedOnThisScreen ? 0.3 : 0.5))
+                                }
+                            }
                         )
                 }
             }
@@ -2494,7 +2549,9 @@ struct NotchShelfView: View {
                 let currentYOffset = isExpandedOnThisScreen ? expandedYOffset : hudYOffset
                 
                 // Title text
-                let songTitle = musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle
+                let songTitle = isBrowserTrackLoading && musicManager.songTitle.isEmpty
+                    ? "Loading..."
+                    : (musicManager.songTitle.isEmpty ? "Not Playing" : musicManager.songTitle)
                 
                 // Alignment: Centered in HUD, left-aligned in expanded
                 let currentAlignment: Alignment = isExpandedOnThisScreen ? .leading : .center
@@ -2528,21 +2585,22 @@ struct NotchShelfView: View {
         
         let noHUDsVisible = !hudIsVisible && !HUDManager.shared.isVisible
         let notExpanded = !isExpandedOnThisScreen
+        let browserTrackLoading = isBrowserTrackLoading
         let targetDisplayID = targetScreen?.displayID ?? 0
         let notInFullscreen = !notchController.fullscreenDisplayIDs.contains(targetDisplayID)
         let shouldShowForced = musicManager.isMediaHUDForced &&
-            musicManager.isPlaying &&
-            !musicManager.isPlayerIdle &&
+            (musicManager.isPlaying || browserTrackLoading) &&
+            (!musicManager.isPlayerIdle || browserTrackLoading) &&
             showMediaPlayer &&
             noHUDsVisible &&
             notExpanded &&
             notInFullscreen &&
             !shouldLockMediaForTodo
-        let mediaIsActive = musicManager.isPlaying && !musicManager.songTitle.isEmpty
-        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut) && !isSongTransitioning
-        let debounceOk = !debounceMediaChanges || isMediaStable
+        let mediaIsActive = (musicManager.isPlaying && !musicManager.songTitle.isEmpty) || browserTrackLoading
+        let notFadedOrTransitioning = !(autoFadeMediaHUD && mediaHUDFadedOut)
+        let debounceOk = !debounceMediaChanges || isMediaStable || browserTrackLoading
         let bypassSafeguards = musicManager.isMediaSourceForced
-        let hasContent = !musicManager.songTitle.isEmpty
+        let hasContent = !musicManager.songTitle.isEmpty || browserTrackLoading
         let shouldBlockAutoSwitch = shouldLockMediaForTodo
         let shouldShowNormal = showMediaPlayer && noHUDsVisible && notExpanded && notInFullscreen && !shouldBlockAutoSwitch &&
                               (bypassSafeguards ? hasContent : (mediaIsActive && notFadedOrTransitioning && debounceOk))
@@ -2589,7 +2647,7 @@ struct NotchShelfView: View {
             // Dynamic Island shape (pill)
             // When transparent DI is enabled, use glass material instead of gray
             DynamicIslandShape(cornerRadius: 50)
-                .fill(shouldUseDynamicIslandTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(dynamicIslandGray))
+                .droppyTransparentFill(shouldUseDynamicIslandTransparent, fallback: dynamicIslandGray)
                 .opacity(isDynamicIslandMode ? 1 : 0)
                 .scaleEffect(isDynamicIslandMode ? 1 : 0.85)
             
@@ -2597,7 +2655,7 @@ struct NotchShelfView: View {
             // Built-in: always black (physical notch is black)
             // External: can be transparent when transparency setting is enabled
             NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
-                .fill(shouldUseExternalNotchTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                .droppyTransparentFill(shouldUseExternalNotchTransparent, fallback: Color.black)
                 .opacity(isDynamicIslandMode ? 0 : 1)
                 .scaleEffect(isDynamicIslandMode ? 0.85 : 1)
         }
@@ -2624,7 +2682,7 @@ struct NotchShelfView: View {
                 // Shadow visible when expanded OR hovering (premium depth effect)
                 let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen
                 NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
-                    .fill(shouldUseExternalNotchTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+                    .droppyTransparentFill(shouldUseExternalNotchTransparent, fallback: Color.black)
                     .shadow(
                         // PREMIUM EXACT: .black.opacity(0.7) radius 6
                         color: showShadow ? Color.black.opacity(0.7) : .clear,
@@ -2911,7 +2969,7 @@ struct NotchShelfView: View {
     // In transparent DI mode OR external notch transparent mode, indicators use glass material.
     private var indicatorBackground: some View {
         RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
-            .fill(shouldUseFloatingButtonTransparent ? AnyShapeStyle(.ultraThinMaterial) : AnyShapeStyle(Color.black))
+            .droppyTransparentFill(shouldUseFloatingButtonTransparent, fallback: Color.black)
             .overlay(
                 RoundedRectangle(cornerRadius: DroppyRadius.lx, style: .continuous)
                     .stroke(
@@ -3145,7 +3203,7 @@ struct NotchShelfView: View {
             // Opaque background to hide content underneath
             // Must match shelf background style
             if shouldUseFloatingButtonTransparent {
-                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().droppyGlassFill()
             } else {
                 Rectangle().fill(Color.black)
             }

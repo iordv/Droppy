@@ -243,7 +243,7 @@ struct HUDOverlayView: View {
     
     private var hudBackground: some View {
         RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
-            .fill(.ultraThinMaterial)
+            .droppyGlassFill()
             .background(
                 RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous)
                     .fill(Color.black.opacity(0.6))

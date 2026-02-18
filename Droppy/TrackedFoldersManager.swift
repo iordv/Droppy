@@ -90,6 +90,18 @@ final class TrackedFoldersManager: ObservableObject {
     private var debounceWorkItems: [UUID: DispatchWorkItem] = [:]
     /// Debounce delay - collect files for this long before creating stack
     private let debounceDelay: TimeInterval = 0.5
+    /// Temporary/in-progress download artifacts we should never surface in Shelf/Basket.
+    private let transientDownloadExtensions: Set<String> = [
+        "download",     // Safari
+        "crdownload",   // Chrome/Chromium
+        "part",         // Firefox/others
+        "partial",
+        "filepart",
+        "opdownload",   // Opera
+        "aria2",        // aria2
+        "tmp",
+        "temp"
+    ]
     
     private let userDefaultsKey = "trackedFoldersFolders"
     
@@ -272,6 +284,10 @@ final class TrackedFoldersManager: ObservableObject {
         debounceWorkItems[folderId] = nil
         
         let urlArray = Array(urls)
+            .filter { shouldTrackFile(url: $0) }
+        guard !urlArray.isEmpty else {
+            return
+        }
         let state = DroppyState.shared
         
         print("TrackedFolders: Flushing \(urlArray.count) file(s) to \(folder.destination.displayName)")
@@ -319,8 +335,31 @@ final class TrackedFoldersManager: ObservableObject {
         guard let contents = try? fileManager.contentsOfDirectory(atPath: url.path) else {
             return []
         }
-        // Filter out hidden files
-        return Set(contents.filter { !$0.hasPrefix(".") })
+        return Set(contents.filter { shouldTrackFileName($0) })
+    }
+
+    private func shouldTrackFileName(_ name: String) -> Bool {
+        // Ignore hidden files and known temporary download artifacts.
+        if name.hasPrefix(".") {
+            return false
+        }
+        return !isTransientDownloadArtifact(name)
+    }
+
+    private func shouldTrackFile(url: URL) -> Bool {
+        if !FileManager.default.fileExists(atPath: url.path) {
+            return false
+        }
+        return shouldTrackFileName(url.lastPathComponent)
+    }
+
+    private func isTransientDownloadArtifact(_ name: String) -> Bool {
+        let normalized = name.lowercased()
+        let ext = (normalized as NSString).pathExtension
+        if !ext.isEmpty && transientDownloadExtensions.contains(ext) {
+            return true
+        }
+        return false
     }
     
     // MARK: - Persistence

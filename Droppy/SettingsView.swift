@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
     @AppStorage(AppPreferenceKey.showInMenuBar) private var showInMenuBar = PreferenceDefault.showInMenuBar
+    @AppStorage(AppPreferenceKey.showInDock) private var showInDock = PreferenceDefault.showInDock
     @AppStorage(AppPreferenceKey.showQuickshareInMenuBar) private var showQuickshareInMenuBar = PreferenceDefault.showQuickshareInMenuBar
     @AppStorage(AppPreferenceKey.startAtLogin) private var startAtLogin = PreferenceDefault.startAtLogin
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
@@ -42,6 +43,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferenceKey.enableHUDReplacement) private var enableHUDReplacement = PreferenceDefault.enableHUDReplacement
     @AppStorage(AppPreferenceKey.enableVolumeHUDReplacement) private var enableVolumeHUDReplacement = PreferenceDefault.enableVolumeHUDReplacement
     @AppStorage(AppPreferenceKey.enableBrightnessHUDReplacement) private var enableBrightnessHUDReplacement = PreferenceDefault.enableBrightnessHUDReplacement
+    @AppStorage(AppPreferenceKey.enableVolumeKeyFeedbackSound) private var enableVolumeKeyFeedbackSound = PreferenceDefault.enableVolumeKeyFeedbackSound
     @AppStorage(AppPreferenceKey.enableBatteryHUD) private var enableBatteryHUD = PreferenceDefault.enableBatteryHUD
     @AppStorage(AppPreferenceKey.enableCapsLockHUD) private var enableCapsLockHUD = PreferenceDefault.enableCapsLockHUD
     @AppStorage(AppPreferenceKey.enableAirPodsHUD) private var enableAirPodsHUD = PreferenceDefault.enableAirPodsHUD
@@ -213,6 +215,11 @@ struct SettingsView: View {
         }
         BasketSwitcherWindowController.shared.reloadShortcutConfiguration()
     }
+
+    private func setDockIconVisibility(_ isVisible: Bool) {
+        showInDock = isVisible
+        AppVisibilityManager.applyDockVisibilityFromPreferences()
+    }
     
     private var basketJiggleSensitivityLabel: String {
         switch basketJiggleSensitivity {
@@ -237,15 +244,61 @@ struct SettingsView: View {
     private var isAnyMediaKeyHUDReplacementEnabled: Bool {
         enableHUDReplacement && (enableVolumeHUDReplacement || enableBrightnessHUDReplacement)
     }
+
+    private var shouldKeepNotchWindowOpen: Bool {
+        enableNotchShelf ||
+        showIdleNotchOnExternalDisplays ||
+        showMediaPlayer ||
+        isAnyMediaKeyHUDReplacementEnabled ||
+        (isNotificationHUDInstalled && enableNotificationHUD) ||
+        enableBatteryHUD ||
+        enableCapsLockHUD ||
+        enableAirPodsHUD ||
+        enableLockScreenHUD ||
+        enableDNDHUD ||
+        enableUpdateHUD
+    }
+
+    private func closeNotchWindowIfUnused() {
+        if !shouldKeepNotchWindowOpen {
+            NotchWindowController.shared.closeWindow()
+        }
+    }
     
     private func refreshMediaKeyInterceptorState() {
         let shouldRunInterceptor = MediaKeyInterceptor.shouldRunForCurrentPreferences()
         if shouldRunInterceptor {
             NotchWindowController.shared.setupNotchWindow()
-        } else if !enableNotchShelf && !showMediaPlayer {
-            NotchWindowController.shared.closeWindow()
+        } else {
+            closeNotchWindowIfUnused()
         }
         MediaKeyInterceptor.shared.refreshForCurrentPreferences()
+    }
+
+    private func setVolumeKeysEnabled(_ isEnabled: Bool) {
+        enableVolumeHUDReplacement = isEnabled
+        if !enableVolumeHUDReplacement && !enableBrightnessHUDReplacement {
+            enableHUDReplacement = false
+        }
+        refreshMediaKeyInterceptorState()
+    }
+
+    private func setBrightnessKeysEnabled(_ isEnabled: Bool) {
+        enableBrightnessHUDReplacement = isEnabled
+        if !enableVolumeHUDReplacement && !enableBrightnessHUDReplacement {
+            enableHUDReplacement = false
+        }
+        refreshMediaKeyInterceptorState()
+    }
+
+    private func toggleVolumeKeySoundFromPicker() {
+        if enableVolumeHUDReplacement {
+            enableVolumeKeyFeedbackSound.toggle()
+        } else {
+            enableVolumeHUDReplacement = true
+            enableVolumeKeyFeedbackSound = true
+            refreshMediaKeyInterceptorState()
+        }
     }
 
     private func caffeineModeIcon(_ mode: CaffeineMode) -> String {
@@ -543,9 +596,9 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 Group {
                     if useTransparentBackground {
-                        // Pure blur in transparent mode - fades fully to nothing
+                        // Keep the root glass surface readable without stacking another blur pass.
                         Rectangle()
-                            .fill(.ultraThinMaterial)
+                            .fill(AdaptiveColors.overlayAuto(0.06))
                     } else {
                         // Match panel tone in opaque mode to avoid a dark strip in light mode
                         AdaptiveColors.panelBackgroundAuto
@@ -567,9 +620,9 @@ struct SettingsView: View {
             }
             .ignoresSafeArea()
             .allowsHitTesting(false)
-            // Smooth fade based on scroll position - appears earlier to catch content
-            .opacity(min(1.0, max(0.0, (200 - scrollOffset) / 60)))
-            .animation(DroppyAnimation.hoverQuick, value: scrollOffset)
+            // Only show while actually scrolling to avoid static top-edge artifacts.
+            .opacity(scrollOffset < -6 ? 1 : 0)
+            .animation(DroppyAnimation.hoverQuick, value: scrollOffset < -6)
         }
     }
 
@@ -577,7 +630,7 @@ struct SettingsView: View {
         ZStack {
             NavigationSplitView {
                 SettingsSidebar(selectedTab: $selectedTab)
-                    .background(Color.clear)
+                    .droppyTransparentBackground(useTransparentBackground)
             } detail: {
                 settingsDetail
             }
@@ -588,7 +641,7 @@ struct SettingsView: View {
         // Apply blue accent color for toggles
         .tint(.droppyAccent)
         // Apply transparent material or solid black
-        .background(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+        .droppyTransparentBackground(useTransparentBackground)
         // CRITICAL: Always use dark color scheme to ensure text is readable
         // In both solid black and transparent material modes, we need light text
         
@@ -636,6 +689,13 @@ struct SettingsView: View {
             // Navigate to General tab where Smart Export is located
             selectedTab = .general
         }
+        .onChange(of: showIdleNotchOnExternalDisplays) { _, newValue in
+            if newValue {
+                NotchWindowController.shared.setupNotchWindow()
+            } else {
+                closeNotchWindowIfUnused()
+            }
+        }
         .onChange(of: selectedTab) { _, newTab in
             // Resize window when switching to/from extensions tab
             // Defer to next runloop to avoid NSHostingView reentrant layout
@@ -656,7 +716,7 @@ struct SettingsView: View {
             Section {
                 nativePickerRow(
                     title: "Startup & Visibility",
-                    subtitle: "Choose whether Droppy starts at login and stays in the menu bar"
+                    subtitle: "Choose whether Droppy starts at login and appears in Menu Bar or Dock"
                 ) {
                     // Menu Bar Icon
                     SettingsSegmentButtonWithContent(
@@ -681,6 +741,26 @@ struct SettingsView: View {
                                 showInMenuBar = false
                             }
                         )
+                    }
+
+                    // Dock Icon
+                    SettingsSegmentButtonWithContent(
+                        label: "Dock Icon",
+                        isSelected: showInDock,
+                        action: {
+                            setDockIconVisibility(!showInDock)
+                        }
+                    ) {
+                        Group {
+                            if let dockSymbol = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "Dock Icon") {
+                                Image(nsImage: dockSymbol)
+                                    .renderingMode(.template)
+                            } else {
+                                Image(systemName: "macwindow.on.rectangle")
+                            }
+                        }
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(showInDock ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                     }
                     
                     // Launch at Login
@@ -1079,9 +1159,7 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 
@@ -1556,11 +1634,7 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        // Only close if HUD replacement and Media Player are ALSO disabled
-                        // The notch window is still needed for HUD/Media features
-                        if !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 
@@ -2107,9 +2181,7 @@ struct SettingsView: View {
                         if newValue {
                             NotchWindowController.shared.setupNotchWindow()
                         } else {
-                            if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled {
-                                NotchWindowController.shared.closeWindow()
-                            }
+                            closeNotchWindowIfUnused()
                         }
                     }
                     
@@ -2276,46 +2348,37 @@ struct SettingsView: View {
                 }
                 
                 if enableHUDReplacement {
-                    HStack(spacing: 12) {
-                        Image(systemName: "speaker.wave.2.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24)
-                        Toggle(isOn: $enableVolumeHUDReplacement) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Volume Keys")
-                                Text("Handle volume OSD and keys in Droppy")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                    nativePickerRow(
+                        title: "Key Handling",
+                        subtitle: "Choose what Droppy handles for media keys"
+                    ) {
+                        SettingsSegmentButton(
+                            icon: "speaker.wave.2.fill",
+                            label: "Volume",
+                            isSelected: enableVolumeHUDReplacement,
+                            tileWidth: 84
+                        ) {
+                            setVolumeKeysEnabled(!enableVolumeHUDReplacement)
                         }
-                    }
-                    .onChange(of: enableVolumeHUDReplacement) { _, _ in
-                        if !enableVolumeHUDReplacement && !enableBrightnessHUDReplacement {
-                            enableHUDReplacement = false
+
+                        SettingsSegmentButton(
+                            icon: "waveform.badge.plus",
+                            label: "Key Sound",
+                            isSelected: enableVolumeKeyFeedbackSound,
+                            tileWidth: 84
+                        ) {
+                            toggleVolumeKeySoundFromPicker()
                         }
-                        refreshMediaKeyInterceptorState()
-                    }
-                    
-                    HStack(spacing: 12) {
-                        Image(systemName: "sun.max.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24)
-                        Toggle(isOn: $enableBrightnessHUDReplacement) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Brightness Keys")
-                                Text("Handle brightness OSD and keys in Droppy")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                        .opacity(enableVolumeHUDReplacement ? 1 : 0.55)
+
+                        SettingsSegmentButton(
+                            icon: "sun.max.fill",
+                            label: "Brightness",
+                            isSelected: enableBrightnessHUDReplacement,
+                            tileWidth: 84
+                        ) {
+                            setBrightnessKeysEnabled(!enableBrightnessHUDReplacement)
                         }
-                    }
-                    .onChange(of: enableBrightnessHUDReplacement) { _, _ in
-                        if !enableVolumeHUDReplacement && !enableBrightnessHUDReplacement {
-                            enableHUDReplacement = false
-                        }
-                        refreshMediaKeyInterceptorState()
                     }
                     
                     HStack(alignment: .top, spacing: 16) {
@@ -2376,9 +2439,7 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 
@@ -2399,9 +2460,7 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer && !enableBatteryHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 
@@ -2424,9 +2483,7 @@ struct SettingsView: View {
                         LockScreenManager.shared.enable()
                     } else {
                         LockScreenManager.shared.disable()
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 
@@ -2447,9 +2504,7 @@ struct SettingsView: View {
                     if newValue {
                         NotchWindowController.shared.setupNotchWindow()
                     } else {
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
             } header: {
@@ -2483,6 +2538,13 @@ struct SettingsView: View {
                                 .foregroundStyle(.orange)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .onChange(of: enableNotificationHUD) { _, newValue in
+                    if newValue {
+                        NotchWindowController.shared.setupNotchWindow()
+                    } else {
+                        closeNotchWindowIfUnused()
                     }
                 }
 
@@ -2784,9 +2846,7 @@ struct SettingsView: View {
                         AirPodsManager.shared.startMonitoring()
                     } else {
                         AirPodsManager.shared.stopMonitoring()
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
             } header: {
@@ -2815,9 +2875,7 @@ struct SettingsView: View {
                             showDNDAccessAlert = true
                         }
                     } else {
-                        if !enableNotchShelf && !isAnyMediaKeyHUDReplacementEnabled && !showMediaPlayer && !enableBatteryHUD && !enableCapsLockHUD && !enableAirPodsHUD && !enableLockScreenHUD {
-                            NotchWindowController.shared.closeWindow()
-                        }
+                        closeNotchWindowIfUnused()
                     }
                 }
                 .sheet(isPresented: $showDNDAccessAlert) {

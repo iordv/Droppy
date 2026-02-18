@@ -33,7 +33,6 @@ struct FloatingBasketView: View {
     @AppStorage(AppPreferenceKey.enableNotchShelf) private var enableNotchShelf = PreferenceDefault.enableNotchShelf
     @AppStorage(AppPreferenceKey.enableAutoClean) private var enableAutoClean = PreferenceDefault.enableAutoClean
     @AppStorage(AppPreferenceKey.enableQuickActions) private var enableQuickActions = PreferenceDefault.enableQuickActions
-    @AppStorage(AppPreferenceKey.enableMultiBasket) private var enableMultiBasket = PreferenceDefault.enableMultiBasket
     
     // MARK: - Dropover-Style State
     /// Whether the basket is expanded to show the full grid view
@@ -101,7 +100,7 @@ struct FloatingBasketView: View {
         let slotCount = basketState.items.count
         
         if slotCount == 0 {
-            return 208  // Empty basket - same compact height as collapsed
+            return 228
         } else if isExpanded {
             let rowCount = ceil(Double(slotCount) / Double(columnsPerRow))
             let headerHeight: CGFloat = 44  // Header + top padding
@@ -125,19 +124,19 @@ struct FloatingBasketView: View {
                 return headerHeight + (cappedRowCount * itemHeight) + (max(0, cappedRowCount - 1) * rowSpacing) + bottomPadding
             }
         } else {
-            // Collapsed stacked preview - compact
-            return 208
+            // Initial/collapsed preview card
+            return 270
         }
     }
     
     /// Base width - always use full grid width for proper layout
     private var baseWidth: CGFloat {
         if basketState.items.count == 0 {
-            return 224  // Slightly wider collapsed/empty basket
+            return 246
         } else if isExpanded {
             return fullGridWidth  // Full width when expanded (360)
         } else {
-            return 224  // Slightly wider collapsed basket
+            return 236
         }
     }
     
@@ -244,38 +243,8 @@ struct FloatingBasketView: View {
                         // Close button - always xmark (deletes items and closes)
                         BasketCloseButton(iconName: "xmark", action: closeBasket)
                         Spacer()
-                        // Right button: In multi-basket mode with items shows eye.slash (hide)
-                        // Otherwise shows chevron menu (when items exist)
-                        if basketState.items.count > 0 && basketState.hoveredQuickAction == nil {
-                            if enableMultiBasket {
-                                // Multi-basket mode: eye.slash button to hide (preserve items)
-                                Button {
-                                    hideBasket()
-                                } label: {
-                                    Image(systemName: "eye.slash")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(AdaptiveColors.primaryTextAuto.opacity(0.78))
-                                        .frame(width: 32, height: 32)
-                                        .background(
-                                            Circle()
-                                                .fill(AdaptiveColors.overlayAuto(0.08))
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .help("Hide basket (keep items)")
-                            } else {
-                                // Single-basket mode: menu button
-                                Menu {
-                                    basketContextMenuContent
-                                } label: {
-                                    BasketMenuButton(action: { })
-                                        .allowsHitTesting(false)
-                                }
-                                .menuStyle(.borderlessButton)
-                                .menuIndicator(.hidden)
-                                .frame(width: 32, height: 32)
-                            }
-                        }
+                        BasketMenuButton(action: hideBasket)
+                            .help("Hide basket")
                     }
                     .padding(.horizontal, 18)
                     .padding(.top, 18)
@@ -477,7 +446,7 @@ struct FloatingBasketView: View {
     @ViewBuilder
     private var basketBackground: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(useTransparentBackground ? AnyShapeStyle(.ultraThinMaterial) : AdaptiveColors.panelBackgroundOpaqueStyle)
+            .droppyTransparentFill(useTransparentBackground)
             .frame(width: currentWidth, height: currentHeight)
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -539,7 +508,7 @@ struct FloatingBasketView: View {
             // Opaque background to hide content underneath
             // Must match basket background style (material for transparent, black for solid)
             if useTransparentBackground {
-                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().droppyGlassFill()
             } else {
                 Rectangle().fill(AdaptiveColors.panelBackgroundAuto)
             }
@@ -583,19 +552,7 @@ struct FloatingBasketView: View {
         }
 
         return VStack(spacing: 0) {
-            // Keep the title centered on the same vertical band as x/hide controls.
-            HStack {
-                Spacer()
-                Button(action: expandToGrid) {
-                    PeekFileCountHeader(items: basketState.items, style: .plain)
-                }
-                .buttonStyle(.plain)
-                Spacer()
-            }
-            .frame(height: 32)
-            .padding(.top, 18)
-
-            Spacer(minLength: 0)
+            Spacer(minLength: 52)
 
             // Stacked thumbnail preview - draggable for all files, tappable to expand
             DraggableArea(
@@ -626,13 +583,18 @@ struct FloatingBasketView: View {
                     Spacer(minLength: 0)
                     BasketStackPreviewView(items: basketState.items)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .contentShape(Rectangle())
             }
-            .frame(maxWidth: .infinity, minHeight: 158, maxHeight: 158, alignment: .bottom)
-            .clipped()
+            .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150, alignment: .center)
+
+            Spacer(minLength: 10)
+
+            BasketFileCountLabel(items: basketState.items, isHovering: false, action: expandToGrid)
+            .padding(.bottom, 18)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
     
     // MARK: - Dropover-Style Expanded Content
@@ -756,7 +718,7 @@ struct FloatingBasketView: View {
         // Share menu
         if let shareService = NSSharingService(named: .sendViaAirDrop) {
             Button {
-                shareService.perform(withItems: basketState.items.map(\.url))
+                shareService.perform(withItems: basketState.items.map(\.preferredShareURL))
             } label: {
                 Label("AirDrop", systemImage: "airplayaudio")
             }
@@ -770,16 +732,16 @@ struct FloatingBasketView: View {
         
         Button {
             if let messagesService = NSSharingService(named: .composeMessage) {
-                messagesService.perform(withItems: basketState.items.map(\.url))
+                messagesService.perform(withItems: basketState.items.map(\.preferredShareURL))
             }
         } label: {
             Label("Messages", systemImage: "message.fill")
         }
         
         Menu("More") {
-            ForEach(sharingServicesForItems(basketState.items.map(\.url)), id: \.title) { service in
+            ForEach(sharingServicesForItems(basketState.items.map(\.preferredShareURL)), id: \.title) { service in
                 Button {
-                    service.perform(withItems: basketState.items.map(\.url))
+                    service.perform(withItems: basketState.items.map(\.preferredShareURL))
                 } label: {
                     Text(service.title)
                 }

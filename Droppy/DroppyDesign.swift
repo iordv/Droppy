@@ -300,4 +300,30 @@ extension View {
     func droppyStrongShadow(opacity: Double = DroppyShadow.strongOpacity) -> some View {
         shadow(color: .black.opacity(opacity), radius: DroppyShadow.strongRadius, x: 0, y: DroppyShadow.strongY)
     }
+
+    /// Applies the app's shared window background treatment.
+    func droppyTransparentBackground(_ useTransparentBackground: Bool) -> some View {
+        self.background(
+            useTransparentBackground
+                ? AnyShapeStyle(.ultraThinMaterial)
+                : AdaptiveColors.panelBackgroundOpaqueStyle
+        )
+    }
+}
+
+extension Shape {
+    /// Fills the shape with Droppy's shared glass material.
+    func droppyGlassFill() -> some View {
+        self.fill(.ultraThinMaterial)
+    }
+
+    /// Fills with glass when transparency is enabled, otherwise a solid fallback.
+    @ViewBuilder
+    func droppyTransparentFill(_ useTransparentBackground: Bool, fallback: Color = AdaptiveColors.panelBackgroundAuto) -> some View {
+        if useTransparentBackground {
+            self.droppyGlassFill()
+        } else {
+            self.fill(fallback)
+        }
+    }
 }

@@ -479,6 +479,14 @@ final class ThumbnailCache {
         cache.removeObject(forKey: itemId.uuidString as NSString)
         fileCache.removeObject(forKey: itemId.uuidString as NSString)
     }
+
+    /// Clears heavy thumbnail/image preview caches while keeping lightweight icons warm.
+    /// Use this when transient UI (basket/preview panels) is dismissed to reclaim RAM.
+    func clearTransientPreviews() {
+        cache.removeAllObjects()
+        fileCache.removeAllObjects()
+        pageCache.removeAllObjects()
+    }
     
     /// Clear entire cache (e.g., on memory warning)
     func clearAll() {

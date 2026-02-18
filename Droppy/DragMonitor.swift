@@ -69,6 +69,7 @@ final class DragMonitor: ObservableObject {
     private static let filePromiseDragTypes: Set<NSPasteboard.PasteboardType> = Set(
         NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
     )
+    private static let dockBundleIdentifier = "com.apple.dock"
     
     private init() {}
     
@@ -252,14 +253,17 @@ final class DragMonitor: ObservableObject {
                 let hasSupportedContent = hasSupportedDragPayload(dragPasteboard)
                 if hasSupportedContent {
                     // Some drag sources can reuse pasteboard changeCount across repeated drags.
-                    // Only allow movement fallback for known unreliable sources (Mail/file promises);
-                    // for regular file/url drags it can false-trigger on stale drag pasteboard data.
+                    // Allow movement fallback only for known unreliable sources (Mail/file promises)
+                    // and guarded Dock-origin file drags (Issue #257).
                     let movedFromCandidate = hypot(
                         currentMouseLocation.x - dragStartCandidateLocation.x,
                         currentMouseLocation.y - dragStartCandidateLocation.y
                     ) > dragStartMovementThreshold
                     let changeCountChanged = currentChangeCount != dragStartChangeCount
-                    let canUseMovementFallback = shouldAllowMovementFallback(for: dragPasteboard)
+                    let canUseMovementFallback = shouldAllowMovementFallback(
+                        for: dragPasteboard,
+                        dragStartLocation: dragStartCandidateLocation
+                    )
                     if changeCountChanged || (canUseMovementFallback && movedFromCandidate) {
                         dragActive = true
                         dragHasSupportedPayload = true
@@ -420,11 +424,77 @@ final class DragMonitor: ObservableObject {
         return pasteboard.canReadObject(forClasses: [NSURL.self], options: nil)
     }
 
-    private func shouldAllowMovementFallback(for pasteboard: NSPasteboard) -> Bool {
+    private func shouldAllowMovementFallback(
+        for pasteboard: NSPasteboard,
+        dragStartLocation: CGPoint
+    ) -> Bool {
         guard let types = pasteboard.types, !types.isEmpty else { return false }
-        return types.contains { type in
+        let hasKnownUnreliableTypes = types.contains { type in
             Self.mailDragTypes.contains(type) || Self.filePromiseDragTypes.contains(type)
         }
+        if hasKnownUnreliableTypes {
+            return true
+        }
+
+        // Issue #257:
+        // Dock smart-folder drags may keep a stale drag pasteboard changeCount, so
+        // fallback to movement-based detection only when this drag likely originated
+        // from the Dock and the payload is file-like.
+        guard hasFileURLLikePayload(types: types, pasteboard: pasteboard) else { return false }
+        return isLikelyDockDragSource(at: dragStartLocation)
+    }
+
+    private func hasFileURLLikePayload(
+        types: [NSPasteboard.PasteboardType],
+        pasteboard: NSPasteboard
+    ) -> Bool {
+        if types.contains(where: { type in
+            if let utType = UTType(type.rawValue) {
+                return utType.conforms(to: .fileURL)
+            }
+            return false
+        }) {
+            return true
+        }
+
+        return pasteboard.canReadObject(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        )
+    }
+
+    private func isLikelyDockDragSource(at location: CGPoint) -> Bool {
+        if NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.dockBundleIdentifier {
+            return true
+        }
+        return isPointNearDockArea(location)
+    }
+
+    private func isPointNearDockArea(_ location: CGPoint) -> Bool {
+        let edgeTolerance: CGFloat = 28
+
+        for screen in NSScreen.screens where screen.frame.contains(location) {
+            let frame = screen.frame
+            let visible = screen.visibleFrame
+
+            // Only evaluate edge insets that can belong to the Dock.
+            // Top inset is the menu bar and should not count.
+            let leftInset = max(0, visible.minX - frame.minX)
+            let rightInset = max(0, frame.maxX - visible.maxX)
+            let bottomInset = max(0, visible.minY - frame.minY)
+
+            if leftInset > 0, location.x <= visible.minX + edgeTolerance {
+                return true
+            }
+            if rightInset > 0, location.x >= visible.maxX - edgeTolerance {
+                return true
+            }
+            if bottomInset > 0, location.y <= visible.minY + edgeTolerance {
+                return true
+            }
+        }
+
+        return false
     }
     
     private func loadDragRevealShortcut() -> SavedShortcut? {

@@ -14,13 +14,13 @@ struct MenuBarManagerExtension: ExtensionDefinition {
     static let category: ExtensionGroup = .productivity
     static let categoryColor: Color = .blue
     
-    static let description = "Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized with always-visible, auto-hide, and always-hidden floating bar preferences."
+    static let description = "Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized with always-visible, auto-hide, and always-hidden Floating Bar (Alpha) preferences."
     
     static let features: [(icon: String, text: String)] = [
         ("menubar.rectangle", "Hide/show menu bar icons"),
         ("line.vertical", "Separator between visible and hidden icons"),
         ("eye", "Always visible icons stay put"),
-        ("eye.slash", "Always hidden icons in floating bar")
+        ("eye.slash", "Always hidden icons in Floating Bar (Alpha)")
     ]
     
     static var screenshotURL: URL? {

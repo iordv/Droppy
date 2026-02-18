@@ -434,8 +434,11 @@ final class BrightnessManager: ObservableObject {
         let clamped = max(0, min(1, value))
         guard let targetDisplay = resolveBrightnessTarget(screenHint: screenHint) else { return }
         if setBrightness(clamped, for: targetDisplay) {
-            lastPolledBrightness = clamped
-            publish(brightness: clamped, touchDate: true, displayID: targetDisplay.displayID)
+            // Read back after write so HUD reflects actual applied brightness,
+            // not just the requested value.
+            let effective = getCurrentBrightness(for: targetDisplay) ?? clamped
+            lastPolledBrightness = effective
+            publish(brightness: effective, touchDate: true, displayID: targetDisplay.displayID)
         } else {
             refresh(screenHint: screenHint)
         }
@@ -867,11 +870,9 @@ private final class IntelI2CDDCCBrightnessTransport: ExternalBrightnessTransport
             lastKnownCurrentValue = min(values.current, cachedMaxValue)
             return normalize(lastKnownCurrentValue, maximum: cachedMaxValue)
         }
-        
-        if cachedMaxValue > 0 {
-            return normalize(lastKnownCurrentValue, maximum: cachedMaxValue)
-        }
-        
+
+        // Returning stale cached brightness here can desync HUD from actual display state.
+        // Prefer a temporary nil sample and wait for the next successful hardware read.
         return nil
     }
     
@@ -1043,11 +1044,9 @@ private final class Arm64AVDDCCBrightnessTransport: ExternalBrightnessTransport 
             lastKnownCurrentValue = min(values.current, cachedMaxValue)
             return normalize(lastKnownCurrentValue, maximum: cachedMaxValue)
         }
-        
-        if cachedMaxValue > 0 {
-            return normalize(lastKnownCurrentValue, maximum: cachedMaxValue)
-        }
-        
+
+        // Returning stale cached brightness here can desync HUD from actual display state.
+        // Prefer a temporary nil sample and wait for the next successful hardware read.
         return nil
     }
     

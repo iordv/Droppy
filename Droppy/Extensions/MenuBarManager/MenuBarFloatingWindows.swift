@@ -149,7 +149,27 @@ final class MenuBarMaskController {
             width: quartzRect.width,
             height: quartzRect.height
         )
-        guard let cgImage = CGDisplayCreateImage(displayID, rect: localRect) else {
+        let captureScale = effectiveCaptureScale(
+            quartzRect: quartzRect,
+            screen: screen,
+            displayBounds: displayBounds,
+            displayID: displayID
+        )
+        let scaledRect = CGRect(
+            x: localRect.origin.x * captureScale,
+            y: localRect.origin.y * captureScale,
+            width: localRect.width * captureScale,
+            height: localRect.height * captureScale
+        ).integral
+        let displayPixelBounds = CGRect(
+            x: 0,
+            y: 0,
+            width: CGFloat(CGDisplayPixelsWide(displayID)),
+            height: CGFloat(CGDisplayPixelsHigh(displayID))
+        )
+        let clampedRect = clampCaptureRect(scaledRect, within: displayPixelBounds)
+        guard clampedRect.width > 1, clampedRect.height > 1,
+              let cgImage = CGDisplayCreateImage(displayID, rect: clampedRect) else {
             return nil
         }
 
@@ -157,6 +177,30 @@ final class MenuBarMaskController {
             cgImage: cgImage,
             size: NSSize(width: quartzRect.width, height: quartzRect.height)
         )
+    }
+
+    private func clampCaptureRect(_ rect: CGRect, within bounds: CGRect) -> CGRect {
+        var clamped = rect.intersection(bounds)
+        if clamped.origin.x < bounds.minX { clamped.origin.x = bounds.minX }
+        if clamped.origin.y < bounds.minY { clamped.origin.y = bounds.minY }
+        if clamped.maxX > bounds.maxX { clamped.size.width = max(0, bounds.maxX - clamped.minX) }
+        if clamped.maxY > bounds.maxY { clamped.size.height = max(0, bounds.maxY - clamped.minY) }
+        return clamped.integral
+    }
+
+    private func effectiveCaptureScale(
+        quartzRect: CGRect,
+        screen: NSScreen,
+        displayBounds: CGRect,
+        displayID: CGDirectDisplayID
+    ) -> CGFloat {
+        let screenScale = max(1.0, screen.backingScaleFactor)
+        let pixelScaleX = CGFloat(CGDisplayPixelsWide(displayID)) / max(1.0, displayBounds.width)
+        let pixelScaleY = CGFloat(CGDisplayPixelsHigh(displayID)) / max(1.0, displayBounds.height)
+        let inferredScale = max(screenScale, min(3.0, (pixelScaleX + pixelScaleY) / 2.0))
+        let statusBarHeight = max(1, NSStatusBar.system.thickness)
+        let looksAlreadyPixelAligned = quartzRect.height >= (statusBarHeight * 1.6)
+        return looksAlreadyPixelAligned ? 1.0 : inferredScale
     }
 }
 
@@ -255,11 +299,89 @@ final class MenuBarFloatingPanelController {
     }
 
     private func bestScreen(for items: [MenuBarFloatingItemSnapshot]) -> NSScreen? {
-        guard let rightMost = items.max(by: { $0.quartzFrame.maxX < $1.quartzFrame.maxX }) else {
-            return nil
+        // Priority 1: Screen owning the control items (definitive anchor)
+        if let controlScreen = screenForControlItemFrames() {
+            return controlScreen
         }
-        let point = CGPoint(x: rightMost.quartzFrame.midX, y: rightMost.quartzFrame.midY)
-        return MenuBarFloatingCoordinateConverter.screenContaining(quartzPoint: point)
+
+        // Priority 2: Screen with the most items
+        if let mostItemsScreen = screenWithMostItems(items) {
+            return mostItemsScreen
+        }
+
+        // Priority 3: Mouse screen (only if pointer is near the menu bar)
+        let mouseLocation = NSEvent.mouseLocation
+        if let mouseScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) {
+            let pointerNearMenuBar = mouseLocation.y >= (mouseScreen.frame.maxY - max(28, NSStatusBar.system.thickness + 4))
+            if pointerNearMenuBar {
+                return mouseScreen
+            }
+        }
+
+        // Priority 4: Absolute fallback
+        return NSScreen.main
+    }
+
+    private func screenForControlItemFrames() -> NSScreen? {
+        if let hiddenFrame = MenuBarManager.shared.controlItemFrame(for: .hidden),
+           let hiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(hiddenFrame) }) {
+            return hiddenScreen
+        }
+        if let alwaysHiddenFrame = MenuBarManager.shared.controlItemFrame(for: .alwaysHidden),
+           let alwaysHiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(alwaysHiddenFrame) }) {
+            return alwaysHiddenScreen
+        }
+        return nil
+    }
+
+    private func screenWithMostItems(_ items: [MenuBarFloatingItemSnapshot]) -> NSScreen? {
+        guard !items.isEmpty else { return nil }
+
+        var countByDisplayID = [CGDirectDisplayID: Int]()
+        var screenByDisplayID = [CGDirectDisplayID: NSScreen]()
+
+        for item in items {
+            let point = CGPoint(x: item.quartzFrame.midX, y: item.quartzFrame.midY)
+            guard let itemScreen = MenuBarFloatingCoordinateConverter.screenContaining(quartzPoint: point),
+                  let itemDisplayID = MenuBarFloatingCoordinateConverter.displayID(for: itemScreen) else {
+                continue
+            }
+            countByDisplayID[itemDisplayID, default: 0] += 1
+            screenByDisplayID[itemDisplayID] = itemScreen
+        }
+
+        guard !countByDisplayID.isEmpty else { return nil }
+
+        let bestDisplayID = countByDisplayID.keys.max { lhs, rhs in
+            let lhsCount = countByDisplayID[lhs] ?? 0
+            let rhsCount = countByDisplayID[rhs] ?? 0
+            if lhsCount != rhsCount {
+                return lhsCount < rhsCount
+            }
+            let lhsMaxX = screenByDisplayID[lhs]?.frame.maxX ?? 0
+            let rhsMaxX = screenByDisplayID[rhs]?.frame.maxX ?? 0
+            return lhsMaxX < rhsMaxX
+        }
+
+        guard let bestDisplayID else { return nil }
+        return screenByDisplayID[bestDisplayID]
+    }
+
+    private func hasItems(_ items: [MenuBarFloatingItemSnapshot], on screen: NSScreen) -> Bool {
+        guard let displayID = MenuBarFloatingCoordinateConverter.displayID(for: screen) else {
+            return false
+        }
+        for item in items {
+            let itemPoint = CGPoint(x: item.quartzFrame.midX, y: item.quartzFrame.midY)
+            guard let itemScreen = MenuBarFloatingCoordinateConverter.screenContaining(quartzPoint: itemPoint),
+                  let itemDisplayID = MenuBarFloatingCoordinateConverter.displayID(for: itemScreen) else {
+                continue
+            }
+            if itemDisplayID == displayID {
+                return true
+            }
+        }
+        return false
     }
 
     private final class FloatingPanel: NSPanel {
@@ -303,6 +425,7 @@ private struct MenuBarFloatingBarView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .help("\(item.displayName) (\(item.ownerBundleID))")
                 }
             }
             .padding(.horizontal, FloatingBarMetrics.horizontalPadding)
@@ -337,7 +460,7 @@ private struct MenuBarFloatingBarView: View {
     }
 
     private func resolvedIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
-        item.icon
+        item.icon ?? MenuBarFloatingFallbackIconProvider.icon(for: item)
     }
 
 }

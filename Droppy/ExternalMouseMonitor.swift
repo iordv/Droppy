@@ -11,13 +11,16 @@ final class ExternalMouseMonitor: ObservableObject {
     private let queue = DispatchQueue(label: "com.droppy.external-mouse-monitor", qos: .utility)
     private var pollTimer: DispatchSourceTimer?
 
+    /// Once IOHIDManagerOpen fails (TCC deny), stop trying to avoid log spam and lag.
+    private var hidAccessDenied = false
+
     private init() {
         startPolling()
     }
 
     private func startPolling() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now(), repeating: .seconds(2), leeway: .milliseconds(500))
+        timer.schedule(deadline: .now(), repeating: .seconds(5), leeway: .seconds(1))
         timer.setEventHandler { [weak self] in
             self?.refreshState()
         }
@@ -36,6 +39,10 @@ final class ExternalMouseMonitor: ObservableObject {
     }
 
     private func detectExternalMouse() -> Bool {
+        // If a previous attempt was denied by TCC, don't keep retrying.
+        // Each IOHIDManagerOpen failure logs "TCC deny IOHIDDeviceOpen" and stalls the app.
+        guard !hidAccessDenied else { return false }
+
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 
         let mouseMatch: [String: Int] = [
@@ -49,7 +56,14 @@ final class ExternalMouseMonitor: ObservableObject {
         ]
 
         IOHIDManagerSetDeviceMatchingMultiple(manager, [mouseMatch, pointerMatch] as CFArray)
-        _ = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        let openResult = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+
+        guard openResult == kIOReturnSuccess else {
+            // TCC denied — stop all future attempts.
+            hidAccessDenied = true
+            IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+            return false
+        }
         defer { IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone)) }
 
         guard let rawDevices = IOHIDManagerCopyDevices(manager) else { return false }

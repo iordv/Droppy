@@ -36,6 +36,9 @@ class FilePromiseDropNSView: NSView {
     private func setupDragTypes() {
         var types: [NSPasteboard.PasteboardType] = [
             .fileURL,
+            .URL,
+            .string,
+            NSPasteboard.PasteboardType("public.url"),
             NSPasteboard.PasteboardType(UTType.fileURL.identifier)
         ]
         
@@ -104,8 +107,20 @@ class FilePromiseDropNSView: NSView {
             options: [.urlReadingFileURLsOnly: true]) as? [URL], !readUrls.isEmpty {
             urls = readUrls
         }
+
+        // Method 2: Convert dropped web links into .webloc files so downstream
+        // quick-action handlers can treat them like normal Droppy items.
+        let remoteURLs = DroppyLinkSupport.extractRemoteURLs(from: pasteboard)
+        if !remoteURLs.isEmpty {
+            let dropLocation = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("DroppyQuickAction-\(UUID().uuidString)")
+            let linkFiles = DroppyLinkSupport.createWeblocFiles(for: remoteURLs, in: dropLocation)
+            if !linkFiles.isEmpty {
+                urls.append(contentsOf: linkFiles)
+            }
+        }
         
-        // Method 2: Handle file promises (Photos.app, etc.)
+        // Method 3: Handle file promises (Photos.app, etc.)
         if urls.isEmpty {
             if let promiseReceivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
                !promiseReceivers.isEmpty {

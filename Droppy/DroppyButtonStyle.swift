@@ -228,7 +228,7 @@ private struct DroppyCircleButtonContent: View {
                     // Transparent mode: use glass material (overrides solidFill)
                     if useTransparent {
                         Circle()
-                            .fill(.ultraThinMaterial)
+                            .droppyGlassFill()
                     } else {
                         Circle()
                             .fill(buttonFill)
