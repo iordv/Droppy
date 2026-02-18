@@ -36,10 +36,10 @@ struct SavedShortcut: Codable, Equatable {
     var eventModifiers: SwiftUI.EventModifiers {
         var result: SwiftUI.EventModifiers = []
         let flags = NSEvent.ModifierFlags(rawValue: modifiers)
-        if flags.contains(.command) { result.insert(.command) }
-        if flags.contains(.shift) { result.insert(.shift) }
-        if flags.contains(.option) { result.insert(.option) }
         if flags.contains(.control) { result.insert(.control) }
+        if flags.contains(.option) { result.insert(.option) }
+        if flags.contains(.shift) { result.insert(.shift) }
+        if flags.contains(.command) { result.insert(.command) }
         return result
     }
 }
