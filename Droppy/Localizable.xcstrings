@@ -1585,7 +1585,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "검은색으로 채워 Notch를 가리고 메뉴 막대 공간을 확보하세요"
+            "value" : "상단을 검은색으로 채워 Notch를 가리고 공간을 확보하세요"
           }
         }
       }
