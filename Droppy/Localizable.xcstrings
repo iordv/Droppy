@@ -269,14 +269,7 @@
 
     },
     "Activate this Mac" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "this mac??"
-          }
-        }
-      }
+
     },
     "Activated Device" : {
       "localizations" : {
@@ -486,7 +479,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : " ‘모두 선택’과 ‘모두 추가’ 도구를 활성화합니다"
+            "value" : "Basket에서 ‘모두 선택’과 ‘모두 추가’ 도구를 활성화합니다"
           }
         }
       }
@@ -884,7 +877,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "행동"
+            "value" : "동작"
           }
         }
       }
@@ -1006,7 +999,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "노치 혹은 아일랜드 스타일을 선택하세요"
+            "value" : "Notch 혹은 Island 스타일을 선택하세요"
           }
         }
       }
@@ -1216,7 +1209,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "노치가 없는 외장 디스플레이에서 Droppy가 표시되는 방식을 설정합니다."
+            "value" : "Notch가 없는 외장 디스플레이에서 Droppy가 표시되는 방식을 설정합니다."
           }
         }
       }
@@ -1456,7 +1449,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "외장 디스플레이에서 노치를 비활성화합니다"
+            "value" : "외장 디스플레이에서 Notch를 비활성화합니다"
           }
         }
       }
@@ -1592,7 +1585,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "검은색으로 채워 노치를 가리고 메뉴 막대 공간을 확보하세요"
+            "value" : "검은색으로 채워 Notch를 가리고 메뉴 막대 공간을 확보하세요"
           }
         }
       }
@@ -1765,7 +1758,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정 → 확장 앱에서 확장 앱을 활성화하세요"
+            "value" : "설정 → 확장 기능에서 확장 기능을 활성화하세요"
           }
         }
       }
@@ -1823,7 +1816,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "스크린샷 및 화면 녹화에서 노치 영역을 제외합니다"
+            "value" : "스크린샷 및 화면 녹화에서 Notch 영역을 제외합니다"
           }
         }
       }
@@ -1855,7 +1848,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "확장 앱"
+            "value" : "확장 기능"
           }
         }
       }
@@ -1959,7 +1952,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "파일은 복사되고, 이동하지 않음"
+            "value" : "파일은 이동하지 않고 복사됨"
           }
         }
       }
@@ -2445,7 +2438,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "IP 주소는 악용 방지 목적으로만 수집"
+            "value" : "IP 주소는 악용 방지 목적으로만 수집됨"
           }
         }
       }
@@ -2732,7 +2725,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 파일 감지 시 Shelf/Basket에 자동 추가"
+            "value" : "새 파일 감지 시 Shelf/Basket에 자동으로 추가"
           }
         }
       }
@@ -3271,7 +3264,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "설정에서 파일 관리자에 빠르게 접근하기"
+            "value" : "설정에서 파일 관리자로 빠르게 접근하기"
           }
         }
       }
@@ -3823,7 +3816,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shelf 행동"
+            "value" : "Shelf 동작"
           }
         }
       }
@@ -4051,7 +4044,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "연결될 떄 배터리와 3D 애니메이션을 표시합니다"
+            "value" : "연결될 때 배터리와 3D 애니메이션을 표시합니다"
           }
         }
       }
@@ -4363,7 +4356,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“메일” 빠른 동작은 기본 이메일 앱을 사용합니다"
+            "value" : "기본 이메일 앱을 '메일' 빠른 동작에 사용합니다"
           }
         }
       }
@@ -4373,7 +4366,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "macOS에 부족했던 네이티브 생산성 레이어"
+            "value" : "macOS에 없던 네이티브 생산성 레이어"
           }
         }
       }
@@ -4435,7 +4428,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 작업은 모든 설정을 초기화합니다. Droppy가 재시작됩니다."
+            "value" : "이 작업은 모든 설정을 초기화하고 클립보드 기록을 삭제합니다. Droppy가 재시작됩니다."
           }
         }
       }
@@ -4699,7 +4692,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "폴더를 모니터링하고 새 파일을 자동 추가합니다"
+            "value" : "폴더를 모니터링하고 새 파일을 자동으로 추가합니다"
           }
         }
       }
