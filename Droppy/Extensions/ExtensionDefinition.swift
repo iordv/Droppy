@@ -62,7 +62,10 @@ protocol ExtensionDefinition {
     
     /// Placeholder icon color
     static var iconPlaceholderColor: Color { get }
-    
+
+    /// Local asset image name (used instead of iconURL when set)
+    static var localIconAsset: String? { get }
+
     /// Clean up extension resources when uninstalled
     static func cleanup()
     
@@ -90,6 +93,9 @@ extension ExtensionDefinition {
     
     /// Default placeholder color
     static var iconPlaceholderColor: Color { .blue }
+
+    /// Default no local icon asset
+    static var localIconAsset: String? { nil }
     
     /// Default no preview view (uses screenshotURL instead)
     static var previewView: AnyView? { nil }
@@ -131,6 +137,7 @@ final class ExtensionRegistry {
         register(CameraExtension.self)
         register(QuickshareExtension.self)
         register(AppleMusicExtension.self)
+        register(TidalExtension.self)
         register(NotificationHUDExtension.self)
         register(CaffeineExtension.self)
         register(MenuBarManagerExtension.self)

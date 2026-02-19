@@ -15,6 +15,8 @@ struct ExtensionInfoView: View {
     var onAction: (() -> Void)?
     var installCount: Int?
     var rating: AnalyticsService.ExtensionRating?
+    /// Optional extra content rendered inside the scrollable area (e.g. Tidal auth management)
+    var additionalContent: AnyView? = nil
     
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @AppStorage(AppPreferenceKey.disableAnalytics) private var disableAnalytics = PreferenceDefault.disableAnalytics
@@ -42,9 +44,14 @@ struct ExtensionInfoView: View {
                 VStack(spacing: 20) {
                     // Features section
                     featuresSection
-                    
+
                     // Screenshot section
                     screenshotSection
+
+                    // Extension-specific content (e.g. auth management)
+                    if let additionalContent {
+                        additionalContent
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
@@ -153,6 +160,31 @@ struct ExtensionInfoView: View {
             Text(extensionType.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            // Community Extension Badge
+            if extensionType.isCommunity {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.2.fill")
+                        .font(.system(size: 11))
+                    Text("Community Extension")
+                        .font(.caption.weight(.medium))
+                    if let name = extensionType.creatorName {
+                        Text("by")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        if let url = extensionType.creatorURL {
+                            Link(name, destination: url)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(extensionType.categoryColor)
+                        } else {
+                            Text(name)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(extensionType.categoryColor)
+                        }
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
         }
         .padding(.top, 24)
         .padding(.bottom, 20)
@@ -245,7 +277,7 @@ struct ExtensionInfoView: View {
     private var primaryActionText: String {
         if !isInstalled {
             switch extensionType {
-            case .spotify, .appleMusic:
+            case .spotify, .appleMusic, .tidal:
                 return "Set Up"
             case .finder, .finderServices, .windowSnap, .voiceTranscribe, .elementCapture, .terminalNotch, .camera, .notificationHUD, .caffeine, .menuBarManager, .todo:
                 return "Set Up"
@@ -262,6 +294,7 @@ struct ExtensionInfoView: View {
         case .finder, .finderServices: return "Open Settings"
         case .spotify: return "Open Spotify"
         case .appleMusic: return "Open Music"
+        case .tidal: return "Open Tidal"
         case .elementCapture: return "Configure"
         case .windowSnap: return "Configure"
         case .voiceTranscribe: return "Configure"
@@ -283,6 +316,7 @@ struct ExtensionInfoView: View {
         case .finder, .finderServices: return "Configure"
         case .spotify: return "Connect"
         case .appleMusic: return "Connect"
+        case .tidal: return "Connect"
         case .elementCapture: return "Configure Shortcut"
         case .windowSnap: return "Configure Shortcuts"
         case .voiceTranscribe: return "Configure"
@@ -304,6 +338,7 @@ struct ExtensionInfoView: View {
         case .finder, .finderServices: return "gearshape"
         case .spotify: return "link"
         case .appleMusic: return "link"
+        case .tidal: return "link"
         case .elementCapture: return "keyboard"
         case .windowSnap: return "keyboard"
         case .voiceTranscribe: return "mic.fill"

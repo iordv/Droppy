@@ -2305,7 +2305,7 @@ struct NotchShelfView: View {
                         .fill(Color.black.opacity(0.25))
                 }
             }
-            // Spotify badge (bottom-right corner, expanded only) - fades in without sliding
+            // Source badge (bottom-right corner, expanded only) - fades in without sliding
             .overlay {
                 ZStack(alignment: .bottomTrailing) {
                     Color.clear
@@ -2314,6 +2314,11 @@ struct NotchShelfView: View {
                         .opacity(isExpandedOnThisScreen && musicManager.isSpotifySource ? 1 : 0)
                         .animation(displayNotchStateAnimation, value: isExpandedOnThisScreen)
                         .animation(displayNotchStateAnimation, value: musicManager.isSpotifySource)
+                    TidalBadge(size: 24)
+                        .offset(x: 5, y: 5)
+                        .opacity(isExpandedOnThisScreen && musicManager.isTidalSource ? 1 : 0)
+                        .animation(displayNotchStateAnimation, value: isExpandedOnThisScreen)
+                        .animation(displayNotchStateAnimation, value: musicManager.isTidalSource)
                 }
             }
             .shadow(

@@ -93,6 +93,8 @@ struct DisableExtensionButton: View {
             return "This will remove all keyboard shortcuts. You can set them up again later."
         case .spotify:
             return "This will sign out of Spotify and remove connection. You can reconnect later."
+        case .tidal:
+            return "This will sign out of Tidal and remove connection. You can reconnect later."
         case .appleMusic:
             return "This will disable Apple Music controls. You can enable it again later."
         case .aiBackgroundRemoval:

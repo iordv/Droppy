@@ -794,6 +794,19 @@ final class MusicManager: ObservableObject {
         AppleMusicController.shared
     }
 
+    // MARK: - Tidal Integration
+
+    /// Whether the current media source is Tidal (and Tidal extension is enabled)
+    var isTidalSource: Bool {
+        guard !ExtensionType.tidal.isRemoved else { return false }
+        return bundleIdentifier == TidalController.tidalBundleId
+    }
+
+    /// Tidal controller for app-specific features (shuffle, repeat, like)
+    var tidalController: TidalController {
+        TidalController.shared
+    }
+
     /// Whether the current media source is a browser-based player.
     var isBrowserSource: Bool {
         guard let bundleIdentifier else { return false }
@@ -1356,7 +1369,7 @@ final class MusicManager: ObservableObject {
     private var shouldRunFallbackTimingSync: Bool {
         guard isPlaying else { return false }
         guard bundleIdentifier != nil else { return false }
-        return !isAppleMusicSource
+        return !isAppleMusicSource && !isTidalSource
     }
 
     private func stopFallbackTimingSync() {
@@ -1603,6 +1616,13 @@ final class MusicManager: ObservableObject {
             if nextBundle == AppleMusicController.appleMusicBundleId {
                 AppleMusicController.shared.onTrackChange()
             }
+            if nextBundle == TidalController.tidalBundleId {
+                let title = incomingTitle ?? ""
+                let artist = incomingArtist ?? ""
+                if !title.isEmpty {
+                    TidalController.shared.onTrackChange(title: title, artist: artist)
+                }
+            }
             let timingIncomplete = (payload.elapsedTimeNow == nil && payload.elapsedTime == nil) || ((payload.duration ?? 0) <= 0)
             if timingIncomplete || staleEndSnapshot {
                 requestTimingResyncIfNeeded(reason: "track_change_seed", force: true)
@@ -1693,6 +1713,7 @@ final class MusicManager: ObservableObject {
             let previousBundle = bundleIdentifier
             let wasSpotify = isSpotifySource
             let wasAppleMusic = isAppleMusicSource
+            let wasTidal = isTidalSource
 
             if previousBundle != bundle {
                 bundleIdentifier = bundle
@@ -1713,6 +1734,11 @@ final class MusicManager: ObservableObject {
             if isAppleMusicSource && !wasAppleMusic {
                 AppleMusicController.shared.refreshState()
                 startAppleMusicMetadataSyncTimer()
+            }
+
+            // Refresh Tidal state when source changes to Tidal
+            if isTidalSource && !wasTidal {
+                TidalController.shared.refreshState()
             }
             
             // PERFORMANCE FIX: Stop Spotify's position sync timer when switching away

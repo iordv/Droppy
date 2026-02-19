@@ -1,0 +1,23 @@
+{
+    "images": [
+        {
+            "filename": "tidal@1x.png",
+            "idiom": "universal",
+            "scale": "1x"
+        },
+        {
+            "filename": "tidal@2x.png",
+            "idiom": "universal",
+            "scale": "2x"
+        },
+        {
+            "filename": "tidal@3x.png",
+            "idiom": "universal",
+            "scale": "3x"
+        }
+    ],
+    "info": {
+        "author": "xcode",
+        "version": 1
+    }
+}
