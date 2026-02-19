@@ -1,8 +1,56 @@
-## 🚀 Droppy v11.2.2
+## 🚀 Droppy v11.2.1
 **New Features**
-- Added automatic README latest-release syncing from GitHub Releases via a dedicated GitHub Actions workflow (`release: published/edited` + manual dispatch).
-- Added a `scripts/sync_readme_latest_release.sh` updater that pulls the latest release body from GitHub API and refreshes the README changelog block between markers.
-- Added dynamic website latest-release rendering on the Features page, so “Latest Release” now fetches and displays current GitHub release notes with local caching and graceful fallbacks.
+- Added screenshot step annotations: tap, enter a number, done.
+- Added beautiful screenshot-editor backgrounds with gradients, shadows, and independent corner radius controls for screenshot and background exports.
+- Added magnifier tool support (`M`) with source-point placement, post-placement dragging, and consistent preview/save rendering.
+- Added magnifier hint badge, edge-resize behavior, and size-based zoom scaling for larger lenses.
+- Added a background-source option for stylized screenshot-editor backgrounds.
+- Added picture-in-picture mode for Element Capture screenshot editing.
+- Added meeting-link actions in Calendar + Task view for instant join.
+- Added watched-folder origin labels and tracked capsule badges for Shelf/Basket items that came from tracked folders.
+- Expanded Element Capture menu into a full submenu: Element, Area, Fullscreen, Window, Scrolling, OCR, and Configure.
+- Expanded Window Snap menus to all `SnapAction.allCases`, grouped with Configure action.
+- Added Menu Manager/Floating Bar side-aware RTL handling so Arabic/RTL menu bars behave as first-class layouts.
+- Added stale-notification filtering and payload deduplication to suppress repeated calendar burst notifications.
+- Added internal quick-view fetch path so installs/stars load correctly when opened from the eye-icon quick view.
+- Added quarter-step volume/brightness support on Option+Shift, including Karabiner remaps emitting those modifiers.
+- Added fallback to real app icon for dashed placeholders (for Alfred-like entries).
+- Added WebP recognition in file-converter `availableConversions(for:)`, with JPEG/PNG-equivalent conversion options.
 **Bug Fixes**
-- Removed manual README changelog mutation from `release_droppy.sh`, preventing stale/manual mismatch drift and making release-note propagation fully automated.
-- Replaced hardcoded latest-release website bullets with live release data bindings, avoiding outdated “What’s New” content after new publishes.
+- Fixed screen-detection edge cases and removed the misleading mode picker on desktop Macs so external-display style controls behave correctly.
+- Fixed shelf/media open-close, click-drag hit handling, and alignment consistency across shelf view, controller, and drag-container paths.
+- Fixed Dock icon sizing in Settings to match menu-bar icon sizing.
+- Fixed floating-bar icon tinting by replacing contextual `.primary` dependence with adaptive app label colors for light/dark readability.
+- Fixed targeted stuck dim overlay issue after closing extension sheets.
+- Fixed menu-window detection by tracking owner menus even when cursor is outside the menu window.
+- Fixed menu dismissal reliability with a forced close fallback (Escape + short wait) when a menu remains active at dismissal boundary.
+- Fixed restore-task cancellation flow by applying the same dismissal behavior before canceling in-flight restore when a restore/menu session exists.
+- Fixed wrong-screen menu-session persistence by hardening interactive-zone screen resolution using divider-edge anchoring.
+- Fixed floating bar placement/hover behavior so it stays under the divider and no longer disappears on hover or jumps under left menu-bar items.
+- Fixed Notification HUD foreground contrast in transparent modes by switching to adaptive dark/light foregrounds.
+- Fixed white-on-white regressions in HUD/media components by removing hardcoded white text and unifying adaptive foreground logic for transparent non-physical-notch modes.
+- Fixed Caffeine/High Alert foreground contrast to follow the same adaptive HUD/media foreground behavior.
+- Fixed terminal panel readability for command output, command text, placeholder text, and input chrome in light backgrounds.
+- Fixed light-mode color handling for volume/brightness HUDs.
+- Fixed settings icon rendering to match floating-bar renderer so white glyphs switch dark in light/white modes.
+- Fixed calendar layout spacing by moving calendar content up in dual and single modes.
+- Fixed single-pane day visibility and small-mode day-strip readability so all days remain visible.
+- Fixed dynamic-island + light-mode notification white-on-white issue.
+- Fixed Menu Bar Manager performance when opening from right-click on its menu-bar icon.
+- Fixed granted-permissions UI to show confirmed badges instead of toggle-looking controls.
+- Fixed rehide behavior to timed-only flow with delay tuning only.
+- Fixed Menu Bar settings clarity with cleaner hierarchy and lower text density.
+- Fixed default media-key target behavior to use the display under pointer for immediate third-party external display control compatibility.
+- Fixed stale Spotify artwork persistence when source changes (for example Eter) without usable art.
+- Fixed issue #267 so shelf actions are no longer interrupted by shelf dismissal.
+- Fixed Notify Me queue handling so notifications queued behind another HUD are retried automatically.
+- Fixed tracked-item lifecycle by carrying watched-folder metadata on tracked-folder drops and auto-cleaning ghost items when files are trashed externally (including closing empty baskets).
+- Fixed icon-menu responsiveness across Droppy icons so menus feel near-instant.
+- Fixed expanded Shelf/Basket thumbnail sizing to improve visual clarity.
+- Fixed list-row rendering overhead by caching file-size metadata asynchronously instead of per-frame disk reads.
+- Fixed Finder drop responsiveness by moving “drop selected to Finder” detection/copy work off the main thread and keeping UI updates on main.
+- Fixed drag/render overhead by removing hot-path logging and redundant animation work.
+- Fixed NotificationHUD cross-thread UI-state mutation risk.
+- Fixed ToDo list animation overhead by switching triggers to cached signatures.
+- Fixed screenshot-editor toolbar density by collapsing sticker tools into a single popover picker and exposing one visible color + one visible thickness control with hover/tap pickers.
+- Fixed symbol/accessibility consistency by including PR #261 RTL/accessibility symbol + shortcut-order improvements and missed external-link icons.
