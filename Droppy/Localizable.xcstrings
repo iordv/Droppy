@@ -1,0 +1,4801 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "" : {
+
+    },
+    "–" : {
+
+    },
+    "…" : {
+
+    },
+    "·" : {
+
+    },
+    "(%lld)" : {
+
+    },
+    "**Click** terminal icon in expanded shelf" : {
+
+    },
+    "%@ (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        }
+      }
+    },
+    "%@ • %@ • %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ • %2$@ • %3$@"
+          }
+        }
+      }
+    },
+    "%@ is not installed. Droppy will fall back to Terminal." : {
+
+    },
+    "%@%lldpt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$lldpt"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld / %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld files" : {
+
+    },
+    "%lld item%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld item%2$@"
+          }
+        }
+      }
+    },
+    "%lld items" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 개"
+          }
+        }
+      }
+    },
+    "%lld items selected" : {
+
+    },
+    "%lld selected" : {
+
+    },
+    "%lld users" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용자 수: %lld 명"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
+    "%llds" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 초"
+          }
+        }
+      }
+    },
+    "•" : {
+
+    },
+    "+" : {
+
+    },
+    "+%lld" : {
+
+    },
+    "|" : {
+
+    },
+    "$" : {
+
+    },
+    "1 hour" : {
+
+    },
+    "2 Files" : {
+
+    },
+    "2 hours" : {
+
+    },
+    "3 items" : {
+
+    },
+    "3-Day Trial" : {
+
+    },
+    "5 hours" : {
+
+    },
+    "5 minutes" : {
+
+    },
+    "12 hours" : {
+
+    },
+    "15+" : {
+
+    },
+    "24 hours" : {
+
+    },
+    "85%" : {
+
+    },
+    "A file shelf that lives in your Mac's notch or as an Island." : {
+
+    },
+    "A floating basket with Quick Actions appears as soon as you start dragging.\nUseful when your notch or island is on another display." : {
+
+    },
+    "About" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy에 관하여"
+          }
+        }
+      }
+    },
+    "About Quickshare" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quickshare에 관하여"
+          }
+        }
+      }
+    },
+    "Access clipboard history from the menu bar" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy 서브 메뉴에서 클립보드 기록 열기"
+          }
+        }
+      }
+    },
+    "Access everything you've copied.\nSearch instantly, extract text from images, and pin favorites." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "복사했던 모든 항목에 빠르게 접근하세요.\n즉시 검색하고, 이미지에서 텍스트를 추출하며, 즐겨찾기에 고정할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Accessibility" : {
+
+    },
+    "Accessibility Needed" : {
+
+    },
+    "Accessing Termi-Notch" : {
+
+    },
+    "action.add_task" : {
+
+    },
+    "action.cancel" : {
+
+    },
+    "action.delete" : {
+
+    },
+    "action.delete_task" : {
+
+    },
+    "action.edit" : {
+
+    },
+    "action.install" : {
+
+    },
+    "action.mark_complete" : {
+
+    },
+    "action.mark_incomplete" : {
+
+    },
+    "action.save" : {
+
+    },
+    "action.set_priority" : {
+
+    },
+    "ACTIONS" : {
+
+    },
+    "Activate" : {
+
+    },
+    "Activate Droppy" : {
+
+    },
+    "Activate License" : {
+
+    },
+    "Activate License…" : {
+
+    },
+    "Activate the target app window before handling" : {
+
+    },
+    "Activate this Mac" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "this mac??"
+          }
+        }
+      }
+    },
+    "Activated Device" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화된 기기"
+          }
+        }
+      }
+    },
+    "Active" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화"
+          }
+        }
+      }
+    },
+    "Add" : {
+
+    },
+    "Add a tag above to get started" : {
+
+    },
+    "Add All" : {
+
+    },
+    "Add App" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 추가"
+          }
+        }
+      }
+    },
+    "Add App Rule" : {
+
+    },
+    "Add App…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱 추가..."
+          }
+        }
+      }
+    },
+    "Add Date" : {
+
+    },
+    "Add Folder" : {
+
+    },
+    "Add Tag" : {
+
+    },
+    "Add Text" : {
+
+    },
+    "Add to" : {
+
+    },
+    "Add to Basket" : {
+
+    },
+    "Add to Shelf" : {
+
+    },
+    "add_task_placeholder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "할 일 입력"
+          }
+        }
+      }
+    },
+    "Additional information shown for timed tasks/events." : {
+
+    },
+    "Adds \"Open Clipboard\" to right-click menu on notch/island" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch/Island의 오른쪽 클릭 메뉴에 “클립보드 열기”를 추가합니다"
+          }
+        }
+      }
+    },
+    "Adds a short delay before showing media changes" : {
+
+    },
+    "Adds quick action drop targets under Shelf and Basket for fast sharing." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 공유를 위한 Shelf/Basket 아래에 빠른 동작 드롭 영역을 추가합니다."
+          }
+        }
+      }
+    },
+    "Adjust how much movement is needed before basket summon triggers during drag." : {
+
+    },
+    "Adjust only if the built-in notch appears too narrow or too wide on your MacBook display." : {
+
+    },
+    "Adjust spacing between all menu bar items" : {
+
+    },
+    "advanced" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고급"
+          }
+        }
+      }
+    },
+    "Advanced" : {
+
+    },
+    "Advanced Auto-Fade" : {
+
+    },
+    "After installing Homebrew, click 'Install FFmpeg' below." : {
+
+    },
+    "AI" : {
+
+    },
+    "AI Background Removal" : {
+
+    },
+    "AirDrop" : {
+
+    },
+    "AirDrop Zone" : {
+
+    },
+    "AirPods & Headphones" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPods과 헤드폰"
+          }
+        }
+      }
+    },
+    "Album Art Glow" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앨범 아트 효과"
+          }
+        }
+      }
+    },
+    "Alerts" : {
+
+    },
+    "Alfred Workflow" : {
+
+    },
+    "All" : {
+
+    },
+    "All Items" : {
+
+    },
+    "Allow" : {
+
+    },
+    "Allow Camera" : {
+
+    },
+    "ALPHA" : {
+
+    },
+    "Also apply the black bar to external screens in Notch mode" : {
+
+    },
+    "Also clear clipboard history when resetting" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "재설정 시 클립보드 기록도 삭제합니다"
+          }
+        }
+      }
+    },
+    "Also enables Select All and Add All tools in Basket" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " ‘모두 선택’과 ‘모두 추가’ 도구를 활성화합니다"
+          }
+        }
+      }
+    },
+    "Also enables Select All and Add All tools in Basket for faster batch operations" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basket에서 빠른 일괄 작업을 위한 ‘모두 선택’과 ‘모두 추가’ 도구를 활성화합니다"
+          }
+        }
+      }
+    },
+    "Also visible in **media HUD**" : {
+
+    },
+    "Always copy, never move files" : {
+
+    },
+    "Always On" : {
+
+    },
+    "Analytics are optional and can be disabled at any time." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "분석 데이터 제공은 선택 사항이며 언제든지 비활성화할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Analytics is disabled" : {
+
+    },
+    "Analytics off" : {
+
+    },
+    "and" : {
+
+    },
+    "And many more…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "그리고 더 많은 기능들…"
+          }
+        }
+      }
+    },
+    "App-Specific Rules" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱별 규칙"
+          }
+        }
+      }
+    },
+    "Appearance" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 모드"
+          }
+        }
+      }
+    },
+    "Appears instantly when dragging files anywhere" : {
+
+    },
+    "Appears instantly when dragging files anywhere. Drag right into Quick Actions to quickly share your files." : {
+
+    },
+    "Appears when you jiggle files anywhere on screen" : {
+
+    },
+    "Appears when you jiggle files anywhere on screen. Drag right into Quick Actions to quickly share your files." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 어디에서든 파일을 흔들면 나타납니다. Quick Actions로 바로 드래그해 파일을 빠르게 공유하세요."
+          }
+        }
+      }
+    },
+    "Applied when opening the editor." : {
+
+    },
+    "Apply" : {
+
+    },
+    "Arrow keys won't navigate list until you press Escape" : {
+
+    },
+    "Ask before uploading files to Quickshare" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quickshare로 파일을 업로드하기 전에 확인을 요청합니다"
+          }
+        }
+      }
+    },
+    "Assign Tag" : {
+
+    },
+    "Audio" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오디오"
+          }
+        }
+      }
+    },
+    "Audio %@" : {
+
+    },
+    "Auto (Medium)" : {
+
+    },
+    "Auto-cleanup" : {
+
+    },
+    "Auto-Collapse" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 축소"
+          }
+        }
+      }
+    },
+    "Auto-Copy OCR Text" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OCR 텍스트 자동 복사"
+          }
+        }
+      }
+    },
+    "Auto-Copy Result" : {
+
+    },
+    "Auto-detect recommended" : {
+
+    },
+    "Auto-Expand" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 확장"
+          }
+        }
+      }
+    },
+    "Auto-fade delay:" : {
+
+    },
+    "Auto-Focus Search Enabled" : {
+
+    },
+    "Auto-Hide" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 숨기기"
+          }
+        }
+      }
+    },
+    "Auto-Hide Delay" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 숨기기 지연 시간"
+          }
+        }
+      }
+    },
+    "Auto-Hide Preview" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미리보기 자동 숨기기"
+          }
+        }
+      }
+    },
+    "Auto-Remove" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 제거"
+          }
+        }
+      }
+    },
+    "Auto-save compressed files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "압축한 파일 자동 저장"
+          }
+        }
+      }
+    },
+    "Auto-Save Compressed Files" : {
+
+    },
+    "Auto-save converted files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "변환한 파일 자동 저장"
+          }
+        }
+      }
+    },
+    "Auto-save processed files to designated folders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처리된 파일을 지정한 폴더에 자동 저장합니다"
+          }
+        }
+      }
+    },
+    "Automatically add new tasks to this list when no @list is provided." : {
+
+    },
+    "Automatically focuses the search bar when clipboard opens" : {
+
+    },
+    "Automatically hide after revealing" : {
+
+    },
+    "Automatically removes items from shelf/basket after you drop them somewhere." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf/Basket에 있던 항목을 다른 곳에 드롭하면 자동 제거합니다."
+          }
+        }
+      }
+    },
+    "Automatically save processed files to designated folders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처리된 파일을 지정한 폴더에 자동 저장합니다"
+          }
+        }
+      }
+    },
+    "Automatically save processed files to designated folders." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처리된 파일을 지정한 폴더에 자동 저장합니다."
+          }
+        }
+      }
+    },
+    "Automatically saves compressed files to a designated folder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "압축된 파일을 지정한 폴더에 자동 저장합니다"
+          }
+        }
+      }
+    },
+    "Automatically saves converted files to a designated folder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "변환된 파일을 지정한 폴더에 자동 저장합니다"
+          }
+        }
+      }
+    },
+    "Automatically show icons when hovering over the menu bar" : {
+
+    },
+    "Automatically syncs in real time when Apple Reminders or Calendar events change." : {
+
+    },
+    "Automation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동화"
+          }
+        }
+      }
+    },
+    "Back" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "뒤로"
+          }
+        }
+      }
+    },
+    "Back to Shelf" : {
+
+    },
+    "Background Removal" : {
+
+    },
+    "Basket Advanced" : {
+
+    },
+    "Basket Appearance" : {
+
+    },
+    "Basket appears after 2-3 quick shakes" : {
+
+    },
+    "Basket appears immediately when you start dragging a file." : {
+
+    },
+    "Basket hides after a delay when your cursor leaves. Use your Basket Switcher shortcut to reopen hidden baskets." : {
+
+    },
+    "Basket hides after delay when cursor leaves" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마우스 커서가 벗어나면 일정 시간 후 Basket이 사라집니다"
+          }
+        }
+      }
+    },
+    "Basket is ready right away" : {
+
+    },
+    "Basket Switcher" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basket 전환기"
+          }
+        }
+      }
+    },
+    "Baskets with items are preserved" : {
+
+    },
+    "Battery Status" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "배터리 상태"
+          }
+        }
+      }
+    },
+    "Be the first to rate this extension!" : {
+
+    },
+    "Behavior" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "행동"
+          }
+        }
+      }
+    },
+    "beta" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "베타"
+          }
+        }
+      }
+    },
+    "Blur Strength" : {
+
+    },
+    "Brightness" : {
+
+    },
+    "Bring Window To Front" : {
+
+    },
+    "Buy License" : {
+
+    },
+    "by" : {
+
+    },
+    "Calendar event" : {
+
+    },
+    "Calendar events are read-only" : {
+
+    },
+    "Calendar lists" : {
+
+    },
+    "Camera Source" : {
+
+    },
+    "Cancel" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "취소"
+          }
+        }
+      }
+    },
+    "Caps Lock" : {
+
+    },
+    "Capture any screen element instantly" : {
+
+    },
+    "Captured Apps" : {
+
+    },
+    "Center" : {
+
+    },
+    "Check for Updates…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트 확인..."
+          }
+        }
+      }
+    },
+    "Choose destination per folder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더별로 저장 위치를 설정합니다"
+          }
+        }
+      }
+    },
+    "Choose destination per type" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "종류별 저장 위치 설정"
+          }
+        }
+      }
+    },
+    "Choose exactly which external displays show Droppy" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy를 표시할 외장 디스플레이를 선택하세요"
+          }
+        }
+      }
+    },
+    "Choose Folder…" : {
+
+    },
+    "Choose how Droppy appears at the top of your screen" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 상단에 Droppy의 표시 방식을 선택하세요"
+          }
+        }
+      }
+    },
+    "Choose Notch or Island style" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노치 혹은 아일랜드 스타일을 선택하세요"
+          }
+        }
+      }
+    },
+    "Choose what Reminders syncs into your task overview." : {
+
+    },
+    "Choose whether volume and brightness follow your active display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "볼륨과 밝기를 활성 디스플레이 기준으로 설정합니다."
+          }
+        }
+      }
+    },
+    "Choose which app opens when you use \"Open in Terminal\"." : {
+
+    },
+    "Choose which Apple Calendar calendars are shown." : {
+
+    },
+    "Choose which Apple Reminders lists are shown in Reminders." : {
+
+    },
+    "Choose which connected camera Notchface should use." : {
+
+    },
+    "Choose your preferred app for the Mail quick action" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 동작에서 사용할 기본 메일 앱을 선택하세요"
+          }
+        }
+      }
+    },
+    "Clean up your menu bar" : {
+
+    },
+    "Clear All" : {
+
+    },
+    "Clear all clipboard history?" : {
+
+    },
+    "Clear Basket" : {
+
+    },
+    "Clear Crop" : {
+
+    },
+    "Clear due date" : {
+
+    },
+    "Clear History" : {
+
+    },
+    "Clear items when dragged out of Droppy" : {
+
+    },
+    "Clear Shelf" : {
+
+    },
+    "Clear terminal output" : {
+
+    },
+    "Clears item from shelf/basket" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf/Basket에 있는 항목 제거"
+          }
+        }
+      }
+    },
+    "Click" : {
+
+    },
+    "Click to open link" : {
+
+    },
+    "Click to paste any item" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클릭으로 붙여넣기"
+          }
+        }
+      }
+    },
+    "Clipboard" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클립보드"
+          }
+        }
+      }
+    },
+    "Clipboard entries from these apps won't be recorded. Useful for password managers." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "해당 앱에서 복사한 클립보드 항목은 기록되지 않습니다. 비밀번호 관리자 사용 시 유용합니다."
+          }
+        }
+      }
+    },
+    "Clipboard in Menu" : {
+
+    },
+    "Clipboard is empty" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클립보드가 비어있습니다."
+          }
+        }
+      }
+    },
+    "Clipboard Manager" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클립보드 매니저"
+          }
+        }
+      }
+    },
+    "Clipboard Tips" : {
+
+    },
+    "Close" : {
+
+    },
+    "Collapse Delay" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "축소 지연 시간"
+          }
+        }
+      }
+    },
+    "Collapse to quick mode" : {
+
+    },
+    "Community" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "커뮤니티"
+          }
+        }
+      }
+    },
+    "Community Extension" : {
+
+    },
+    "Compact" : {
+
+    },
+    "Compress" : {
+
+    },
+    "Compress All (%lld)" : {
+
+    },
+    "Compress File" : {
+
+    },
+    "Compress videos to exact file sizes" : {
+
+    },
+    "Compress videos to exact file sizes using FFmpeg." : {
+
+    },
+    "Compressing…" : {
+
+    },
+    "Configure" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정"
+          }
+        }
+      }
+    },
+    "Configure export settings in Settings → General → Smart Export" : {
+
+    },
+    "Configure how Droppy appears on external monitors that don't have a notch." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "노치가 없는 외장 디스플레이에서 Droppy가 표시되는 방식을 설정합니다."
+          }
+        }
+      }
+    },
+    "Configure separate destinations for each file type" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일 유형별로 서로 다른 저장 위치를 설정할 수 있습니다"
+          }
+        }
+      }
+    },
+    "Configure shortcuts for each capture mode" : {
+
+    },
+    "Configure when the media HUD auto-fades" : {
+
+    },
+    "Configure Window Snap…" : {
+
+    },
+    "Configured" : {
+
+    },
+    "Connect an external display to enable External Hover." : {
+
+    },
+    "Connected" : {
+
+    },
+    "Continue" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음"
+          }
+        }
+      }
+    },
+    "Controls for pointer interaction and tactile feedback." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포인터 상호작용 및 촉각 피드백"
+          }
+        }
+      }
+    },
+    "Convert All (%lld)…" : {
+
+    },
+    "Convert to…" : {
+
+    },
+    "Converting…" : {
+
+    },
+    "Copied" : {
+
+    },
+    "Copied to Clipboard & Pasting…" : {
+
+    },
+    "Copied!" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Copy Again" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 복사"
+          }
+        }
+      }
+    },
+    "Copy All" : {
+
+    },
+    "Copy All (%lld)" : {
+
+    },
+    "Copy all to Finder folder" : {
+
+    },
+    "Copy Command" : {
+
+    },
+    "Copy File Paths" : {
+
+    },
+    "Copy Link" : {
+
+    },
+    "Copy to Clipboard" : {
+
+    },
+    "Could not detect Python automatically" : {
+
+    },
+    "Could not open System Settings automatically. Open it manually, then go to Keyboard > Keyboard Shortcuts > Services." : {
+
+    },
+    "Create Folder" : {
+
+    },
+    "Create Folder (%lld)" : {
+
+    },
+    "Create ZIP" : {
+
+    },
+    "Creating ZIP…" : {
+
+    },
+    "Crop" : {
+
+    },
+    "Current Size" : {
+
+    },
+    "Currently Excluded" : {
+
+    },
+    "Cycles through high, medium, and normal priority" : {
+
+    },
+    "Default annotation color" : {
+
+    },
+    "Default Delay" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 지연 시간"
+          }
+        }
+      }
+    },
+    "Default List" : {
+
+    },
+    "Default list for new tasks" : {
+
+    },
+    "Default zoom level" : {
+
+    },
+    "Delay" : {
+
+    },
+    "Delete" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "삭제"
+          }
+        }
+      }
+    },
+    "Delete (Backspace)" : {
+
+    },
+    "Delete %lld Items" : {
+
+    },
+    "Delete from Server" : {
+
+    },
+    "Delete from Server?" : {
+
+    },
+    "Destination folder" : {
+
+    },
+    "Developer" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개발자"
+          }
+        }
+      }
+    },
+    "Different delays per app" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱마다 다른 지연 시간 적용"
+          }
+        }
+      }
+    },
+    "Disable" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화"
+          }
+        }
+      }
+    },
+    "Disable Anyway" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "그래도 비활성화"
+          }
+        }
+      }
+    },
+    "Disable File Protection?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일 보호를 비활성화할까요?"
+          }
+        }
+      }
+    },
+    "Disable notch shelf on external monitors" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 디스플레이에서 노치를 비활성화합니다"
+          }
+        }
+      }
+    },
+    "Disable split details" : {
+
+    },
+    "Disable usage analytics and hide extension install/download stats" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용 통계 수집을 비활성화하고 확장 프로그램 설치/다운로드 통계를 숨깁니다"
+          }
+        }
+      }
+    },
+    "Disabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화됨"
+          }
+        }
+      }
+    },
+    "Dismiss" : {
+
+    },
+    "Display" : {
+
+    },
+    "Display body text in the HUD" : {
+
+    },
+    "Display Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "표시 모드"
+          }
+        }
+      }
+    },
+    "Display-Specific Rules" : {
+
+    },
+    "Don't record passwords from password managers" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "암호 관리자에서는 패스워드를 기록하지 않습니다."
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "완료"
+          }
+        }
+      }
+    },
+    "Double-tap text to rename & save" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트를 두 번 탭해 이름 변경 및 저장"
+          }
+        }
+      }
+    },
+    "Download Model" : {
+
+    },
+    "Downloading %lld%%" : {
+
+    },
+    "Drag files onto AirDrop, Messages, Mail, or Quickshare (Droppy Quickshare)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일을 AirDrop, 메시지, 메일 또는 빠른 공유(Droppy Quickshare)로 드래그하세요"
+          }
+        }
+      }
+    },
+    "Drag files to your notch or island to store them temporarily.\nGrab them later and drop them anywhere you need." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch 또는 Island로 파일을 드래그해 임시로 보관하세요. 나중에 다시 꺼내 원하는 곳에 드롭할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Drag icons between rows to place them in Visible or Hidden. Enable Floating Bar (Alpha) to use the Floating Bar row." : {
+
+    },
+    "Drag icons between rows to place them in Visible, Hidden, or Floating Bar." : {
+
+    },
+    "Drag Shortcut" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "드래그 단축키"
+          }
+        }
+      }
+    },
+    "Drag to crop" : {
+
+    },
+    "Dragging files to the same disk may **delete** the original file" : {
+
+    },
+    "Dragging to a different disk will still copy normally" : {
+
+    },
+    "Draw a black bar to hide the notch and reclaim menu bar space in Notch mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "검은색으로 채워 노치를 가리고 메뉴 막대 공간을 확보하세요"
+          }
+        }
+      }
+    },
+    "Drop files directly into pinned folders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고정 폴더에서 바로 파일 드롭"
+          }
+        }
+      }
+    },
+    "Drop files here" : {
+
+    },
+    "Drop files into the basket" : {
+
+    },
+    "Drop files on the right side of shelf/basket to instantly open the AirDrop picker." : {
+
+    },
+    "Drop files or folders here" : {
+
+    },
+    "Drop folders onto Droppy to pin them. Pinned folders stay accessible and you can drop files directly into them." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy에 폴더 드롭 후 고정. 고정된 폴더는 계속 접근이 가능하고, 파일을 바로 드롭할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Drop here" : {
+
+    },
+    "Drop icons here" : {
+
+    },
+    "Drop on the right edge" : {
+
+    },
+    "Drop to create" : {
+
+    },
+    "Drop zone at the top of your screen" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 상단에 드롭 영역을 추가합니다"
+          }
+        }
+      }
+    },
+    "Droppy" : {
+
+    },
+    "DROPPY" : {
+
+    },
+    "Droppy is up to date!" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy는 최신 상태예요!"
+          }
+        }
+      }
+    },
+    "Droppy needs permission to paste into other apps." : {
+
+    },
+    "Droppy Quickshare" : {
+
+    },
+    "Droppy Updates" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy 업데이트"
+          }
+        }
+      }
+    },
+    "Droppy verifies this key with Gumroad so your license follows Gumroad seat limits." : {
+
+    },
+    "Droppy will still capture and display notifications even when system banners are disabled." : {
+
+    },
+    "Due date" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마감일"
+          }
+        }
+      }
+    },
+    "Due reminders and optional sound." : {
+
+    },
+    "echo \"Hello, Droppy!\"" : {
+
+    },
+    "Edit" : {
+
+    },
+    "Edit Content" : {
+
+    },
+    "Edit Date" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날짜 수정"
+          }
+        }
+      }
+    },
+    "Edit due date" : {
+
+    },
+    "Edit in Screenshot Editor" : {
+
+    },
+    "Edit Screenshot" : {
+
+    },
+    "Edit Task" : {
+
+    },
+    "Editor Settings" : {
+
+    },
+    "Editor Shortcuts" : {
+
+    },
+    "Elapsed %@" : {
+
+    },
+    "Element Capture" : {
+
+    },
+    "Email is required to start the 3-day trial." : {
+
+    },
+    "Empty" : {
+
+    },
+    "Empty folder" : {
+
+    },
+    "Enable" : {
+
+    },
+    "Enable Extension" : {
+
+    },
+    "Enable extensions in Settings → Extensions" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 → 확장 앱에서 확장 앱을 활성화하세요"
+          }
+        }
+      }
+    },
+    "Enable Finder Services" : {
+
+    },
+    "Enable in Extension Store" : {
+
+    },
+    "Enable Notchface" : {
+
+    },
+    "Enable Smart Export" : {
+
+    },
+    "Enable split details" : {
+
+    },
+    "Enable under HUD Settings" : {
+
+    },
+    "Enable/disable per display" : {
+
+    },
+    "Enabled" : {
+
+    },
+    "Enter command…" : {
+
+    },
+    "Enter purchase email above to start the 3-day trial." : {
+
+    },
+    "Enter purchase email in Activate window to start trial." : {
+
+    },
+    "Enter text…" : {
+
+    },
+    "Enter your Gumroad license to unlock Droppy" : {
+
+    },
+    "Event Details" : {
+
+    },
+    "Events" : {
+
+    },
+    "Exclude" : {
+
+    },
+    "Exclude the notch area from screenshots and screen recordings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스크린샷 및 화면 녹화에서 노치 영역을 제외합니다"
+          }
+        }
+      }
+    },
+    "Excluded" : {
+
+    },
+    "Excluded Apps" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제외할 앱"
+          }
+        }
+      }
+    },
+    "Expand Delay" : {
+
+    },
+    "Expand Preview" : {
+
+    },
+    "Expand shelf when hovering over notch" : {
+
+    },
+    "Extensions" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확장 앱"
+          }
+        }
+      }
+    },
+    "External Display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 디스플레이"
+          }
+        }
+      }
+    },
+    "External Display Style" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 디스플레이 스타일"
+          }
+        }
+      }
+    },
+    "External Displays" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 디스플레이"
+          }
+        }
+      }
+    },
+    "External Mouse Switch Button" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 마우스 전환 버튼"
+          }
+        }
+      }
+    },
+    "Extra shuffle, repeat & replay controls in the media player." : {
+
+    },
+    "Extract Text" : {
+
+    },
+    "Extract text from any selected area using Apple's on-device OCR." : {
+
+    },
+    "Extracted Text" : {
+
+    },
+    "Extracting text…" : {
+
+    },
+    "Extracting…" : {
+
+    },
+    "Fade out mini player after delay" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일정 시간 후 미니 플레이어가 서서히 숨겨집니다"
+          }
+        }
+      }
+    },
+    "Favorite" : {
+
+    },
+    "Featured" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "추천"
+          }
+        }
+      }
+    },
+    "Fetching preview…" : {
+
+    },
+    "File Handling" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일 조작"
+          }
+        }
+      }
+    },
+    "Files are copied, never moved" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일은 복사되고, 이동하지 않음"
+          }
+        }
+      }
+    },
+    "Files expire automatically (30-365 days based on size)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일은 크기에 따라 30-365일 후 자동 만료"
+          }
+        }
+      }
+    },
+    "Filter by Tag" : {
+
+    },
+    "Filter Media Sources" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미디어 소스 필터"
+          }
+        }
+      }
+    },
+    "Filter options" : {
+
+    },
+    "Finder" : {
+
+    },
+    "Finder Services" : {
+
+    },
+    "Fit" : {
+
+    },
+    "Flag as Important" : {
+
+    },
+    "Floating Basket" : {
+
+    },
+    "Floating camera button with a full notch preview" : {
+
+    },
+    "Focus" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "집중"
+          }
+        }
+      }
+    },
+    "Focus Mode" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "집중 모드"
+          }
+        }
+      }
+    },
+    "Focus Off" : {
+
+    },
+    "Focus On" : {
+
+    },
+    "Folder" : {
+
+    },
+    "FOLDER" : {
+
+    },
+    "Font:" : {
+
+    },
+    "Font: %@" : {
+
+    },
+    "Full Disk Access" : {
+
+    },
+    "Full Disk Access Required" : {
+
+    },
+    "Get Started" : {
+
+    },
+    "Get tactile feedback when dropping files or triggering actions" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일을 드롭하거나 동작을 실행할 때 촉각 피드백을 제공합니다"
+          }
+        }
+      }
+    },
+    "Global Shortcut" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전역 단축키"
+          }
+        }
+      }
+    },
+    "Got It" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "확인"
+          }
+        }
+      }
+    },
+    "Gradient" : {
+
+    },
+    "Grant" : {
+
+    },
+    "Grant Accessibility to discover and trigger menu bar items from the Floating Bar." : {
+
+    },
+    "Granted" : {
+
+    },
+    "Great for quick file staging" : {
+
+    },
+    "Gumroad license key" : {
+
+    },
+    "Haptic Feedback" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "햅틱 피드백"
+          }
+        }
+      }
+    },
+    "Hard Reset" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초기 상태로 재설정"
+          }
+        }
+      }
+    },
+    "Hard Reset Droppy?" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy를 초기 상태로 재설정할까요?"
+          }
+        }
+      }
+    },
+    "Hello, Droppy!" : {
+
+    },
+    "Hey there! 👋" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "안녕하세요! 👋"
+          }
+        }
+      }
+    },
+    "Hidden" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "숨김"
+          }
+        }
+      }
+    },
+    "Hide %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 숨기기"
+          }
+        }
+      }
+    },
+    "Hide basket" : {
+
+    },
+    "Hide Delay" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "숨기기 지연 시간"
+          }
+        }
+      }
+    },
+    "Hide from Screenshots" : {
+
+    },
+    "Hide Icon" : {
+
+    },
+    "Hide Incognito Media" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시크릿 모드 미디어 숨기기"
+          }
+        }
+      }
+    },
+    "Hide license key" : {
+
+    },
+    "Hide media from private browsing windows" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시크릿 브라우징 창의 미디어를 숨깁니다"
+          }
+        }
+      }
+    },
+    "Hide Menu Bar Icon?" : {
+
+    },
+    "Hide Native Banners" : {
+
+    },
+    "Hide Notchface" : {
+
+    },
+    "Hide on External Displays" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 디스플레이에서 숨기기"
+          }
+        }
+      }
+    },
+    "Hide Physical Notch" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "물리적 Notch 숨기기"
+          }
+        }
+      }
+    },
+    "Hide reminders without due date" : {
+
+    },
+    "Hide unused menu bar icons and reveal them with a click." : {
+
+    },
+    "Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized." : {
+
+    },
+    "Hides after configurable delay" : {
+
+    },
+    "High Alert" : {
+
+    },
+    "High Alert: %@" : {
+
+    },
+    "High: triggers with lighter shake" : {
+
+    },
+    "Highlighter always defaults to yellow." : {
+
+    },
+    "History Limit" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최대 기록 제한"
+          }
+        }
+      }
+    },
+    "History with Preview" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미리 보기와 기록 관리"
+          }
+        }
+      }
+    },
+    "Hold modifiers while dragging to move/resize windows from anywhere" : {
+
+    },
+    "Hold this key while hovering to reveal icons" : {
+
+    },
+    "Homebrew Detected" : {
+
+    },
+    "Homebrew is a package manager for macOS. Install it first by running this command in Terminal:" : {
+
+    },
+    "Homebrew is required. See above for installation command." : {
+
+    },
+    "Homebrew Required" : {
+
+    },
+    "Hover Delay" : {
+
+    },
+    "Hover to preview folder contents" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마우스 커서 올려놓기로 폴더 내부 미리 보기"
+          }
+        }
+      }
+    },
+    "How much movement is needed to summon the basket" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basket을 표시하는 데 필요한 움직임 정도를 조절합니다"
+          }
+        }
+      }
+    },
+    "I'm Droppy, your new productivity companion" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전 Droppy예요, 당신의 새로운 생산성 파트너죠"
+          }
+        }
+      }
+    },
+    "I've Granted Access" : {
+
+    },
+    "Image Link" : {
+
+    },
+    "Important" : {
+
+    },
+    "Inactive" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화"
+          }
+        }
+      }
+    },
+    "Include Clipboard" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "클립보드 포함"
+          }
+        }
+      }
+    },
+    "Include External Displays" : {
+
+    },
+    "InSPyReNet - State of the Art Quality" : {
+
+    },
+    "Install" : {
+
+    },
+    "Install FFmpeg" : {
+
+    },
+    "Install Needs Attention" : {
+
+    },
+    "Install Now" : {
+
+    },
+    "Install stopped before completion. Use the recovery actions below and retry." : {
+
+    },
+    "Install/download stats and reviews are hidden." : {
+
+    },
+    "Installed" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설치됨"
+          }
+        }
+      }
+    },
+    "Installed & Ready" : {
+
+    },
+    "Installed Models" : {
+
+    },
+    "Installing…" : {
+
+    },
+    "Instant Appear" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "즉시 나타남"
+          }
+        }
+      }
+    },
+    "Instant Shelf Expand on Hover" : {
+
+    },
+    "Instantly" : {
+
+    },
+    "Interaction" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "상호작용"
+          }
+        }
+      }
+    },
+    "Introduction" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "소개"
+          }
+        }
+      }
+    },
+    "IP logged for abuse prevention only" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IP 주소는 악용 방지 목적으로만 수집"
+          }
+        }
+      }
+    },
+    "Island Height" : {
+
+    },
+    "Jiggle while dragging files still works" : {
+
+    },
+    "Jordy (dev)" : {
+
+    },
+    "Keep %@ visible when nothing is playing" : {
+
+    },
+    "Keep Protection" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보호 유지"
+          }
+        }
+      }
+    },
+    "Keep your Mac awake" : {
+
+    },
+    "Keeps your shelf tidy" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf를 깔끔하게 유지"
+          }
+        }
+      }
+    },
+    "Keyboard Shortcut" : {
+
+    },
+    "Keyboard Shortcuts" : {
+
+    },
+    "Language" : {
+
+    },
+    "Later" : {
+
+    },
+    "Left Half" : {
+
+    },
+    "License" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "라이선스"
+          }
+        }
+      }
+    },
+    "LICENSE" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "라이선스"
+          }
+        }
+      }
+    },
+    "License Activated" : {
+
+    },
+    "Link copied to clipboard" : {
+
+    },
+    "Links" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "링크"
+          }
+        }
+      }
+    },
+    "Load Defaults" : {
+
+    },
+    "Lock Screen" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잠금 화면"
+          }
+        }
+      }
+    },
+    "Locked" : {
+
+    },
+    "Long recording detected. Processing can take several minutes depending on model size." : {
+
+    },
+    "Low: requires stronger shake" : {
+
+    },
+    "Lower values create stronger pixelation blur." : {
+
+    },
+    "Mail" : {
+
+    },
+    "Manage" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "관리"
+          }
+        }
+      }
+    },
+    "Manage Tags" : {
+
+    },
+    "Manage Uploads…" : {
+
+    },
+    "Manage…" : {
+
+    },
+    "Manual command" : {
+
+    },
+    "Manual Setup" : {
+
+    },
+    "Mark Complete" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "완료됨으로 표시"
+          }
+        }
+      }
+    },
+    "Mark Pending" : {
+
+    },
+    "Maximize" : {
+
+    },
+    "Maximum file size: 512 MB" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "최대 파일 크기: 512 MB"
+          }
+        }
+      }
+    },
+    "May slightly delay initial song/album art display" : {
+
+    },
+    "MB" : {
+
+    },
+    "Media" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미디어"
+          }
+        }
+      }
+    },
+    "Media Key Target" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "적용 대상"
+          }
+        }
+      }
+    },
+    "Medium" : {
+
+    },
+    "Menu Bar" : {
+
+    },
+    "Menu Bar Layout" : {
+
+    },
+    "Menu Bar Manager" : {
+
+    },
+    "Menu Bar Manager is active" : {
+
+    },
+    "Menu Bar Spacing" : {
+
+    },
+    "Messages" : {
+
+    },
+    "Model" : {
+
+    },
+    "Monitor folders for new files and automatically add them to Droppy." : {
+
+    },
+    "More" : {
+
+    },
+    "Move and Resize each need at least one modifier key." : {
+
+    },
+    "Move and Resize use the same modifiers now. Set different combos to avoid conflicts." : {
+
+    },
+    "Move to Basket" : {
+
+    },
+    "Move to Shelf" : {
+
+    },
+    "Move to Shelf (%lld)" : {
+
+    },
+    "Move to…" : {
+
+    },
+    "Multi-Basket" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다중 Basket"
+          }
+        }
+      }
+    },
+    "Natural-language tasks, lists, and dates" : {
+
+    },
+    "Needed" : {
+
+    },
+    "Needed to read Focus Mode state from macOS system files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 시스템 파일에서 집중 모드 상태를 읽기 위해 필요합니다"
+          }
+        }
+      }
+    },
+    "Needs Setup" : {
+
+    },
+    "new" : {
+
+    },
+    "New" : {
+
+    },
+    "New Basket" : {
+
+    },
+    "New files trigger shelf or basket automatically" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 파일 감지 시 Shelf/Basket에 자동 추가"
+          }
+        }
+      }
+    },
+    "New message from John" : {
+
+    },
+    "New tag name…" : {
+
+    },
+    "No `python3` path found in common locations yet." : {
+
+    },
+    "No calendars found." : {
+
+    },
+    "No connected cameras detected. Grant camera permission and connect a camera." : {
+
+    },
+    "No delay when dragging starts" : {
+
+    },
+    "No items to reorder" : {
+
+    },
+    "No release notes available." : {
+
+    },
+    "No reminder lists found." : {
+
+    },
+    "No reviews yet" : {
+
+    },
+    "No right-side menu bar icons detected yet. Click “Rescan”." : {
+
+    },
+    "No shared files" : {
+
+    },
+    "No shared files yet" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "공유한 파일이 없음"
+          }
+        }
+      }
+    },
+    "No tags yet" : {
+
+    },
+    "No tags yet - create one in tag settings" : {
+
+    },
+    "No upcoming tasks or events" : {
+
+    },
+    "no_tasks_yet" : {
+
+    },
+    "None" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "없음"
+          }
+        }
+      }
+    },
+    "Not configured" : {
+
+    },
+    "Not enabled" : {
+
+    },
+    "Not running" : {
+
+    },
+    "Notch Fit" : {
+
+    },
+    "Notch Shelf" : {
+
+    },
+    "Notch Width" : {
+
+    },
+    "Notchface" : {
+
+    },
+    "Notifications will be captured" : {
+
+    },
+    "Notify me!" : {
+
+    },
+    "Now Playing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지금 재생 중"
+          }
+        }
+      }
+    },
+    "OCR" : {
+
+    },
+    "OFF" : {
+
+    },
+    "OK" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "네"
+          }
+        }
+      }
+    },
+    "ON" : {
+
+    },
+    "On-device speech-to-text transcription" : {
+
+    },
+    "One-click install" : {
+
+    },
+    "One-time setup" : {
+
+    },
+    "Only applies while Droppy is using Notch style, not Dynamic Island style." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy가 Notch 스타일을 사용할 때만 적용되며, Dynamic Island 스타일에서는 적용되지 않습니다."
+          }
+        }
+      }
+    },
+    "Only show selected apps in media player" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 앱만 미디어 플레이어에 표시합니다"
+          }
+        }
+      }
+    },
+    "Only triggers during drag" : {
+
+    },
+    "Open" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "열기"
+          }
+        }
+      }
+    },
+    "Open Accessibility Settings" : {
+
+    },
+    "Open Again" : {
+
+    },
+    "Open Clipboard" : {
+
+    },
+    "Open editor at native-ish zoom when possible." : {
+
+    },
+    "Open Folder" : {
+
+    },
+    "Open folder after saving" : {
+
+    },
+    "Open in %@" : {
+
+    },
+    "Open in Browser" : {
+
+    },
+    "Open Link" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "링크 열기"
+          }
+        }
+      }
+    },
+    "Open Reminders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미리 알림 열기"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 열기"
+          }
+        }
+      }
+    },
+    "Open Shelf" : {
+
+    },
+    "Open With…" : {
+
+    },
+    "Open your Reminders tasks/calendar instantly with a custom shortcut." : {
+
+    },
+    "Opens system AirDrop picker" : {
+
+    },
+    "Optional feedback…" : {
+
+    },
+    "Optional mouse gesture in Now Playing settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미디어 재생기 설정에 추가 가능한 마우스 제스처"
+          }
+        }
+      }
+    },
+    "Or hide Droppy on external displays" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "혹은 외장 디스플레이에서 Droppy를 숨깁니다"
+          }
+        }
+      }
+    },
+    "Or use the menu bar icon" : {
+
+    },
+    "Original file is NOT deleted" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원본 파일은 유지"
+          }
+        }
+      }
+    },
+    "Original stays at source location" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원본은 기존 위치에 남음"
+          }
+        }
+      }
+    },
+    "Outlook is not installed. Droppy will fall back to the system Mail action." : {
+
+    },
+    "Page %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Page %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Paste" : {
+
+    },
+    "Paste All" : {
+
+    },
+    "Paste All (%lld)" : {
+
+    },
+    "Pending" : {
+
+    },
+    "Per-Display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디스플레이별 설정"
+          }
+        }
+      }
+    },
+    "Permission" : {
+
+    },
+    "Physical Notch" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "물리적 Notch"
+          }
+        }
+      }
+    },
+    "Pin Folder" : {
+
+    },
+    "Pin folders and drop files directly into them" : {
+
+    },
+    "Pin folders to keep them accessible" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더 고정으로 빠른 접근"
+          }
+        }
+      }
+    },
+    "Pinch to zoom" : {
+
+    },
+    "Pinned Folder" : {
+
+    },
+    "Play haptic patterns when dropping files or performing actions" : {
+
+    },
+    "Pointer-first + keyboard snapping with live edge/corner zones." : {
+
+    },
+    "Pointer-first + keyboard window management" : {
+
+    },
+    "Pointer-first Mode" : {
+
+    },
+    "Power Folders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "고정 폴더"
+          }
+        }
+      }
+    },
+    "Powered by 0x0.st – anonymous file hosting" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0x0.st 제공 - 익명 파일 호스팅"
+          }
+        }
+      }
+    },
+    "Powered by WhisperKit AI" : {
+
+    },
+    "Powerful Extensions" : {
+
+    },
+    "Prefer 100%" : {
+
+    },
+    "Press %@ to quickly access your clipboard history." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@를 눌러 클립보드 기록을 열 수 있습니다"
+          }
+        }
+      }
+    },
+    "Press the shortcut to toggle the terminal from anywhere" : {
+
+    },
+    "Press this while dragging to reveal the basket" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정한 키를 누르고 드래그할 때만 Basket이 표시됩니다"
+          }
+        }
+      }
+    },
+    "Press…" : {
+
+    },
+    "Prevent flickering from rapid song changes" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 곡 전환으로 인한 깜빡임을 방지합니다"
+          }
+        }
+      }
+    },
+    "Prevent your Mac from sleeping" : {
+
+    },
+    "Prevention Mode" : {
+
+    },
+    "Prevents UI flickering when apps rapidly update metadata" : {
+
+    },
+    "Preview not available" : {
+
+    },
+    "Previously selected camera is not connected. Auto mode is being used." : {
+
+    },
+    "priority.help.high" : {
+
+    },
+    "priority.help.medium" : {
+
+    },
+    "priority.help.normal" : {
+
+    },
+    "priority.high" : {
+
+    },
+    "priority.medium" : {
+
+    },
+    "priority.normal" : {
+
+    },
+    "Privacy" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "개인정보 보호"
+          }
+        }
+      }
+    },
+    "Privacy and visual capture behavior for the notch area." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch 영역 개인정보 보호 및 캡처 설정"
+          }
+        }
+      }
+    },
+    "Processed files will be saved automatically" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처리된 파일이 자동 저장됩니다"
+          }
+        }
+      }
+    },
+    "Productivity" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "생산성"
+          }
+        }
+      }
+    },
+    "Protect Originals" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "원본 보호"
+          }
+        }
+      }
+    },
+    "Purchase email (required for trial)" : {
+
+    },
+    "Purple Rain — Prince" : {
+
+    },
+    "Push files to Droppy via keyboard shortcuts." : {
+
+    },
+    "Python detected on your Mac" : {
+
+    },
+    "Python is available. Install Now creates an isolated AI environment without changing your system Python." : {
+
+    },
+    "Python was not found yet. Install Now will still try automatic setup, or you can run the command manually." : {
+
+    },
+    "Quick access terminal in your notch" : {
+
+    },
+    "Quick access to file management from Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정에서 파일 관리자에 빠르게 접근하기"
+          }
+        }
+      }
+    },
+    "Quick Actions" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 동작"
+          }
+        }
+      }
+    },
+    "Quick Actions Enabled" : {
+      "comment" : "When Quick Actions Enable",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 동작 활성화"
+          }
+        }
+      }
+    },
+    "Quick command bar in the shelf" : {
+
+    },
+    "Quick Look" : {
+
+    },
+    "Quick one-time setup" : {
+
+    },
+    "Quick open shortcut" : {
+
+    },
+    "Quick Start Guide" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빠른 시작 가이드"
+          }
+        }
+      }
+    },
+    "Quick Timers" : {
+
+    },
+    "Quick toggle between modes" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모드 사이 빠른 전환"
+          }
+        }
+      }
+    },
+    "QuickLook" : {
+
+    },
+    "Quickshare" : {
+
+    },
+    "Quit" : {
+
+    },
+    "Quit Droppy" : {
+
+    },
+    "Rate this extension" : {
+
+    },
+    "Re-check" : {
+
+    },
+    "Read-only (Apple Calendar)" : {
+
+    },
+    "Ready" : {
+
+    },
+    "Ready to install FFmpeg" : {
+
+    },
+    "Recent Uploads" : {
+
+    },
+    "Record" : {
+
+    },
+    "Record and transcribe audio instantly using local AI." : {
+
+    },
+    "Recording" : {
+
+    },
+    "Refresh connected cameras" : {
+
+    },
+    "Refresh Upcoming" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일정 새로고침"
+          }
+        }
+      }
+    },
+    "Rehide Behavior" : {
+
+    },
+    "Release!" : {
+
+    },
+    "Reminder list" : {
+
+    },
+    "Reminder List" : {
+
+    },
+    "Reminder lists" : {
+
+    },
+    "Reminders" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove Background" : {
+
+    },
+    "Remove Background (%lld)" : {
+
+    },
+    "Remove Background (Settings > Extensions)" : {
+
+    },
+    "Remove backgrounds from images using AI. Works offline." : {
+
+    },
+    "Remove completed tasks after" : {
+
+    },
+    "Remove Flag" : {
+
+    },
+    "Remove from Basket" : {
+
+    },
+    "Remove from Shelf" : {
+
+    },
+    "Remove image backgrounds instantly with local AI." : {
+
+    },
+    "Remove Tag" : {
+
+    },
+    "Removing BG…" : {
+
+    },
+    "Rename" : {
+
+    },
+    "Reorder Items" : {
+
+    },
+    "Replace system OSD" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기본 OSD를 대체합니다"
+          }
+        }
+      }
+    },
+    "Require Modifier Key" : {
+
+    },
+    "Require Upload Confirmation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업로드 전 확인"
+          }
+        }
+      }
+    },
+    "Required" : {
+
+    },
+    "Required for hiding and revealing menu bar icons" : {
+
+    },
+    "Required to read notifications" : {
+
+    },
+    "Requires Accessibility permissions to paste. Shortcuts may conflict with other apps." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "붙여넣기를 위해 손쉬운 사용 권한이 필요합니다. 단축키가 다른 앱과 충돌할 수 있습니다."
+          }
+        }
+      }
+    },
+    "Requires Full Disk Access" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체 디스크 접근 권한이 필요합니다"
+          }
+        }
+      }
+    },
+    "Requires Homebrew" : {
+
+    },
+    "Requires macOS 15" : {
+
+    },
+    "Requires Powerpack" : {
+
+    },
+    "Reset" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "재설정"
+          }
+        }
+      }
+    },
+    "Reset all settings to defaults" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 설정을 기본값으로 되돌립니다"
+          }
+        }
+      }
+    },
+    "Reset All Shortcuts" : {
+
+    },
+    "Reset Everything" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전부 재설정"
+          }
+        }
+      }
+    },
+    "Reset Shortcut" : {
+
+    },
+    "Reset Shortcuts" : {
+
+    },
+    "Resizing Mode" : {
+
+    },
+    "Retry Install" : {
+
+    },
+    "Reveal in Finder" : {
+
+    },
+    "Reviews" : {
+
+    },
+    "Reviews and ratings are hidden while \"Skip All Analytics\" is enabled." : {
+
+    },
+    "Right Half" : {
+
+    },
+    "Right-click files to add them via Services menu." : {
+
+    },
+    "Right-click the area again to show" : {
+
+    },
+    "Right-click the eye icon for more options" : {
+
+    },
+    "Right-click the Notch or Island to access Settings anytime" : {
+
+    },
+    "Right-Click to Hide" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오른쪽 클릭으로 숨기기"
+          }
+        }
+      }
+    },
+    "Right-click to hide the notch/island" : {
+
+    },
+    "Running" : {
+
+    },
+    "Running Apps" : {
+
+    },
+    "Running indefinitely" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save All" : {
+
+    },
+    "Save All (%lld)" : {
+
+    },
+    "Save Audio" : {
+
+    },
+    "Save to" : {
+
+    },
+    "Save to Downloads" : {
+
+    },
+    "Save to File…" : {
+
+    },
+    "Screen" : {
+
+    },
+    "Screen Capture" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화면 캡처"
+          }
+        }
+      }
+    },
+    "Screenshot" : {
+
+    },
+    "Screenshot and annotate with a full editor built-in." : {
+
+    },
+    "Screenshot any UI element by clicking on it." : {
+
+    },
+    "Search (⌘F)" : {
+
+    },
+    "Search apps…" : {
+
+    },
+    "Search Files…" : {
+
+    },
+    "Search history…" : {
+
+    },
+    "Select a basket to add" : {
+
+    },
+    "Select a nearby device to send" : {
+
+    },
+    "Select All" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체 선택"
+          }
+        }
+      }
+    },
+    "Select All (⌘A)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전체 선택 (⌘A)"
+          }
+        }
+      }
+    },
+    "Select an item" : {
+
+    },
+    "Select an item to preview" : {
+
+    },
+    "Select App to Exclude" : {
+
+    },
+    "Select File to Upload…" : {
+
+    },
+    "Selected: %@" : {
+
+    },
+    "Sensitivity" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "민감도"
+          }
+        }
+      }
+    },
+    "Set a shortcut that reveals the basket instantly while a drag is active." : {
+
+    },
+    "Set different delays per app" : {
+
+    },
+    "Set due date" : {
+
+    },
+    "Set each app's banner style to \"None\" in System Settings → Notifications" : {
+
+    },
+    "Set Up" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "초기 설정"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정"
+          }
+        }
+      }
+    },
+    "Settings…" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정..."
+          }
+        }
+      }
+    },
+    "Setup Required" : {
+
+    },
+    "Shake files side-to-side while dragging to summon the floating basket." : {
+
+    },
+    "Shake files while dragging to summon a floating basket with Quick Actions.\nUseful when your notch or island is on another display." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일을 드래그한 채로 흔들면 빠른 동작이 있는 Floating Basket이 표시됩니다.\nNotch 또는 Island가 다른 화면에 있을 때 특히 유용합니다."
+          }
+        }
+      }
+    },
+    "Shake Sensitivity" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "흔들기 민감도"
+          }
+        }
+      }
+    },
+    "Share" : {
+
+    },
+    "Share files via the basket's Quickshare action (powered by Droppy Quickshare)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basket의 Quickshare 동작을 통해 파일을 공유합니다(Droppy Quickshare 제공)"
+          }
+        }
+      }
+    },
+    "Share screenshots, recordings, and files instantly with short, expiring links. No account required." : {
+
+    },
+    "Share…" : {
+
+    },
+    "Shared extension" : {
+
+    },
+    "Shared Features" : {
+
+    },
+    "shared file%@" : {
+
+    },
+    "Shared Files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "공유한 파일"
+          }
+        }
+      }
+    },
+    "Shared setting: applies to both Notch Shelf and Floating Basket." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "공통 설정: Notch Shelf와 Floating Basket에 모두 적용됩니다."
+          }
+        }
+      }
+    },
+    "Shelf Behavior" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 행동"
+          }
+        }
+      }
+    },
+    "Shelf is empty" : {
+
+    },
+    "Shortcut" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키"
+          }
+        }
+      }
+    },
+    "Shortcut opens clipboard panel" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단축키로 클립보드 창 열기"
+          }
+        }
+      }
+    },
+    "Shortcut to show all baskets and switch between them" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 Basket의 표시 및 전환 단축키"
+          }
+        }
+      }
+    },
+    "Show 'Hide Notch/Island' option in right-click menu" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch/Island의 오른쪽 클릭 메뉴에 ‘Notch/Island 숨기기’를 추가합니다"
+          }
+        }
+      }
+    },
+    "Show %@" : {
+
+    },
+    "Show a floating button and full camera preview mode in expanded shelf" : {
+
+    },
+    "Show a left floating Media/Shelf toggle when an external mouse is connected" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "외장 마우스가 연결되면 왼쪽에 플로팅 Media/Shelf 전환 버튼을 표시합니다"
+          }
+        }
+      }
+    },
+    "Show ambient glow/shadow around album art in Now Playing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앨범 아트 주변에 앰비언트 글로우 그림자를 표시합니다"
+          }
+        }
+      }
+    },
+    "Show basket immediately when dragging files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "파일을 드래그할 때 Basket이 즉시 표시됩니다"
+          }
+        }
+      }
+    },
+    "Show current song with album art" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 재생 중인 음악의 앨범 아트를 표시합니다"
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+
+    },
+    "Show in Menu Bar" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "메뉴 막대에 보이기"
+          }
+        }
+      }
+    },
+    "Show in Settings Sidebar" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 사이드 바에 보이기"
+          }
+        }
+      }
+    },
+    "Show in Shelf Context Menu" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf 컨텍스트 메뉴에 보이기"
+          }
+        }
+      }
+    },
+    "Show indicator" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "상태를 표시합니다"
+          }
+        }
+      }
+    },
+    "Show license key" : {
+
+    },
+    "Show lock/unlock animation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "잠금/해제 애니메이션이 표시됩니다"
+          }
+        }
+      }
+    },
+    "Show Media" : {
+
+    },
+    "Show Notchface" : {
+
+    },
+    "Show Notification Preview" : {
+
+    },
+    "Show notifications in the notch" : {
+
+    },
+    "Show notifications in your notch" : {
+
+    },
+    "Show on Hover" : {
+
+    },
+    "Show quick action drop buttons under Shelf and Basket" : {
+
+    },
+    "Show quick action drop buttons under Shelf and Basket (AirDrop, Messages, Mail)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf/Basket 아래에 빠른 동작 드롭 버튼을 표시합니다 (AirDrop, 메시지, 메일)"
+          }
+        }
+      }
+    },
+    "Show Quickshare submenu in Droppy menu" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droppy 서브 메뉴에서 Quickshare 보이기"
+          }
+        }
+      }
+    },
+    "Show recording icon in menu bar" : {
+
+    },
+    "Show Separator" : {
+
+    },
+    "Show Shelf" : {
+
+    },
+    "Show the camera button and preview mode" : {
+
+    },
+    "Show when a new version is available" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로운 버전이 있으면 표시됩니다"
+          }
+        }
+      }
+    },
+    "Show when charging" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "충전 중일 때 표시됩니다"
+          }
+        }
+      }
+    },
+    "Show when connected with battery and 3D animation" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결될 떄 배터리와 3D 애니메이션을 표시합니다"
+          }
+        }
+      }
+    },
+    "Show When Idle" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사용하지 않을 때 표시"
+          }
+        }
+      }
+    },
+    "Show when toggled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모드가 바뀔 때마다 표시됩니다"
+          }
+        }
+      }
+    },
+    "Shows quick action drop targets under Shelf and Basket (AirDrop, Messages, Mail, Quickshare via Droppy Quickshare)" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelf/Basket 아래에 빠른 동작 드롭 영역을 표시합니다 (AirDrop, 메시지, 메일, Droppy Quickshare를 통한 빠른 공유)"
+          }
+        }
+      }
+    },
+    "Shrink shelf when mouse leaves" : {
+
+    },
+    "Skip all analytics" : {
+
+    },
+    "Skip All Analytics" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 분석 수집 중단"
+          }
+        }
+      }
+    },
+    "Skip Passwords" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "암호 무시"
+          }
+        }
+      }
+    },
+    "Skip result window and copy transcription instantly" : {
+
+    },
+    "Skip the High Alert mini timer on hover and open the shelf directly" : {
+
+    },
+    "Skip the mini timer HUD while hovering and open shelf directly" : {
+
+    },
+    "Skip the OCR result window and copy recognized text instantly" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OCR 결과 창을 건너뛰고 인식된 텍스트를 즉시 복사합니다"
+          }
+        }
+      }
+    },
+    "Smart Export" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스마트 내보내기"
+          }
+        }
+      }
+    },
+    "Smart Export Enabled" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스마트 내보내기 활성화"
+          }
+        }
+      }
+    },
+    "Snap windows with keyboard shortcuts, or drag/move/resize them from anywhere using modifiers." : {
+
+    },
+    "Space" : {
+
+    },
+    "Speech recognized from audio" : {
+
+    },
+    "Spotify Integration" : {
+
+    },
+    "Stabilize Media" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미디어 표시 안정화"
+          }
+        }
+      }
+    },
+    "Stabilize Media Enabled" : {
+
+    },
+    "Standard" : {
+
+    },
+    "Start 3-Day Trial" : {
+
+    },
+    "Start Trial" : {
+
+    },
+    "Start Trial (Email Required)" : {
+
+    },
+    "Start typing immediately to filter clipboard history" : {
+
+    },
+    "Start!" : {
+
+    },
+    "Startup" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "실행"
+          }
+        }
+      }
+    },
+    "Status" : {
+
+    },
+    "Stop Recording" : {
+
+    },
+    "Strong" : {
+
+    },
+    "Submit" : {
+
+    },
+    "Subtle" : {
+
+    },
+    "Summon Basket" : {
+
+    },
+    "Swipe Gesture" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "쓸어넘기기 제스처"
+          }
+        }
+      }
+    },
+    "Swipe left → Media Controls" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "왼쪽으로 쓸어넘기기 → 미디어 제어기"
+          }
+        }
+      }
+    },
+    "Swipe left or right on the notch to switch between Media Controls and the File Shelf." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch에서 왼쪽/오른쪽으로 쓸어넘기기로 미디어 제어기와 파일 Shelf를 전환합니다."
+          }
+        }
+      }
+    },
+    "Swipe right → File Shelf" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오른쪽으로 쓸어넘기기 → 파일 Shelf"
+          }
+        }
+      }
+    },
+    "Sync behavior" : {
+
+    },
+    "Sync sources" : {
+
+    },
+    "System" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "시스템"
+          }
+        }
+      }
+    },
+    "System default" : {
+
+    },
+    "System Integration" : {
+
+    },
+    "System Settings" : {
+
+    },
+    "System sleep enabled" : {
+
+    },
+    "Tag" : {
+
+    },
+    "Tag name" : {
+
+    },
+    "Tall" : {
+
+    },
+    "Target Size" : {
+
+    },
+    "Target Size…" : {
+
+    },
+    "Task Details" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "할 일 상세 정보"
+          }
+        }
+      }
+    },
+    "Task title" : {
+
+    },
+    "task_deleted" : {
+
+    },
+    "task_title" : {
+
+    },
+    "Tasks" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "할 일"
+          }
+        }
+      }
+    },
+    "tasks_cleaned_up %lld" : {
+
+    },
+    "Termi-Notch" : {
+
+    },
+    "Terminal" : {
+
+    },
+    "Terminal App" : {
+
+    },
+    "Text Copied!" : {
+
+    },
+    "Text Recognition" : {
+
+    },
+    "Text recognized from image" : {
+
+    },
+    "Thanks for your feedback!" : {
+
+    },
+    "The Mail quick action uses the app selected in \"Mail App\" settings" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“메일” 빠른 동작은 기본 이메일 앱을 사용합니다"
+          }
+        }
+      }
+    },
+    "The native productivity layer macOS is missing" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS에 부족했던 네이티브 생산성 레이어"
+          }
+        }
+      }
+    },
+    "These features apply to both Notch Shelf and Floating Basket." : {
+
+    },
+    "These features work best with a physical notch display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기능은 물리적 Notch가 있는 디스플레이에서 가장 잘 작동합니다."
+          }
+        }
+      }
+    },
+    "These settings apply to both Notch Shelf and Floating Basket." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notch Shelf와 Floating Basket에 모두 적용됩니다."
+          }
+        }
+      }
+    },
+    "This extension powers the Quickshare action (0x0.st)" : {
+
+    },
+    "This extension powers the Quickshare action. Share screenshots, recordings, and files instantly with short, expiring links. No account required." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 확장은 Quickshare 동작을 지원합니다. 스크린샷, 녹화 파일, 기타 파일을 짧은 만료 링크로 즉시 공유하세요. 계정이 필요하지 않습니다."
+          }
+        }
+      }
+    },
+    "This will permanently delete \"%@\" from the 0x0.st server. The link will stop working." : {
+
+    },
+    "This will permanently remove all clipboard items." : {
+
+    },
+    "This will reset ALL settings (clipboard history will be preserved). Droppy will restart." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 작업은 모든 설정을 초기화합니다(클립보드 기록은 유지됩니다). Droppy가 재시작됩니다."
+          }
+        }
+      }
+    },
+    "This will reset ALL settings and clear clipboard history. Droppy will restart." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 작업은 모든 설정을 초기화합니다. Droppy가 재시작됩니다."
+          }
+        }
+      }
+    },
+    "Time before basket auto-hides when cursor leaves" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마우스 커서가 벗어난 후 Basket이 자동으로 숨겨지기까지의 시간"
+          }
+        }
+      }
+    },
+    "Time remaining: %@" : {
+
+    },
+    "Timeline labels" : {
+
+    },
+    "To detect Focus mode changes:" : {
+
+    },
+    "To Shelf" : {
+
+    },
+    "Toggle core Reminders UI behavior." : {
+
+    },
+    "Toggle Favorite" : {
+
+    },
+    "Toggle Icon" : {
+
+    },
+    "Toggle Terminal (Ctrl + `)" : {
+
+    },
+    "Toggles completion for %@" : {
+
+    },
+    "TOOLS" : {
+
+    },
+    "Tracked Folders" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더 모니터링"
+          }
+        }
+      }
+    },
+    "Transcribing" : {
+
+    },
+    "Transcription" : {
+
+    },
+    "Transparent Background" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "투명한 배경"
+          }
+        }
+      }
+    },
+    "Troubleshooting" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "문제 해결"
+          }
+        }
+      }
+    },
+    "type_above_hint" : {
+
+    },
+    "undo" : {
+
+    },
+    "Unfavorite" : {
+
+    },
+    "Unlocked" : {
+
+    },
+    "Unpin Folder" : {
+
+    },
+    "Unzip" : {
+
+    },
+    "Upcoming" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일정"
+          }
+        }
+      }
+    },
+    "Upcoming Events" : {
+
+    },
+    "Update" : {
+
+    },
+    "Update & Restart" : {
+
+    },
+    "Update Available" : {
+
+    },
+    "Updates" : {
+
+    },
+    "Upload Failed" : {
+
+    },
+    "Upload from Clipboard" : {
+
+    },
+    "Uploading %lld items…" : {
+
+    },
+    "Uploading file…" : {
+
+    },
+    "Use **shortcut** from anywhere" : {
+
+    },
+    "Use Basket Switcher shortcut to reveal hidden baskets" : {
+
+    },
+    "Use glass effect for windows" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "윈도우에 유리 효과를 적용합니다"
+          }
+        }
+      }
+    },
+    "Use glass effect for windows (not shelf)" : {
+
+    },
+    "Use this if settings become stuck or broken after an update." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "업데이트 후 문제가 있을 경우에 사용하세요"
+          }
+        }
+      }
+    },
+    "Use trackpad pinch gesture to zoom in the editor." : {
+
+    },
+    "Valetivivek" : {
+
+    },
+    "Version %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "버전 %@"
+          }
+        }
+      }
+    },
+    "Version %@ is available. You are on %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %1$@ is available. You are on %2$@."
+          }
+        }
+      }
+    },
+    "Video Target Size" : {
+
+    },
+    "View options" : {
+
+    },
+    "Visible" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보임"
+          }
+        }
+      }
+    },
+    "Visual hints, quick-access buttons, and screenshot visibility." : {
+
+    },
+    "Visual Style" : {
+
+    },
+    "Voice Transcribe" : {
+
+    },
+    "Volume" : {
+
+    },
+    "Volume & Brightness" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "음량과 밝기"
+          }
+        }
+      }
+    },
+    "Volume and brightness replace the default macOS overlays.\nOther HUDs appear only when relevant." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "음량과 밝기 표시가 기본 macOS 오버레이를 대체합니다.\n다른 HUD는 관련 상황에서만 나타납니다."
+          }
+        }
+      }
+    },
+    "W%lld" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld주"
+          }
+        }
+      }
+    },
+    "Watch Downloads, Desktop, or any folder" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다운로드, 데스크톱 또는 원하는 폴더 모니터링"
+          }
+        }
+      }
+    },
+    "Watch folders and auto-add new files" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더를 모니터링하고 새 파일을 자동 추가합니다"
+          }
+        }
+      }
+    },
+    "Website" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "웹사이트"
+          }
+        }
+      }
+    },
+    "Welcome to Droppy, you can remove everything else now!" : {
+
+    },
+    "What this does:" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기능의 동작:"
+          }
+        }
+      }
+    },
+    "When disabled: same disk = may move" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "비활성화 시 동일한 디스크에서는 이동될 수 있음"
+          }
+        }
+      }
+    },
+    "When enabled, files are always copied instead of moved, keeping originals safe." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "활성화 시 파일을 항상 복사하며, 이동하지 않습니다. 원본 파일은 그대로 유지됩니다."
+          }
+        }
+      }
+    },
+    "When you disable this setting:" : {
+      "comment" : "when disable file protection(File handling > File action)",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기능을 비활성화하면:"
+          }
+        }
+      }
+    },
+    "Window Snap" : {
+
+    },
+    "Window Snap pointer handling is ignored for these apps. Keyboard shortcuts still work." : {
+
+    },
+    "With a drag shortcut set, automatic basket summon (shake and instant appear) is disabled." : {
+
+    },
+    "Works as a quick reveal fallback" : {
+
+    },
+    "Works independently for each display" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "각 디스플레이에서 독립적으로 작동합니다"
+          }
+        }
+      }
+    },
+    "Works with any file you're dragging" : {
+
+    },
+    "You're running the latest version (%@)." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 최신 버전(%@)을 사용 중입니다."
+          }
+        }
+      }
+    },
+    "Your shareable link has been copied to clipboard" : {
+
+    }
+  },
+  "version" : "1.1"
+}
