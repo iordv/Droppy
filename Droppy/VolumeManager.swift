@@ -639,7 +639,7 @@ final class VolumeManager: NSObject, ObservableObject {
     private var mediaControlTargetMode: MediaControlTargetMode {
         let raw = UserDefaults.standard.string(forKey: AppPreferenceKey.mediaControlTargetMode)
             ?? PreferenceDefault.mediaControlTargetMode
-        return MediaControlTargetMode(rawValue: raw) ?? .mainMacBook
+        return MediaControlTargetMode(rawValue: raw) ?? .activeDisplay
     }
     
     /// Whether the current output device supports volume control via CoreAudio

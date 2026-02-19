@@ -57,16 +57,81 @@ final class MenuBarFloatingScanner {
     private var runningBundleCacheTimestamp: TimeInterval = 0
     private var lastFullOwnerDiscoveryTimestamp: TimeInterval = 0
     private let runningBundleCacheInterval: TimeInterval = 2.0
-    private let fullOwnerDiscoveryInterval: TimeInterval = 30.0
+    private let fullOwnerDiscoveryInterval: TimeInterval = 90.0
+    private struct FailedCaptureState {
+        let failureCount: Int
+        let lastFailureUptime: TimeInterval
+    }
+    private var failedCapturesByWindowID = [CGWindowID: FailedCaptureState]()
+    private let maxFailuresBeforeCooldown = 3
+    private let failureCooldownSeconds: TimeInterval = 10
+    private let failedCaptureEntryTTLSeconds: TimeInterval = 45
+    private let iconDebugKey = "DEBUG_MENU_BAR_ICON_CAPTURE"
 
     private static func validatedAXUIElement(_ rawValue: AnyObject) -> AXUIElement {
         // Safe because callers gate with CFGetTypeID(rawValue) == AXUIElementGetTypeID().
         unsafeBitCast(rawValue, to: AXUIElement.self)
     }
 
+    private var isIconDebugEnabled: Bool {
+        if let raw = ProcessInfo.processInfo.environment[iconDebugKey]?.lowercased() {
+            return raw == "1" || raw == "true" || raw == "yes"
+        }
+        if UserDefaults.standard.object(forKey: iconDebugKey) != nil {
+            return UserDefaults.standard.bool(forKey: iconDebugKey)
+        }
+        for domain in ["iordv.Droppy", "com.jordyspruit.Droppy", "app.getdroppy.Droppy"] {
+            guard let defaults = UserDefaults(suiteName: domain),
+                  defaults.object(forKey: iconDebugKey) != nil else {
+                continue
+            }
+            return defaults.bool(forKey: iconDebugKey)
+        }
+#if DEBUG
+        return true
+#else
+        return false
+#endif
+    }
+
+    private func iconDebugLog(_ message: @autoclosure () -> String) {
+        guard isIconDebugEnabled else { return }
+        print("[MenuBarIconDebug] \(message())")
+    }
+
+    private func itemDebugName(
+        ownerBundleID: String,
+        identifier: String?,
+        title: String?,
+        detail: String?,
+        windowID: CGWindowID?
+    ) -> String {
+        let idPart = identifier ?? "no-axid"
+        let titlePart = title ?? "-"
+        let detailPart = detail ?? "-"
+        let windowPart = windowID.map(String.init) ?? "nil"
+        return "owner=\(ownerBundleID) axid=\(idPart) title=\(titlePart) detail=\(detailPart) window=\(windowPart)"
+    }
+
+    private func iconDebugSummary(_ image: NSImage?) -> String {
+        guard let summary = MenuBarFloatingIconDiagnostics.summarize(image) else {
+            return "icon=none"
+        }
+        return summary.compactDescription
+    }
+
+    func currentWindowSignature() -> [CGWindowID] {
+        MenuBarStatusWindowCache.signature(maxAge: 0.3)
+    }
+
     func scan(includeIcons: Bool, preferredOwnerBundleIDs: Set<String>? = nil) -> [MenuBarFloatingItemSnapshot] {
         var candidates = [Candidate]()
         candidates.reserveCapacity(64)
+
+        if isIconDebugEnabled {
+            let owners = preferredOwnerBundleIDs?.sorted().joined(separator: ",") ?? "auto"
+            iconDebugLog("scan begin includeIcons=\(includeIcons) preferredOwners=\(owners)")
+        }
 
         for ownerBundleID in ownerBundleIDsToScan(preferredOwnerBundleIDs: preferredOwnerBundleIDs) {
             candidates.append(contentsOf: scanCandidates(ownerBundleID: ownerBundleID, includeIcons: includeIcons))
@@ -126,6 +191,11 @@ final class MenuBarFloatingScanner {
             )
         }
 
+        if isIconDebugEnabled {
+            let withIcons = snapshots.filter { $0.icon != nil }.count
+            iconDebugLog("scan end items=\(snapshots.count) withIcons=\(withIcons)")
+        }
+
         return snapshots
     }
 
@@ -142,8 +212,19 @@ final class MenuBarFloatingScanner {
             return []
         }
 
-        // Pre-fetch menu bar window list for per-window icon capture.
-        let menuBarWindowMap = includeIcons ? buildMenuBarWindowMap() : [:]
+        // Keep window ID mapping available even when we skip icon capture.
+        // Stable IDs reduce remap churn and wrong-item associations.
+        let menuBarWindowEntries = buildMenuBarWindowEntries()
+        var menuBarWindowMap = [CGWindowID: CGRect]()
+        menuBarWindowMap.reserveCapacity(menuBarWindowEntries.count)
+        for (windowID, entry) in menuBarWindowEntries {
+            menuBarWindowMap[windowID] = entry.bounds
+        }
+        let ownerPIDs = Set(
+            NSRunningApplication
+                .runningApplications(withBundleIdentifier: ownerBundleID)
+                .map(\.processIdentifier)
+        )
 
         // Pre-capture all icons compositely (transparent backgrounds, no deprecated APIs).
         let compositeImages: [CGWindowID: NSImage]? = includeIcons ? compositeCapture(windowMap: menuBarWindowMap) : nil
@@ -152,6 +233,7 @@ final class MenuBarFloatingScanner {
 
         for menuBarRoot in menuBarRoots {
             let menuItems = collectMenuBarItems(from: menuBarRoot)
+            var consumedWindowIDs = Set<CGWindowID>()
             for (index, element) in menuItems.enumerated() {
                 guard let quartzFrame = MenuBarAXTools.copyFrameQuartz(element) else {
                     continue
@@ -176,11 +258,40 @@ final class MenuBarFloatingScanner {
                 }
 
                 // Match this AX item to its window ID via frame overlap.
-                let matchedWindowID = findWindowID(for: quartzFrame, in: menuBarWindowMap)
+                let matchedWindowID = findWindowID(
+                    for: quartzFrame,
+                    in: menuBarWindowEntries,
+                    preferredOwnerPIDs: ownerPIDs,
+                    excluding: consumedWindowIDs
+                )
+                if let matchedWindowID {
+                    consumedWindowIDs.insert(matchedWindowID)
+                }
+                if includeIcons, isIconDebugEnabled {
+                    let frameText = String(
+                        format: "(%.1f,%.1f %.1fx%.1f)",
+                        quartzFrame.origin.x,
+                        quartzFrame.origin.y,
+                        quartzFrame.width,
+                        quartzFrame.height
+                    )
+                    iconDebugLog(
+                        "candidate \(itemDebugName(ownerBundleID: ownerBundleID, identifier: identifier, title: title, detail: detail, windowID: matchedWindowID)) frame=\(frameText)"
+                    )
+                }
 
                 let icon: NSImage?
                 if includeIcons {
-                    icon = captureIcon(quartzRect: quartzFrame, windowID: matchedWindowID, compositeImages: compositeImages)
+                    icon = captureIcon(
+                        quartzRect: quartzFrame,
+                        windowID: matchedWindowID,
+                        compositeImages: compositeImages
+                    )
+                    if isIconDebugEnabled {
+                        iconDebugLog(
+                            "candidate icon \(itemDebugName(ownerBundleID: ownerBundleID, identifier: identifier, title: title, detail: detail, windowID: matchedWindowID)) \(iconDebugSummary(icon))"
+                        )
+                    }
                 } else {
                     icon = nil
                 }
@@ -416,6 +527,9 @@ final class MenuBarFloatingScanner {
               let bounds = MenuBarFloatingCoordinateConverter.displayBounds(of: screen) else {
             return false
         }
+        if NSApp.userInterfaceLayoutDirection == .rightToLeft {
+            return midpoint.x > bounds.midX
+        }
         return midpoint.x < bounds.midX
     }
 
@@ -423,45 +537,80 @@ final class MenuBarFloatingScanner {
 
     /// Builds a map of CGWindowID → CGRect for all current menu bar item windows.
     /// Uses CGWindowListCopyWindowInfo which returns windows with their bounds.
-    private func buildMenuBarWindowMap() -> [CGWindowID: CGRect] {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[CFString: Any]] else {
-            return [:]
-        }
-
-        var map = [CGWindowID: CGRect]()
-        for windowInfo in windowList {
-            // Menu bar items are at window layer 25 (kCGStatusWindowLevel).
-            guard let layer = windowInfo[kCGWindowLayer] as? Int,
-                  layer == 25,
-                  let windowID = windowInfo[kCGWindowNumber] as? CGWindowID,
-                  let boundsDict = windowInfo[kCGWindowBounds] as? [String: CGFloat],
-                  let x = boundsDict["X"],
-                  let y = boundsDict["Y"],
-                  let w = boundsDict["Width"],
-                  let h = boundsDict["Height"],
-                  w > 1, h > 1, w < 180, h < 50 else {
-                continue
-            }
-            map[windowID] = CGRect(x: x, y: y, width: w, height: h)
-        }
-        return map
+    private func buildMenuBarWindowEntries() -> [CGWindowID: MenuBarStatusWindowCache.Entry] {
+        MenuBarStatusWindowCache.windowEntries(maxAge: 0.18)
     }
 
     /// Finds the CGWindowID whose bounds best match the given AX element frame.
-    private func findWindowID(for quartzFrame: CGRect, in windowMap: [CGWindowID: CGRect]) -> CGWindowID? {
+    private func findWindowID(
+        for quartzFrame: CGRect,
+        in windowEntries: [CGWindowID: MenuBarStatusWindowCache.Entry],
+        preferredOwnerPIDs: Set<pid_t>,
+        excluding consumedWindowIDs: Set<CGWindowID>
+    ) -> CGWindowID? {
         var bestID: CGWindowID?
-        var bestOverlap: CGFloat = 0
+        var bestScore: CGFloat = -1
+        var bestOwnerMatched = false
+        let frameArea = max(1, quartzFrame.width * quartzFrame.height)
 
-        for (windowID, windowBounds) in windowMap {
-            let intersection = quartzFrame.intersection(windowBounds)
-            guard !intersection.isNull else { continue }
-            let overlap = intersection.width * intersection.height
-            let matchQuality = overlap / max(1, quartzFrame.width * quartzFrame.height)
-            if matchQuality > 0.5, overlap > bestOverlap {
-                bestOverlap = overlap
-                bestID = windowID
+        for (windowID, entry) in windowEntries {
+            if consumedWindowIDs.contains(windowID) {
+                continue
             }
+
+            let windowBounds = entry.bounds
+            let ownerMatched = preferredOwnerPIDs.isEmpty || preferredOwnerPIDs.contains(entry.ownerPID)
+            let centerDistance = hypot(
+                quartzFrame.midX - windowBounds.midX,
+                quartzFrame.midY - windowBounds.midY
+            )
+            let widthDelta = abs(quartzFrame.width - windowBounds.width)
+            let heightDelta = abs(quartzFrame.height - windowBounds.height)
+
+            if centerDistance <= 1.6, widthDelta <= 2.2, heightDelta <= 2.2 {
+                if ownerMatched {
+                    return windowID
+                }
+            }
+
+            let intersection = quartzFrame.intersection(windowBounds)
+            let overlapArea = intersection.isNull ? 0 : (intersection.width * intersection.height)
+            if overlapArea <= 0, centerDistance > max(3.5, min(quartzFrame.width, quartzFrame.height) * 0.32) {
+                continue
+            }
+
+            let windowArea = max(1, windowBounds.width * windowBounds.height)
+            let overlapOnFrame = overlapArea / frameArea
+            let overlapOnWindow = overlapArea / windowArea
+            let distanceScale = max(12, min(quartzFrame.width, quartzFrame.height) * 1.4)
+            let centerScore = max(0, 1 - (centerDistance / distanceScale))
+            let widthDeltaRatio = widthDelta / max(max(quartzFrame.width, windowBounds.width), 1)
+            let heightDeltaRatio = heightDelta / max(max(quartzFrame.height, windowBounds.height), 1)
+            let sizeScore = max(0, 1 - ((widthDeltaRatio + heightDeltaRatio) / 1.7))
+            let ownerScore = preferredOwnerPIDs.isEmpty ? 0 : (ownerMatched ? 0.14 : -0.06)
+
+            let score =
+                (overlapOnFrame * 0.54)
+                + (overlapOnWindow * 0.21)
+                + (centerScore * 0.20)
+                + (sizeScore * 0.05)
+                + ownerScore
+
+            if score > bestScore {
+                bestScore = score
+                bestID = windowID
+                bestOwnerMatched = ownerMatched
+            }
+        }
+
+        guard bestScore >= 0.44 else {
+            return nil
+        }
+
+        if !preferredOwnerPIDs.isEmpty,
+           !bestOwnerMatched,
+           bestScore < 0.62 {
+            return nil
         }
         return bestID
     }
@@ -516,12 +665,21 @@ final class MenuBarFloatingScanner {
         // Process captures synchronously (transparency/suspicious checks).
         var results = [CGWindowID: NSImage]()
         for (wid, cgImage, bounds) in box.snapshot() {
-            guard !isFullyTransparent(cgImage) else { continue }
+            if isFullyTransparent(cgImage) {
+                iconDebugLog("modern capture reject window=\(wid) reason=fullyTransparent")
+                continue
+            }
             let nsImage = NSImage(
                 cgImage: cgImage,
                 size: NSSize(width: bounds.width, height: bounds.height)
             )
-            guard !isSuspiciousCapture(nsImage) else { continue }
+            if isSuspiciousCapture(nsImage) {
+                iconDebugLog("modern capture reject window=\(wid) reason=suspicious \(iconDebugSummary(nsImage))")
+                continue
+            }
+            if isIconDebugEnabled {
+                iconDebugLog("modern capture accept window=\(wid) \(iconDebugSummary(nsImage))")
+            }
             results[wid] = nsImage
         }
         return results
@@ -539,14 +697,24 @@ final class MenuBarFloatingScanner {
                 windowID,
                 captureOption
             ) else {
+                iconDebugLog("legacy capture miss window=\(windowID) reason=noImage")
                 continue
             }
-            guard !isFullyTransparent(cgImage) else { continue }
+            if isFullyTransparent(cgImage) {
+                iconDebugLog("legacy capture reject window=\(windowID) reason=fullyTransparent")
+                continue
+            }
             let nsImage = NSImage(
                 cgImage: cgImage,
                 size: NSSize(width: bounds.width, height: bounds.height)
             )
-            guard !isSuspiciousCapture(nsImage) else { continue }
+            if isSuspiciousCapture(nsImage) {
+                iconDebugLog("legacy capture reject window=\(windowID) reason=suspicious \(iconDebugSummary(nsImage))")
+                continue
+            }
+            if isIconDebugEnabled {
+                iconDebugLog("legacy capture accept window=\(windowID) \(iconDebugSummary(nsImage))")
+            }
             results[windowID] = nsImage
         }
         return results
@@ -554,16 +722,98 @@ final class MenuBarFloatingScanner {
 
     private func captureIcon(quartzRect: CGRect, windowID: CGWindowID?, compositeImages: [CGWindowID: NSImage]?) -> NSImage? {
         guard quartzRect.width > 1, quartzRect.height > 1 else {
+            iconDebugLog("capture skip reason=invalidRect width=\(quartzRect.width) height=\(quartzRect.height)")
+            return nil
+        }
+        guard let windowID else {
+            iconDebugLog("capture skip reason=noWindowID")
+            return nil
+        }
+        if shouldSkipCapture(for: windowID) {
+            iconDebugLog("capture skip window=\(windowID) reason=cooldown")
             return nil
         }
 
         // Primary path: use pre-captured composite image.
-        if let windowID, let image = compositeImages?[windowID] {
+        if let image = compositeImages?[windowID] {
+            recordCaptureSuccess(for: windowID)
+            if isIconDebugEnabled {
+                iconDebugLog("capture hit-composite window=\(windowID) \(iconDebugSummary(image))")
+            }
             return image
         }
 
-        // Fallback: region-based capture with background removal.
-        return captureIconRegionBased(quartzRect: quartzRect)
+        // Fallback: capture the exact window instead of a display region to avoid wrong icons.
+        guard let cgImage = CGWindowListCreateImage(
+            .null,
+            .optionIncludingWindow,
+            windowID,
+            [.boundsIgnoreFraming, .bestResolution]
+        ) else {
+            recordCaptureFailure(for: windowID)
+            iconDebugLog("capture fallback miss window=\(windowID) reason=noImage")
+            return nil
+        }
+        guard !isFullyTransparent(cgImage) else {
+            recordCaptureFailure(for: windowID)
+            iconDebugLog("capture fallback reject window=\(windowID) reason=fullyTransparent")
+            return nil
+        }
+        let nsImage = NSImage(
+            cgImage: cgImage,
+            size: NSSize(width: quartzRect.width, height: quartzRect.height)
+        )
+        guard !isSuspiciousCapture(nsImage) else {
+            recordCaptureFailure(for: windowID)
+            iconDebugLog("capture fallback reject window=\(windowID) reason=suspicious \(iconDebugSummary(nsImage))")
+            return nil
+        }
+        recordCaptureSuccess(for: windowID)
+        if isIconDebugEnabled {
+            iconDebugLog("capture fallback accept window=\(windowID) \(iconDebugSummary(nsImage))")
+        }
+        return nsImage
+    }
+
+    private func shouldSkipCapture(for windowID: CGWindowID) -> Bool {
+        let now = ProcessInfo.processInfo.systemUptime
+        cleanupStaleFailedCaptureEntries(now: now)
+        guard let state = failedCapturesByWindowID[windowID] else {
+            return false
+        }
+        if state.failureCount < maxFailuresBeforeCooldown {
+            return false
+        }
+        if (now - state.lastFailureUptime) < failureCooldownSeconds {
+            return true
+        }
+        failedCapturesByWindowID.removeValue(forKey: windowID)
+        return false
+    }
+
+    private func recordCaptureFailure(for windowID: CGWindowID) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let existing = failedCapturesByWindowID[windowID]
+        let nextCount = (existing?.failureCount ?? 0) + 1
+        failedCapturesByWindowID[windowID] = FailedCaptureState(
+            failureCount: nextCount,
+            lastFailureUptime: now
+        )
+        if isIconDebugEnabled {
+            let cooldown = nextCount >= maxFailuresBeforeCooldown ? "active" : "inactive"
+            iconDebugLog("capture failure window=\(windowID) count=\(nextCount) cooldown=\(cooldown)")
+        }
+        cleanupStaleFailedCaptureEntries(now: now)
+    }
+
+    private func recordCaptureSuccess(for windowID: CGWindowID) {
+        failedCapturesByWindowID.removeValue(forKey: windowID)
+    }
+
+    private func cleanupStaleFailedCaptureEntries(now: TimeInterval) {
+        failedCapturesByWindowID = failedCapturesByWindowID.filter { _, state in
+            (now - state.lastFailureUptime) <= failedCaptureEntryTTLSeconds
+        }
     }
 
     /// Returns true if the image is fully transparent (all alpha values near zero).

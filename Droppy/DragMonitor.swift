@@ -54,6 +54,14 @@ final class DragMonitor: ObservableObject {
     private var dragRevealShortcutSignature: String = ""
     private var dragRevealLastTriggeredAt: Date = .distantPast
     private var userDefaultsObserver: NSObjectProtocol?
+    private var isDebugLoggingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "DEBUG_DRAG_MONITOR")
+    }
+
+    private func debugLog(_ message: @autoclosure () -> String) {
+        guard isDebugLoggingEnabled else { return }
+        print(message())
+    }
     
     private var isDragRevealShortcutConfigured: Bool {
         dragRevealShortcutSignature != "none"
@@ -161,7 +169,7 @@ final class DragMonitor: ObservableObject {
     func forceSetDragging(_ isDragging: Bool, location: CGPoint? = nil) {
         guard self.isDragging != isDragging else { return }  // Avoid redundant changes
         
-        print("🔧 DragMonitor.forceSetDragging(\(isDragging)) - Dock folder/system drag workaround")
+        debugLog("🔧 DragMonitor.forceSetDragging(\(isDragging)) - Dock folder/system drag workaround")
         
         if isDragging {
             dragActive = true
@@ -190,7 +198,7 @@ final class DragMonitor: ObservableObject {
     /// Force reset ALL drag state (called after screen unlock when state may be corrupted)
     /// After SkyLight delegation, the drag polling state can get stuck, blocking hover detection
     func forceReset() {
-        print("🧹 DragMonitor.forceReset() called - clearing stuck drag state")
+        debugLog("🧹 DragMonitor.forceReset() called - clearing stuck drag state")
         dragActive = false
         dragHasSupportedPayload = false
         isDragStartCandidate = false
@@ -219,7 +227,7 @@ final class DragMonitor: ObservableObject {
             // DEBUG: Log state periodically to trace stuck isDragging after SkyLight unlock
             struct DragDebugCounter { static var lastLog = Date.distantPast }
             if Date().timeIntervalSince(DragDebugCounter.lastLog) > 2.0 {
-                print("🐉 DragMonitor.checkForActiveDrag: isDragging=\(isDragging), dragActive=\(dragActive), mouseIsDown=\(mouseIsDown)")
+                debugLog("🐉 DragMonitor.checkForActiveDrag: isDragging=\(isDragging), dragActive=\(dragActive), mouseIsDown=\(mouseIsDown)")
                 DragDebugCounter.lastLog = Date()
             }
             
@@ -228,7 +236,7 @@ final class DragMonitor: ObservableObject {
             if !mouseIsDown && !dragActive {
                 // Self-heal stale drag state (can happen after lock/unlock or monitor desync).
                 if isDragging {
-                    print("🧹 DragMonitor: Clearing stale isDragging state")
+                    debugLog("🧹 DragMonitor: Clearing stale isDragging state")
                     isDragging = false
                     dragEndNotified = true
                     updateDragRevealHotKeyRegistration()

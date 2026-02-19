@@ -1969,7 +1969,7 @@ struct ClipboardPreviewView: View {
                                                 navigateToPage(currentPageIndex - 1, path: path, direction: .right)
                                             }
                                         } label: {
-                                            Image(systemName: "chevron.left")
+                                            Image(systemName: "chevron.backward")
                                         }
                                         .buttonStyle(DroppyCircleButtonStyle(size: 28))
                                         .disabled(currentPageIndex == 0)
@@ -2006,7 +2006,7 @@ struct ClipboardPreviewView: View {
                                                 navigateToPage(currentPageIndex + 1, path: path, direction: .left)
                                             }
                                         } label: {
-                                            Image(systemName: "chevron.right")
+                                            Image(systemName: "chevron.forward")
                                         }
                                         .buttonStyle(DroppyCircleButtonStyle(size: 28))
                                         .disabled(currentPageIndex == documentPageCount - 1)
@@ -2016,7 +2016,7 @@ struct ClipboardPreviewView: View {
                                         Button {
                                             showZoomedPreview = true
                                         } label: {
-                                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                            Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                                         }
                                         .buttonStyle(DroppyCircleButtonStyle(size: 28))
                                         .help("Expand Preview")
@@ -2029,7 +2029,7 @@ struct ClipboardPreviewView: View {
                                     Button {
                                         showZoomedPreview = true
                                     } label: {
-                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                                     }
                                     .buttonStyle(DroppyCircleButtonStyle(size: 28))
                                     .help("Expand Preview")
@@ -2734,7 +2734,7 @@ struct ZoomedDocumentPreviewSheet: View {
                             navigateToPage(currentPage - 1, direction: .right)
                         }
                     } label: {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "chevron.backward")
                     }
                     .buttonStyle(DroppyCircleButtonStyle(size: 36))
                     .disabled(currentPage == 0)
@@ -2768,7 +2768,7 @@ struct ZoomedDocumentPreviewSheet: View {
                             navigateToPage(currentPage + 1, direction: .left)
                         }
                     } label: {
-                        Image(systemName: "chevron.right")
+                        Image(systemName: "chevron.forward")
                     }
                     .buttonStyle(DroppyCircleButtonStyle(size: 36))
                     .disabled(currentPage == pageCount - 1)

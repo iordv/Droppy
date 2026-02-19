@@ -24,9 +24,9 @@ struct CaffeineNotchView: View {
     private let hourPresets: [CaffeineDuration] = [.hours(1), .hours(2), .hours(3), .hours(4), .hours(5)]
 
     /// Keep built-in physical notch controls white-on-black.
-    /// Only adapt foregrounds on external transparent notch mode.
+    /// Adapt foregrounds for transparent, notchless surfaces (Dynamic Island and external displays).
     private var useAdaptiveForegrounds: Bool {
-        useTransparentBackground && isExternalWithNotchStyle
+        useTransparentBackground && notchHeight == 0
     }
 
     private func primaryText(_ opacity: Double = 1.0) -> Color {

@@ -20,7 +20,7 @@ enum FileOperation: String, CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
-        case .compression: return "arrow.down.right.and.arrow.up.left"
+        case .compression: return "arrow.down.forward.and.arrow.up.backward"
         case .conversion: return "arrow.triangle.2.circlepath"
         }
     }

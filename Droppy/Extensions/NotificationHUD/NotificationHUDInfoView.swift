@@ -145,7 +145,7 @@ struct NotificationHUDInfoView: View {
         VStack(alignment: .leading, spacing: 12) {
             featureRow(icon: "bell.badge", text: "Notification display in the notch")
             featureRow(icon: "app.badge", text: "App icon and notification preview")
-            featureRow(icon: "arrowshape.turn.up.left", text: "Quick reply for supported messaging apps")
+            featureRow(icon: "arrowshape.turn.up.backward", text: "Quick reply for supported messaging apps")
             featureRow(icon: "slider.horizontal.3", text: "Per-app notification filtering")
             featureRow(icon: "eye.slash", text: "Option to replace system notifications")
 

@@ -606,26 +606,26 @@ enum MBMIconSet: String, CaseIterable, Identifiable {
     var visibleSymbol: String {
         switch self {
         case .eye: return "eye.fill"
-        case .chevron: return "chevron.left"
+        case .chevron: return "chevron.backward"
         case .circle: return "circle.fill"
         case .line: return "line.3.horizontal"
         case .dot: return "smallcircle.filled.circle"
-        case .arrow: return "arrowtriangle.right.fill"
+        case .arrow: return "arrowtriangle.forward.fill"
         case .square: return "square.fill"
         case .diamond: return "diamond.fill"
         case .umbrella: return "umbrella.fill"
-        case .sunglasses: return "sunglasses"
+        case .sunglasses: return "sunglasses.fill"
         }
     }
     
     var hiddenSymbol: String {
         switch self {
         case .eye: return "eye.slash.fill"
-        case .chevron: return "chevron.right"
+        case .chevron: return "chevron.forward"
         case .circle: return "circle"
         case .line: return "line.3.horizontal.decrease"
         case .dot: return "smallcircle.circle"
-        case .arrow: return "arrowtriangle.left.fill"
+        case .arrow: return "arrowtriangle.backward.fill"
         case .square: return "square"
         case .diamond: return "diamond"
         case .umbrella: return "umbrella"
@@ -771,6 +771,11 @@ final class MenuBarManager: ObservableObject {
     /// How hidden icons should rehide after being revealed.
     @Published var rehideStrategy: RehideStrategy {
         didSet {
+            // Product decision: MBM always uses timed rehide behavior.
+            if rehideStrategy != .timed {
+                rehideStrategy = .timed
+                return
+            }
             UserDefaults.standard.set(rehideStrategy.rawValue, forKey: "MenuBarManager_RehideStrategy")
             setupRehideObservers()
         }
@@ -1135,7 +1140,8 @@ final class MenuBarManager: ObservableObject {
         self.useGradientIcon = UserDefaults.standard.bool(forKey: "MenuBarManager_UseGradientIcon")
         let storedAutoHide = UserDefaults.standard.double(forKey: "MenuBarManager_AutoHideDelay")
         self.autoHideDelay = storedAutoHide  // 0 means don't auto-hide
-        self.rehideStrategy = RehideStrategy(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_RehideStrategy") ?? "") ?? .timed
+        self.rehideStrategy = .timed
+        UserDefaults.standard.set(RehideStrategy.timed.rawValue, forKey: "MenuBarManager_RehideStrategy")
         self.hoverModifierKey = HoverModifierKey(rawValue: UserDefaults.standard.string(forKey: "MenuBarManager_HoverModifierKey") ?? "") ?? .none
         // Default to true for separator display
         self.showChevronSeparator = true
@@ -1242,7 +1248,10 @@ final class MenuBarManager: ObservableObject {
         NotificationCenter.default.publisher(for: .menuBarManagerOpenSettings)
             .receive(on: DispatchQueue.main)
             .sink { _ in
-                SettingsWindowController.shared.showSettings(openingExtension: .menuBarManager)
+                // Dispatch to next runloop so NSMenu tracking fully unwinds first.
+                DispatchQueue.main.async {
+                    SettingsWindowController.shared.showMenuBarManagerQuickSettings()
+                }
             }
             .store(in: &c)
         
@@ -1307,9 +1316,9 @@ final class MenuBarManager: ObservableObject {
         guard showOnHover else { return }
 
         // High-frequency global mouse events can flood this path.
-        // Cap processing to ~120 Hz to reduce CPU churn.
+        // Cap processing to ~90 Hz for snappier hover transitions without busy looping.
         let now = ProcessInfo.processInfo.systemUptime
-        let minInterval: TimeInterval = 1.0 / 120.0
+        let minInterval: TimeInterval = 1.0 / 90.0
         guard now - lastMouseMoveProcessTime >= minInterval else { return }
         lastMouseMoveProcessTime = now
 
@@ -1331,15 +1340,13 @@ final class MenuBarManager: ObservableObject {
         guard let screen = interactionScreen(for: mouseLocation) else { return }
         let menuBarHeight = effectiveMenuBarHeight(for: screen)
         
-        // Check if mouse is in the menu bar area
-        let isAtTop = mouseLocation.y >= screen.frame.maxY - menuBarHeight
-        
-        // CRITICAL: Only reveal on the RIGHT side of the notch
-        // Left side contains Apple menu bar items, right side contains app/third-party items
-        // The notch/Dynamic Island belongs to Droppy's shelf, not the menu bar
-        let isOnRightSideOfNotch = isOnRightSideMenuBarArea(mouseLocation: mouseLocation, screen: screen)
-        
-        let isInMenuBar = isAtTop && isOnRightSideOfNotch
+        // Reveal only when hovering an actual visible menu bar icon
+        // to avoid triggering on empty right-side menu bar space.
+        let isInMenuBar = isHoveringRevealEligibleMenuBarIcon(
+            mouseLocation: mouseLocation,
+            screen: screen,
+            menuBarHeight: menuBarHeight
+        )
 
         
         if let hiddenSection = section(withName: .hidden) {
@@ -1392,7 +1399,6 @@ final class MenuBarManager: ObservableObject {
     ) {
         guard pendingHoverHideWorkItem == nil else { return }
 
-        let screenFrame = screen.frame
         let delay = showOnHoverDelay
         let workItem = DispatchWorkItem { [weak self, weak hiddenSection] in
             guard let self else { return }
@@ -1401,12 +1407,11 @@ final class MenuBarManager: ObservableObject {
             guard !self.isLockedVisible else { return }
 
             let currentLocation = NSEvent.mouseLocation
-            let stillAtTop = currentLocation.y >= screenFrame.maxY - menuBarHeight
-            let stillOnRightSideOfNotch = self.isOnRightSideMenuBarArea(
+            let stillInMenuBar = self.isHoveringRevealEligibleMenuBarIcon(
                 mouseLocation: currentLocation,
-                screen: screen
+                screen: screen,
+                menuBarHeight: menuBarHeight
             )
-            let stillInMenuBar = stillAtTop && stillOnRightSideOfNotch
 
             if !stillInMenuBar {
                 hiddenSection.hide()
@@ -1419,14 +1424,63 @@ final class MenuBarManager: ObservableObject {
 
     private func interactionScreen(for mouseLocation: CGPoint) -> NSScreen? {
         if let hiddenFrame = controlItemFrame(for: .hidden),
-           let hiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(hiddenFrame) }) {
+           let hiddenScreen = screenContainingMenuBarControlFrame(hiddenFrame) {
             return hiddenScreen
         }
         if let alwaysHiddenFrame = controlItemFrame(for: .alwaysHidden),
-           let alwaysHiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(alwaysHiddenFrame) }) {
+           let alwaysHiddenScreen = screenContainingMenuBarControlFrame(alwaysHiddenFrame) {
             return alwaysHiddenScreen
         }
         return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main
+    }
+
+    private enum HiddenSectionSide {
+        case leftOfHiddenDivider
+        case rightOfHiddenDivider
+    }
+
+    private func hiddenSectionSide() -> HiddenSectionSide {
+        if let hiddenFrame = controlItemFrame(for: .hidden),
+           let visibleFrame = controlItemFrame(for: .visible) {
+            return visibleFrame.midX >= hiddenFrame.midX ? .leftOfHiddenDivider : .rightOfHiddenDivider
+        }
+        if let hiddenFrame = controlItemFrame(for: .hidden),
+           let alwaysHiddenFrame = controlItemFrame(for: .alwaysHidden) {
+            return alwaysHiddenFrame.midX < hiddenFrame.midX ? .leftOfHiddenDivider : .rightOfHiddenDivider
+        }
+        return NSApp.userInterfaceLayoutDirection == .rightToLeft ? .rightOfHiddenDivider : .leftOfHiddenDivider
+    }
+
+    private func menuBarControlAnchorX(for frame: CGRect) -> CGFloat {
+        let inset = min(6, frame.width / 2)
+        switch hiddenSectionSide() {
+        case .leftOfHiddenDivider:
+            return frame.maxX - inset
+        case .rightOfHiddenDivider:
+            return frame.minX + inset
+        }
+    }
+
+    private func hiddenDividerBoundaryX(for hiddenFrame: CGRect) -> CGFloat {
+        if hiddenFrame.width > 120 {
+            let inset = min(18, hiddenFrame.width * 0.15)
+            switch hiddenSectionSide() {
+            case .leftOfHiddenDivider:
+                return hiddenFrame.minX + inset
+            case .rightOfHiddenDivider:
+                return hiddenFrame.maxX - inset
+            }
+        }
+        return menuBarControlAnchorX(for: hiddenFrame)
+    }
+
+    private func screenContainingMenuBarControlFrame(_ frame: CGRect) -> NSScreen? {
+        let anchorX = menuBarControlAnchorX(for: frame)
+        let anchorPoint = CGPoint(x: anchorX, y: frame.midY)
+        if let containing = NSScreen.screens.first(where: { $0.frame.contains(anchorPoint) }) {
+            return containing
+        }
+        return NSScreen.screens.first(where: { $0.frame.intersects(frame) })
     }
 
     private func effectiveMenuBarHeight(for screen: NSScreen) -> CGFloat {
@@ -1437,13 +1491,38 @@ final class MenuBarManager: ObservableObject {
         return max(24, NSStatusBar.system.thickness)
     }
 
-    private func isOnRightSideMenuBarArea(mouseLocation: CGPoint, screen: NSScreen) -> Bool {
-        let hasNotch = screen.safeAreaInsets.top > 0
-        if !hasNotch {
-            return mouseLocation.x > screen.frame.midX
+    private func isHoveringRevealEligibleMenuBarIcon(
+        mouseLocation: CGPoint,
+        screen: NSScreen,
+        menuBarHeight: CGFloat
+    ) -> Bool {
+        let isAtTop = mouseLocation.y >= screen.frame.maxY - menuBarHeight
+        guard isAtTop else { return false }
+
+        if let hiddenFrame = controlItemFrame(for: .hidden),
+           screen.frame.intersects(hiddenFrame) {
+            let dividerBoundaryX = hiddenDividerBoundaryX(for: hiddenFrame)
+            switch hiddenSectionSide() {
+            case .leftOfHiddenDivider:
+                if mouseLocation.x < dividerBoundaryX - 1 {
+                    return false
+                }
+            case .rightOfHiddenDivider:
+                if mouseLocation.x > dividerBoundaryX + 1 {
+                    return false
+                }
+            }
         }
-        let notchExclusionWidth: CGFloat = 200
-        return mouseLocation.x > screen.frame.midX + (notchExclusionWidth / 2)
+
+        let mouseQuartzRect = MenuBarFloatingCoordinateConverter.appKitToQuartz(
+            CGRect(x: mouseLocation.x, y: mouseLocation.y, width: 1, height: 1)
+        )
+        let mouseQuartzPoint = CGPoint(x: mouseQuartzRect.midX, y: mouseQuartzRect.midY)
+        if MenuBarStatusWindowCache.containsStatusItem(at: mouseQuartzPoint, maxAge: 0.1) {
+            return true
+        }
+        // Fallback for systems where status-item windows report non-standard geometry.
+        return MenuBarStatusWindowCache.containsAnyStatusWindow(at: mouseQuartzPoint, maxAge: 0.1)
     }
 
     private func hasActiveMenuWindow(now: TimeInterval) -> Bool {
@@ -1542,10 +1621,12 @@ final class MenuBarManager: ObservableObject {
         let mouseLocation = NSEvent.mouseLocation
         guard let screen = interactionScreen(for: mouseLocation) else { return }
         let menuBarHeight = effectiveMenuBarHeight(for: screen)
-        let isAtTop = mouseLocation.y >= screen.frame.maxY - menuBarHeight
-        let isOnRightSide = isOnRightSideMenuBarArea(mouseLocation: mouseLocation, screen: screen)
-        
-        if !(isAtTop && isOnRightSide) {
+
+        if !isHoveringRevealEligibleMenuBarIcon(
+            mouseLocation: mouseLocation,
+            screen: screen,
+            menuBarHeight: menuBarHeight
+        ) {
             hiddenSection.hide()
         }
     }
@@ -1647,8 +1728,7 @@ final class MenuBarManager: ObservableObject {
         }
 
         let floatingNeedsAlwaysHiddenSection =
-            MenuBarFloatingBarManager.shared.isFeatureEnabled
-            && !MenuBarFloatingBarManager.shared.alwaysHiddenItemIDs.isEmpty
+            !MenuBarFloatingBarManager.shared.alwaysHiddenItemIDs.isEmpty
         setAlwaysHiddenSectionEnabled(alwaysHiddenWasEnabled || floatingNeedsAlwaysHiddenSection)
     }
     

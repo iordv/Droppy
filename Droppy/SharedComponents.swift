@@ -272,6 +272,9 @@ struct SettingsSegmentButton: View {
     @Environment(\.controlActiveState) private var controlActiveState
     
     private let accentColor = Color.blue // Droppy blue
+    private var hitHeight: CGFloat {
+        tileHeight + (showsLabel ? 24 : 0) + 6
+    }
     
     init(
         icon: String,
@@ -374,8 +377,12 @@ struct SettingsSegmentButton: View {
             }
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
+            .frame(width: tileWidth, height: hitHeight, alignment: .top)
+            .contentShape(Rectangle())
         }
+        .frame(width: tileWidth, height: hitHeight, alignment: .top)
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
         }
@@ -397,6 +404,9 @@ struct SettingsSegmentButtonWithContent<Content: View>: View {
     @Environment(\.controlActiveState) private var controlActiveState
     
     private let accentColor = Color.blue // Droppy blue
+    private var hitHeight: CGFloat {
+        tileHeight + (showsLabel ? 24 : 0) + 6
+    }
     
     init(
         label: String,
@@ -497,8 +507,12 @@ struct SettingsSegmentButtonWithContent<Content: View>: View {
             }
             .scaleEffect(isHovering ? 1.02 : 1.0)
             .animation(DroppyAnimation.hover, value: isHovering)
+            .frame(width: tileWidth, height: hitHeight, alignment: .top)
+            .contentShape(Rectangle())
         }
+        .frame(width: tileWidth, height: hitHeight, alignment: .top)
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
         }
@@ -825,7 +839,7 @@ struct LinkButton: View {
                 
                 Spacer()
                 
-                Image(systemName: "arrow.up.right")
+                Image(systemName: "arrow.up.forward")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.tertiary)
             }

@@ -209,7 +209,7 @@ struct OnboardingView: View {
             if currentPage != .welcome {
                 Button(action: navigateBack) {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
+                        Image(systemName: "chevron.backward")
                             .font(.system(size: 11, weight: .semibold))
                         Text("Back")
                     }
@@ -237,7 +237,7 @@ struct OnboardingView: View {
             Button(action: { currentPage == .ready ? onComplete() : navigateNext() }) {
                 HStack(spacing: 5) {
                     Text(currentPage == .ready ? "Get Started" : "Continue")
-                    Image(systemName: currentPage == .ready ? "arrow.right" : "chevron.right")
+                    Image(systemName: currentPage == .ready ? "arrow.forward" : "chevron.forward")
                         .font(.system(size: 11, weight: .semibold))
                 }
             }
@@ -1099,7 +1099,7 @@ private struct ReadyContent: View {
     }
     
     private var clipboardGuideAction: String {
-        enableClipboard ? "Press ⌘⇧Space (default)" : "Enable Clipboard in Settings"
+        enableClipboard ? "Press ⇧⌘Space (default)" : "Enable Clipboard in Settings"
     }
     
     private var clipboardGuideResult: String {
@@ -1270,7 +1270,7 @@ private struct GuideRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             
             // Arrow
-            Image(systemName: "chevron.right")
+            Image(systemName: "chevron.forward")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.quaternary)
                 .frame(width: 22)

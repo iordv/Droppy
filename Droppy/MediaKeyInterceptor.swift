@@ -213,13 +213,24 @@ final class MediaKeyInterceptor {
 
         NSSound.beep()
     }
+
+    private func stepDivisor(for modifierFlags: NSEvent.ModifierFlags) -> Float {
+        let normalized = modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let usesFineControl = normalized.contains(.option) && normalized.contains(.shift)
+        return usesFineControl ? 4.0 : 1.0
+    }
     
     /// Handle a media key event
     /// Returns true if the event was handled (should be suppressed)
     /// Returns false if the event should pass through to the system
-    fileprivate func handleMediaKey(keyCode: UInt32, keyDown: Bool) -> Bool {
+    fileprivate func handleMediaKey(
+        keyCode: UInt32,
+        keyDown: Bool,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> Bool {
         let mouseLocation = NSEvent.mouseLocation
         let screenUnderMouse = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
+        let stepDivisor = self.stepDivisor(for: modifierFlags)
         
         let hudEnabled = UserDefaults.standard.preference(
             AppPreferenceKey.enableHUDReplacement,
@@ -277,14 +288,14 @@ final class MediaKeyInterceptor {
             case NX_KEYTYPE_SOUND_UP:
                 let previousVolume = VolumeManager.shared.rawVolume
                 let previousMuted = VolumeManager.shared.isMuted
-                VolumeManager.shared.increase(screenHint: screenUnderMouse)
+                VolumeManager.shared.increase(stepDivisor: stepDivisor, screenHint: screenUnderMouse)
                 self.playVolumeFeedbackIfNeeded(previousVolume: previousVolume, previousMuted: previousMuted)
                 self.onVolumeUp?()
                 
             case NX_KEYTYPE_SOUND_DOWN:
                 let previousVolume = VolumeManager.shared.rawVolume
                 let previousMuted = VolumeManager.shared.isMuted
-                VolumeManager.shared.decrease(screenHint: screenUnderMouse)
+                VolumeManager.shared.decrease(stepDivisor: stepDivisor, screenHint: screenUnderMouse)
                 self.playVolumeFeedbackIfNeeded(previousVolume: previousVolume, previousMuted: previousMuted)
                 self.onVolumeDown?()
                 
@@ -293,11 +304,11 @@ final class MediaKeyInterceptor {
                 self.onMute?()
                 
             case NX_KEYTYPE_BRIGHTNESS_UP:
-                BrightnessManager.shared.increase(screenHint: screenUnderMouse)
+                BrightnessManager.shared.increase(stepDivisor: stepDivisor, screenHint: screenUnderMouse)
                 self.onBrightnessUp?()
                 
             case NX_KEYTYPE_BRIGHTNESS_DOWN:
-                BrightnessManager.shared.decrease(screenHint: screenUnderMouse)
+                BrightnessManager.shared.decrease(stepDivisor: stepDivisor, screenHint: screenUnderMouse)
                 self.onBrightnessDown?()
                 
             default:
@@ -359,11 +370,13 @@ private func mediaKeyCallback(
     // Extract NSEvent data on main thread to avoid TSM Caps Lock crash
     var nsEventData1: Int = 0
     var nsEventSubtype: Int16 = 0
+    var nsEventModifierFlags: NSEvent.ModifierFlags = []
     
     DispatchQueue.main.sync {
         if let nsEvent = NSEvent(cgEvent: event) {
             nsEventData1 = nsEvent.data1
             nsEventSubtype = nsEvent.subtype.rawValue
+            nsEventModifierFlags = nsEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
         }
     }
     
@@ -419,7 +432,11 @@ private func mediaKeyCallback(
     let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
     
     // Handle the key event
-    if interceptor.handleMediaKey(keyCode: keyCode, keyDown: shouldProcess) {
+    if interceptor.handleMediaKey(
+        keyCode: keyCode,
+        keyDown: shouldProcess,
+        modifierFlags: nsEventModifierFlags
+    ) {
         // Return nil to suppress system HUD
         return nil
     }

@@ -356,13 +356,23 @@ final class DroppyState {
         let hasPhysicalNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
         let topInset = screen.safeAreaInsets.top
         let notchHeight = hasPhysicalNotch ? (topInset > 0 ? topInset : NotchLayoutConstants.physicalNotchHeight) : 0
-        let isDynamicIsland = !hasPhysicalNotch || UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
+        let isDynamicIsland = NotchLayoutConstants.usesDynamicIslandStyle(for: screen)
         let topPaddingDelta: CGFloat = isDynamicIsland ? 0 : (notchHeight - 20)
         let notchCompensation: CGFloat = isDynamicIsland ? 0 : notchHeight
         
         // Calculate ALL possible content heights
         let terminalHeight: CGFloat = 180 + topPaddingDelta
         let mediaPlayerHeight: CGFloat = 140 + topPaddingDelta
+        let telepromptyPromptHeightSetting = UserDefaults.standard.preference(
+            AppPreferenceKey.telepromptyPromptHeight,
+            default: PreferenceDefault.telepromptyPromptHeight
+        )
+        let telepromptyContentHeight: CGFloat = TelepromptyManager.shared.isPromptVisible
+            ? CGFloat(max(100, min(telepromptyPromptHeightSetting, 260))) + 56
+            : (TelepromptyManager.shared.isInlineEditorVisible ? 196 : 110)
+        let telepromptyHeight: CGFloat = TelepromptyManager.shared.isShelfViewVisible
+            ? (telepromptyContentHeight + 40 + topPaddingDelta)
+            : 0
 
         // TODO shelf bar contributes to expanded height and must be part of hit testing.
         let todoInstalled = UserDefaults.standard.preference(AppPreferenceKey.todoInstalled, default: PreferenceDefault.todoInstalled)
@@ -384,11 +394,11 @@ final class DroppyState {
             todoBarHeight > 0
         let shelfBaseHeight: CGFloat = shouldSkipBaseShelfHeight
             ? notchCompensation
-            : max(1, rowCount) * 110 + notchCompensation
+            : max(1, rowCount) * 116 + notchCompensation
         let shelfHeight: CGFloat = shelfBaseHeight + todoBarHeight
         
         // Use MAXIMUM of all possible heights - guarantees we cover the actual visual
-        var height = max(terminalHeight, max(mediaPlayerHeight, shelfHeight))
+        var height = max(terminalHeight, max(mediaPlayerHeight, max(shelfHeight, telepromptyHeight)))
 
         // Keep the expanded shadow fully visible.
         // Must match the extra bottom padding in NotchShelfView.morphingBackground.
@@ -409,8 +419,11 @@ final class DroppyState {
         let cameraInstalled = UserDefaults.standard.preference(AppPreferenceKey.cameraInstalled, default: PreferenceDefault.cameraInstalled)
         let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
         let cameraButtonVisible = cameraInstalled && cameraEnabled && !ExtensionType.camera.isRemoved
+        let telepromptyInstalled = UserDefaults.standard.preference(AppPreferenceKey.telepromptyInstalled, default: PreferenceDefault.telepromptyInstalled)
+        let telepromptyEnabled = UserDefaults.standard.preference(AppPreferenceKey.telepromptyEnabled, default: PreferenceDefault.telepromptyEnabled)
+        let telepromptyButtonVisible = telepromptyInstalled && telepromptyEnabled && !ExtensionType.teleprompty.isRemoved
         let isDragging = DragMonitor.shared.isDragging
-        let hasFloatingButtons = terminalButtonVisible || !autoCollapseEnabled || isDragging || caffeineButtonVisible || cameraButtonVisible
+        let hasFloatingButtons = terminalButtonVisible || !autoCollapseEnabled || isDragging || caffeineButtonVisible || cameraButtonVisible || telepromptyButtonVisible
         
         if hasFloatingButtons {
             // Reserve space for offset + button/bar size + hover/animation headroom.
@@ -436,23 +449,34 @@ final class DroppyState {
     // MARK: - Item Management (Shelf)
     
     /// Adds a new item to the shelf
-    func addItem(_ item: DroppedItem) {
+    /// - Parameter shouldAutoExpand: When false, keeps shelf collapsed for stacked-peek UX.
+    func addItem(_ item: DroppedItem, shouldAutoExpand: Bool = true) {
         // Check for Power Folder (pinned directory) -> DISABLED AUTO-PIN (User Request)
         // Folders are now treated as regular items unless manually pinned
         guard !shelfItems.contains(where: { $0.url == item.url }) else { return }
         shelfItems.append(item)
-        triggerAutoExpand()
+        if shouldAutoExpand {
+            triggerAutoExpand()
+        }
         HapticFeedback.drop()
     }
     
     /// Adds multiple items from file URLs
     /// PERFORMANCE: Uses isBulkAdding flag to skip per-item animations for bulk operations
     /// PERFORMANCE: Uses Set for O(1) duplicate checking instead of O(n) contains()
-    func addItems(from urls: [URL]) {
-        guard !urls.isEmpty else { return }
+    /// - Parameter shouldAutoExpand: When false, keeps shelf collapsed for stacked-peek UX.
+    func addItems(from urls: [URL], shouldAutoExpand: Bool = true) {
+        let droppedItems = urls.map { DroppedItem(url: $0) }
+        addItems(droppedItems, shouldAutoExpand: shouldAutoExpand)
+    }
+
+    /// Adds multiple pre-built dropped items to the shelf (preserves metadata like watched-folder source).
+    /// - Parameter shouldAutoExpand: When false, keeps shelf collapsed for stacked-peek UX.
+    func addItems(_ droppedItems: [DroppedItem], shouldAutoExpand: Bool = true) {
+        guard !droppedItems.isEmpty else { return }
         
         // PERFORMANCE: Skip per-item transitions for bulk adds (>3 items)
-        let isBulk = urls.count > 3
+        let isBulk = droppedItems.count > 3
         if isBulk {
             isBulkAdding = true
             isBulkUpdating = true
@@ -460,18 +484,20 @@ final class DroppyState {
         
         // PERFORMANCE: Build Set of existing URLs for O(1) lookup instead of O(n) contains()
         // This changes duplicate checking from O(n*m) to O(n+m)
-        let existingShelfURLs = Set(shelfItems.map(\.url))
-        let existingPowerFolderURLs = Set(shelfPowerFolders.map(\.url))
+        var existingShelfURLs = Set(shelfItems.map(\.url))
+        var existingPowerFolderURLs = Set(shelfPowerFolders.map(\.url))
         
         var regularItems: [DroppedItem] = []
-        regularItems.reserveCapacity(urls.count) // PERFORMANCE: Pre-allocate array
+        regularItems.reserveCapacity(droppedItems.count) // PERFORMANCE: Pre-allocate array
         
-        for url in urls {
+        for item in droppedItems {
             // O(1) duplicate check using Set
-            guard !existingShelfURLs.contains(url) && !existingPowerFolderURLs.contains(url) else {
+            guard !existingShelfURLs.contains(item.url) && !existingPowerFolderURLs.contains(item.url) else {
                 continue
             }
-            regularItems.append(DroppedItem(url: url))
+            regularItems.append(item)
+            existingShelfURLs.insert(item.url)
+            existingPowerFolderURLs.insert(item.url)
         }
         
         if !regularItems.isEmpty {
@@ -481,7 +507,9 @@ final class DroppyState {
                 withAnimation(DroppyAnimation.itemInsertion) {
                     shelfItems.append(contentsOf: regularItems)
                 }
-                triggerAutoExpand()
+                if shouldAutoExpand {
+                    triggerAutoExpand()
+                }
 
                 // Clear bulk flag after the insertion animation settles.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [weak self] in
@@ -492,7 +520,9 @@ final class DroppyState {
                 withAnimation(DroppyAnimation.state) {
                     shelfItems.append(contentsOf: regularItems)
                 }
-                triggerAutoExpand()
+                if shouldAutoExpand {
+                    triggerAutoExpand()
+                }
             }
             HapticFeedback.drop()
         } else if isBulk {
@@ -783,10 +813,16 @@ final class DroppyState {
     /// Adds multiple items to the basket from file URLs
     /// PERFORMANCE: Uses isBulkAdding flag to skip per-item animations for bulk operations
     func addBasketItems(from urls: [URL]) {
-        guard !urls.isEmpty else { return }
+        let droppedItems = urls.map { DroppedItem(url: $0) }
+        addBasketItems(droppedItems)
+    }
+
+    /// Adds multiple pre-built dropped items to the basket (preserves metadata like watched-folder source).
+    func addBasketItems(_ droppedItems: [DroppedItem]) {
+        guard !droppedItems.isEmpty else { return }
         
         // PERFORMANCE: Skip per-item transitions for bulk adds (>3 items)
-        let isBulk = urls.count > 3
+        let isBulk = droppedItems.count > 3
         if isBulk {
             isBulkAdding = true
             isBulkUpdating = true
@@ -796,14 +832,13 @@ final class DroppyState {
         
         var regularItems: [DroppedItem] = []
         var powerFolders: [DroppedItem] = []
-        regularItems.reserveCapacity(urls.count) // PERFORMANCE: Pre-allocate array
+        regularItems.reserveCapacity(droppedItems.count) // PERFORMANCE: Pre-allocate array
         
-        let existingURLs = Set(basketItemsList.map { $0.url } + basketPowerFolders.map { $0.url })
+        var existingURLs = Set(basketItemsList.map { $0.url } + basketPowerFolders.map { $0.url })
         
-        for url in urls {
-            guard !existingURLs.contains(url) else { continue }
-            
-            let item = DroppedItem(url: url)
+        for item in droppedItems {
+            guard !existingURLs.contains(item.url) else { continue }
+            existingURLs.insert(item.url)
             
             if item.isDirectory && enablePowerFolders {
                 powerFolders.append(item)

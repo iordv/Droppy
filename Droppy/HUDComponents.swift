@@ -9,6 +9,7 @@ struct HUDSlider: View {
     var hudType: HUDContentType = .volume  // PREMIUM: Determines green/yellow coloring
     var accentColor: Color = .white  // Kept for backwards compatibility, overridden by hudType
     var isMuted: Bool = false  // PREMIUM: When true, uses red color for muted volume
+    var percentageColor: Color = .white.opacity(0.85)
     var isActive: Bool = false
     var onChange: ((CGFloat) -> Void)?
     
@@ -50,7 +51,10 @@ struct HUDSlider: View {
             sliderTrack
             
             // PREMIUM: Animated percentage text with natural width
-            AnimatedPercentageText(value: value)
+            AnimatedPercentageText(
+                value: value,
+                foregroundColor: percentageColor
+            )
                 .fixedSize()  // Natural width - no extra padding
         }
         .frame(height: 20)
@@ -159,6 +163,7 @@ struct HUDSlider: View {
 /// PREMIUM: Animated percentage text with rolling number effect
 private struct AnimatedPercentageText: View {
     let value: CGFloat
+    let foregroundColor: Color
     
     /// Current percentage value (0-100)
     private var percentage: Int {
@@ -169,7 +174,7 @@ private struct AnimatedPercentageText: View {
         // PREMIUM: Rolling number animation effect
         Text("\(percentage)")
             .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white.opacity(0.85))
+            .foregroundStyle(foregroundColor)
             .monospacedDigit()
             .contentTransition(.numericText(value: Double(percentage)))
             .animation(DroppyAnimation.state, value: percentage)

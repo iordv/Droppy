@@ -1739,7 +1739,9 @@ final class MusicManager: ObservableObject {
             stopSpotifyPausedSourceReacquire()
         }
         
-        // Handle artwork on track/context changes and when the payload art itself changes.
+        // Handle artwork on track/source boundaries and when the payload art itself changes.
+        // If the source/track changes and we don't get decodable artwork, clear stale art.
+        let artworkBoundaryChanged = isTrackChange || sourceChanged
         if let base64Art = payload.artworkData, shouldAcceptArtworkForPayload {
             let contentItemChanged = payload.contentItemIdentifier != nil &&
                 payload.contentItemIdentifier != lastArtworkContentItemIdentifier
@@ -1748,17 +1750,26 @@ final class MusicManager: ObservableObject {
             let artworkFingerprint = fingerprintArtworkPayload(base64Art)
             let artworkPayloadChanged = artworkFingerprint != lastArtworkFingerprint
 
-            if isTrackChange || contentItemChanged || artworkTrackChanged || artworkPayloadChanged || hasNoArtwork,
-               let artData = Data(base64Encoded: base64Art),
-               let image = NSImage(data: artData) {
-                albumArt = image
-                lastArtworkTrackIdentity = incomingIdentity
-                lastArtworkContentItemIdentifier = payload.contentItemIdentifier
-                lastArtworkFingerprint = artworkFingerprint
+            if artworkBoundaryChanged || contentItemChanged || artworkTrackChanged || artworkPayloadChanged || hasNoArtwork {
+                if let artData = Data(base64Encoded: base64Art),
+                   let image = NSImage(data: artData),
+                   image.size.width > 0,
+                   image.size.height > 0 {
+                    albumArt = image
+                    lastArtworkTrackIdentity = incomingIdentity
+                    lastArtworkContentItemIdentifier = payload.contentItemIdentifier
+                    lastArtworkFingerprint = artworkFingerprint
+                } else if artworkBoundaryChanged {
+                    albumArt = NSImage()
+                    lastArtworkTrackIdentity = incomingIdentity
+                    lastArtworkContentItemIdentifier = payload.contentItemIdentifier
+                    lastArtworkFingerprint = nil
+                }
             }
-        } else if isTrackChange {
-            lastArtworkTrackIdentity = ""
-            lastArtworkContentItemIdentifier = nil
+        } else if artworkBoundaryChanged {
+            albumArt = NSImage()
+            lastArtworkTrackIdentity = incomingIdentity
+            lastArtworkContentItemIdentifier = payload.contentItemIdentifier
             lastArtworkFingerprint = nil
         }
         

@@ -20,7 +20,7 @@ struct AlfredExtension: ExtensionDefinition {
         ("keyboard", "Customizable keyboard shortcuts"),
         ("bolt.fill", "Instant file transfer"),
         ("folder.fill", "Works with files and folders"),
-        ("arrow.right.circle", "Opens workflow in Alfred")
+        ("arrow.forward.circle", "Opens workflow in Alfred")
     ]
     
     static var screenshotURL: URL? {

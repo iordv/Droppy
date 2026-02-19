@@ -44,15 +44,7 @@ private func isNotificationHUDActive(on displayID: CGDirectDisplayID) -> Bool {
 
 @inline(__always)
 private func notificationHUDUsesDynamicIsland(on screen: NSScreen) -> Bool {
-    let hasPhysicalNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-    let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
-
-    if !screen.isBuiltIn {
-        return (UserDefaults.standard.object(forKey: AppPreferenceKey.externalDisplayUseDynamicIsland) as? Bool) ?? true
-    }
-
-    let useDynamicIsland = (UserDefaults.standard.object(forKey: AppPreferenceKey.useDynamicIslandStyle) as? Bool) ?? true
-    return (!hasPhysicalNotch || forceTest) && useDynamicIsland
+    NotchLayoutConstants.usesDynamicIslandStyle(for: screen)
 }
 
 private func notificationHUDHeight(on screen: NSScreen, isDynamicIslandMode: Bool) -> CGFloat {
@@ -62,7 +54,10 @@ private func notificationHUDHeight(on screen: NSScreen, isDynamicIslandMode: Boo
         baseHeight = NotificationHUDHitZone.dynamicIslandHeight
     } else {
         let isExternalNotchStyle = !screen.isBuiltIn &&
-            !((UserDefaults.standard.object(forKey: AppPreferenceKey.externalDisplayUseDynamicIsland) as? Bool) ?? true)
+            !UserDefaults.standard.preference(
+                AppPreferenceKey.externalDisplayUseDynamicIsland,
+                default: PreferenceDefault.externalDisplayUseDynamicIsland
+            )
         if !isExternalNotchStyle {
             baseHeight = NotificationHUDHitZone.builtInNotchHeight
         } else {
@@ -154,6 +149,10 @@ final class NotchWindowController: NSObject, ObservableObject {
     /// Timer for auto-expand on hover
     private var autoExpandTimer: Timer?
     private var autoExpandTimerDisplayID: CGDirectDisplayID?
+    
+    /// One-shot latch for High Alert hover feedback (per display).
+    /// Prevents repeated haptics while cursor remains in the same blocked hover session.
+    private var highAlertHoverHapticFiredDisplays = Set<CGDirectDisplayID>()
     
     /// Monitor for scroll wheel events (2-finger swipe for media HUD toggle)
     private var scrollMonitor: Any?
@@ -351,6 +350,7 @@ final class NotchWindowController: NSObject, ObservableObject {
 
     private let shelfBaseWidth: CGFloat = 450
     private let todoSplitShelfWidth: CGFloat = 920
+    private let mediaAppleMusicExtraWidth: CGFloat = 50
     private let interactionWidthPadding: CGFloat = 80
     private let stableInteractionWindowWidth: CGFloat = 1000
 
@@ -358,21 +358,29 @@ final class NotchWindowController: NSObject, ObservableObject {
         screen.notchAlignedCenterX
     }
 
-    fileprivate func currentExpandedShelfWidth() -> CGFloat {
+    fileprivate func currentExpandedShelfWidth(on screen: NSScreen) -> CGFloat {
+        var width = shelfBaseWidth
+
+        if shouldUseMediaInteractionHeight(on: screen) {
+            let mediaWidth = shelfBaseWidth + (MusicManager.shared.isAppleMusicSource ? mediaAppleMusicExtraWidth : 0)
+            width = max(width, mediaWidth)
+        }
+
         if ToDoManager.shared.isShelfListExpanded &&
             ToDoManager.shared.isShelfSplitViewEnabled {
-            return max(shelfBaseWidth, todoSplitShelfWidth)
+            width = max(width, todoSplitShelfWidth)
         }
-        return shelfBaseWidth
+
+        return width
     }
 
-    fileprivate func expandedShelfInteractionZone(
+    func expandedShelfInteractionZone(
         for screen: NSScreen,
         horizontalPadding: CGFloat = 12,
         verticalPadding: CGFloat = 12
     ) -> NSRect {
         let usingMediaHeight = shouldUseMediaInteractionHeight(on: screen)
-        let expandedWidth = currentExpandedShelfWidth()
+        let expandedWidth = currentExpandedShelfWidth(on: screen)
         let centerX = effectiveShelfCenterX(for: screen)
         let expandedHeight = expandedShelfInteractionHeight(for: screen)
         let isTodoSplitExpanded = ToDoManager.shared.isShelfListExpanded &&
@@ -421,6 +429,11 @@ final class NotchWindowController: NSObject, ObservableObject {
             return false
         }
 
+        // Camera panel uses its own expanded layout and should keep full interaction height.
+        if CameraManager.shared.isRunning {
+            return false
+        }
+
         // To-do editing/list sessions should keep their own interaction zone.
         let todoManager = ToDoManager.shared
         if todoManager.isVisible || todoManager.isShelfListExpanded || todoManager.isEditingText || todoManager.isInteractingWithPopover {
@@ -461,7 +474,6 @@ final class NotchWindowController: NSObject, ObservableObject {
         let caffeineEnabled = UserDefaults.standard.preference(AppPreferenceKey.caffeineEnabled, default: PreferenceDefault.caffeineEnabled)
         let cameraInstalled = UserDefaults.standard.preference(AppPreferenceKey.cameraInstalled, default: PreferenceDefault.cameraInstalled)
         let cameraEnabled = UserDefaults.standard.preference(AppPreferenceKey.cameraEnabled, default: PreferenceDefault.cameraEnabled)
-
         let regularButtonsVisible = !dragging && (
             (terminalInstalled && terminalEnabled) ||
             (caffeineInstalled && caffeineEnabled) ||
@@ -768,16 +780,10 @@ final class NotchWindowController: NSObject, ObservableObject {
     
     /// Returns the current display mode label for menu (Notch vs Dynamic Island)
     var displayModeLabel: String {
-        // Check if any connected screen has a notch using auxiliary areas (stable on lock screen)
-        let screen = NSScreen.builtInWithNotch
-        let hasNotch = screen?.auxiliaryTopLeftArea != nil && screen?.auxiliaryTopRightArea != nil
-        let useDynamicIsland = (UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool) ?? true
-        
-        if hasNotch && !useDynamicIsland {
-            return "Notch"
-        } else {
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else {
             return "Dynamic Island"
         }
+        return NotchLayoutConstants.usesDynamicIslandStyle(for: screen) ? "Dynamic Island" : "Notch"
     }
     
     /// Repositions notch windows when screen configuration changes (dock/undock, resolution)
@@ -1042,6 +1048,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                 // CRITICAL: Use object() ?? true to match @AppStorage default for new users
                 let autoCollapseEnabled = (UserDefaults.standard.object(forKey: "autoCollapseShelf") as? Bool) ?? true
                 guard autoCollapseEnabled else { return }
+                guard !DroppyState.shared.isFileOperationInProgress else { return }
                 
                 // DELAYED CLOSE: Wait 150ms to see if a drag operation starts
                 // This prevents shelf from closing when user clicks to start dragging a file
@@ -1050,6 +1057,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                     guard !DragMonitor.shared.isDragging else { return }
                     guard !ToDoManager.shared.isInteractingWithPopover else { return }
                     guard !self.hasActivePopoverWindow() else { return }
+                    guard !DroppyState.shared.isFileOperationInProgress else { return }
                     guard DroppyState.shared.isExpanded(for: targetScreen.displayID) else { return }
                     
                     withAnimation(DroppyAnimation.notchState(for: targetScreen)) {
@@ -1237,6 +1245,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                     // CRITICAL: Use object() ?? true to match @AppStorage default for new users
                     let autoCollapseEnabled = (UserDefaults.standard.object(forKey: "autoCollapseShelf") as? Bool) ?? true
                     guard autoCollapseEnabled else { return event }
+                    guard !DroppyState.shared.isFileOperationInProgress else { return event }
                     
                     // DELAYED CLOSE: Wait 150ms to see if a drag operation starts
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
@@ -1244,6 +1253,7 @@ final class NotchWindowController: NSObject, ObservableObject {
                         guard !DragMonitor.shared.isDragging else { return }
                         guard !ToDoManager.shared.isInteractingWithPopover else { return }
                         guard !self.hasActivePopoverWindow() else { return }
+                        guard !DroppyState.shared.isFileOperationInProgress else { return }
                         guard DroppyState.shared.isExpanded(for: targetScreen.displayID) else { return }
                         
                         withAnimation(DroppyAnimation.notchState(for: targetScreen)) {
@@ -2119,43 +2129,88 @@ final class NotchWindowController: NSObject, ObservableObject {
         let enableNotchShelf = (UserDefaults.standard.object(forKey: "enableNotchShelf") as? Bool) ?? true
         
         for (displayID, window) in notchWindows {
+            guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { continue }
+
             // MOUSE EVENT VALIDATION
-            // Check if window is ignoring events when it shouldn't be
+            // Check if window is ignoring events when it shouldn't be.
+            // Keep this in sync with NotchWindow.updateMouseEventHandling() to
+            // avoid watchdog fighting normal hover/click-through behavior.
             if window.ignoresMouseEvents {
+                let mouseLocation = NSEvent.mouseLocation
                 let isExpanded = DroppyState.shared.isExpanded(for: displayID)
-                let isHovering = DroppyState.shared.isHovering(for: displayID)
+                let isDropTargeted = DroppyState.shared.isDropTargeted &&
+                    (DroppyState.shared.dropTargetDisplayID == nil || DroppyState.shared.dropTargetDisplayID == displayID)
+                let mouseIsDown = CGEventSource.buttonState(.combinedSessionState, button: .left)
+                let dragPasteboardHasTypes = !((NSPasteboard(name: .drag).types ?? []).isEmpty)
+                let probableExternalDrag = mouseIsDown && dragPasteboardHasTypes
+                let isDraggingFiles = DragMonitor.shared.isDragging || probableExternalDrag
                 let isNotificationHUDActiveOnDisplay = isNotificationHUDActive(on: displayID)
 
+                var isMouseInExpandedShelfZone = false
+                if isExpanded {
+                    let expandedZone = expandedShelfInteractionZone(for: screen)
+                    isMouseInExpandedShelfZone = expandedZone.contains(mouseLocation)
+                }
+
+                var isDragOverValidZone = false
+                if isDraggingFiles {
+                    let notchRect = window.getNotchRect()
+                    let dragZone = NSRect(
+                        x: notchRect.minX - 20,
+                        y: notchRect.minY,
+                        width: notchRect.width + 40,
+                        height: notchRect.height + 20
+                    )
+                    isDragOverValidZone = dragZone.contains(mouseLocation)
+
+                    if isExpanded && !isDragOverValidZone {
+                        let expandedZone = expandedShelfInteractionZone(for: screen)
+                        isDragOverValidZone = expandedZone.contains(mouseLocation)
+                    }
+                }
+
                 // Window SHOULD accept events when:
-                // 1. Shelf is expanded or hovering (and shelf is enabled)
+                // 1. Expanded/drop/drag interactions are active (and shelf is enabled)
                 // 2. Cursor is inside the visible NotificationHUD hit zone
-                let shelfNeedsEvents = enableNotchShelf && (isExpanded || isHovering)
+                // 3. Collapsed media/HUD surface is interactive while shelf is disabled
+                let shelfNeedsEvents = enableNotchShelf &&
+                    (isMouseInExpandedShelfZone || isDropTargeted || isDragOverValidZone)
                 let hudNeedsEvents: Bool = {
                     guard isNotificationHUDActiveOnDisplay,
-                          let screen = NSScreen.screens.first(where: { $0.displayID == displayID }),
                           let notificationZone = notificationHUDInteractionZone(on: screen) else {
                         return false
                     }
-                    return notificationZone.contains(NSEvent.mouseLocation)
+                    return notificationZone.contains(mouseLocation)
                 }()
+                let collapsedSurfaceNeedsEvents = !enableNotchShelf &&
+                    window.shouldAcceptCollapsedSurfaceEvents(at: mouseLocation)
+                let shouldAcceptEvents = shelfNeedsEvents || hudNeedsEvents || collapsedSurfaceNeedsEvents
 
-                if shelfNeedsEvents || hudNeedsEvents {
+                if shouldAcceptEvents {
                     // Throttle log to once per minute to avoid console spam
                     let now = Date()
                     if Self.lastWatchdogLogTime.map({ now.timeIntervalSince($0) > 60 }) ?? true {
-                        let reason = hudNeedsEvents ? "NotificationHUD hit zone" : "shelf expanded/hovering"
+                        let reason: String
+                        if hudNeedsEvents {
+                            reason = "NotificationHUD hit zone"
+                        } else if collapsedSurfaceNeedsEvents {
+                            reason = "collapsed media/HUD surface"
+                        } else if isDropTargeted {
+                            reason = "drop target active"
+                        } else if isDragOverValidZone {
+                            reason = "drag over valid drop zone"
+                        } else {
+                            reason = "expanded shelf interaction zone"
+                        }
                         print("⚠️ Watchdog: Self-healing - window stuck with ignoresMouseEvents=true (\(reason))")
                         Self.lastWatchdogLogTime = now
                     }
                     window.ignoresMouseEvents = false
-                    window.updateMouseEventHandling()
                 }
             }
             
             // SIZE STABILITY VALIDATION (Rock-Solid Final Safety Net)
             // Verify window matches expected size, self-heal if drifted
-            guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }) else { continue }
-            
             // Calculate what the size SHOULD be right now
             let correctHeight = calculateCorrectWindowHeight(for: screen)
             
@@ -2262,22 +2317,32 @@ final class NotchWindowController: NSObject, ObservableObject {
         // DEBUG: Log when timer is started
         notchDebugLog("🟢 startAutoExpandTimer CALLED for displayID: \(displayID?.description ?? "nil")")
         
-        cancelAutoExpandTimer() // Reset if already running
         let skipHighAlertHoverHUD = UserDefaults.standard.preference(
             AppPreferenceKey.caffeineInstantlyExpandShelfOnHover,
             default: PreferenceDefault.caffeineInstantlyExpandShelfOnHover
         )
+        let hapticDisplayID = displayID ?? 0
+        let highAlertBlocksAutoExpand = CaffeineManager.shared.isActive && !skipHighAlertHoverHUD
 
         // High Alert override: by default, active High Alert blocks hover auto-expand.
         // Users can opt out via High Alert settings to expand shelf directly on hover.
-        guard !CaffeineManager.shared.isActive || skipHighAlertHoverHUD else {
-            HapticFeedback.hover()
+        guard !highAlertBlocksAutoExpand else {
+            // If a timer was already running, stop it, but keep the one-shot latch.
+            cancelAutoExpandTimer(resetHighAlertHoverHaptic: false)
+            if !highAlertHoverHapticFiredDisplays.contains(hapticDisplayID) {
+                highAlertHoverHapticFiredDisplays.insert(hapticDisplayID)
+                HapticFeedback.hover()
+            }
             notchDebugLog("⏰ AUTO-EXPAND BLOCKED: High Alert is active")
             return
         }
+        // High Alert is not blocking this display anymore - re-arm for future blocked-hover sessions.
+        highAlertHoverHapticFiredDisplays.remove(hapticDisplayID)
         
         // CRITICAL: Use object() ?? true to match @AppStorage default for new users
         guard (UserDefaults.standard.object(forKey: "autoExpandShelf") as? Bool) ?? true else { return }
+        
+        cancelAutoExpandTimer(resetHighAlertHoverHaptic: false) // Reset if already running
 
         // Display-specific hover toggles.
         if let displayID = displayID,
@@ -2388,10 +2453,10 @@ final class NotchWindowController: NSObject, ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
     }
     
-    func cancelAutoExpandTimer() {
+    func cancelAutoExpandTimer(resetHighAlertHoverHaptic: Bool = true) {
         if !Thread.isMainThread {
             DispatchQueue.main.async { [weak self] in
-                self?.cancelAutoExpandTimer()
+                self?.cancelAutoExpandTimer(resetHighAlertHoverHaptic: resetHighAlertHoverHaptic)
             }
             return
         }
@@ -2401,6 +2466,9 @@ final class NotchWindowController: NSObject, ObservableObject {
         autoExpandTimer?.invalidate()
         autoExpandTimer = nil
         autoExpandTimerDisplayID = nil
+        if resetHighAlertHoverHaptic {
+            highAlertHoverHapticFiredDisplays.removeAll()
+        }
     }
 
     func ensureAutoExpandTimer(for displayID: CGDirectDisplayID) {
@@ -2651,20 +2719,19 @@ final class NotchWindowController: NSObject, ObservableObject {
 extension NSScreen {
     /// Returns the built-in display (the one with a notch), regardless of which screen is "main"
     static var builtInWithNotch: NSScreen? {
-        // CRITICAL: Use auxiliary areas to detect physical notch, NOT safeAreaInsets
-        // safeAreaInsets.top can be 0 on lock screen (no menu bar), but auxiliary areas
-        // are hardware-based and always present for notch MacBooks
-        if let notchScreen = NSScreen.screens.first(where: { 
-            $0.auxiliaryTopLeftArea != nil && $0.auxiliaryTopRightArea != nil 
+        if let notchScreen = NSScreen.screens.first(where: {
+            $0.displayID != 0 &&
+            CGDisplayIsBuiltin($0.displayID) != 0 &&
+            $0.auxiliaryTopLeftArea != nil &&
+            $0.auxiliaryTopRightArea != nil
         }) {
             return notchScreen
         }
-        // Fallback to safeAreaInsets check for compatibility
-        if let notchScreen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) {
-            return notchScreen
-        }
-        // Final fallback to built-in display (localizedName contains "Built-in" or similar)
-        return NSScreen.screens.first(where: { $0.localizedName.contains("Built-in") || $0.localizedName.contains("内蔵") })
+        return NSScreen.screens.first(where: {
+            ($0.localizedName.contains("Built-in") || $0.localizedName.contains("Internal") || $0.localizedName.contains("内蔵")) &&
+            $0.auxiliaryTopLeftArea != nil &&
+            $0.auxiliaryTopRightArea != nil
+        })
     }
     
     /// Returns ANY built-in display (with or without notch)
@@ -2672,15 +2739,15 @@ extension NSScreen {
     /// CRITICAL: Use this for MacBook Air compatibility (no notch models)
     static var builtIn: NSScreen? {
         // Primary: use CGDisplayIsBuiltin - works for ALL MacBooks
-        if let builtInScreen = NSScreen.screens.first(where: { CGDisplayIsBuiltin($0.displayID) != 0 }) {
+        if let builtInScreen = NSScreen.screens.first(where: { $0.displayID != 0 && CGDisplayIsBuiltin($0.displayID) != 0 }) {
             return builtInScreen
         }
-        // Fallback: try builtInWithNotch for notch models
-        if let notchScreen = builtInWithNotch {
-            return notchScreen
-        }
         // Last resort: check localized name
-        return NSScreen.screens.first(where: { $0.localizedName.contains("Built-in") || $0.localizedName.contains("内蔵") })
+        return NSScreen.screens.first(where: {
+            $0.localizedName.contains("Built-in") ||
+            $0.localizedName.contains("Internal") ||
+            $0.localizedName.contains("内蔵")
+        })
     }
 
     /// Check if a point (in global screen coordinates) is on this screen
@@ -2729,7 +2796,13 @@ extension NSScreen {
     /// Returns the Core Graphics display ID for this screen
     var displayID: CGDirectDisplayID {
         let key = NSDeviceDescriptionKey("NSScreenNumber")
-        return deviceDescription[key] as? CGDirectDisplayID ?? 0
+        if let number = deviceDescription[key] as? NSNumber {
+            return CGDirectDisplayID(number.uint32Value)
+        }
+        if let directID = deviceDescription[key] as? CGDirectDisplayID {
+            return directID
+        }
+        return 0
     }
     
     /// Returns true if this is the built-in MacBook display
@@ -2737,7 +2810,8 @@ extension NSScreen {
     var isBuiltIn: Bool {
         // CRITICAL: Use CGDisplayIsBuiltin - the reliable hardware-level API
         // This works for ALL MacBooks, including Air models without a notch
-        if CGDisplayIsBuiltin(displayID) != 0 {
+        let id = displayID
+        if id != 0 && CGDisplayIsBuiltin(id) != 0 {
             return true
         }
         // Fallback for edge cases: check localized name
@@ -2773,34 +2847,10 @@ class NotchWindow: NSPanel {
     }
 
     /// Whether the current screen should use Dynamic Island mode
-    /// For external displays: uses externalDisplayUseDynamicIsland setting (always DI since no physical notch)
-    /// For built-in display: uses useDynamicIslandStyle setting (only if no physical notch or force test)
+    /// External displays honor `externalDisplayUseDynamicIsland`.
+    /// Built-in displays honor `useDynamicIslandStyle` (with physical-notch and force-test rules).
     private var needsDynamicIsland: Bool {
-        // CRITICAL: Return false (notch mode) when screen is unavailable to prevent layout jumps
-        guard let screen = notchScreen else { return false }
-        // Use auxiliary areas for stable detection (works on lock screen)
-        let hasNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-        let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
-        
-        // External displays always use Dynamic Island (no physical notch)
-        // The setting determines if they show Notch style or Dynamic Island style
-        if !screen.isBuiltIn {
-            // Default to true for external displays - use DI style by default
-            // Check if the key exists, otherwise use default value of true
-            if UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") != nil {
-                return (UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool) ?? true
-            }
-            return true  // Default: use Dynamic Island on external displays
-        }
-        
-        // Built-in display uses main Dynamic Island setting
-        // Check if the key exists, otherwise use default value of true
-        var useDynamicIsland = true  // Default
-        if UserDefaults.standard.object(forKey: "useDynamicIslandStyle") != nil {
-            useDynamicIsland = (UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool) ?? true
-        }
-        // Use Dynamic Island if: no physical notch OR force test is enabled (and style is enabled)
-        return (!hasNotch || forceTest) && useDynamicIsland
+        NotchLayoutConstants.usesDynamicIslandStyle(for: notchScreen)
     }
     
     /// Dynamic Island dimensions
@@ -3336,7 +3386,10 @@ class NotchWindow: NSPanel {
         let displayID = targetDisplayID != 0 ? targetDisplayID : (notchScreen?.displayID ?? 0)
         let isExpanded = state.isExpanded(for: displayID)
         let isDropTargeted = state.isDropTargeted && (state.dropTargetDisplayID == nil || state.dropTargetDisplayID == displayID)
-        let isDraggingFiles = DragMonitor.shared.isDragging
+        let mouseIsDown = CGEventSource.buttonState(.combinedSessionState, button: .left)
+        let dragPasteboardHasTypes = !((NSPasteboard(name: .drag).types ?? []).isEmpty)
+        let probableExternalDrag = mouseIsDown && dragPasteboardHasTypes
+        let isDraggingFiles = DragMonitor.shared.isDragging || probableExternalDrag
         let mouseLocation = NSEvent.mouseLocation
         let resolvedScreen = notchScreen ?? NSScreen.screens.first(where: { $0.displayID == displayID })
 
@@ -3463,7 +3516,7 @@ class NotchWindow: NSPanel {
 
     /// Collapsed notch/island should still be interactive for media/HUD actions,
     /// even when the shelf feature is disabled.
-    private func shouldAcceptCollapsedSurfaceEvents(at mouseLocation: NSPoint) -> Bool {
+    fileprivate func shouldAcceptCollapsedSurfaceEvents(at mouseLocation: NSPoint) -> Bool {
         guard !NotchWindowController.shared.isTemporarilyHidden else { return false }
         guard alphaValue > 0.01 else { return false }
         guard collapsedInteractionRect().contains(mouseLocation) else { return false }

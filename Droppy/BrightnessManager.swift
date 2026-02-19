@@ -286,7 +286,7 @@ final class BrightnessManager: ObservableObject {
     private var mediaControlTargetMode: MediaControlTargetMode {
         let raw = UserDefaults.standard.string(forKey: AppPreferenceKey.mediaControlTargetMode)
             ?? PreferenceDefault.mediaControlTargetMode
-        return MediaControlTargetMode(rawValue: raw) ?? .mainMacBook
+        return MediaControlTargetMode(rawValue: raw) ?? .activeDisplay
     }
     
     /// Returns true when a built-in display is currently online.

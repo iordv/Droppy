@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Droppy — Features</title>
     <meta name="description"
-        content="Discover everything Droppy can do. File shelf, floating basket, clipboard manager, beautiful HUDs, media player, and 15+ modular extensions.">
+        content="Discover everything Droppy can do. File shelf, floating basket, clipboard manager, beautiful HUDs, media player, and 16+ modular extensions.">
     <link rel="icon" type="image/png" href="assets/app-icon.png">
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
@@ -256,6 +256,37 @@
             padding: 120px 24px;
             max-width: 1100px;
             margin: 0 auto;
+        }
+
+        .release-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .release-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .release-card h3 {
+            font-size: 20px;
+            margin-bottom: 14px;
+        }
+
+        .release-list {
+            margin-left: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .release-list li {
+            color: var(--secondary);
+            line-height: 1.45;
+            font-size: 14px;
         }
 
         .section-label {
@@ -782,6 +813,10 @@
                 gap: 40px;
             }
 
+            .release-grid {
+                grid-template-columns: 1fr;
+            }
+
             .feature-split.reverse {
                 direction: ltr;
             }
@@ -900,6 +935,73 @@
             Scroll to explore
         </div>
     </section>
+
+    <!-- ==========================================
+         LATEST RELEASE
+         ========================================== -->
+    <section class="feature-section">
+        <p class="section-label reveal">Latest Release</p>
+        <h2 class="section-title reveal">What’s New in v11.2.1</h2>
+        <p class="section-desc reveal">Major updates across Element Capture, Menu Bar Manager, HUD readability, Shelf/Basket performance, and tracked-folder reliability.</p>
+        <div class="release-grid">
+            <div class="release-card reveal-left">
+                <h3>New Features</h3>
+                <ul class="release-list">
+                    <li>Added screenshot step annotations: tap, enter number, done.</li>
+                    <li>Added beautiful screenshot-editor backgrounds with gradients, shadows, and independent corner-radius controls.</li>
+                    <li>Added magnifier tool (`M`) with source-point placement, dragging, resizing, and size-based zoom.</li>
+                    <li>Added picture-in-picture mode for Element Capture screenshot editing.</li>
+                    <li>Added meeting-link actions in Calendar + Task view.</li>
+                    <li>Added watched-folder origin labels and tracked capsule badges in Shelf/Basket.</li>
+                    <li>Expanded Element Capture menu into full capture-mode submenu + Configure.</li>
+                    <li>Expanded Window Snap menus to all snap actions, grouped + Configure.</li>
+                    <li>Added side-aware RTL support for Menu Manager/Floating Bar behavior.</li>
+                    <li>Added stale-notification filtering + payload deduplication for calendar bursts.</li>
+                    <li>Added internal quick-view fetch for installs/stars when opened via eye icon.</li>
+                    <li>Added Option+Shift quarter-step volume/brightness behavior (including Karabiner remaps).</li>
+                    <li>Added fallback to real app icon for dashed placeholders.</li>
+                    <li>Added WebP recognition in file-converter conversion options.</li>
+                </ul>
+            </div>
+            <div class="release-card reveal-right">
+                <h3>Bug Fixes + Performance</h3>
+                <ul class="release-list">
+                    <li>Fixed screen-detection edge cases and removed misleading desktop-Mac mode picker for external style controls.</li>
+                    <li>Fixed shelf/media open-close and click/drag hit handling consistency across shelf/controller/drag-container paths.</li>
+                    <li>Fixed Dock icon sizing in Settings to match menu-bar icon sizing.</li>
+                    <li>Fixed floating-bar icon tinting/readability by switching to adaptive label colors.</li>
+                    <li>Fixed stuck dim overlay after closing extension sheets.</li>
+                    <li>Fixed menu-window detection and dismissal reliability (including Escape fallback handling).</li>
+                    <li>Fixed wrong-screen menu-session persistence with divider-edge interactive-zone anchoring.</li>
+                    <li>Fixed floating-bar divider placement and hover persistence (no jumping/disappearing).</li>
+                    <li>Fixed white-on-white text issues across Notification HUD, media/HUD views, Caffeine/High Alert, terminal panel, and volume/brightness HUDs.</li>
+                    <li>Fixed settings icon renderer behavior for light/white modes.</li>
+                    <li>Fixed calendar positioning and day visibility/readability in dual/single/small modes.</li>
+                    <li>Fixed dynamic-island light-mode notification contrast.</li>
+                    <li>Fixed Menu Bar Manager open speed and right-click responsiveness.</li>
+                    <li>Fixed granted-permissions UI to use confirmed status badges.</li>
+                    <li>Fixed rehide settings flow to timed-only delay tuning.</li>
+                    <li>Fixed menu-bar settings hierarchy and text density for cleaner navigation.</li>
+                    <li>Fixed default media-key display targeting to pointer display.</li>
+                    <li>Fixed stale Spotify artwork persistence on source track changes without usable artwork.</li>
+                    <li>Fixed issue #267 so shelf actions are not interrupted by shelf dismissal.</li>
+                    <li>Fixed Notify Me queued-notification retry behavior when another HUD was active.</li>
+                    <li>Fixed tracked-item lifecycle with watched-folder metadata propagation + ghost-item cleanup + empty-basket close behavior.</li>
+                    <li>Fixed icon-menu responsiveness across all Droppy icons.</li>
+                    <li>Fixed expanded Shelf/Basket thumbnail sizing clarity.</li>
+                    <li>Fixed list-row render overhead by async file-size caching.</li>
+                    <li>Fixed Finder drop responsiveness by moving detection/copy off main thread.</li>
+                    <li>Fixed drag/render overhead by removing hot-path logging and redundant animation work.</li>
+                    <li>Fixed NotificationHUD cross-thread UI-state mutation risk.</li>
+                    <li>Fixed ToDo animation overhead via cached animation signatures.</li>
+                    <li>Fixed screenshot-editor toolbar density by collapsing sticker tools and cleaning color/thickness controls.</li>
+                    <li>Fixed RTL/accessibility symbol and shortcut-order consistency (including missed external-link icons from PR #261).</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <div class="divider"></div>
 
     <!-- ==========================================
          FEATURE 1: FILE SHELF
@@ -1188,7 +1290,7 @@
     <section class="showcase">
         <p class="section-label reveal">Modular Extensions</p>
         <h2 class="section-title reveal">Install only what you need.</h2>
-        <p class="section-desc reveal" style="margin: 0 auto 48px; text-align: center;">15+ extensions that add powerful
+        <p class="section-desc reveal" style="margin: 0 auto 48px; text-align: center;">16+ extensions that add powerful
             capabilities — from music control to AI background removal. All included with your license.</p>
 
         <div class="ext-grid stagger">
@@ -1323,7 +1425,7 @@
                     <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path d="M5 13l4 4L19 7" />
                     </svg>
-                    All 15+ extensions included
+                    All 16+ extensions included
                 </div>
                 <div class="price-feature">
                     <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -1381,7 +1483,7 @@
             <ul class="modal-perks">
                 <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path d="M5 13l4 4L19 7" />
-                    </svg> All core features & 15+ extensions</li>
+                    </svg> All core features & 16+ extensions</li>
                 <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path d="M5 13l4 4L19 7" />
                     </svg> Lifetime updates, no extra cost</li>

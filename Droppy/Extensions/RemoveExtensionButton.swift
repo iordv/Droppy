@@ -115,6 +115,8 @@ struct DisableExtensionButton: View {
             return "This will restore all hidden menu bar items and disable the manager. You can enable it again later."
         case .todo:
             return "This will disable the Todo extension. Your tasks will be preserved and you can enable it again later."
+        case .teleprompty:
+            return "This will disable Teleprompty and hide its shelf controls. Your saved script and settings stay preserved."
         }
     }
     

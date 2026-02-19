@@ -118,9 +118,30 @@ enum NotchLayoutConstants {
     /// Uses auxiliary areas for stable detection on lock screen
     /// CRITICAL: Returns false (notch mode) when screen is unavailable to prevent layout jumps
     static func isDynamicIslandMode(for screen: NSScreen?) -> Bool {
+        usesDynamicIslandStyle(for: screen)
+    }
+
+    /// Unified display-mode resolver used across shelf/HUD/window geometry.
+    /// External displays honor `externalDisplayUseDynamicIsland`.
+    /// Built-in displays honor `useDynamicIslandStyle`, but physical-notch Macs stay in notch mode
+    /// unless force-test is enabled.
+    static func usesDynamicIslandStyle(for screen: NSScreen?) -> Bool {
         guard let screen = screen else { return false }
+
+        if !screen.isBuiltIn {
+            return UserDefaults.standard.preference(
+                AppPreferenceKey.externalDisplayUseDynamicIsland,
+                default: PreferenceDefault.externalDisplayUseDynamicIsland
+            )
+        }
+
         let hasPhysicalNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-        return !hasPhysicalNotch
+        let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
+        let useDynamicIsland = UserDefaults.standard.preference(
+            AppPreferenceKey.useDynamicIslandStyle,
+            default: PreferenceDefault.useDynamicIslandStyle
+        )
+        return (!hasPhysicalNotch || forceTest) && useDynamicIsland
     }
     
     // MARK: - EdgeInsets Calculation
@@ -140,7 +161,10 @@ enum NotchLayoutConstants {
         let isExternalWithNotchStyle: Bool = {
             guard let s = targetScreen else { return false }
             if s.isBuiltIn { return false }
-            let externalUseDI = UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool ?? true
+            let externalUseDI = UserDefaults.standard.preference(
+                AppPreferenceKey.externalDisplayUseDynamicIsland,
+                default: PreferenceDefault.externalDisplayUseDynamicIsland
+            )
             return !externalUseDI
         }()
         

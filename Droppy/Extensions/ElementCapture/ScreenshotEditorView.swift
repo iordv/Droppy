@@ -2,7 +2,7 @@
 //  ScreenshotEditorView.swift
 //  Droppy
 //
-//  Screenshot annotation editor with arrows, shapes, blur, text, and sticker tools
+//  Screenshot annotation editor with arrows, shapes, blur, magnifier, text, and sticker tools
 //
 
 import SwiftUI
@@ -22,12 +22,15 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
     case freehand
     case highlighter
     case blur
+    case magnifier
+    case imageOverlay
     case text
     case cursorSticker
     case pointerSticker
     case cursorStickerCircled
     case pointerStickerCircled
     case typingIndicatorSticker
+    case numberSticker
     
     var id: String { rawValue }
     
@@ -41,18 +44,21 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         case .freehand: return "Freehand"
         case .highlighter: return "Highlighter"
         case .blur: return "Blur"
+        case .magnifier: return "Magnifier"
+        case .imageOverlay: return "Photo-in-Photo"
         case .text: return "Text"
         case .cursorSticker: return "Cursor Sticker"
         case .pointerSticker: return "Pointer Sticker"
         case .cursorStickerCircled: return "Cursor Sticker (Circle)"
         case .pointerStickerCircled: return "Pointer Sticker (Circle)"
         case .typingIndicatorSticker: return "Typing Indicator"
+        case .numberSticker: return "Number Sticker"
         }
     }
 
     var symbolName: String {
         switch self {
-        case .arrow: return "arrow.up.right"
+        case .arrow: return "arrow.up.forward"
         case .curvedArrow: return "arrow.uturn.up"
         case .line: return "line.diagonal"
         case .rectangle: return "rectangle"
@@ -60,10 +66,13 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         case .freehand: return "scribble"
         case .highlighter: return "highlighter"
         case .blur: return "eye.slash"
+        case .magnifier: return "magnifyingglass.circle"
+        case .imageOverlay: return "plus.rectangle.on.rectangle"
         case .text: return "textformat"
         case .cursorSticker, .cursorStickerCircled: return "cursorarrow"
         case .pointerSticker, .pointerStickerCircled: return "hand.point.up.left.fill"
         case .typingIndicatorSticker: return "ibeam"
+        case .numberSticker: return "number.circle.fill"
         }
     }
     
@@ -78,12 +87,15 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         case .freehand: return "f"
         case .highlighter: return "h"
         case .blur: return "b"
+        case .magnifier: return "m"
+        case .imageOverlay: return "g"
         case .text: return "t"
         case .cursorSticker: return "u"
         case .pointerSticker: return "p"
         case .cursorStickerCircled: return "i"
         case .pointerStickerCircled: return "k"
         case .typingIndicatorSticker: return "y"
+        case .numberSticker: return "n"
         }
     }
     
@@ -94,7 +106,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
     var isSticker: Bool {
         switch self {
-        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             return true
         default:
             return false
@@ -129,8 +141,159 @@ struct Annotation: Identifiable {
     var text: String = ""
     var font: String = "SF Pro"
     var blurStrength: CGFloat = 10  // For blur tool: lower = stronger pixelation (5-30)
+    // Magnifier radius stored at reference canvas scale; converted at render time.
+    var magnifierRadius: CGFloat = 0
+    // Signed perpendicular curve offset for arrow tools, stored at reference canvas scale.
+    var curveOffset: CGFloat = 0
+    // 2D control-point offset from arrow midpoint, stored at reference canvas scale.
+    var curveControlOffset: CGSize = .zero
+    var hasCustomCurveControl: Bool = false
+    // Image overlay source and corner style.
+    var imagePath: String = ""
+    var imageCornerRadius: CGFloat = 0
     // Canvas min-dimension when annotation was created, used to preserve visual scale across render sizes.
     var referenceCanvasMinDimension: CGFloat = 0
+}
+
+private enum MagnifierConfiguration {
+    static let baseMagnification: CGFloat = 2.0
+    static let maxMagnification: CGFloat = 6.0
+    static let zoomBoostRadiusScale: CGFloat = 2.8
+}
+
+private func defaultMagnifierRadius(forStrokeWidth strokeWidth: CGFloat) -> CGFloat {
+    max(34, strokeWidth * 10.5)
+}
+
+private func magnifierDisplayRadius(
+    for annotation: Annotation,
+    displayStrokeWidth: CGFloat,
+    containerMinDimension: CGFloat
+) -> CGFloat {
+    let fallback = defaultMagnifierRadius(forStrokeWidth: displayStrokeWidth)
+    guard annotation.magnifierRadius > 0 else { return fallback }
+    guard annotation.referenceCanvasMinDimension > 1, containerMinDimension > 1 else { return fallback }
+    return annotation.magnifierRadius * (containerMinDimension / annotation.referenceCanvasMinDimension)
+}
+
+private func magnifierStoredRadius(
+    fromDisplayRadius displayRadius: CGFloat,
+    annotation: Annotation,
+    containerMinDimension: CGFloat
+) -> CGFloat {
+    guard annotation.referenceCanvasMinDimension > 1, containerMinDimension > 1 else { return displayRadius }
+    return displayRadius * (annotation.referenceCanvasMinDimension / containerMinDimension)
+}
+
+private func magnifierMagnification(for lensRadius: CGFloat, defaultRadius: CGFloat) -> CGFloat {
+    guard defaultRadius > 0 else { return MagnifierConfiguration.baseMagnification }
+    let normalized = max(0.4, lensRadius / defaultRadius)
+    let progress = min(max((normalized - 1.0) / (MagnifierConfiguration.zoomBoostRadiusScale - 1.0), 0), 1)
+    return MagnifierConfiguration.baseMagnification
+        + progress * (MagnifierConfiguration.maxMagnification - MagnifierConfiguration.baseMagnification)
+}
+
+private enum ScreenshotBackgroundPreset: String, CaseIterable, Identifiable {
+    case midnight
+    case twilight
+    case ocean
+    case ember
+    case mint
+    case graphite
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .midnight: return "Midnight"
+        case .twilight: return "Twilight"
+        case .ocean: return "Ocean"
+        case .ember: return "Ember"
+        case .mint: return "Mint"
+        case .graphite: return "Graphite"
+        }
+    }
+
+    var gradient: LinearGradient {
+        switch self {
+        case .midnight:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.06, green: 0.09, blue: 0.16),
+                    Color(red: 0.09, green: 0.16, blue: 0.25),
+                    Color(red: 0.18, green: 0.10, blue: 0.24)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .twilight:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.16, green: 0.08, blue: 0.26),
+                    Color(red: 0.32, green: 0.16, blue: 0.44),
+                    Color(red: 0.74, green: 0.30, blue: 0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .ocean:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.05, green: 0.20, blue: 0.30),
+                    Color(red: 0.08, green: 0.36, blue: 0.55),
+                    Color(red: 0.17, green: 0.54, blue: 0.72)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .ember:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.25, green: 0.06, blue: 0.08),
+                    Color(red: 0.49, green: 0.13, blue: 0.10),
+                    Color(red: 0.84, green: 0.38, blue: 0.12)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .mint:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.04, green: 0.23, blue: 0.20),
+                    Color(red: 0.10, green: 0.38, blue: 0.33),
+                    Color(red: 0.36, green: 0.70, blue: 0.52)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .graphite:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.09, green: 0.09, blue: 0.10),
+                    Color(red: 0.15, green: 0.15, blue: 0.18),
+                    Color(red: 0.23, green: 0.23, blue: 0.26)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+}
+
+private enum ScreenshotBackgroundSource: String, CaseIterable, Identifiable {
+    case gradient
+    case currentWallpaper
+    case customWallpaper
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .gradient: return "Gradient"
+        case .currentWallpaper: return "Wallpaper"
+        case .customWallpaper: return "Custom"
+        }
+    }
 }
 
 private struct StickerLayout {
@@ -156,6 +319,8 @@ private enum StickerToolRenderer {
             return ["hand.point.up.left.fill", "hand.point.up.left", "hand.tap"]
         case .typingIndicatorSticker:
             return ["ibeam", "text.cursor", "textformat"]
+        case .numberSticker:
+            return ["number.circle.fill", "number.circle"]
         default:
             return []
         }
@@ -186,6 +351,14 @@ private enum StickerToolRenderer {
                 y: anchor.y - height / 2,
                 width: width,
                 height: height
+            )
+        case .numberSticker:
+            let diameter = base * 1.45
+            symbolRect = CGRect(
+                x: anchor.x - diameter / 2,
+                y: anchor.y - diameter / 2,
+                width: diameter,
+                height: diameter
             )
         default:
             symbolRect = CGRect(
@@ -489,6 +662,25 @@ struct ScreenshotEditorView: View {
     @State private var textPosition: CGPoint = .zero
     @State private var canvasSize: CGSize = .zero
     @State private var showingOutputMenu = false
+    @State private var showingCanvasStylePopover = false
+    @State private var showingStickerPickerPopover = false
+    @State private var isHoveringStickerPicker = false
+    @State private var isHoveringStickerPopover = false
+    @State private var showingColorPickerPopover = false
+    @State private var isHoveringColorPicker = false
+    @State private var isHoveringColorPopover = false
+    @State private var showingStrokePickerPopover = false
+    @State private var isHoveringStrokePicker = false
+    @State private var isHoveringStrokePopover = false
+    @State private var showingImageOverlayOptionsPopover = false
+    @State private var editorViewportSize: CGSize = .zero
+    @State private var editorFittedImageSize: CGSize = .zero
+    @State private var wallpaperBackgroundImage: NSImage?
+    @State private var customBackgroundImage: NSImage?
+    @State private var imageOverlaySelectedPath: String = ""
+    @State private var imageOverlayUseRoundedCorners = true
+    @State private var imageOverlayPreviewCache: [String: NSImage] = [:]
+    @State private var imageOverlayLoadingPaths: Set<String> = []
     
     // Zoom
     @State private var zoomScale: CGFloat = 1.0
@@ -504,6 +696,8 @@ struct ScreenshotEditorView: View {
     @State private var selectedAnnotationIndex: Int? = nil
     @State private var isDraggingAnnotation = false
     @State private var draggedAnnotationInitialPoints: [CGPoint] = []
+    @State private var pendingNumberStickerID: UUID?
+    @State private var annotationDragMode: AnnotationDragMode = .translate
     
     // Cropping
     @State private var isCropMode = false
@@ -521,6 +715,14 @@ struct ScreenshotEditorView: View {
     
     // Blur strength preference (5-30, lower = stronger pixelation)
     @AppStorage(AppPreferenceKey.editorBlurStrength) private var blurStrength = PreferenceDefault.editorBlurStrength
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundEnabled) private var editorBackgroundEnabled = PreferenceDefault.elementCaptureEditorBackgroundEnabled
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundPreset) private var editorBackgroundPresetRaw = PreferenceDefault.elementCaptureEditorBackgroundPreset
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundSource) private var editorBackgroundSourceRaw = PreferenceDefault.elementCaptureEditorBackgroundSource
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundCustomImagePath) private var editorBackgroundCustomImagePath = PreferenceDefault.elementCaptureEditorBackgroundCustomImagePath
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundPaddingRatio) private var editorBackgroundPaddingRatio = PreferenceDefault.elementCaptureEditorBackgroundPaddingRatio
+    @AppStorage(AppPreferenceKey.elementCaptureEditorBackgroundCornerRadius) private var editorBackgroundCornerRadius = PreferenceDefault.elementCaptureEditorBackgroundCornerRadius
+    @AppStorage(AppPreferenceKey.elementCaptureEditorScreenshotCornerRadius) private var editorScreenshotCornerRadius = PreferenceDefault.elementCaptureEditorScreenshotCornerRadius
+    @AppStorage(AppPreferenceKey.elementCaptureEditorScreenshotShadowStrength) private var editorScreenshotShadowStrength = PreferenceDefault.elementCaptureEditorScreenshotShadowStrength
     
     var body: some View {
         VStack(spacing: 0) {
@@ -529,115 +731,7 @@ struct ScreenshotEditorView: View {
             
             // Tools bar (scrollable)
             toolsBarContainer
-            
-            // Canvas with zoom support
-            GeometryReader { containerGeometry in
-                let availableSize = containerGeometry.size
-                let imageAspect = originalImage.size.width / originalImage.size.height
-                let containerAspect = availableSize.width / availableSize.height
-                
-                // Calculate size to fit image in container at 100%
-                let fittedSize: CGSize = {
-                    if imageAspect > containerAspect {
-                        // Image is wider than container
-                        let width = availableSize.width
-                        let height = width / imageAspect
-                        return CGSize(width: width, height: height)
-                    } else {
-                        // Image is taller than container
-                        let height = availableSize.height
-                        let width = height * imageAspect
-                        return CGSize(width: width, height: height)
-                    }
-                }()
-                
-                let scaledSize = CGSize(
-                    width: fittedSize.width * zoomScale,
-                    height: fittedSize.height * zoomScale
-                )
-                
-                ScrollView([.horizontal, .vertical], showsIndicators: true) {
-                    ZStack {
-                        // Background image
-                        Image(nsImage: originalImage)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: scaledSize.width, height: scaledSize.height)
-                        
-                        // Annotations canvas overlay
-                        AnnotationCanvas(
-                            annotations: annotations,
-                            currentAnnotation: currentAnnotation,
-                            originalImage: originalImage,
-                            imageSize: originalImage.size,
-                            containerSize: scaledSize
-                        )
-                        .frame(width: scaledSize.width, height: scaledSize.height)
-                        
-                        // Crop overlay (always visible when a crop exists so output scope is clear)
-                        if isCropMode || hasActiveCropSelection {
-                            CropSelectionOverlay(
-                                selectionRect: cropRect(for: scaledSize),
-                                isActive: isCropMode,
-                                dimensionText: cropDimensionText
-                            )
-                            .frame(width: scaledSize.width, height: scaledSize.height)
-                            .allowsHitTesting(false)
-                        }
-                    }
-                    .frame(width: scaledSize.width, height: scaledSize.height)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                if isCropMode {
-                                    handleCropDrag(value, in: scaledSize)
-                                } else {
-                                    handleDrag(value, in: scaledSize)
-                                }
-                            }
-                            .onEnded { value in
-                                if isCropMode {
-                                    handleCropDragEnd(value, in: scaledSize)
-                                } else {
-                                    handleDragEnd(value, in: scaledSize)
-                                }
-                            }
-                    )
-                    .onContinuousHover { phase in
-                        switch phase {
-                        case .active:
-                            updateCursor()
-                        case .ended:
-                            NSCursor.arrow.set()
-                        }
-                    }
-                }
-                .frame(width: availableSize.width, height: availableSize.height)
-                .simultaneousGesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            guard pinchZoomEnabled else { return }
-                            if pinchStartZoomScale == nil {
-                                pinchStartZoomScale = zoomScale
-                            }
-                            guard let base = pinchStartZoomScale else { return }
-                            zoomScale = clampedZoomScale(base * value)
-                        }
-                        .onEnded { _ in
-                            pinchStartZoomScale = nil
-                        }
-                )
-                .onAppear {
-                    applyInitialZoomIfNeeded(fittedSize: fittedSize)
-                    canvasSize = CGSize(
-                        width: fittedSize.width * zoomScale,
-                        height: fittedSize.height * zoomScale
-                    )
-                }
-            }
-            .background(useTransparentBackground ? Color.clear : AdaptiveColors.panelBackgroundAuto)
+            canvasViewport
         }
         .frame(minWidth: 600, idealWidth: 800, maxWidth: .infinity)
         .frame(minHeight: 400, idealHeight: 600, maxHeight: .infinity)
@@ -653,6 +747,9 @@ struct ScreenshotEditorView: View {
             updateCursor()
             didApplyInitialZoom = false
             pinchStartZoomScale = nil
+            refreshWallpaperBackgroundImage()
+            refreshCustomBackgroundImage()
+            preloadImageOverlays(for: annotations)
         }
         .onDisappear {
             removeKeyboardMonitor()
@@ -661,6 +758,15 @@ struct ScreenshotEditorView: View {
         .onChange(of: selectedTool) { _, _ in
             updateCursor()
             applyHighlighterDefaultColorIfNeeded()
+            if !selectedTool.isSticker {
+                showingStickerPickerPopover = false
+            }
+            if selectedTool != .imageOverlay {
+                showingImageOverlayOptionsPopover = false
+            }
+            if selectedTool != .numberSticker {
+                pendingNumberStickerID = nil
+            }
         }
         .onChange(of: isCropMode) { _, _ in
             if !isCropMode {
@@ -668,6 +774,100 @@ struct ScreenshotEditorView: View {
             }
             updateCursor()
         }
+        .onChange(of: editorBackgroundSourceRaw) { _, newValue in
+            if ScreenshotBackgroundSource(rawValue: newValue) == .currentWallpaper {
+                refreshWallpaperBackgroundImage()
+            }
+            if ScreenshotBackgroundSource(rawValue: newValue) == .customWallpaper {
+                refreshCustomBackgroundImage()
+            }
+        }
+        .onChange(of: editorBackgroundCustomImagePath) { _, _ in
+            refreshCustomBackgroundImage()
+        }
+        .onChange(of: annotationImageOverlayPathsSignature) { _, _ in
+            preloadImageOverlays(for: annotations)
+        }
+        .onChange(of: currentAnnotationImagePath) { _, newPath in
+            preloadImageOverlayIfNeeded(at: newPath)
+        }
+    }
+
+    private var currentAnnotationImagePath: String {
+        currentAnnotation?.imagePath ?? ""
+    }
+
+    private var annotationImageOverlayPathsSignature: String {
+        annotations
+            .filter { $0.tool == .imageOverlay }
+            .map(\.imagePath)
+            .joined(separator: "|")
+    }
+
+    private var canvasViewport: some View {
+        GeometryReader { containerGeometry in
+            let availableSize = containerGeometry.size
+            let imageAspect = originalImage.size.width / originalImage.size.height
+            let containerAspect = availableSize.width / availableSize.height
+
+            let fittedSize: CGSize = {
+                if imageAspect > containerAspect {
+                    let width = availableSize.width
+                    let height = width / imageAspect
+                    return CGSize(width: width, height: height)
+                } else {
+                    let height = availableSize.height
+                    let width = height * imageAspect
+                    return CGSize(width: width, height: height)
+                }
+            }()
+
+            let scaledSize = CGSize(
+                width: fittedSize.width * zoomScale,
+                height: fittedSize.height * zoomScale
+            )
+
+            ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                styledCanvasContent(
+                    imageSize: scaledSize,
+                    annotationImageSize: originalImage.size,
+                    includeCropOverlay: true,
+                    includeFloatingBadge: true,
+                    interactive: true
+                )
+            }
+            .frame(width: availableSize.width, height: availableSize.height)
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        guard pinchZoomEnabled else { return }
+                        if pinchStartZoomScale == nil {
+                            pinchStartZoomScale = zoomScale
+                        }
+                        guard let base = pinchStartZoomScale else { return }
+                        zoomScale = clampedZoomScale(base * value)
+                    }
+                    .onEnded { _ in
+                        pinchStartZoomScale = nil
+                    }
+            )
+            .onAppear {
+                applyInitialZoomIfNeeded(fittedSize: fittedSize)
+                canvasSize = CGSize(
+                    width: fittedSize.width * zoomScale,
+                    height: fittedSize.height * zoomScale
+                )
+                editorViewportSize = availableSize
+                editorFittedImageSize = fittedSize
+            }
+            .onChange(of: availableSize) { _, newValue in
+                editorViewportSize = newValue
+            }
+            .onChange(of: fittedSize) { _, newValue in
+                editorFittedImageSize = newValue
+            }
+        }
+        .background(useTransparentBackground ? Color.clear : AdaptiveColors.panelBackgroundAuto)
     }
     
     // MARK: - Keyboard Shortcuts
@@ -690,6 +890,11 @@ struct ScreenshotEditorView: View {
             // Check for modifier keys
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             let keyCode = Int(event.keyCode)
+
+            if let digit = digitInput(from: event, flags: flags), pendingNumberStickerID != nil {
+                applyPendingNumberStickerDigit(digit)
+                return nil
+            }
             
             // Check against each editor shortcut
             for (action, shortcut) in shortcuts {
@@ -704,12 +909,14 @@ struct ScreenshotEditorView: View {
                     case .freehand: selectedTool = .freehand; return nil
                     case .highlighter: selectedTool = .highlighter; return nil
                     case .blur: selectedTool = .blur; return nil
+                    case .magnifier: selectedTool = .magnifier; return nil
                     case .text: selectedTool = .text; return nil
                     case .cursorSticker: selectedTool = .cursorSticker; return nil
                     case .pointerSticker: selectedTool = .pointerSticker; return nil
                     case .cursorStickerCircled: selectedTool = .cursorStickerCircled; return nil
                     case .pointerStickerCircled: selectedTool = .pointerStickerCircled; return nil
                     case .typingIndicatorSticker: selectedTool = .typingIndicatorSticker; return nil
+                    case .numberSticker: selectedTool = .numberSticker; return nil
                     // Strokes
                     case .strokeSmall: strokeWidth = 2; return nil
                     case .strokeMedium: strokeWidth = 4; return nil
@@ -717,7 +924,7 @@ struct ScreenshotEditorView: View {
                     // Zoom
                     case .zoomIn: zoomScale = min(4.0, zoomScale + 0.25); return nil
                     case .zoomOut: zoomScale = max(0.25, zoomScale - 0.25); return nil
-                    case .zoomReset: zoomScale = 1.0; return nil
+                    case .zoomReset: fitCanvasToViewport(); return nil
                     // Actions  
                     case .undo: undo(); return nil
                     case .redo: redo(); return nil
@@ -735,6 +942,36 @@ struct ScreenshotEditorView: View {
             
             return event
         }
+    }
+
+    private func digitInput(from event: NSEvent, flags: NSEvent.ModifierFlags) -> Int? {
+        // Allow bare numeric keys (and Shift for top-row symbols on some layouts).
+        let nonDigitModifiers = flags.subtracting(.shift)
+        guard nonDigitModifiers.isEmpty else { return nil }
+        guard let chars = event.charactersIgnoringModifiers, chars.count == 1, let scalar = chars.unicodeScalars.first else {
+            return nil
+        }
+
+        let value = scalar.value
+        guard value >= 48 && value <= 57 else { return nil }
+        return Int(value - 48)
+    }
+
+    private func applyPendingNumberStickerDigit(_ digit: Int) {
+        guard let pendingNumberStickerID else { return }
+        guard let index = annotations.firstIndex(where: { $0.id == pendingNumberStickerID }) else {
+            self.pendingNumberStickerID = nil
+            return
+        }
+
+        guard annotations[index].tool == .numberSticker else {
+            self.pendingNumberStickerID = nil
+            return
+        }
+
+        annotations[index].text = String(digit)
+        self.pendingNumberStickerID = nil
+        HapticFeedback.select()
     }
     
     private func removeKeyboardMonitor() {
@@ -754,17 +991,39 @@ struct ScreenshotEditorView: View {
         
         // Use crosshair cursor for drawing tools
         switch selectedTool {
-        case .arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur:
+        case .arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .magnifier, .imageOverlay:
             NSCursor.crosshair.set()
         case .text:
             NSCursor.iBeam.set()
-        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             NSCursor.arrow.set()
         }
     }
 
     private func clampedZoomScale(_ value: CGFloat) -> CGFloat {
         min(4.0, max(0.25, value))
+    }
+
+    private func fitCanvasToViewport() {
+        zoomScale = fitZoomScale()
+    }
+
+    private func fitZoomScale() -> CGFloat {
+        guard editorFittedImageSize.width > 0, editorFittedImageSize.height > 0 else { return 1.0 }
+        guard editorViewportSize.width > 0, editorViewportSize.height > 0 else { return 1.0 }
+
+        let styledSize = styledCanvasFrameSize(for: editorFittedImageSize)
+        guard styledSize.width > 0, styledSize.height > 0 else { return 1.0 }
+
+        let widthScale = editorViewportSize.width / styledSize.width
+        let heightScale = editorViewportSize.height / styledSize.height
+        let fitScale = min(widthScale, heightScale, 1.0)
+        return clampedZoomScale(fitScale)
+    }
+
+    private func annotationReferenceMinDimension(for containerSize: CGSize) -> CGFloat {
+        let zoomIndependentSize = min(containerSize.width, containerSize.height) / max(zoomScale, 0.001)
+        return max(1, zoomIndependentSize)
     }
 
     private func applyInitialEditorColorIfNeeded() {
@@ -959,12 +1218,12 @@ struct ScreenshotEditorView: View {
             .disabled(zoomScale >= 4.0)
             .opacity(zoomScale >= 4.0 ? 0.4 : 1)
             
-            Button(action: { zoomScale = 1.0 }) {
+            Button(action: fitCanvasToViewport) {
                 Text("Fit")
                     .font(.system(size: 10, weight: .semibold))
             }
             .buttonStyle(DroppyCircleButtonStyle(size: 28))
-            .opacity(zoomScale == 1.0 ? 0.4 : 1)
+            .opacity(abs(zoomScale - fitZoomScale()) < 0.01 ? 0.4 : 1)
             
             toolbarDivider
             
@@ -1014,63 +1273,57 @@ struct ScreenshotEditorView: View {
             toolbarDivider
             
             // Tools
-            ForEach(AnnotationTool.allCases) { tool in
-                Button {
-                    isCropMode = false
-                    selectedTool = tool
-                } label: {
-                    toolIcon(for: tool)
-                }
-                .buttonStyle(DroppyToggleButtonStyle(
-                    isOn: selectedTool == tool,
-                    size: 28,
-                    cornerRadius: 14,
-                    accentColor: .yellow
-                ))
-                .help(tool.tooltipWithShortcut)
-            }
-            
-            toolbarDivider
-            
-            // Colors
-            HStack(spacing: 4) {
-                ForEach(colors, id: \.self) { color in
-                    Circle()
-                        .fill(color)
-                        .frame(width: 18, height: 18)
-                        .overlay(
-                            Circle()
-                                .stroke(AdaptiveColors.overlayAuto(0.24), lineWidth: 0.8)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(selectedColor == color ? AdaptiveColors.primaryTextAuto : Color.clear, lineWidth: 2)
-                        )
-                        .scaleEffect(selectedColor == color ? 1.1 : 1.0)
-                        .animation(.easeOut(duration: 0.1), value: selectedColor)
-                        .onTapGesture {
-                            selectedColor = color
-                        }
-                }
-            }
-            
-            toolbarDivider
-            
-            HStack(spacing: 6) {
-                ForEach(strokeWidths, id: \.0) { width, name in
+            ForEach(toolbarPrimaryTools) { tool in
+                if tool == .imageOverlay {
                     Button {
-                        strokeWidth = width
+                        isCropMode = false
+                        let wasSelected = (selectedTool == .imageOverlay)
+                        selectedTool = .imageOverlay
+                        showingStickerPickerPopover = false
+                        showingColorPickerPopover = false
+                        showingStrokePickerPopover = false
+                        showingImageOverlayOptionsPopover = wasSelected ? !showingImageOverlayOptionsPopover : true
                     } label: {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(strokeWidth == width ? Color.yellow : AdaptiveColors.overlayAuto(0.5))
-                            .frame(width: 22, height: width + 4)
+                        toolIcon(for: tool)
                     }
-                    .buttonStyle(.plain)
-                    .frame(width: 28, height: 28) // Larger hit target
-                    .contentShape(Rectangle())
-                    .help(name)
+                    .buttonStyle(DroppyToggleButtonStyle(
+                        isOn: selectedTool == .imageOverlay || showingImageOverlayOptionsPopover,
+                        size: 28,
+                        cornerRadius: 14,
+                        accentColor: .yellow
+                    ))
+                    .help(tool.tooltipWithShortcut)
+                    .popover(isPresented: $showingImageOverlayOptionsPopover, arrowEdge: .top) {
+                        imageOverlayOptionsPopover
+                    }
+                } else {
+                    Button {
+                        isCropMode = false
+                        selectedTool = tool
+                        showingStickerPickerPopover = false
+                        showingImageOverlayOptionsPopover = false
+                    } label: {
+                        toolIcon(for: tool)
+                    }
+                    .buttonStyle(DroppyToggleButtonStyle(
+                        isOn: selectedTool == tool,
+                        size: 28,
+                        cornerRadius: 14,
+                        accentColor: .yellow
+                    ))
+                    .help(tool.tooltipWithShortcut)
                 }
             }
+
+            stickerPickerControl
+            
+            toolbarDivider
+            
+            colorPickerControl
+            
+            toolbarDivider
+            
+            strokeWidthPickerControl
             
             toolbarDivider
             
@@ -1100,6 +1353,25 @@ struct ScreenshotEditorView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             .help("Font: \(selectedFont)")
+
+            toolbarDivider
+
+            Button {
+                showingCanvasStylePopover.toggle()
+            } label: {
+                Image(systemName: "paintpalette")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .buttonStyle(DroppyToggleButtonStyle(
+                isOn: editorBackgroundEnabled,
+                size: 28,
+                cornerRadius: 14,
+                accentColor: .blue
+            ))
+            .help("Background Style")
+            .popover(isPresented: $showingCanvasStylePopover, arrowEdge: .top) {
+                canvasStylePopover
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1112,11 +1384,1005 @@ struct ScreenshotEditorView: View {
         }
         .background(useTransparentBackground ? AdaptiveColors.overlayAuto(0.04) : AdaptiveColors.buttonBackgroundAuto)
     }
+
+    private var numberStickerFloatingBadge: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "number.circle.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.yellow)
+            Text("Click the screenshot to place a sticker, then tap a number")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.82))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 2)
+    }
+
+    private var magnifierFloatingBadge: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass.circle.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.yellow)
+            Text("Drag the magnifier edge to resize and increase zoom")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.82))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 2)
+    }
+
+    private var imageOverlayFloatingBadge: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.rectangle.on.rectangle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.yellow)
+            Text("Tap Add Photo, then click to place or drag to size")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(AdaptiveColors.panelBackgroundAuto.opacity(0.82))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.16), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 2)
+    }
     
     private var toolbarDivider: some View {
         Rectangle()
             .fill(AdaptiveColors.overlayAuto(0.1))
             .frame(width: 1, height: 22)
+    }
+
+    private var toolbarPrimaryTools: [AnnotationTool] {
+        AnnotationTool.allCases.filter { !$0.isSticker }
+    }
+
+    private var stickerTools: [AnnotationTool] {
+        AnnotationTool.allCases.filter { $0.isSticker }
+    }
+
+    private var stickerPickerControl: some View {
+        let previewTool = selectedTool.isSticker ? selectedTool : (stickerTools.first ?? .cursorSticker)
+
+        return Button {
+            showingColorPickerPopover = false
+            showingStrokePickerPopover = false
+            showingStickerPickerPopover.toggle()
+        } label: {
+            toolIcon(for: previewTool)
+        }
+        .buttonStyle(DroppyToggleButtonStyle(
+            isOn: selectedTool.isSticker || showingStickerPickerPopover,
+            size: 28,
+            cornerRadius: 14,
+            accentColor: .yellow
+        ))
+        .help(selectedTool.isSticker ? selectedTool.tooltipWithShortcut : "Stickers")
+        .onHover { hovering in
+            isHoveringStickerPicker = hovering
+            if hovering {
+                showingColorPickerPopover = false
+                showingStrokePickerPopover = false
+                showingStickerPickerPopover = true
+            } else {
+                scheduleStickerPickerPopoverClose()
+            }
+        }
+        .popover(isPresented: $showingStickerPickerPopover, arrowEdge: .top) {
+            HStack(spacing: 6) {
+                ForEach(stickerTools) { tool in
+                    Button {
+                        isCropMode = false
+                        selectedTool = tool
+                        showingStickerPickerPopover = false
+                    } label: {
+                        toolIcon(for: tool)
+                            .frame(width: 16, height: 16)
+                            .padding(6)
+                            .background(
+                                Circle()
+                                    .fill(selectedTool == tool ? Color.yellow.opacity(0.28) : AdaptiveColors.overlayAuto(0.12))
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        selectedTool == tool ? Color.yellow : AdaptiveColors.overlayAuto(0.24),
+                                        lineWidth: selectedTool == tool ? 1.2 : 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .help(tool.tooltipWithShortcut)
+                }
+            }
+            .padding(10)
+            .droppyTransparentBackground(useTransparentBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                    .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.20 : 0.10), lineWidth: 1)
+            )
+            .onHover { hovering in
+                isHoveringStickerPopover = hovering
+                if !hovering {
+                    scheduleStickerPickerPopoverClose()
+                }
+            }
+        }
+    }
+
+    private var colorPickerControl: some View {
+        Button {
+            showingStrokePickerPopover = false
+            showingStickerPickerPopover = false
+            showingColorPickerPopover.toggle()
+        } label: {
+            Circle()
+                .fill(selectedColor)
+                .frame(width: 16, height: 16)
+                .overlay(
+                    Circle()
+                        .stroke(AdaptiveColors.overlayAuto(0.25), lineWidth: 0.8)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(AdaptiveColors.primaryTextAuto.opacity(0.85), lineWidth: 1.4)
+                )
+        }
+        .buttonStyle(DroppyCircleButtonStyle(size: 28))
+        .help("Color")
+        .onHover { hovering in
+            isHoveringColorPicker = hovering
+            if hovering {
+                showingStrokePickerPopover = false
+                showingStickerPickerPopover = false
+                showingColorPickerPopover = true
+            } else {
+                scheduleColorPickerPopoverClose()
+            }
+        }
+        .popover(isPresented: $showingColorPickerPopover, arrowEdge: .top) {
+            HStack(spacing: 6) {
+                ForEach(colors, id: \.self) { color in
+                    Button {
+                        selectedColor = color
+                        showingColorPickerPopover = false
+                    } label: {
+                        Circle()
+                            .fill(color)
+                            .frame(width: 20, height: 20)
+                            .overlay(
+                                Circle()
+                                    .stroke(AdaptiveColors.overlayAuto(0.3), lineWidth: 0.8)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        selectedColor == color ? AdaptiveColors.primaryTextAuto : Color.clear,
+                                        lineWidth: 2
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+            .droppyTransparentBackground(useTransparentBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                    .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.20 : 0.10), lineWidth: 1)
+            )
+            .onHover { hovering in
+                isHoveringColorPopover = hovering
+                if !hovering {
+                    scheduleColorPickerPopoverClose()
+                }
+            }
+        }
+    }
+
+    private var strokeWidthPickerControl: some View {
+        Button {
+            showingColorPickerPopover = false
+            showingStickerPickerPopover = false
+            showingStrokePickerPopover.toggle()
+        } label: {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(AdaptiveColors.primaryTextAuto.opacity(0.9))
+                .frame(width: 16, height: max(3, min(strokeWidth + 1.5, 9)))
+        }
+        .buttonStyle(DroppyCircleButtonStyle(size: 28))
+        .help("Stroke: \(selectedStrokeWidthLabel)")
+        .onHover { hovering in
+            isHoveringStrokePicker = hovering
+            if hovering {
+                showingColorPickerPopover = false
+                showingStickerPickerPopover = false
+                showingStrokePickerPopover = true
+            } else {
+                scheduleStrokePickerPopoverClose()
+            }
+        }
+        .popover(isPresented: $showingStrokePickerPopover, arrowEdge: .top) {
+            HStack(spacing: 6) {
+                ForEach(strokeWidths, id: \.0) { width, name in
+                    Button {
+                        strokeWidth = width
+                        showingStrokePickerPopover = false
+                    } label: {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(strokeWidth == width ? Color.yellow : AdaptiveColors.overlayAuto(0.5))
+                            .frame(width: 24, height: width + 5)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                    .stroke(
+                                        strokeWidth == width ? AdaptiveColors.primaryTextAuto.opacity(0.28) : Color.clear,
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 30, height: 28)
+                    .help(name)
+                }
+            }
+            .padding(10)
+            .droppyTransparentBackground(useTransparentBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                    .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.20 : 0.10), lineWidth: 1)
+            )
+            .onHover { hovering in
+                isHoveringStrokePopover = hovering
+                if !hovering {
+                    scheduleStrokePickerPopoverClose()
+                }
+            }
+        }
+    }
+
+    private var imageOverlayOptionsPopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Photo-in-Photo")
+                .font(.system(size: 13, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(imageOverlayFilename)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Button("Choose Image…") {
+                    if let path = chooseImageOverlayFile() {
+                        imageOverlaySelectedPath = path
+                        preloadImageOverlayIfNeeded(at: path)
+                    }
+                }
+                .buttonStyle(DroppyPillButtonStyle(size: .small))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Corners")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    imageOverlayOptionPickerCard(
+                        title: "Rounded",
+                        systemImage: "capsule",
+                        isSelected: imageOverlayUseRoundedCorners
+                    ) {
+                        imageOverlayUseRoundedCorners = true
+                    }
+                    imageOverlayOptionPickerCard(
+                        title: "Square",
+                        systemImage: "square",
+                        isSelected: !imageOverlayUseRoundedCorners
+                    ) {
+                        imageOverlayUseRoundedCorners = false
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 260)
+        .droppyTransparentBackground(useTransparentBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(useTransparentBackground ? 0.20 : 0.10), lineWidth: 1)
+        )
+    }
+
+    private var imageOverlayFilename: String {
+        guard !imageOverlaySelectedPath.isEmpty else { return "No image selected" }
+        return URL(fileURLWithPath: imageOverlaySelectedPath).lastPathComponent
+    }
+
+    @ViewBuilder
+    private func imageOverlayOptionPickerCard(
+        title: String,
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isSelected ? Color.blue : AdaptiveColors.primaryTextAuto.opacity(0.86))
+            .frame(maxWidth: .infinity, minHeight: 34)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AdaptiveColors.overlayAuto(0.14),
+                                AdaptiveColors.overlayAuto(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(
+                        isSelected ? Color.blue.opacity(0.95) : AdaptiveColors.overlayAuto(0.12),
+                        lineWidth: isSelected ? 1.6 : 1
+                    )
+            )
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.blue)
+                        .padding(5)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var selectedStrokeWidthLabel: String {
+        if let exact = strokeWidths.first(where: { abs($0.0 - strokeWidth) < 0.01 }) {
+            return exact.1
+        }
+        return "\(Int(strokeWidth.rounded()))"
+    }
+
+    private func scheduleColorPickerPopoverClose() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            if !isHoveringColorPicker && !isHoveringColorPopover {
+                showingColorPickerPopover = false
+            }
+        }
+    }
+
+    private func scheduleStrokePickerPopoverClose() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            if !isHoveringStrokePicker && !isHoveringStrokePopover {
+                showingStrokePickerPopover = false
+            }
+        }
+    }
+
+    private func scheduleStickerPickerPopoverClose() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
+            if !isHoveringStickerPicker && !isHoveringStickerPopover {
+                showingStickerPickerPopover = false
+            }
+        }
+    }
+
+    private var selectedBackgroundPreset: ScreenshotBackgroundPreset {
+        ScreenshotBackgroundPreset(rawValue: editorBackgroundPresetRaw) ?? .midnight
+    }
+
+    private var selectedBackgroundPresetBinding: Binding<ScreenshotBackgroundPreset> {
+        Binding(
+            get: { selectedBackgroundPreset },
+            set: { editorBackgroundPresetRaw = $0.rawValue }
+        )
+    }
+
+    private var selectedBackgroundSource: ScreenshotBackgroundSource {
+        ScreenshotBackgroundSource(rawValue: editorBackgroundSourceRaw) ?? .gradient
+    }
+
+    private var selectedBackgroundSourceBinding: Binding<ScreenshotBackgroundSource> {
+        Binding(
+            get: { selectedBackgroundSource },
+            set: { editorBackgroundSourceRaw = $0.rawValue }
+        )
+    }
+
+    private var selectedBackgroundImage: NSImage? {
+        switch selectedBackgroundSource {
+        case .gradient:
+            return nil
+        case .currentWallpaper:
+            return wallpaperBackgroundImage
+        case .customWallpaper:
+            return customBackgroundImage
+        }
+    }
+
+    private var customBackgroundImageFilename: String {
+        guard !editorBackgroundCustomImagePath.isEmpty else { return "No image selected" }
+        return URL(fileURLWithPath: editorBackgroundCustomImagePath).lastPathComponent
+    }
+
+    private var clampedBackgroundPaddingRatio: Double {
+        min(max(editorBackgroundPaddingRatio, 0), 0.35)
+    }
+
+    private var clampedBackgroundCornerRadius: CGFloat {
+        CGFloat(min(max(editorBackgroundCornerRadius, 0), 220))
+    }
+
+    private var clampedScreenshotCornerRadius: CGFloat {
+        CGFloat(min(max(editorScreenshotCornerRadius, 0), 180))
+    }
+
+    private var clampedScreenshotShadowStrength: Double {
+        min(max(editorScreenshotShadowStrength, 0), 1)
+    }
+
+    private var screenshotShadowStyle: (opacity: Double, radius: CGFloat, y: CGFloat) {
+        let strength = clampedScreenshotShadowStrength
+        return (
+            opacity: 0.14 + (0.40 * strength),
+            radius: 8 + (28 * strength),
+            y: 2 + (10 * strength)
+        )
+    }
+
+    private func canvasPadding(for imageSize: CGSize) -> CGFloat {
+        guard editorBackgroundEnabled else { return 0 }
+        let baseDimension = max(1, min(imageSize.width, imageSize.height))
+        return baseDimension * CGFloat(clampedBackgroundPaddingRatio)
+    }
+
+    private func styledCanvasFrameSize(for imageSize: CGSize) -> CGSize {
+        let padding = canvasPadding(for: imageSize)
+        return CGSize(
+            width: imageSize.width + (padding * 2),
+            height: imageSize.height + (padding * 2)
+        )
+    }
+
+    private func resetCanvasStyleSettings() {
+        editorBackgroundPresetRaw = PreferenceDefault.elementCaptureEditorBackgroundPreset
+        editorBackgroundSourceRaw = PreferenceDefault.elementCaptureEditorBackgroundSource
+        editorBackgroundCustomImagePath = PreferenceDefault.elementCaptureEditorBackgroundCustomImagePath
+        editorBackgroundPaddingRatio = PreferenceDefault.elementCaptureEditorBackgroundPaddingRatio
+        editorBackgroundCornerRadius = PreferenceDefault.elementCaptureEditorBackgroundCornerRadius
+        editorScreenshotCornerRadius = PreferenceDefault.elementCaptureEditorScreenshotCornerRadius
+        editorScreenshotShadowStrength = PreferenceDefault.elementCaptureEditorScreenshotShadowStrength
+        refreshWallpaperBackgroundImage()
+        refreshCustomBackgroundImage()
+    }
+
+    private func refreshWallpaperBackgroundImage() {
+        guard let screen = NSScreen.main ?? NSScreen.screens.first,
+              let wallpaperURL = NSWorkspace.shared.desktopImageURL(for: screen),
+              let wallpaper = NSImage(contentsOf: wallpaperURL) else {
+            wallpaperBackgroundImage = nil
+            return
+        }
+        wallpaperBackgroundImage = wallpaper
+    }
+
+    private func refreshCustomBackgroundImage() {
+        let path = editorBackgroundCustomImagePath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            customBackgroundImage = nil
+            return
+        }
+        customBackgroundImage = NSImage(contentsOfFile: path)
+    }
+
+    private func chooseCustomBackgroundImage() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Background Image"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.image]
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        editorBackgroundCustomImagePath = url.path
+        editorBackgroundSourceRaw = ScreenshotBackgroundSource.customWallpaper.rawValue
+        refreshCustomBackgroundImage()
+    }
+
+    private func clearCustomBackgroundImage() {
+        editorBackgroundCustomImagePath = ""
+        customBackgroundImage = nil
+    }
+
+    private var canvasStylePopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Background Style")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button("Reset") {
+                    resetCanvasStyleSettings()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+            }
+
+            Toggle("Enable styled background", isOn: $editorBackgroundEnabled)
+                .toggleStyle(.switch)
+
+            if editorBackgroundEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Background")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        canvasBackgroundSourceCard(.gradient)
+                        canvasBackgroundSourceCard(.currentWallpaper)
+                        canvasBackgroundSourceCard(.customWallpaper)
+                    }
+                }
+
+                if selectedBackgroundSource == .gradient {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Gradient")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                            ForEach(ScreenshotBackgroundPreset.allCases) { preset in
+                                Button {
+                                    selectedBackgroundPresetBinding.wrappedValue = preset
+                                } label: {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(preset.gradient)
+                                        .frame(height: 30)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .stroke(
+                                                    selectedBackgroundPreset == preset ? Color.white.opacity(0.95) : Color.white.opacity(0.2),
+                                                    lineWidth: selectedBackgroundPreset == preset ? 2 : 1
+                                                )
+                                        )
+                                        .overlay(alignment: .bottomLeading) {
+                                            Text(preset.title)
+                                                .font(.system(size: 9, weight: .semibold))
+                                                .foregroundStyle(Color.white.opacity(0.95))
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 3)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                } else if selectedBackgroundSource == .currentWallpaper {
+                    HStack(spacing: 8) {
+                        Text("Uses your current macOS wallpaper.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            refreshWallpaperBackgroundImage()
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help("Refresh wallpaper")
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let image = customBackgroundImage {
+                            Image(nsImage: image)
+                                .resizable()
+                                .interpolation(.high)
+                                .scaledToFill()
+                                .frame(height: 54)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(AdaptiveColors.overlayAuto(0.18), lineWidth: 1)
+                                )
+                        }
+                        HStack(spacing: 8) {
+                            Text(customBackgroundImageFilename)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                            if !editorBackgroundCustomImagePath.isEmpty {
+                                Button("Clear") {
+                                    clearCustomBackgroundImage()
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                        Button("Choose Image…") {
+                            chooseCustomBackgroundImage()
+                        }
+                        .buttonStyle(DroppyPillButtonStyle(size: .small))
+
+                        if customBackgroundImage == nil {
+                            Text("No custom image loaded. Gradient fallback is used.")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                canvasSliderRow(
+                    title: "Background Padding",
+                    value: $editorBackgroundPaddingRatio,
+                    range: 0...0.25,
+                    valueText: { "\(Int(($0 * 100).rounded()))%" }
+                )
+                canvasSliderRow(
+                    title: "Background Radius",
+                    value: $editorBackgroundCornerRadius,
+                    range: 0...96,
+                    valueText: { "\(Int($0.rounded())) px" }
+                )
+                canvasSliderRow(
+                    title: "Screenshot Radius",
+                    value: $editorScreenshotCornerRadius,
+                    range: 0...64,
+                    valueText: { "\(Int($0.rounded())) px" }
+                )
+                canvasSliderRow(
+                    title: "Shadow Strength",
+                    value: $editorScreenshotShadowStrength,
+                    range: 0...1,
+                    valueText: { "\(Int(($0 * 100).rounded()))%" }
+                )
+            } else {
+                Text("Enable this to add gradients or wallpaper backgrounds, shadows, and rounded corners.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(width: 320)
+        .droppyTransparentBackground(useTransparentBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.large, style: .continuous)
+                .stroke(
+                    AdaptiveColors.overlayAuto(useTransparentBackground ? 0.22 : 0.10),
+                    lineWidth: 1
+                )
+        )
+    }
+
+    @ViewBuilder
+    private func canvasSliderRow(
+        title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        valueText: @escaping (Double) -> String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(valueText(value.wrappedValue))
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.primary)
+            }
+            Slider(value: value, in: range)
+        }
+    }
+
+    @ViewBuilder
+    private func canvasBackgroundSourceCard(_ source: ScreenshotBackgroundSource) -> some View {
+        let isSelected = selectedBackgroundSource == source
+
+        Button {
+            selectedBackgroundSourceBinding.wrappedValue = source
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    AdaptiveColors.overlayAuto(0.14),
+                                    AdaptiveColors.overlayAuto(0.05)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .stroke(
+                            isSelected ? Color.blue.opacity(0.95) : AdaptiveColors.overlayAuto(0.12),
+                            lineWidth: isSelected ? 1.8 : 1
+                        )
+                        .padding(0.8)
+
+                    canvasBackgroundSourceIcon(source, isSelected: isSelected)
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .padding(5)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    }
+                }
+                .frame(width: 92, height: 46)
+
+                Text(source.title)
+                    .font(.system(size: 11, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(width: 92)
+            }
+            .frame(width: 92, height: 76, alignment: .top)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func canvasBackgroundSourceIcon(_ source: ScreenshotBackgroundSource, isSelected: Bool) -> some View {
+        switch source {
+        case .gradient:
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(selectedBackgroundPreset.gradient)
+                .frame(width: 34, height: 20)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(Color.white.opacity(0.26), lineWidth: 0.8)
+                )
+        case .currentWallpaper:
+            Image(systemName: "photo")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(isSelected ? Color.blue : AdaptiveColors.overlayAuto(0.5))
+        case .customWallpaper:
+            Image(systemName: "folder")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(isSelected ? Color.blue : AdaptiveColors.overlayAuto(0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func styledCanvasContent(
+        imageSize: CGSize,
+        annotationImageSize: CGSize,
+        includeCropOverlay: Bool,
+        includeFloatingBadge: Bool,
+        interactive: Bool
+    ) -> some View {
+        let frameSize = styledCanvasFrameSize(for: imageSize)
+        let padding = canvasPadding(for: imageSize)
+        let screenshotRadius = min(clampedScreenshotCornerRadius, min(imageSize.width, imageSize.height) / 2)
+        let shadow = screenshotShadowStyle
+
+        ZStack {
+            if editorBackgroundEnabled {
+                canvasBackgroundLayer(size: frameSize)
+                    .frame(width: frameSize.width, height: frameSize.height)
+            }
+
+            interactiveScreenshotLayer(
+                imageSize: imageSize,
+                annotationImageSize: annotationImageSize,
+                includeCropOverlay: includeCropOverlay,
+                includeFloatingBadge: includeFloatingBadge,
+                interactive: interactive
+            )
+            .clipShape(RoundedRectangle(cornerRadius: editorBackgroundEnabled ? screenshotRadius : 0, style: .continuous))
+            .shadow(
+                color: .black.opacity(editorBackgroundEnabled ? shadow.opacity : 0),
+                radius: editorBackgroundEnabled ? shadow.radius : 0,
+                x: 0,
+                y: editorBackgroundEnabled ? shadow.y : 0
+            )
+            .padding(padding)
+        }
+        .frame(width: frameSize.width, height: frameSize.height)
+    }
+
+    @ViewBuilder
+    private func interactiveScreenshotLayer(
+        imageSize: CGSize,
+        annotationImageSize: CGSize,
+        includeCropOverlay: Bool,
+        includeFloatingBadge: Bool,
+        interactive: Bool
+    ) -> some View {
+        if interactive {
+            baseScreenshotLayer(
+                imageSize: imageSize,
+                annotationImageSize: annotationImageSize,
+                includeCropOverlay: includeCropOverlay,
+                includeFloatingBadge: includeFloatingBadge
+            )
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if isCropMode {
+                            handleCropDrag(value, in: imageSize)
+                        } else {
+                            handleDrag(value, in: imageSize)
+                        }
+                    }
+                    .onEnded { value in
+                        if isCropMode {
+                            handleCropDragEnd(value, in: imageSize)
+                        } else {
+                            handleDragEnd(value, in: imageSize)
+                        }
+                    }
+            )
+            .onContinuousHover { phase in
+                switch phase {
+                case .active:
+                    updateCursor()
+                case .ended:
+                    NSCursor.arrow.set()
+                }
+            }
+        } else {
+            baseScreenshotLayer(
+                imageSize: imageSize,
+                annotationImageSize: annotationImageSize,
+                includeCropOverlay: includeCropOverlay,
+                includeFloatingBadge: includeFloatingBadge
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func baseScreenshotLayer(
+        imageSize: CGSize,
+        annotationImageSize: CGSize,
+        includeCropOverlay: Bool,
+        includeFloatingBadge: Bool
+    ) -> some View {
+        ZStack {
+            Image(nsImage: originalImage)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: imageSize.width, height: imageSize.height)
+
+            AnnotationCanvas(
+                annotations: annotations,
+                currentAnnotation: currentAnnotation,
+                originalImage: originalImage,
+                imageSize: annotationImageSize,
+                containerSize: imageSize,
+                showMagnifierResizeIndicator: includeFloatingBadge,
+                showCurveArrowHandleIndicator: includeFloatingBadge,
+                overlayImagesByPath: imageOverlayPreviewCache
+            )
+            .frame(width: imageSize.width, height: imageSize.height)
+
+            if includeCropOverlay && (isCropMode || hasActiveCropSelection) {
+                CropSelectionOverlay(
+                    selectionRect: cropRect(for: imageSize),
+                    isActive: isCropMode,
+                    dimensionText: cropDimensionText
+                )
+                .frame(width: imageSize.width, height: imageSize.height)
+                .allowsHitTesting(false)
+            }
+
+            if includeFloatingBadge && selectedTool == .numberSticker {
+                VStack {
+                    numberStickerFloatingBadge
+                        .padding(.top, 18)
+                    Spacer()
+                }
+                .frame(width: imageSize.width, height: imageSize.height)
+                .allowsHitTesting(false)
+            } else if includeFloatingBadge && selectedTool == .magnifier {
+                VStack {
+                    magnifierFloatingBadge
+                        .padding(.top, 18)
+                    Spacer()
+                }
+                .frame(width: imageSize.width, height: imageSize.height)
+                .allowsHitTesting(false)
+            } else if includeFloatingBadge && selectedTool == .imageOverlay {
+                VStack {
+                    imageOverlayFloatingBadge
+                        .padding(.top, 18)
+                    Spacer()
+                }
+                .frame(width: imageSize.width, height: imageSize.height)
+                .allowsHitTesting(false)
+            }
+        }
+        .frame(width: imageSize.width, height: imageSize.height)
+    }
+
+    @ViewBuilder
+    private func canvasBackgroundLayer(size: CGSize) -> some View {
+        let radius = min(clampedBackgroundCornerRadius, min(size.width, size.height) / 2)
+
+        ZStack {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(selectedBackgroundPreset.gradient)
+            if let backgroundImage = selectedBackgroundImage {
+                Image(nsImage: backgroundImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            }
+        }
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.24),
+                                Color.clear,
+                                Color.black.opacity(0.2)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blendMode(.softLight)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
     }
 
     @ViewBuilder
@@ -1314,6 +2580,12 @@ struct ScreenshotEditorView: View {
     }
     
     // MARK: - Gesture Handling
+
+    private enum AnnotationDragMode {
+        case translate
+        case resizeMagnifier
+        case curveArrow
+    }
     
     private var hasActiveCropSelection: Bool {
         guard let cropRectNormalized else { return false }
@@ -1386,6 +2658,296 @@ struct ScreenshotEditorView: View {
         
         return CGRect(x: minX, y: minY, width: width, height: height)
     }
+
+    private func defaultMagnifierLensPoint(from source: CGPoint, in containerSize: CGSize) -> CGPoint {
+        let offset = max(80, min(containerSize.width, containerSize.height) * 0.16)
+        return CGPoint(x: source.x + offset, y: source.y + offset)
+    }
+
+    private func clampMagnifierLensCenter(_ center: CGPoint, radius: CGFloat, in containerSize: CGSize) -> CGPoint {
+        CGPoint(
+            x: min(max(center.x, radius + 4), max(radius + 4, containerSize.width - radius - 4)),
+            y: min(max(center.y, radius + 4), max(radius + 4, containerSize.height - radius - 4))
+        )
+    }
+
+    private func magnifierGeometry(
+        for annotation: Annotation,
+        in containerSize: CGSize,
+        pointsOverride: [CGPoint]? = nil
+    ) -> (source: CGPoint, lens: CGPoint, lensRadius: CGFloat, sourceRadius: CGFloat, defaultLensRadius: CGFloat)? {
+        let points = pointsOverride ?? annotation.points
+        guard let sourcePoint = points.first else { return nil }
+
+        let source = scaleNormalizedPoint(sourcePoint, to: containerSize)
+        let fallbackLens = defaultMagnifierLensPoint(from: source, in: containerSize)
+        let rawLens = points.count > 1
+            ? scaleNormalizedPoint(points[1], to: containerSize)
+            : fallbackLens
+        let displayStrokeWidth = effectiveStrokeWidth(for: annotation, in: containerSize)
+        let defaultLensRadius = defaultMagnifierRadius(forStrokeWidth: displayStrokeWidth)
+        let lensRadius = magnifierDisplayRadius(
+            for: annotation,
+            displayStrokeWidth: displayStrokeWidth,
+            containerMinDimension: max(1, min(containerSize.width, containerSize.height))
+        )
+        let lens = clampMagnifierLensCenter(rawLens, radius: lensRadius, in: containerSize)
+        let sourceRadius = max(14, lensRadius * 0.34)
+
+        return (source, lens, lensRadius, sourceRadius, defaultLensRadius)
+    }
+
+    private func isPointOnMagnifierResizeEdge(_ normalizedPoint: CGPoint, annotation: Annotation, in containerSize: CGSize) -> Bool {
+        guard let geometry = magnifierGeometry(for: annotation, in: containerSize) else { return false }
+
+        let hitPoint = scaleNormalizedPoint(normalizedPoint, to: containerSize)
+        let distance = hypot(hitPoint.x - geometry.lens.x, hitPoint.y - geometry.lens.y)
+        let displayStrokeWidth = effectiveStrokeWidth(for: annotation, in: containerSize)
+        let edgeTolerance = max(10, displayStrokeWidth * 2.0)
+        return abs(distance - geometry.lensRadius) <= edgeTolerance
+    }
+
+    private func resizeMagnifierAnnotation(index: Int, to dragLocation: CGPoint, in containerSize: CGSize) {
+        guard index >= 0, index < annotations.count else { return }
+
+        var annotation = annotations[index]
+        guard annotation.tool == .magnifier else { return }
+        guard let geometry = magnifierGeometry(
+            for: annotation,
+            in: containerSize,
+            pointsOverride: draggedAnnotationInitialPoints.isEmpty ? nil : draggedAnnotationInitialPoints
+        ) else { return }
+
+        let maxRadius = max(
+            24,
+            min(
+                geometry.lens.x - 4,
+                containerSize.width - geometry.lens.x - 4,
+                geometry.lens.y - 4,
+                containerSize.height - geometry.lens.y - 4
+            )
+        )
+        let minRadius = max(24, geometry.defaultLensRadius * 0.55)
+        let rawRadius = hypot(dragLocation.x - geometry.lens.x, dragLocation.y - geometry.lens.y)
+        let clampedRadius = min(max(rawRadius, minRadius), maxRadius)
+        if annotation.referenceCanvasMinDimension <= 1 {
+            annotation.referenceCanvasMinDimension = max(1, min(containerSize.width, containerSize.height))
+        }
+
+        annotation.magnifierRadius = magnifierStoredRadius(
+            fromDisplayRadius: clampedRadius,
+            annotation: annotation,
+            containerMinDimension: max(1, min(containerSize.width, containerSize.height))
+        )
+        annotations[index] = annotation
+    }
+
+    private func chooseImageOverlayFile() -> String? {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Image"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.image]
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return url.path
+    }
+
+    private func ensureImageOverlaySelection() -> Bool {
+        if !imageOverlaySelectedPath.isEmpty, FileManager.default.fileExists(atPath: imageOverlaySelectedPath) {
+            preloadImageOverlayIfNeeded(at: imageOverlaySelectedPath)
+            return true
+        }
+        guard let pickedPath = chooseImageOverlayFile() else { return false }
+        imageOverlaySelectedPath = pickedPath
+        preloadImageOverlayIfNeeded(at: pickedPath)
+        return true
+    }
+
+    private func preloadImageOverlays(for annotations: [Annotation]) {
+        for annotation in annotations where annotation.tool == .imageOverlay {
+            preloadImageOverlayIfNeeded(at: annotation.imagePath)
+        }
+    }
+
+    private func preloadImageOverlayIfNeeded(at path: String) {
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else { return }
+        guard imageOverlayPreviewCache[trimmedPath] == nil else { return }
+        guard !imageOverlayLoadingPaths.contains(trimmedPath) else { return }
+
+        imageOverlayLoadingPaths.insert(trimmedPath)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let loadedImage = NSImage(contentsOfFile: trimmedPath)
+            DispatchQueue.main.async {
+                if let loadedImage {
+                    imageOverlayPreviewCache[trimmedPath] = loadedImage
+                }
+                imageOverlayLoadingPaths.remove(trimmedPath)
+            }
+        }
+    }
+
+    private func defaultImageOverlayPoints(at location: CGPoint, in containerSize: CGSize, imagePath: String) -> [CGPoint] {
+        let sourceSize = imageOverlayPreviewCache[imagePath]?.size ?? NSSize(width: 1280, height: 720)
+        let safeSourceWidth = max(sourceSize.width, 1)
+        let safeSourceHeight = max(sourceSize.height, 1)
+        let sourceAspect = safeSourceWidth / safeSourceHeight
+
+        let maxWidth = max(160, containerSize.width * 0.42)
+        let maxHeight = max(120, containerSize.height * 0.42)
+        var width = maxWidth
+        var height = width / sourceAspect
+        if height > maxHeight {
+            height = maxHeight
+            width = height * sourceAspect
+        }
+
+        let halfWidth = width / 2
+        let halfHeight = height / 2
+        let centerX = min(max(location.x, halfWidth + 4), max(halfWidth + 4, containerSize.width - halfWidth - 4))
+        let centerY = min(max(location.y, halfHeight + 4), max(halfHeight + 4, containerSize.height - halfHeight - 4))
+        let rect = CGRect(
+            x: centerX - halfWidth,
+            y: centerY - halfHeight,
+            width: width,
+            height: height
+        )
+
+        return [
+            CGPoint(x: rect.minX / max(containerSize.width, 1), y: rect.minY / max(containerSize.height, 1)),
+            CGPoint(x: rect.maxX / max(containerSize.width, 1), y: rect.maxY / max(containerSize.height, 1))
+        ]
+    }
+
+    private func resolvedArrowCurveOffset(
+        for annotation: Annotation,
+        start: CGPoint,
+        end: CGPoint,
+        in containerSize: CGSize
+    ) -> CGFloat {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        guard distance > 0.001 else { return 0 }
+
+        if abs(annotation.curveOffset) > 0.001 {
+            let containerMinDimension = max(1, min(containerSize.width, containerSize.height))
+            guard annotation.referenceCanvasMinDimension > 1 else { return annotation.curveOffset }
+            return annotation.curveOffset * (containerMinDimension / annotation.referenceCanvasMinDimension)
+        }
+
+        if annotation.tool == .curvedArrow {
+            return min(max(distance * 0.28, 20), 120)
+        }
+        return 0
+    }
+
+    private func storedArrowCurveOffset(
+        from displayOffset: CGFloat,
+        annotation: Annotation,
+        in containerSize: CGSize
+    ) -> CGFloat {
+        let containerMinDimension = max(1, min(containerSize.width, containerSize.height))
+        guard annotation.referenceCanvasMinDimension > 1 else { return displayOffset }
+        return displayOffset * (annotation.referenceCanvasMinDimension / containerMinDimension)
+    }
+
+    private func storedArrowCurveControlOffset(
+        from displayOffset: CGSize,
+        annotation: Annotation,
+        in containerSize: CGSize
+    ) -> CGSize {
+        let containerMinDimension = max(1, min(containerSize.width, containerSize.height))
+        guard annotation.referenceCanvasMinDimension > 1 else { return displayOffset }
+        let scale = annotation.referenceCanvasMinDimension / containerMinDimension
+        return CGSize(width: displayOffset.width * scale, height: displayOffset.height * scale)
+    }
+
+    private func resolvedArrowCurveControlPoint(
+        for annotation: Annotation,
+        start: CGPoint,
+        end: CGPoint,
+        in containerSize: CGSize
+    ) -> CGPoint {
+        let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+
+        if annotation.hasCustomCurveControl {
+            let containerMinDimension = max(1, min(containerSize.width, containerSize.height))
+            let displayOffset: CGSize
+            if annotation.referenceCanvasMinDimension > 1 {
+                let scale = containerMinDimension / annotation.referenceCanvasMinDimension
+                displayOffset = CGSize(
+                    width: annotation.curveControlOffset.width * scale,
+                    height: annotation.curveControlOffset.height * scale
+                )
+            } else {
+                displayOffset = annotation.curveControlOffset
+            }
+            return CGPoint(x: mid.x + displayOffset.width, y: mid.y + displayOffset.height)
+        }
+
+        let fallbackOffset = resolvedArrowCurveOffset(
+            for: annotation,
+            start: start,
+            end: end,
+            in: containerSize
+        )
+        return curvedArrowControlPoint(from: start, to: end, curveOffset: fallbackOffset)
+    }
+
+    private func isPointOnArrowCurveHandle(_ normalizedPoint: CGPoint, annotation: Annotation, in containerSize: CGSize) -> Bool {
+        guard (annotation.tool == .arrow || annotation.tool == .curvedArrow),
+              annotation.points.count > 1 else { return false }
+
+        let start = scaleNormalizedPoint(annotation.points[0], to: containerSize)
+        let end = scaleNormalizedPoint(annotation.points[1], to: containerSize)
+        let control = resolvedArrowCurveControlPoint(
+            for: annotation,
+            start: start,
+            end: end,
+            in: containerSize
+        )
+        let hitPoint = scaleNormalizedPoint(normalizedPoint, to: containerSize)
+        let displayStrokeWidth = effectiveStrokeWidth(for: annotation, in: containerSize)
+        let tolerance = max(11, displayStrokeWidth * 2.1)
+        return hypot(hitPoint.x - control.x, hitPoint.y - control.y) <= tolerance
+    }
+
+    private func curveArrowAnnotation(index: Int, to dragLocation: CGPoint, in containerSize: CGSize) {
+        guard index >= 0, index < annotations.count else { return }
+        var annotation = annotations[index]
+        guard (annotation.tool == .arrow || annotation.tool == .curvedArrow),
+              draggedAnnotationInitialPoints.count > 1 else { return }
+
+        let start = scaleNormalizedPoint(draggedAnnotationInitialPoints[0], to: containerSize)
+        let end = scaleNormalizedPoint(draggedAnnotationInitialPoints[1], to: containerSize)
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let distance = hypot(dx, dy)
+        guard distance > 0.001 else { return }
+
+        let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+        let vector = CGPoint(x: dragLocation.x - mid.x, y: dragLocation.y - mid.y)
+        let clampedVector = CGSize(width: vector.x, height: vector.y)
+        if annotation.referenceCanvasMinDimension <= 1 {
+            annotation.referenceCanvasMinDimension = max(1, min(containerSize.width, containerSize.height))
+        }
+
+        let normal = CGPoint(x: -dy / distance, y: dx / distance)
+        let projectedOffset = (clampedVector.width * normal.x) + (clampedVector.height * normal.y)
+
+        annotation.curveOffset = storedArrowCurveOffset(
+            from: projectedOffset,
+            annotation: annotation,
+            in: containerSize
+        )
+        annotation.curveControlOffset = storedArrowCurveControlOffset(
+            from: clampedVector,
+            annotation: annotation,
+            in: containerSize
+        )
+        annotation.hasCustomCurveControl = true
+        annotations[index] = annotation
+    }
     
     private func handleDrag(_ value: DragGesture.Value, in containerSize: CGSize) {
         // Normalize point to 0-1 range for zoom-independent storage
@@ -1400,15 +2962,22 @@ struct ScreenshotEditorView: View {
         
         // Check if we're dragging an existing annotation
         if isDraggingAnnotation, let index = selectedAnnotationIndex, index < annotations.count {
-            // Move annotation by drag delta while keeping normalized points in bounds.
-            let proposedDelta = CGPoint(
-                x: normalizedPoint.x - normalizedStart.x,
-                y: normalizedPoint.y - normalizedStart.y
-            )
-            annotations[index].points = translatePoints(
-                draggedAnnotationInitialPoints,
-                by: proposedDelta
-            )
+            switch annotationDragMode {
+            case .translate:
+                // Move annotation by drag delta while keeping normalized points in bounds.
+                let proposedDelta = CGPoint(
+                    x: normalizedPoint.x - normalizedStart.x,
+                    y: normalizedPoint.y - normalizedStart.y
+                )
+                annotations[index].points = translatePoints(
+                    draggedAnnotationInitialPoints,
+                    by: proposedDelta
+                )
+            case .resizeMagnifier:
+                resizeMagnifierAnnotation(index: index, to: value.location, in: containerSize)
+            case .curveArrow:
+                curveArrowAnnotation(index: index, to: value.location, in: containerSize)
+            }
             return
         }
         
@@ -1419,9 +2988,22 @@ struct ScreenshotEditorView: View {
                 x: value.startLocation.x / containerSize.width,
                 y: value.startLocation.y / containerSize.height
             )
+            if let curveHandleIndex = findCurveArrowHandleAt(point: normalizedClickPoint, in: containerSize) {
+                selectedAnnotationIndex = curveHandleIndex
+                draggedAnnotationInitialPoints = annotations[curveHandleIndex].points
+                annotationDragMode = .curveArrow
+                isDraggingAnnotation = true
+                return
+            }
             if let annotationIndex = findAnnotationAt(point: normalizedClickPoint, in: containerSize) {
                 selectedAnnotationIndex = annotationIndex
                 draggedAnnotationInitialPoints = annotations[annotationIndex].points
+                if annotations[annotationIndex].tool == .magnifier,
+                   isPointOnMagnifierResizeEdge(normalizedClickPoint, annotation: annotations[annotationIndex], in: containerSize) {
+                    annotationDragMode = .resizeMagnifier
+                } else {
+                    annotationDragMode = .translate
+                }
                 isDraggingAnnotation = true
                 return
             }
@@ -1430,6 +3012,10 @@ struct ScreenshotEditorView: View {
         if selectedTool == .text || selectedTool.isSticker {
             // Text and sticker tools are single-click tools.
             return
+        }
+
+        if selectedTool == .imageOverlay && currentAnnotation == nil {
+            guard ensureImageOverlaySelection() else { return }
         }
         
         let isShiftHeld = NSEvent.modifierFlags.contains(.shift)
@@ -1441,10 +3027,17 @@ struct ScreenshotEditorView: View {
                 color: selectedColor,
                 strokeWidth: strokeWidth
             )
-            annotation.referenceCanvasMinDimension = max(1, min(containerSize.width, containerSize.height))
+            annotation.referenceCanvasMinDimension = annotationReferenceMinDimension(for: containerSize)
             // Capture blur strength for blur tool
             if selectedTool == .blur {
                 annotation.blurStrength = blurStrength
+            }
+            if selectedTool == .magnifier {
+                annotation.magnifierRadius = defaultMagnifierRadius(forStrokeWidth: annotation.strokeWidth)
+            }
+            if selectedTool == .imageOverlay {
+                annotation.imagePath = imageOverlaySelectedPath
+                annotation.imageCornerRadius = imageOverlayUseRoundedCorners ? 16 : 0
             }
             if isShiftHeld {
                 let constrainedPoint = applyShiftConstraint(
@@ -1486,7 +3079,7 @@ struct ScreenshotEditorView: View {
         let dy = end.y - start.y
         
         switch tool {
-        case .arrow, .curvedArrow, .line, .freehand, .highlighter:
+        case .arrow, .curvedArrow, .line, .freehand, .highlighter, .magnifier:
             // Snap to nearest 45° angle (0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°)
             let angle = atan2(dy, dx)
             let snappedAngle = round(angle / (.pi / 4)) * (.pi / 4)
@@ -1496,7 +3089,7 @@ struct ScreenshotEditorView: View {
                 y: start.y + sin(snappedAngle) * distance
             )
             
-        case .rectangle, .ellipse, .blur:
+        case .rectangle, .ellipse, .blur, .imageOverlay:
             // Constrain to square/circle (equal width and height)
             let size = max(abs(dx), abs(dy))
             return CGPoint(
@@ -1515,6 +3108,7 @@ struct ScreenshotEditorView: View {
             isDraggingAnnotation = false
             selectedAnnotationIndex = nil
             draggedAnnotationInitialPoints = []
+            annotationDragMode = .translate
             return
         }
         
@@ -1535,13 +3129,17 @@ struct ScreenshotEditorView: View {
                 color: selectedColor,
                 strokeWidth: strokeWidth
             )
-            annotation.referenceCanvasMinDimension = max(1, min(containerSize.width, containerSize.height))
+            annotation.referenceCanvasMinDimension = annotationReferenceMinDimension(for: containerSize)
             annotation.points = [CGPoint(
                 x: value.location.x / containerSize.width,
                 y: value.location.y / containerSize.height
             )]
+            if selectedTool == .numberSticker {
+                annotation.text = "?"
+            }
             annotations.append(annotation)
             undoStack.removeAll()
+            pendingNumberStickerID = selectedTool == .numberSticker ? annotation.id : nil
             currentAnnotation = nil
             return
         }
@@ -1573,6 +3171,46 @@ struct ScreenshotEditorView: View {
                 }
                 annotation.points = [normalizedStart, finalEnd]
             }
+
+            if selectedTool == .imageOverlay {
+                if annotation.imagePath.isEmpty {
+                    guard ensureImageOverlaySelection() else {
+                        currentAnnotation = nil
+                        return
+                    }
+                    annotation.imagePath = imageOverlaySelectedPath
+                }
+                annotation.imageCornerRadius = imageOverlayUseRoundedCorners ? 16 : 0
+
+                let dragDistance = hypot(
+                    value.location.x - value.startLocation.x,
+                    value.location.y - value.startLocation.y
+                )
+
+                if dragDistance <= 5 {
+                    annotation.points = defaultImageOverlayPoints(
+                        at: value.location,
+                        in: containerSize,
+                        imagePath: annotation.imagePath
+                    )
+                } else if annotation.points.count > 1 {
+                    let normalizedWidth = abs(annotation.points[1].x - annotation.points[0].x)
+                    let normalizedHeight = abs(annotation.points[1].y - annotation.points[0].y)
+                    if normalizedWidth < 0.01 || normalizedHeight < 0.01 {
+                        annotation.points = defaultImageOverlayPoints(
+                            at: value.location,
+                            in: containerSize,
+                            imagePath: annotation.imagePath
+                        )
+                    }
+                }
+
+                annotations.append(annotation)
+                undoStack.removeAll()
+                pendingNumberStickerID = nil
+                currentAnnotation = nil
+                return
+            }
             
             // Only add if there's actual content
             let distance = hypot(
@@ -1595,12 +3233,13 @@ struct ScreenshotEditorView: View {
             color: selectedColor,
             strokeWidth: strokeWidth
         )
-        annotation.referenceCanvasMinDimension = max(1, min(canvasSize.width, canvasSize.height))
+        annotation.referenceCanvasMinDimension = annotationReferenceMinDimension(for: canvasSize)
         annotation.points = [textPosition]
         annotation.text = textInput
         annotation.font = selectedFont
         annotations.append(annotation)
         undoStack.removeAll()
+        pendingNumberStickerID = nil
         
         showingTextInput = false
         textInput = ""
@@ -1610,11 +3249,20 @@ struct ScreenshotEditorView: View {
         guard !annotations.isEmpty else { return }
         undoStack.append(annotations)
         annotations.removeLast()
+        clearPendingNumberStickerIfNeeded()
     }
     
     private func redo() {
         guard let lastState = undoStack.popLast() else { return }
         annotations = lastState
+        clearPendingNumberStickerIfNeeded()
+    }
+
+    private func clearPendingNumberStickerIfNeeded() {
+        guard let pendingNumberStickerID else { return }
+        if !annotations.contains(where: { $0.id == pendingNumberStickerID }) {
+            self.pendingNumberStickerID = nil
+        }
     }
     
     /// Find any annotation at the given point, returning its index if found
@@ -1622,6 +3270,16 @@ struct ScreenshotEditorView: View {
         // Check in reverse order so top-most annotations are picked first.
         for (index, annotation) in annotations.enumerated().reversed() {
             if annotationContains(point: point, annotation: annotation, in: containerSize) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    private func findCurveArrowHandleAt(point: CGPoint, in containerSize: CGSize) -> Int? {
+        for (index, annotation) in annotations.enumerated().reversed() {
+            guard annotation.tool == .arrow || annotation.tool == .curvedArrow else { continue }
+            if isPointOnArrowCurveHandle(point, annotation: annotation, in: containerSize) {
                 return index
             }
         }
@@ -1636,22 +3294,50 @@ struct ScreenshotEditorView: View {
         let baseTolerance = max(10, displayStrokeWidth * 3)
         
         switch annotation.tool {
-        case .arrow, .line:
+        case .line:
             guard let endPoint = annotation.points.last else { return false }
             let start = scaleNormalizedPoint(annotation.points[0], to: containerSize)
             let end = scaleNormalizedPoint(endPoint, to: containerSize)
             return pointToSegmentDistance(hitPoint, start: start, end: end) <= baseTolerance
             
-        case .curvedArrow:
+        case .arrow, .curvedArrow:
             guard let endPoint = annotation.points.last else { return false }
             let start = scaleNormalizedPoint(annotation.points[0], to: containerSize)
             let end = scaleNormalizedPoint(endPoint, to: containerSize)
-            return pointToCurvedArrowDistance(hitPoint, start: start, end: end) <= baseTolerance
+            let controlPoint = resolvedArrowCurveControlPoint(
+                for: annotation,
+                start: start,
+                end: end,
+                in: containerSize
+            )
+            return pointToCurvedArrowDistance(
+                hitPoint,
+                start: start,
+                end: end,
+                controlPoint: controlPoint
+            ) <= baseTolerance
             
         case .rectangle, .blur:
             guard let endPoint = annotation.points.last else { return false }
             let rect = rectFromNormalizedPoints(annotation.points[0], endPoint, in: containerSize)
             return rect.insetBy(dx: -baseTolerance, dy: -baseTolerance).contains(hitPoint)
+
+        case .imageOverlay:
+            guard let endPoint = annotation.points.last else { return false }
+            let rect = rectFromNormalizedPoints(annotation.points[0], endPoint, in: containerSize)
+            return rect.insetBy(dx: -baseTolerance, dy: -baseTolerance).contains(hitPoint)
+
+        case .magnifier:
+            guard let geometry = magnifierGeometry(for: annotation, in: containerSize) else { return false }
+
+            if hypot(hitPoint.x - geometry.source.x, hitPoint.y - geometry.source.y) <= (geometry.sourceRadius + baseTolerance) {
+                return true
+            }
+            if hypot(hitPoint.x - geometry.lens.x, hitPoint.y - geometry.lens.y) <= (geometry.lensRadius + baseTolerance) {
+                return true
+            }
+
+            return pointToSegmentDistance(hitPoint, start: geometry.source, end: geometry.lens) <= baseTolerance
             
         case .ellipse:
             guard let endPoint = annotation.points.last else { return false }
@@ -1692,7 +3378,7 @@ struct ScreenshotEditorView: View {
             let textRect = textBounds(for: annotation, in: containerSize)
             return textRect.insetBy(dx: -8, dy: -6).contains(hitPoint)
             
-        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             guard let stickerRect = stickerBounds(for: annotation, in: containerSize) else { return false }
             return stickerRect.insetBy(dx: -8, dy: -8).contains(hitPoint)
         }
@@ -1788,8 +3474,13 @@ struct ScreenshotEditorView: View {
         return hypot(point.x - projection.x, point.y - projection.y)
     }
     
-    private func pointToCurvedArrowDistance(_ point: CGPoint, start: CGPoint, end: CGPoint) -> CGFloat {
-        let sampledPoints = sampledCurvedArrowPoints(from: start, to: end)
+    private func pointToCurvedArrowDistance(
+        _ point: CGPoint,
+        start: CGPoint,
+        end: CGPoint,
+        controlPoint: CGPoint
+    ) -> CGFloat {
+        let sampledPoints = sampledCurvedArrowPoints(from: start, to: end, controlPoint: controlPoint)
         guard sampledPoints.count >= 2 else { return .greatestFiniteMagnitude }
         
         var minDistance = CGFloat.greatestFiniteMagnitude
@@ -1805,8 +3496,12 @@ struct ScreenshotEditorView: View {
         return minDistance
     }
     
-    private func sampledCurvedArrowPoints(from start: CGPoint, to end: CGPoint, segments: Int = 20) -> [CGPoint] {
-        let control = curvedArrowControlPoint(from: start, to: end)
+    private func sampledCurvedArrowPoints(
+        from start: CGPoint,
+        to end: CGPoint,
+        controlPoint: CGPoint,
+        segments: Int = 20
+    ) -> [CGPoint] {
         let clampedSegments = max(2, segments)
 
         var points: [CGPoint] = []
@@ -1819,8 +3514,8 @@ struct ScreenshotEditorView: View {
             let controlWeight = 2 * oneMinusT * t
             let endWeight = t * t
 
-            let x = (startWeight * start.x) + (controlWeight * control.x) + (endWeight * end.x)
-            let y = (startWeight * start.y) + (controlWeight * control.y) + (endWeight * end.y)
+            let x = (startWeight * start.x) + (controlWeight * controlPoint.x) + (endWeight * end.x)
+            let y = (startWeight * start.y) + (controlWeight * controlPoint.y) + (endWeight * end.y)
             points.append(CGPoint(x: x, y: y))
         }
 
@@ -1835,7 +3530,7 @@ struct ScreenshotEditorView: View {
         return annotation.strokeWidth * (targetMinDimension / referenceMinDimension)
     }
     
-    private func curvedArrowControlPoint(from start: CGPoint, to end: CGPoint) -> CGPoint {
+    private func curvedArrowControlPoint(from start: CGPoint, to end: CGPoint, curveOffset: CGFloat? = nil) -> CGPoint {
         let dx = end.x - start.x
         let dy = end.y - start.y
         let distance = hypot(dx, dy)
@@ -1845,7 +3540,7 @@ struct ScreenshotEditorView: View {
         
         let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let normal = CGPoint(x: -dy / distance, y: dx / distance)
-        let curveAmount = min(max(distance * 0.28, 20), 120)
+        let curveAmount = curveOffset ?? min(max(distance * 0.28, 20), 120)
         
         return CGPoint(
             x: mid.x + normal.x * curveAmount,
@@ -1864,16 +3559,16 @@ struct ScreenshotEditorView: View {
         let renderSize = editorRenderSize(fallback: .zero)
         
         if let renderedImage = renderRenderedViewImage(renderSize: renderSize) {
-            return applyCropIfNeeded(to: renderedImage)
+            return applyCropIfNeeded(to: renderedImage, contentRenderSize: renderSize)
         }
         
         guard let bitmap = renderAnnotatedBitmap() else {
-            return applyCropIfNeeded(to: originalImage)
+            return applyCropIfNeeded(to: originalImage, contentRenderSize: renderSize)
         }
         
         let image = NSImage(size: bitmap.size)
         image.addRepresentation(bitmap)
-        return applyCropIfNeeded(to: image)
+        return applyCropIfNeeded(to: image, contentRenderSize: renderSize)
     }
     
     private func renderAnnotatedPNGData() -> Data? {
@@ -1885,10 +3580,14 @@ struct ScreenshotEditorView: View {
         return bitmapRep.representation(using: .png, properties: [:])
     }
     
-    private func applyCropIfNeeded(to image: NSImage) -> NSImage {
-        guard let cropRect = cropRectInImageSpace(for: image.size) else { return image }
+    private func applyCropIfNeeded(to image: NSImage, contentRenderSize: NSSize? = nil) -> NSImage {
+        let contentSize = contentRenderSize ?? image.size
+        guard let cropRect = cropRectInImageSpace(for: contentSize) else { return image }
+
+        let mappedCropRect = mapCropRect(cropRect, from: contentSize, to: image.size)
+        guard mappedCropRect.width > 1, mappedCropRect.height > 1 else { return image }
         
-        let outputSize = NSSize(width: cropRect.width, height: cropRect.height)
+        let outputSize = NSSize(width: mappedCropRect.width, height: mappedCropRect.height)
         guard outputSize.width > 0, outputSize.height > 0 else { return image }
         
         let croppedImage = NSImage(size: outputSize)
@@ -1896,12 +3595,22 @@ struct ScreenshotEditorView: View {
         NSGraphicsContext.current?.imageInterpolation = .high
         image.draw(
             in: NSRect(origin: .zero, size: outputSize),
-            from: cropRect,
+            from: mappedCropRect,
             operation: .copy,
             fraction: 1.0
         )
         croppedImage.unlockFocus()
         return croppedImage
+    }
+
+    private func mapCropRect(_ cropRect: CGRect, from contentSize: NSSize, to renderedSize: NSSize) -> CGRect {
+        let offsetX = (renderedSize.width - contentSize.width) / 2
+        let offsetY = (renderedSize.height - contentSize.height) / 2
+        let translated = cropRect.offsetBy(dx: offsetX, dy: offsetY)
+        let bounds = CGRect(origin: .zero, size: renderedSize)
+        let clipped = translated.intersection(bounds)
+        guard clipped.width > 1, clipped.height > 1 else { return .zero }
+        return clipped.integral
     }
     
     private func cropRectInImageSpace(for imageSize: NSSize) -> CGRect? {
@@ -1924,41 +3633,34 @@ struct ScreenshotEditorView: View {
     
     private func renderRenderedViewImage(renderSize: NSSize) -> NSImage? {
         guard renderSize.width > 0, renderSize.height > 0 else { return nil }
-        
-        let exportView = ZStack {
-            Image(nsImage: originalImage)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: renderSize.width, height: renderSize.height)
-            
-            AnnotationCanvas(
-                annotations: annotations,
-                currentAnnotation: currentAnnotation,
-                originalImage: originalImage,
-                imageSize: renderSize,
-                containerSize: renderSize
-            )
-            .frame(width: renderSize.width, height: renderSize.height)
-        }
-        .frame(width: renderSize.width, height: renderSize.height)
+
+        let outputSize = styledCanvasFrameSize(for: renderSize)
+
+        let exportView = styledCanvasContent(
+            imageSize: renderSize,
+            annotationImageSize: renderSize,
+            includeCropOverlay: false,
+            includeFloatingBadge: false,
+            interactive: false
+        )
+        .frame(width: outputSize.width, height: outputSize.height)
 
         // Primary path: offscreen AppKit snapshot for WYSIWYG parity with on-screen SwiftUI rendering.
         let hosting = NSHostingView(rootView: exportView)
-        hosting.frame = NSRect(origin: .zero, size: renderSize)
+        hosting.frame = NSRect(origin: .zero, size: outputSize)
         hosting.needsLayout = true
         
         if let bitmapRep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) {
-            bitmapRep.size = renderSize
+            bitmapRep.size = outputSize
             hosting.cacheDisplay(in: hosting.bounds, to: bitmapRep)
-            let image = NSImage(size: renderSize)
+            let image = NSImage(size: outputSize)
             image.addRepresentation(bitmapRep)
             return image
         }
 
         // Fallback: ImageRenderer.
         let renderer = ImageRenderer(content: exportView)
-        renderer.proposedSize = ProposedViewSize(width: renderSize.width, height: renderSize.height)
+        renderer.proposedSize = ProposedViewSize(width: outputSize.width, height: outputSize.height)
         renderer.scale = NSScreen.main?.backingScaleFactor ?? 2.0
         return renderer.nsImage
     }
@@ -2127,10 +3829,38 @@ struct ScreenshotEditorView: View {
         
         switch annotation.tool {
         case .arrow:
-            drawArrow(from: annotation.points[0], to: annotation.points.last ?? annotation.points[0], strokeWidth: effectiveStrokeWidth, in: size)
+            let start = scalePoint(annotation.points[0], to: size)
+            let end = scalePoint(annotation.points.last ?? annotation.points[0], to: size)
+            let controlPoint = resolvedArrowCurveControlPoint(
+                for: annotation,
+                start: start,
+                end: end,
+                in: CGSize(width: size.width, height: size.height)
+            )
+            drawArrow(
+                from: annotation.points[0],
+                to: annotation.points.last ?? annotation.points[0],
+                strokeWidth: effectiveStrokeWidth,
+                curveControlPoint: controlPoint,
+                in: size
+            )
             
         case .curvedArrow:
-            drawCurvedArrow(from: annotation.points[0], to: annotation.points.last ?? annotation.points[0], strokeWidth: effectiveStrokeWidth, in: size)
+            let start = scalePoint(annotation.points[0], to: size)
+            let end = scalePoint(annotation.points.last ?? annotation.points[0], to: size)
+            let controlPoint = resolvedArrowCurveControlPoint(
+                for: annotation,
+                start: start,
+                end: end,
+                in: CGSize(width: size.width, height: size.height)
+            )
+            drawCurvedArrow(
+                from: annotation.points[0],
+                to: annotation.points.last ?? annotation.points[0],
+                strokeWidth: effectiveStrokeWidth,
+                curveControlPoint: controlPoint,
+                in: size
+            )
             
         case .line:
             // Simple straight line (no arrowhead)
@@ -2213,6 +3943,12 @@ struct ScreenshotEditorView: View {
             // Draw the tiny image scaled back up (creates pixelation)
             NSGraphicsContext.current?.imageInterpolation = .none
             tinyImage.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+
+        case .magnifier:
+            drawMagnifierAnnotation(annotation, in: size, sourceImage: sourceImage, effectiveStrokeWidth: effectiveStrokeWidth)
+
+        case .imageOverlay:
+            drawImageOverlayAnnotation(annotation, in: size, effectiveStrokeWidth: effectiveStrokeWidth)
             
         case .text:
             let scaledPoint = scalePoint(annotation.points[0], to: size)
@@ -2225,7 +3961,7 @@ struct ScreenshotEditorView: View {
             ]
             annotation.text.draw(at: scaledPoint, withAttributes: attributes)
 
-        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             drawStickerAnnotation(annotation, in: size, effectiveStrokeWidth: effectiveStrokeWidth)
         }
     }
@@ -2238,6 +3974,11 @@ struct ScreenshotEditorView: View {
             anchor: anchor,
             displayStrokeWidth: effectiveStrokeWidth
         ) else { return }
+
+        if annotation.tool == .numberSticker {
+            drawNumberStickerAnnotation(annotation, in: layout.symbolRect)
+            return
+        }
         
         if let circleRect = layout.circleRect {
             NSColor.white.setFill()
@@ -2265,6 +4006,41 @@ struct ScreenshotEditorView: View {
         }
     }
 
+    private func drawNumberStickerAnnotation(_ annotation: Annotation, in rect: CGRect) {
+        let fillColor = NSColor(annotation.color)
+        let textColor = numberStickerTextColor(for: fillColor)
+        let strokeColor = textColor.withAlphaComponent(0.35)
+        let value = annotation.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "?" : annotation.text
+
+        let circlePath = NSBezierPath(ovalIn: rect)
+        fillColor.setFill()
+        circlePath.fill()
+
+        strokeColor.setStroke()
+        circlePath.lineWidth = max(1.2, rect.width * 0.05)
+        circlePath.stroke()
+
+        let font = NSFont.systemFont(ofSize: max(10, rect.height * 0.56), weight: .bold)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor
+        ]
+        let textSize = value.size(withAttributes: attributes)
+        let textRect = CGRect(
+            x: rect.midX - textSize.width / 2,
+            y: rect.midY - textSize.height / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        value.draw(in: textRect, withAttributes: attributes)
+    }
+
+    private func numberStickerTextColor(for fillColor: NSColor) -> NSColor {
+        let color = fillColor.usingColorSpace(.sRGB) ?? fillColor
+        let luminance = (0.2126 * color.redComponent) + (0.7152 * color.greenComponent) + (0.0722 * color.blueComponent)
+        return luminance >= 0.58 ? .black : .white
+    }
+
     private func drawStickerFallback(_ tool: AnnotationTool, in rect: CGRect) {
         NSColor.black.setFill()
         NSColor.black.setStroke()
@@ -2281,6 +4057,9 @@ struct ScreenshotEditorView: View {
             path.move(to: CGPoint(x: rect.minX, y: rect.minY))
             path.line(to: CGPoint(x: rect.maxX, y: rect.minY))
             path.stroke()
+        case .numberSticker:
+            let circlePath = NSBezierPath(ovalIn: rect)
+            circlePath.fill()
         default:
             let cursorPath = NSBezierPath()
             cursorPath.move(to: CGPoint(x: rect.minX, y: rect.maxY))
@@ -2290,22 +4069,224 @@ struct ScreenshotEditorView: View {
             cursorPath.fill()
         }
     }
-    
-    private func drawArrow(from start: CGPoint, to end: CGPoint, strokeWidth: CGFloat, in size: NSSize) {
+
+    private func drawMagnifierAnnotation(
+        _ annotation: Annotation,
+        in size: NSSize,
+        sourceImage: NSImage?,
+        effectiveStrokeWidth: CGFloat
+    ) {
+        guard let sourcePoint = annotation.points.first else { return }
+
+        let source = scalePoint(sourcePoint, to: size)
+        let fallbackLens = defaultMagnifierLensPoint(
+            from: source,
+            in: CGSize(width: size.width, height: size.height)
+        )
+        let rawLens: CGPoint
+        if annotation.points.count > 1 {
+            rawLens = scalePoint(annotation.points[1], to: size)
+        } else {
+            rawLens = fallbackLens
+        }
+
+        let containerMinDimension = max(1, min(size.width, size.height))
+        let defaultLensRadius = defaultMagnifierRadius(forStrokeWidth: effectiveStrokeWidth)
+        let lensRadius = magnifierDisplayRadius(
+            for: annotation,
+            displayStrokeWidth: effectiveStrokeWidth,
+            containerMinDimension: containerMinDimension
+        )
+        let sourceRadius = max(14, lensRadius * 0.34)
+        let lens = clampMagnifierLensCenter(
+            rawLens,
+            radius: lensRadius,
+            in: CGSize(width: size.width, height: size.height)
+        )
+
+        let connectorPath = NSBezierPath()
+        connectorPath.lineWidth = max(2.0, effectiveStrokeWidth * 0.9)
+        connectorPath.lineCapStyle = .round
+
+        let connectorVector = CGPoint(x: lens.x - source.x, y: lens.y - source.y)
+        let connectorDistance = hypot(connectorVector.x, connectorVector.y)
+        if connectorDistance > 0.001 {
+            let ux = connectorVector.x / connectorDistance
+            let uy = connectorVector.y / connectorDistance
+            connectorPath.move(
+                to: CGPoint(
+                    x: source.x + ux * sourceRadius,
+                    y: source.y + uy * sourceRadius
+                )
+            )
+            connectorPath.line(
+                to: CGPoint(
+                    x: lens.x - ux * lensRadius,
+                    y: lens.y - uy * lensRadius
+                )
+            )
+            NSColor(annotation.color).setStroke()
+            connectorPath.stroke()
+        }
+
+        let sourceMarkerRect = CGRect(
+            x: source.x - sourceRadius,
+            y: source.y - sourceRadius,
+            width: sourceRadius * 2,
+            height: sourceRadius * 2
+        )
+        let sourceMarkerPath = NSBezierPath(ovalIn: sourceMarkerRect)
+        NSColor(annotation.color).setStroke()
+        sourceMarkerPath.lineWidth = max(1.8, effectiveStrokeWidth * 0.85)
+        sourceMarkerPath.stroke()
+
+        let lensRect = CGRect(
+            x: lens.x - lensRadius,
+            y: lens.y - lensRadius,
+            width: lensRadius * 2,
+            height: lensRadius * 2
+        )
+        let magnification = magnifierMagnification(for: lensRadius, defaultRadius: defaultLensRadius)
+        let sampleDiameter = max(8, lensRect.width / magnification)
+        let sampleRect = CGRect(
+            x: source.x - sampleDiameter / 2,
+            y: source.y - sampleDiameter / 2,
+            width: sampleDiameter,
+            height: sampleDiameter
+        )
+
+        NSGraphicsContext.saveGraphicsState()
+        let clipPath = NSBezierPath(ovalIn: lensRect)
+        clipPath.addClip()
+        NSColor.white.withAlphaComponent(0.95).setFill()
+        clipPath.fill()
+
+        let bounds = CGRect(origin: .zero, size: size)
+        let clippedSourceRect = sampleRect.intersection(bounds)
+        if clippedSourceRect.width > 1, clippedSourceRect.height > 1 {
+            NSGraphicsContext.current?.imageInterpolation = .high
+            (sourceImage ?? originalImage).draw(
+                in: lensRect,
+                from: clippedSourceRect,
+                operation: .copy,
+                fraction: 1.0
+            )
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        let outerRing = NSBezierPath(ovalIn: lensRect)
+        outerRing.lineWidth = max(2.2, effectiveStrokeWidth * 0.95)
+        NSColor(annotation.color).setStroke()
+        outerRing.stroke()
+
+        let innerInset = max(1.4, effectiveStrokeWidth * 0.5)
+        let innerRingRect = lensRect.insetBy(dx: innerInset, dy: innerInset)
+        let innerRing = NSBezierPath(ovalIn: innerRingRect)
+        innerRing.lineWidth = max(1.0, effectiveStrokeWidth * 0.45)
+        NSColor.black.withAlphaComponent(0.82).setStroke()
+        innerRing.stroke()
+    }
+
+    private func drawImageOverlayAnnotation(_ annotation: Annotation, in size: NSSize, effectiveStrokeWidth: CGFloat) {
+        guard annotation.points.count > 1 else { return }
+
+        let rect = rectFromPoints(annotation.points[0], annotation.points[1], in: size)
+        guard rect.width > 2, rect.height > 2 else { return }
+
+        let cornerRadius = imageOverlayCornerRadius(
+            for: annotation,
+            in: CGSize(width: size.width, height: size.height),
+            rect: rect
+        )
+
+        let clipPath = NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
+        NSGraphicsContext.saveGraphicsState()
+        clipPath.addClip()
+
+        if let overlayImage = imageOverlayPreviewCache[annotation.imagePath] ?? NSImage(contentsOfFile: annotation.imagePath) {
+            NSGraphicsContext.current?.imageInterpolation = .high
+            overlayImage.draw(
+                in: aspectFillRect(for: overlayImage.size, in: rect),
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1.0
+            )
+        } else {
+            NSColor.black.withAlphaComponent(0.16).setFill()
+            rect.fill()
+        }
+
+        NSGraphicsContext.restoreGraphicsState()
+
+        NSColor.white.withAlphaComponent(0.28).setStroke()
+        let borderPath = NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
+        borderPath.lineWidth = max(1.2, effectiveStrokeWidth * 0.34)
+        borderPath.stroke()
+    }
+
+    private func imageOverlayCornerRadius(for annotation: Annotation, in containerSize: CGSize, rect: CGRect) -> CGFloat {
+        var radius = max(0, annotation.imageCornerRadius)
+        if annotation.referenceCanvasMinDimension > 1 {
+            radius *= max(1, min(containerSize.width, containerSize.height)) / annotation.referenceCanvasMinDimension
+        }
+        return min(radius, min(rect.width, rect.height) / 2)
+    }
+
+    private func aspectFillRect(for sourceSize: NSSize, in destinationRect: CGRect) -> CGRect {
+        let safeSourceWidth = max(sourceSize.width, 1)
+        let safeSourceHeight = max(sourceSize.height, 1)
+        let widthScale = destinationRect.width / safeSourceWidth
+        let heightScale = destinationRect.height / safeSourceHeight
+        let scale = max(widthScale, heightScale)
+
+        let drawSize = CGSize(width: safeSourceWidth * scale, height: safeSourceHeight * scale)
+        return CGRect(
+            x: destinationRect.midX - drawSize.width / 2,
+            y: destinationRect.midY - drawSize.height / 2,
+            width: drawSize.width,
+            height: drawSize.height
+        )
+    }
+
+    private func drawArrow(
+        from start: CGPoint,
+        to end: CGPoint,
+        strokeWidth: CGFloat,
+        curveControlPoint: CGPoint? = nil,
+        in size: NSSize
+    ) {
         let scaledStart = scalePoint(start, to: size)
         let scaledEnd = scalePoint(end, to: size)
-        
+
         let path = NSBezierPath()
         path.lineWidth = strokeWidth
         path.lineCapStyle = .round
-        
-        // Main line
-        path.move(to: scaledStart)
-        path.line(to: scaledEnd)
+        path.lineJoinStyle = .round
+
+        let directionVector: CGPoint
+        let curveDistance = curveControlPoint.map { pointToSegmentDistance($0, start: scaledStart, end: scaledEnd) } ?? 0
+        if let control = curveControlPoint, curveDistance > 0.5 {
+            let cubicControl1 = CGPoint(
+                x: scaledStart.x + (2.0 / 3.0) * (control.x - scaledStart.x),
+                y: scaledStart.y + (2.0 / 3.0) * (control.y - scaledStart.y)
+            )
+            let cubicControl2 = CGPoint(
+                x: scaledEnd.x + (2.0 / 3.0) * (control.x - scaledEnd.x),
+                y: scaledEnd.y + (2.0 / 3.0) * (control.y - scaledEnd.y)
+            )
+            path.move(to: scaledStart)
+            path.curve(to: scaledEnd, controlPoint1: cubicControl1, controlPoint2: cubicControl2)
+            directionVector = CGPoint(x: scaledEnd.x - control.x, y: scaledEnd.y - control.y)
+        } else {
+            path.move(to: scaledStart)
+            path.line(to: scaledEnd)
+            directionVector = CGPoint(x: scaledEnd.x - scaledStart.x, y: scaledEnd.y - scaledStart.y)
+        }
         path.stroke()
-        
-        // Arrowhead
-        let angle = atan2(scaledEnd.y - scaledStart.y, scaledEnd.x - scaledStart.x)
+
+        let fallbackDirection = CGPoint(x: scaledEnd.x - scaledStart.x, y: scaledEnd.y - scaledStart.y)
+        let headVector = hypot(directionVector.x, directionVector.y) > 0.001 ? directionVector : fallbackDirection
+        let angle = atan2(headVector.y, headVector.x)
         let arrowLength: CGFloat = 15 + strokeWidth * 2
         let arrowAngle: CGFloat = .pi / 6
         
@@ -2328,61 +4309,15 @@ struct ScreenshotEditorView: View {
         arrowPath.line(to: point2)
         arrowPath.stroke()
     }
-    
-    private func drawCurvedArrow(from start: CGPoint, to end: CGPoint, strokeWidth: CGFloat, in size: NSSize) {
-        let scaledStart = scalePoint(start, to: size)
-        let scaledEnd = scalePoint(end, to: size)
-        let control = curvedArrowControlPoint(from: scaledStart, to: scaledEnd)
-        
-        let cubicControl1 = CGPoint(
-            x: scaledStart.x + (2.0 / 3.0) * (control.x - scaledStart.x),
-            y: scaledStart.y + (2.0 / 3.0) * (control.y - scaledStart.y)
-        )
-        let cubicControl2 = CGPoint(
-            x: scaledEnd.x + (2.0 / 3.0) * (control.x - scaledEnd.x),
-            y: scaledEnd.y + (2.0 / 3.0) * (control.y - scaledEnd.y)
-        )
-        
-        let path = NSBezierPath()
-        path.lineWidth = strokeWidth
-        path.lineCapStyle = .round
-        path.lineJoinStyle = .round
-        path.move(to: scaledStart)
-        path.curve(to: scaledEnd, controlPoint1: cubicControl1, controlPoint2: cubicControl2)
-        path.stroke()
-        
-        let tangent = CGPoint(
-            x: scaledEnd.x - control.x,
-            y: scaledEnd.y - control.y
-        )
-        let fallback = CGPoint(
-            x: scaledEnd.x - scaledStart.x,
-            y: scaledEnd.y - scaledStart.y
-        )
-        let headVector = hypot(tangent.x, tangent.y) > 0.001 ? tangent : fallback
-        let angle = atan2(headVector.y, headVector.x)
-        
-        let arrowLength: CGFloat = 15 + strokeWidth * 2
-        let arrowAngle: CGFloat = .pi / 6
-        
-        let arrowPath = NSBezierPath()
-        arrowPath.lineWidth = strokeWidth
-        arrowPath.lineCapStyle = .round
-        arrowPath.lineJoinStyle = .round
-        
-        let point1 = CGPoint(
-            x: scaledEnd.x - arrowLength * cos(angle - arrowAngle),
-            y: scaledEnd.y - arrowLength * sin(angle - arrowAngle)
-        )
-        let point2 = CGPoint(
-            x: scaledEnd.x - arrowLength * cos(angle + arrowAngle),
-            y: scaledEnd.y - arrowLength * sin(angle + arrowAngle)
-        )
-        
-        arrowPath.move(to: point1)
-        arrowPath.line(to: scaledEnd)
-        arrowPath.line(to: point2)
-        arrowPath.stroke()
+
+    private func drawCurvedArrow(
+        from start: CGPoint,
+        to end: CGPoint,
+        strokeWidth: CGFloat,
+        curveControlPoint: CGPoint,
+        in size: NSSize
+    ) {
+        drawArrow(from: start, to: end, strokeWidth: strokeWidth, curveControlPoint: curveControlPoint, in: size)
     }
     
     private func rectFromPoints(_ p1: CGPoint, _ p2: CGPoint, in size: NSSize) -> NSRect {
@@ -2489,6 +4424,9 @@ struct AnnotationCanvas: View {
     let originalImage: NSImage
     let imageSize: CGSize
     let containerSize: CGSize
+    let showMagnifierResizeIndicator: Bool
+    let showCurveArrowHandleIndicator: Bool
+    let overlayImagesByPath: [String: NSImage]
     
     var body: some View {
         Canvas { context, size in
@@ -2515,12 +4453,20 @@ struct AnnotationCanvas: View {
         case .arrow:
             let start = scalePoint(annotation.points[0], to: size)
             let end = scalePoint(annotation.points.last ?? annotation.points[0], to: size)
-            drawArrow(from: start, to: end, color: color, strokeStyle: strokeStyle, in: context)
+            let controlPoint = resolvedArrowCurveControlPoint(for: annotation, start: start, end: end, in: size)
+            drawArrow(from: start, to: end, color: color, strokeStyle: strokeStyle, curveControlPoint: controlPoint, in: context)
+            if showCurveArrowHandleIndicator {
+                drawCurveArrowHandle(controlPoint: controlPoint, color: color, strokeStyle: strokeStyle, in: context)
+            }
             
         case .curvedArrow:
             let start = scalePoint(annotation.points[0], to: size)
             let end = scalePoint(annotation.points.last ?? annotation.points[0], to: size)
-            drawCurvedArrow(from: start, to: end, color: color, strokeStyle: strokeStyle, in: context)
+            let controlPoint = resolvedArrowCurveControlPoint(for: annotation, start: start, end: end, in: size)
+            drawCurvedArrow(from: start, to: end, color: color, strokeStyle: strokeStyle, curveControlPoint: controlPoint, in: context)
+            if showCurveArrowHandleIndicator {
+                drawCurveArrowHandle(controlPoint: controlPoint, color: color, strokeStyle: strokeStyle, in: context)
+            }
             
         case .line:
             let start = scalePoint(annotation.points[0], to: size)
@@ -2600,6 +4546,18 @@ struct AnnotationCanvas: View {
                 let nsImage = NSImage(cgImage: cgImage, size: rect.size)
                 context.draw(Image(nsImage: nsImage), in: rect)
             }
+
+        case .magnifier:
+            drawMagnifierAnnotation(
+                annotation,
+                in: context,
+                size: size,
+                effectiveStrokeWidth: effectiveStrokeWidth,
+                showResizeIndicator: showMagnifierResizeIndicator
+            )
+
+        case .imageOverlay:
+            drawImageOverlayAnnotation(annotation, in: context, size: size, effectiveStrokeWidth: effectiveStrokeWidth)
             
         case .text:
             let scaledPoint = scalePoint(annotation.points[0], to: size)
@@ -2608,7 +4566,7 @@ struct AnnotationCanvas: View {
                 : Font.custom(annotation.font, size: effectiveStrokeWidth * 8)
             context.draw(Text(annotation.text).font(fontName).foregroundColor(color), at: scaledPoint, anchor: .topLeading)
             
-        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             drawStickerAnnotation(annotation, in: context, size: size, effectiveStrokeWidth: effectiveStrokeWidth)
         }
     }
@@ -2621,6 +4579,11 @@ struct AnnotationCanvas: View {
             anchor: anchor,
             displayStrokeWidth: effectiveStrokeWidth
         ) else { return }
+
+        if annotation.tool == .numberSticker {
+            drawNumberStickerAnnotation(annotation, in: layout.symbolRect, context: context)
+            return
+        }
         
         if let circleRect = layout.circleRect {
             let circlePath = Path(ellipseIn: circleRect)
@@ -2649,6 +4612,33 @@ struct AnnotationCanvas: View {
         }
     }
 
+    private func drawNumberStickerAnnotation(_ annotation: Annotation, in rect: CGRect, context: GraphicsContext) {
+        let fillColor = NSColor(annotation.color)
+        let textColor = numberStickerTextColor(for: fillColor)
+        let value = annotation.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "?" : annotation.text
+
+        let circlePath = Path(ellipseIn: rect)
+        context.fill(circlePath, with: .color(Color(nsColor: fillColor)))
+        context.stroke(
+            circlePath,
+            with: .color(textColor.opacity(0.35)),
+            style: StrokeStyle(lineWidth: max(1.2, rect.width * 0.05))
+        )
+        context.draw(
+            Text(value)
+                .font(.system(size: max(10, rect.height * 0.56), weight: .bold, design: .rounded))
+                .foregroundColor(textColor),
+            at: CGPoint(x: rect.midX, y: rect.midY),
+            anchor: .center
+        )
+    }
+
+    private func numberStickerTextColor(for fillColor: NSColor) -> Color {
+        let color = fillColor.usingColorSpace(.sRGB) ?? fillColor
+        let luminance = (0.2126 * color.redComponent) + (0.7152 * color.greenComponent) + (0.0722 * color.blueComponent)
+        return luminance >= 0.58 ? .black : .white
+    }
+
     private func drawStickerFallback(_ tool: AnnotationTool, in rect: CGRect, context: GraphicsContext) {
         switch tool {
         case .typingIndicatorSticker:
@@ -2664,6 +4654,8 @@ struct AnnotationCanvas: View {
                 with: .color(.black),
                 style: StrokeStyle(lineWidth: max(1.5, rect.width * 0.2), lineCap: .round)
             )
+        case .numberSticker:
+            context.fill(Path(ellipseIn: rect), with: .color(.black))
         default:
             var cursorPath = Path()
             cursorPath.move(to: CGPoint(x: rect.minX, y: rect.maxY))
@@ -2673,19 +4665,373 @@ struct AnnotationCanvas: View {
             context.fill(cursorPath, with: .color(.black))
         }
     }
+
+    private func drawMagnifierAnnotation(
+        _ annotation: Annotation,
+        in context: GraphicsContext,
+        size: CGSize,
+        effectiveStrokeWidth: CGFloat,
+        showResizeIndicator: Bool
+    ) {
+        guard let sourcePoint = annotation.points.first else { return }
+
+        let source = scalePoint(sourcePoint, to: size)
+        let fallbackLens = defaultMagnifierLensPoint(from: source, in: size)
+        let rawLens: CGPoint
+        if annotation.points.count > 1 {
+            rawLens = scalePoint(annotation.points[1], to: size)
+        } else {
+            rawLens = fallbackLens
+        }
+
+        let containerMinDimension = max(1, min(size.width, size.height))
+        let defaultLensRadius = defaultMagnifierRadius(forStrokeWidth: effectiveStrokeWidth)
+        let lensRadius = magnifierDisplayRadius(
+            for: annotation,
+            displayStrokeWidth: effectiveStrokeWidth,
+            containerMinDimension: containerMinDimension
+        )
+        let sourceRadius = max(14, lensRadius * 0.34)
+        let lens = clampMagnifierLensCenter(rawLens, radius: lensRadius, in: size)
+
+        let connectorColor = annotation.color
+        var connectorPath = Path()
+        let connectorVector = CGPoint(x: lens.x - source.x, y: lens.y - source.y)
+        let connectorDistance = hypot(connectorVector.x, connectorVector.y)
+        if connectorDistance > 0.001 {
+            let ux = connectorVector.x / connectorDistance
+            let uy = connectorVector.y / connectorDistance
+            connectorPath.move(
+                to: CGPoint(
+                    x: source.x + ux * sourceRadius,
+                    y: source.y + uy * sourceRadius
+                )
+            )
+            connectorPath.addLine(
+                to: CGPoint(
+                    x: lens.x - ux * lensRadius,
+                    y: lens.y - uy * lensRadius
+                )
+            )
+            context.stroke(
+                connectorPath,
+                with: .color(connectorColor),
+                style: StrokeStyle(lineWidth: max(2.0, effectiveStrokeWidth * 0.9), lineCap: .round)
+            )
+        }
+
+        let sourceMarkerRect = CGRect(
+            x: source.x - sourceRadius,
+            y: source.y - sourceRadius,
+            width: sourceRadius * 2,
+            height: sourceRadius * 2
+        )
+        let sourceMarkerPath = Path(ellipseIn: sourceMarkerRect)
+        context.stroke(
+            sourceMarkerPath,
+            with: .color(connectorColor),
+            style: StrokeStyle(lineWidth: max(1.8, effectiveStrokeWidth * 0.85))
+        )
+
+        let lensRect = CGRect(
+            x: lens.x - lensRadius,
+            y: lens.y - lensRadius,
+            width: lensRadius * 2,
+            height: lensRadius * 2
+        )
+        let lensPath = Path(ellipseIn: lensRect)
+        context.fill(lensPath, with: .color(.white.opacity(0.95)))
+
+        let magnification = magnifierMagnification(for: lensRadius, defaultRadius: defaultLensRadius)
+        let sampleDiameter = max(8, lensRect.width / magnification)
+        let scaleX = max(1, imageSize.width) / max(1, size.width)
+        let scaleY = max(1, imageSize.height) / max(1, size.height)
+        let sourceCenter = CGPoint(
+            x: source.x * scaleX,
+            y: (size.height - source.y) * scaleY
+        )
+        let imageBounds = CGRect(origin: .zero, size: imageSize)
+        let sampleRect = CGRect(
+            x: sourceCenter.x - (sampleDiameter * scaleX) / 2,
+            y: sourceCenter.y - (sampleDiameter * scaleY) / 2,
+            width: sampleDiameter * scaleX,
+            height: sampleDiameter * scaleY
+        ).intersection(imageBounds)
+
+        if sampleRect.width > 1, sampleRect.height > 1 {
+            let lensImageSize = NSSize(width: lensRect.width, height: lensRect.height)
+            let lensImage = NSImage(size: lensImageSize)
+            lensImage.lockFocus()
+            NSGraphicsContext.current?.imageInterpolation = .high
+            originalImage.draw(
+                in: NSRect(origin: .zero, size: lensImageSize),
+                from: sampleRect,
+                operation: .copy,
+                fraction: 1.0
+            )
+            lensImage.unlockFocus()
+
+            context.drawLayer { layer in
+                layer.clip(to: lensPath)
+                layer.draw(Image(nsImage: lensImage), in: lensRect)
+            }
+        }
+
+        context.stroke(
+            lensPath,
+            with: .color(connectorColor),
+            style: StrokeStyle(lineWidth: max(2.2, effectiveStrokeWidth * 0.95))
+        )
+        context.stroke(
+            Path(ellipseIn: lensRect.insetBy(dx: max(1.4, effectiveStrokeWidth * 0.5), dy: max(1.4, effectiveStrokeWidth * 0.5))),
+            with: .color(.black.opacity(0.82)),
+            style: StrokeStyle(lineWidth: max(1.0, effectiveStrokeWidth * 0.45))
+        )
+
+        if showResizeIndicator {
+            // Native-style resize knob: larger circular grip with diagonal expand arrows.
+            let angle: CGFloat = -.pi / 4
+            let handleRadius = max(8.2, effectiveStrokeWidth * 1.9)
+            let handleDistance = lensRadius + handleRadius * 0.16
+            let handleCenter = CGPoint(
+                x: lens.x + cos(angle) * handleDistance,
+                y: lens.y + sin(angle) * handleDistance
+            )
+            let handleRect = CGRect(
+                x: handleCenter.x - handleRadius,
+                y: handleCenter.y - handleRadius,
+                width: handleRadius * 2,
+                height: handleRadius * 2
+            )
+            let handlePath = Path(ellipseIn: handleRect)
+            let shadowRect = handleRect.offsetBy(dx: 0, dy: -0.8)
+            context.fill(
+                Path(ellipseIn: shadowRect),
+                with: .color(.black.opacity(0.34))
+            )
+            context.fill(handlePath, with: .color(.white.opacity(0.98)))
+            context.stroke(
+                handlePath,
+                with: .color(.black.opacity(0.85)),
+                style: StrokeStyle(lineWidth: max(1.0, effectiveStrokeWidth * 0.44))
+            )
+
+            let ux = cos(angle)
+            let uy = sin(angle)
+            let px = -uy
+            let py = ux
+            let shaftHalf = handleRadius * 0.34
+            let tipDistance = handleRadius * 0.58
+            let wingLength = handleRadius * 0.24
+            let wingBack = handleRadius * 0.25
+
+            var gripPath = Path()
+            gripPath.move(
+                to: CGPoint(
+                    x: handleCenter.x - ux * shaftHalf,
+                    y: handleCenter.y - uy * shaftHalf
+                )
+            )
+            gripPath.addLine(
+                to: CGPoint(
+                    x: handleCenter.x + ux * shaftHalf,
+                    y: handleCenter.y + uy * shaftHalf
+                )
+            )
+
+            let tip1 = CGPoint(
+                x: handleCenter.x + ux * tipDistance,
+                y: handleCenter.y + uy * tipDistance
+            )
+            let back1 = CGPoint(
+                x: tip1.x - ux * wingBack,
+                y: tip1.y - uy * wingBack
+            )
+            gripPath.move(to: tip1)
+            gripPath.addLine(to: CGPoint(x: back1.x + px * wingLength, y: back1.y + py * wingLength))
+            gripPath.move(to: tip1)
+            gripPath.addLine(to: CGPoint(x: back1.x - px * wingLength, y: back1.y - py * wingLength))
+
+            let tip2 = CGPoint(
+                x: handleCenter.x - ux * tipDistance,
+                y: handleCenter.y - uy * tipDistance
+            )
+            let back2 = CGPoint(
+                x: tip2.x + ux * wingBack,
+                y: tip2.y + uy * wingBack
+            )
+            gripPath.move(to: tip2)
+            gripPath.addLine(to: CGPoint(x: back2.x + px * wingLength, y: back2.y + py * wingLength))
+            gripPath.move(to: tip2)
+            gripPath.addLine(to: CGPoint(x: back2.x - px * wingLength, y: back2.y - py * wingLength))
+
+            context.stroke(
+                gripPath,
+                with: .color(.black.opacity(0.84)),
+                style: StrokeStyle(lineWidth: max(1.0, effectiveStrokeWidth * 0.34), lineCap: .round, lineJoin: .round)
+            )
+        }
+    }
     
-    private func drawArrow(from start: CGPoint, to end: CGPoint, color: Color, strokeStyle: StrokeStyle, in context: GraphicsContext) {
-        // Main line
+    private func drawImageOverlayAnnotation(
+        _ annotation: Annotation,
+        in context: GraphicsContext,
+        size: CGSize,
+        effectiveStrokeWidth: CGFloat
+    ) {
+        guard annotation.points.count > 1 else { return }
+        let rect = rectFromPoints(annotation.points[0], annotation.points[1], size: size)
+        guard rect.width > 2, rect.height > 2 else { return }
+
+        let cornerRadius = imageOverlayCornerRadius(for: annotation, in: size, rect: rect)
+        let clipPath = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).path(in: rect)
+
+        context.drawLayer { layer in
+            layer.clip(to: clipPath)
+            if let overlayImage = overlayImagesByPath[annotation.imagePath] {
+                layer.draw(
+                    Image(nsImage: overlayImage),
+                    in: aspectFillRect(for: overlayImage.size, in: rect)
+                )
+            } else {
+                layer.fill(Path(rect), with: .color(.black.opacity(0.16)))
+            }
+        }
+
+        context.stroke(
+            clipPath,
+            with: .color(.white.opacity(0.28)),
+            style: StrokeStyle(lineWidth: max(1.2, effectiveStrokeWidth * 0.34))
+        )
+    }
+
+    private func imageOverlayCornerRadius(for annotation: Annotation, in size: CGSize, rect: CGRect) -> CGFloat {
+        var radius = max(0, annotation.imageCornerRadius)
+        if annotation.referenceCanvasMinDimension > 1 {
+            radius *= max(1, min(size.width, size.height)) / annotation.referenceCanvasMinDimension
+        }
+        return min(radius, min(rect.width, rect.height) / 2)
+    }
+
+    private func aspectFillRect(for sourceSize: NSSize, in destinationRect: CGRect) -> CGRect {
+        let safeSourceWidth = max(sourceSize.width, 1)
+        let safeSourceHeight = max(sourceSize.height, 1)
+        let scale = max(destinationRect.width / safeSourceWidth, destinationRect.height / safeSourceHeight)
+        let drawSize = CGSize(width: safeSourceWidth * scale, height: safeSourceHeight * scale)
+        return CGRect(
+            x: destinationRect.midX - drawSize.width / 2,
+            y: destinationRect.midY - drawSize.height / 2,
+            width: drawSize.width,
+            height: drawSize.height
+        )
+    }
+
+    private func resolvedArrowCurveOffset(for annotation: Annotation, start: CGPoint, end: CGPoint, in size: CGSize) -> CGFloat {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        guard distance > 0.001 else { return 0 }
+
+        if abs(annotation.curveOffset) > 0.001 {
+            let containerMinDimension = max(1, min(size.width, size.height))
+            guard annotation.referenceCanvasMinDimension > 1 else { return annotation.curveOffset }
+            return annotation.curveOffset * (containerMinDimension / annotation.referenceCanvasMinDimension)
+        }
+
+        if annotation.tool == .curvedArrow {
+            return min(max(distance * 0.28, 20), 120)
+        }
+        return 0
+    }
+
+    private func resolvedArrowCurveControlPoint(for annotation: Annotation, start: CGPoint, end: CGPoint, in size: CGSize) -> CGPoint {
+        let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+
+        if annotation.hasCustomCurveControl {
+            let containerMinDimension = max(1, min(size.width, size.height))
+            let displayOffset: CGSize
+            if annotation.referenceCanvasMinDimension > 1 {
+                let scale = containerMinDimension / annotation.referenceCanvasMinDimension
+                displayOffset = CGSize(
+                    width: annotation.curveControlOffset.width * scale,
+                    height: annotation.curveControlOffset.height * scale
+                )
+            } else {
+                displayOffset = annotation.curveControlOffset
+            }
+            return CGPoint(x: mid.x + displayOffset.width, y: mid.y + displayOffset.height)
+        }
+
+        let fallbackOffset = resolvedArrowCurveOffset(for: annotation, start: start, end: end, in: size)
+        return curvedArrowControlPoint(from: start, to: end, curveOffset: fallbackOffset)
+    }
+
+    private func drawCurveArrowHandle(
+        controlPoint: CGPoint,
+        color: Color,
+        strokeStyle: StrokeStyle,
+        in context: GraphicsContext
+    ) {
+        let handleCenter = controlPoint
+        let handleRadius = max(5.0, strokeStyle.lineWidth * 1.25)
+        let handleRect = CGRect(
+            x: handleCenter.x - handleRadius,
+            y: handleCenter.y - handleRadius,
+            width: handleRadius * 2,
+            height: handleRadius * 2
+        )
+        let handlePath = Path(ellipseIn: handleRect)
+        context.fill(handlePath, with: .color(.white.opacity(0.94)))
+        context.stroke(
+            handlePath,
+            with: .color(color),
+            style: StrokeStyle(lineWidth: max(1.1, strokeStyle.lineWidth * 0.55))
+        )
+    }
+
+    private func pointToSegmentDistance(_ point: CGPoint, start: CGPoint, end: CGPoint) -> CGFloat {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+
+        guard dx != 0 || dy != 0 else {
+            return hypot(point.x - start.x, point.y - start.y)
+        }
+
+        let t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)
+        let clampedT = min(max(t, 0), 1)
+        let projection = CGPoint(
+            x: start.x + clampedT * dx,
+            y: start.y + clampedT * dy
+        )
+        return hypot(point.x - projection.x, point.y - projection.y)
+    }
+
+    private func drawArrow(
+        from start: CGPoint,
+        to end: CGPoint,
+        color: Color,
+        strokeStyle: StrokeStyle,
+        curveControlPoint: CGPoint? = nil,
+        in context: GraphicsContext
+    ) {
         var linePath = Path()
-        linePath.move(to: start)
-        linePath.addLine(to: end)
+        let directionVector: CGPoint
+        let curveDistance = curveControlPoint.map { pointToSegmentDistance($0, start: start, end: end) } ?? 0
+        if let control = curveControlPoint, curveDistance > 0.5 {
+            linePath.move(to: start)
+            linePath.addQuadCurve(to: end, control: control)
+            directionVector = CGPoint(x: end.x - control.x, y: end.y - control.y)
+        } else {
+            linePath.move(to: start)
+            linePath.addLine(to: end)
+            directionVector = CGPoint(x: end.x - start.x, y: end.y - start.y)
+        }
         context.stroke(linePath, with: .color(color), style: strokeStyle)
-        
-        // Arrowhead
-        let angle = atan2(end.y - start.y, end.x - start.x)
+
+        let fallback = CGPoint(x: end.x - start.x, y: end.y - start.y)
+        let headVector = hypot(directionVector.x, directionVector.y) > 0.001 ? directionVector : fallback
+        let angle = atan2(headVector.y, headVector.x)
         let arrowLength: CGFloat = 15 + strokeStyle.lineWidth * 2
         let arrowAngle: CGFloat = .pi / 6
-        
+
         let point1 = CGPoint(
             x: end.x - arrowLength * cos(angle - arrowAngle),
             y: end.y - arrowLength * sin(angle - arrowAngle)
@@ -2694,50 +5040,23 @@ struct AnnotationCanvas: View {
             x: end.x - arrowLength * cos(angle + arrowAngle),
             y: end.y - arrowLength * sin(angle + arrowAngle)
         )
-        
+
         var arrowPath = Path()
         arrowPath.move(to: point1)
         arrowPath.addLine(to: end)
         arrowPath.addLine(to: point2)
         context.stroke(arrowPath, with: .color(color), style: strokeStyle)
     }
-    
-    private func drawCurvedArrow(from start: CGPoint, to end: CGPoint, color: Color, strokeStyle: StrokeStyle, in context: GraphicsContext) {
-        let control = curvedArrowControlPoint(from: start, to: end)
-        
-        var curvePath = Path()
-        curvePath.move(to: start)
-        curvePath.addQuadCurve(to: end, control: control)
-        context.stroke(curvePath, with: .color(color), style: strokeStyle)
-        
-        let tangent = CGPoint(
-            x: end.x - control.x,
-            y: end.y - control.y
-        )
-        let fallback = CGPoint(
-            x: end.x - start.x,
-            y: end.y - start.y
-        )
-        let headVector = hypot(tangent.x, tangent.y) > 0.001 ? tangent : fallback
-        let angle = atan2(headVector.y, headVector.x)
-        
-        let arrowLength: CGFloat = 15 + strokeStyle.lineWidth * 2
-        let arrowAngle: CGFloat = .pi / 6
-        
-        let point1 = CGPoint(
-            x: end.x - arrowLength * cos(angle - arrowAngle),
-            y: end.y - arrowLength * sin(angle - arrowAngle)
-        )
-        let point2 = CGPoint(
-            x: end.x - arrowLength * cos(angle + arrowAngle),
-            y: end.y - arrowLength * sin(angle + arrowAngle)
-        )
-        
-        var arrowPath = Path()
-        arrowPath.move(to: point1)
-        arrowPath.addLine(to: end)
-        arrowPath.addLine(to: point2)
-        context.stroke(arrowPath, with: .color(color), style: strokeStyle)
+
+    private func drawCurvedArrow(
+        from start: CGPoint,
+        to end: CGPoint,
+        color: Color,
+        strokeStyle: StrokeStyle,
+        curveControlPoint: CGPoint,
+        in context: GraphicsContext
+    ) {
+        drawArrow(from: start, to: end, color: color, strokeStyle: strokeStyle, curveControlPoint: curveControlPoint, in: context)
     }
     
     private func rectFromPoints(_ p1: CGPoint, _ p2: CGPoint, size: CGSize) -> CGRect {
@@ -2748,6 +5067,18 @@ struct AnnotationCanvas: View {
             y: min(s1.y, s2.y),
             width: abs(s2.x - s1.x),
             height: abs(s2.y - s1.y)
+        )
+    }
+
+    private func defaultMagnifierLensPoint(from source: CGPoint, in size: CGSize) -> CGPoint {
+        let offset = max(80, min(size.width, size.height) * 0.16)
+        return CGPoint(x: source.x + offset, y: source.y + offset)
+    }
+
+    private func clampMagnifierLensCenter(_ center: CGPoint, radius: CGFloat, in size: CGSize) -> CGPoint {
+        CGPoint(
+            x: min(max(center.x, radius + 4), max(radius + 4, size.width - radius - 4)),
+            y: min(max(center.y, radius + 4), max(radius + 4, size.height - radius - 4))
         )
     }
     
@@ -2764,7 +5095,7 @@ struct AnnotationCanvas: View {
         return annotation.strokeWidth * (targetMinDimension / referenceMinDimension)
     }
     
-    private func curvedArrowControlPoint(from start: CGPoint, to end: CGPoint) -> CGPoint {
+    private func curvedArrowControlPoint(from start: CGPoint, to end: CGPoint, curveOffset: CGFloat? = nil) -> CGPoint {
         let dx = end.x - start.x
         let dy = end.y - start.y
         let distance = hypot(dx, dy)
@@ -2774,7 +5105,7 @@ struct AnnotationCanvas: View {
         
         let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let normal = CGPoint(x: -dy / distance, y: dx / distance)
-        let curveAmount = min(max(distance * 0.28, 20), 120)
+        let curveAmount = curveOffset ?? min(max(distance * 0.28, 20), 120)
         
         return CGPoint(
             x: mid.x + normal.x * curveAmount,

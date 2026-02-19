@@ -53,6 +53,7 @@ struct ToDoItem: Identifiable, Codable, Equatable {
     var externalListIdentifier: String?
     var externalListTitle: String?
     var externalListColorHex: String?
+    var externalMeetingURL: String? = nil
     var createdAt: Date
     var completedAt: Date?
     var isCompleted: Bool
@@ -68,7 +69,8 @@ struct ToDoItem: Identifiable, Codable, Equatable {
         lhs.externalParentIdentifier == rhs.externalParentIdentifier &&
         lhs.externalListIdentifier == rhs.externalListIdentifier &&
         lhs.externalListTitle == rhs.externalListTitle &&
-        lhs.externalListColorHex == rhs.externalListColorHex
+        lhs.externalListColorHex == rhs.externalListColorHex &&
+        lhs.externalMeetingURL == rhs.externalMeetingURL
     }
 }
 
@@ -1096,7 +1098,8 @@ final class ToDoManager {
                 isCompleted: reminder.isCompleted,
                 listIdentifier: reminder.calendar.calendarIdentifier,
                 listTitle: reminder.calendar.title,
-                listColorHex: Self.hexColor(from: reminder.calendar.cgColor)
+                listColorHex: Self.hexColor(from: reminder.calendar.cgColor),
+                meetingURL: nil
             )
         }
         if parentReferenceCount > 0 && resolvedParentCount == 0 {
@@ -1137,7 +1140,8 @@ final class ToDoManager {
                 isCompleted: false,
                 listIdentifier: event.calendar.calendarIdentifier,
                 listTitle: event.calendar.title,
-                listColorHex: Self.hexColor(from: event.calendar.cgColor)
+                listColorHex: Self.hexColor(from: event.calendar.cgColor),
+                meetingURL: Self.calendarMeetingURL(for: event)
             )
         }
         return payloads
@@ -1199,6 +1203,10 @@ final class ToDoManager {
                     current.externalListColorHex = payload.listColorHex
                     changed = true
                 }
+                if current.externalMeetingURL != payload.meetingURL {
+                    current.externalMeetingURL = payload.meetingURL
+                    changed = true
+                }
 
                 if changed {
                     items[index] = current
@@ -1218,6 +1226,7 @@ final class ToDoManager {
                 externalListIdentifier: payload.listIdentifier,
                 externalListTitle: payload.listTitle,
                 externalListColorHex: payload.listColorHex,
+                externalMeetingURL: payload.meetingURL,
                 createdAt: now,
                 completedAt: payload.isCompleted ? now : nil,
                 isCompleted: payload.isCompleted
@@ -1275,10 +1284,11 @@ final class ToDoManager {
         let listIdentifier: String?
         let listTitle: String?
         let listColorHex: String?
+        let meetingURL: String?
     }
 
     private struct DueSoonNotificationCandidate {
-        let id: UUID
+        let stableIdentity: String
         let title: String
         let source: ToDoExternalSource?
         let dueDate: Date
@@ -1320,8 +1330,18 @@ final class ToDoManager {
             guard let dueDate = item.dueDate else { return nil }
             guard dueDate > now else { return nil }
             guard hasExplicitDueTime(dueDate) else { return nil }
+
+            let stableIdentity: String
+            if let source = item.externalSource,
+               let externalIdentifier = item.externalIdentifier,
+               !externalIdentifier.isEmpty {
+                stableIdentity = "\(source.rawValue)::\(externalIdentifier)"
+            } else {
+                stableIdentity = "local::\(item.id.uuidString)"
+            }
+
             return DueSoonNotificationCandidate(
-                id: item.id,
+                stableIdentity: stableIdentity,
                 title: item.title,
                 source: item.externalSource,
                 dueDate: dueDate,
@@ -1337,7 +1357,11 @@ final class ToDoManager {
             .filter { !dueSoonDeliveredTokens.contains($0.token) }
             .sorted { $0.fireDate < $1.fireDate }
 
-        for entry in dueNow {
+        // When refresh runs late (sleep/wake, heavy sync), multiple lead-times for the
+        // same event can be overdue at once. Emit only the most recent missed alert.
+        let dueNowCollapsed = collapseOverdueDueSoonEntries(dueNow)
+
+        for entry in dueNowCollapsed {
             dueSoonDeliveredTokens.insert(entry.token)
             NotificationHUDManager.shared.showDueSoonNotification(
                 title: entry.candidate.title,
@@ -1369,7 +1393,7 @@ final class ToDoManager {
             for leadTime in dueSoonLeadTimes {
                 let fireDate = candidate.dueDate.addingTimeInterval(-leadTime)
                 let dueStamp = Int(candidate.dueDate.timeIntervalSince1970)
-                let token = "\(candidate.id.uuidString)_\(dueStamp)_\(Int(leadTime))"
+                let token = "\(candidate.stableIdentity)_\(dueStamp)_\(Int(leadTime))"
                 entries.append(
                     DueSoonNotificationEntry(
                         token: token,
@@ -1381,6 +1405,28 @@ final class ToDoManager {
             }
         }
         return entries
+    }
+
+    private func collapseOverdueDueSoonEntries(
+        _ entries: [DueSoonNotificationEntry]
+    ) -> [DueSoonNotificationEntry] {
+        var latestByOccurrence: [String: DueSoonNotificationEntry] = [:]
+        latestByOccurrence.reserveCapacity(entries.count)
+
+        for entry in entries {
+            let dueStamp = Int(entry.candidate.dueDate.timeIntervalSince1970)
+            let key = "\(entry.candidate.stableIdentity)_\(dueStamp)"
+
+            if let existing = latestByOccurrence[key] {
+                if entry.fireDate > existing.fireDate {
+                    latestByOccurrence[key] = entry
+                }
+            } else {
+                latestByOccurrence[key] = entry
+            }
+        }
+
+        return latestByOccurrence.values.sorted { $0.fireDate < $1.fireDate }
     }
 
     private func dueSoonNotificationSubtitle(
@@ -1508,6 +1554,7 @@ final class ToDoManager {
             deletedSnapshot.externalListIdentifier = nil
             deletedSnapshot.externalListTitle = nil
             deletedSnapshot.externalListColorHex = nil
+            deletedSnapshot.externalMeetingURL = nil
         }
 
         withAnimation(.smooth) {
@@ -1829,6 +1876,14 @@ final class ToDoManager {
     var overviewTaskItems: [ToDoItem] {
         partitionedItems.overviewTaskItems
     }
+    
+    var upcomingCalendarItemsAnimationSignature: Int {
+        partitionedItems.upcomingCalendarItemsSignature
+    }
+
+    var overviewTaskItemsAnimationSignature: Int {
+        partitionedItems.overviewTaskItemsSignature
+    }
 
     var shelfTimelineItemCount: Int {
         let counts = activeTimelineCounts
@@ -2023,6 +2078,8 @@ final class ToDoManager {
     private struct ItemPartitionCache {
         let upcomingCalendarItems: [ToDoItem]
         let overviewTaskItems: [ToDoItem]
+        let upcomingCalendarItemsSignature: Int
+        let overviewTaskItemsSignature: Int
     }
 
     private var partitionedItems: ItemPartitionCache {
@@ -2050,10 +2107,21 @@ final class ToDoManager {
 
         let cache = ItemPartitionCache(
             upcomingCalendarItems: upcoming,
-            overviewTaskItems: overview
+            overviewTaskItems: overview,
+            upcomingCalendarItemsSignature: animationSignature(for: upcoming),
+            overviewTaskItemsSignature: animationSignature(for: overview)
         )
         itemPartitionCache = cache
         return cache
+    }
+
+    private func animationSignature(for items: [ToDoItem]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(items.count)
+        for item in items {
+            hasher.combine(item.id)
+        }
+        return hasher.finalize()
     }
 
     func reminderItemsByExternalID(in sourceItems: [ToDoItem]) -> [String: ToDoItem] {
@@ -2433,6 +2501,94 @@ final class ToDoManager {
         let green = Int(round(nsColor.greenComponent * 255))
         let blue = Int(round(nsColor.blueComponent * 255))
         return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+
+    private nonisolated static let meetingLinkDetector: NSDataDetector? =
+        try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+
+    private static func calendarMeetingURL(for event: EKEvent) -> String? {
+        var candidates: [URL] = []
+        if let eventURL = event.url {
+            candidates.append(resolvedMeetingCandidate(from: eventURL))
+        }
+        if let location = event.location {
+            candidates.append(contentsOf: detectedMeetingLinks(in: location))
+        }
+        if let notes = event.notes {
+            candidates.append(contentsOf: detectedMeetingLinks(in: notes))
+        }
+
+        var deduped: [URL] = []
+        var seen: Set<String> = []
+        for candidate in candidates where isSupportedMeetingURL(candidate) {
+            let key = candidate.absoluteString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !key.isEmpty else { continue }
+            guard seen.insert(key).inserted else { continue }
+            deduped.append(candidate)
+        }
+
+        if let teamsURL = deduped.first(where: { isTeamsMeetingURL($0) }) {
+            return teamsURL.absoluteString
+        }
+        if let fallback = deduped.first {
+            return fallback.absoluteString
+        }
+        return nil
+    }
+
+    private nonisolated static func detectedMeetingLinks(in text: String) -> [URL] {
+        guard let detector = meetingLinkDetector else { return [] }
+        let range = NSRange(text.startIndex..., in: text)
+        return detector.matches(in: text, options: [], range: range).compactMap {
+            guard let detected = $0.url else { return nil }
+            return resolvedMeetingCandidate(from: detected)
+        }
+    }
+
+    private nonisolated static func resolvedMeetingCandidate(from url: URL) -> URL {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems else {
+            return url
+        }
+        let redirectKeys = Set(["url", "u", "redirect", "target"])
+        for item in queryItems {
+            let key = item.name.lowercased()
+            guard redirectKeys.contains(key),
+                  let rawValue = item.value else {
+                continue
+            }
+            let decoded = rawValue.removingPercentEncoding ?? rawValue
+            guard let nested = URL(string: decoded),
+                  isSupportedMeetingURL(nested) else {
+                continue
+            }
+            return nested
+        }
+        return url
+    }
+
+    private nonisolated static func isSupportedMeetingURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        return scheme == "https" || scheme == "http" || scheme == "msteams"
+    }
+
+    private nonisolated static func isTeamsMeetingURL(_ url: URL) -> Bool {
+        let absolute = url.absoluteString.lowercased()
+        if absolute.contains("teams.microsoft.com/l/meetup-join") ||
+            absolute.contains("teams.microsoft.com%2fl%2fmeetup-join") ||
+            absolute.contains("msteams://") {
+            return true
+        }
+        guard let host = url.host?.lowercased() else { return false }
+        return host == "teams.microsoft.com" ||
+            host.hasSuffix(".teams.microsoft.com") ||
+            host == "teams.live.com" ||
+            host.hasSuffix(".teams.live.com") ||
+            host == "teams.office.com" ||
+            host.hasSuffix(".teams.office.com") ||
+            host == "gov.teams.microsoft.us" ||
+            host == "dod.teams.microsoft.us" ||
+            (host == "aka.ms" && absolute.contains("meetup-join"))
     }
 
     private static func calendarOccurrenceIdentifier(for event: EKEvent) -> String {

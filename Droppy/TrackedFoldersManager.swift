@@ -288,6 +288,16 @@ final class TrackedFoldersManager: ObservableObject {
         guard !urlArray.isEmpty else {
             return
         }
+        let sourceFolderURL = folder.resolveURL()
+        let sourceFolderName = sourceFolderURL?.lastPathComponent ?? "Watched Folder"
+        let sourceFolderPath = sourceFolderURL?.path
+        let droppedItems = urlArray.map {
+            DroppedItem(
+                url: $0,
+                autoDroppedFromFolderName: sourceFolderName,
+                autoDroppedFromFolderPath: sourceFolderPath
+            )
+        }
         let state = DroppyState.shared
         
         print("TrackedFolders: Flushing \(urlArray.count) file(s) to \(folder.destination.displayName)")
@@ -295,7 +305,7 @@ final class TrackedFoldersManager: ObservableObject {
         switch folder.destination {
         case .shelf:
             // Add all pending files to shelf
-            state.addItems(from: urlArray)
+            state.addItems(droppedItems)
             state.isExpanded = true  // This expands the notch shelf
             print("TrackedFolders: Added \(urlArray.count) file(s) to Shelf")
             
@@ -314,17 +324,18 @@ final class TrackedFoldersManager: ObservableObject {
                 // Show switcher so user can pick which basket to add to
                 // Store the URLs to add after user selects a basket
                 let pendingURLs = urlArray
+                let pendingDroppedItems = droppedItems
                 BasketSwitcherWindowController.shared.showForTrackedFolder(
                     baskets: allBaskets,
                     pendingFiles: pendingURLs
                 ) { selectedBasket in
-                    selectedBasket.basketState.addItems(from: pendingURLs)
+                    selectedBasket.basketState.addItems(pendingDroppedItems)
                     selectedBasket.showBasket(atLastPosition: true)
                 }
                 print("TrackedFolders: Showing switcher for \(urlArray.count) file(s)")
             } else {
                 // Single basket or only 1 basket active - add directly
-                FloatingBasketWindowController.addItemsFromExternalSource(urlArray, showAtLastPosition: true)
+                FloatingBasketWindowController.addDroppedItemsFromExternalSource(droppedItems, showAtLastPosition: true)
                 print("TrackedFolders: Added \(urlArray.count) file(s) to Basket")
             }
         }

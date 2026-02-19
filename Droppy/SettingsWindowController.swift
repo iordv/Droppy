@@ -9,6 +9,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     /// The settings window
     private var window: NSWindow?
     
+    /// Dedicated lightweight window for Menu Bar Manager quick settings
+    private var menuBarManagerWindow: NSWindow?
+    
     private override init() {
         super.init()
     }
@@ -42,6 +45,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             LicenseWindowController.shared.show()
             return
         }
+
+        // Full settings takes precedence over the lightweight MBM quick window.
+        closeMenuBarManagerQuickSettings()
 
         // Store the pending extension before potentially creating the window
         pendingExtensionToOpen = extensionType
@@ -113,9 +119,85 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         HapticFeedback.expand()
     }
     
+    /// Opens a lightweight window that renders only Menu Bar Manager settings.
+    /// Used by the menu-bar context menu path for faster startup than full SettingsView.
+    func showMenuBarManagerQuickSettings() {
+        let licenseManager = LicenseManager.shared
+        if licenseManager.requiresLicenseEnforcement && !licenseManager.hasAccess {
+            pendingExtensionToOpen = nil
+            pendingTabToOpen = nil
+            close()
+            closeMenuBarManagerQuickSettings()
+            LicenseWindowController.shared.show()
+            return
+        }
+
+        // If full settings is already open, route to the extension sheet there.
+        if let window {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            NotificationCenter.default.post(name: .openExtensionFromDeepLink, object: ExtensionType.menuBarManager)
+            return
+        }
+
+        if let menuBarManagerWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            menuBarManagerWindow.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let content = MenuBarManagerInfoView(
+            installCount: nil,
+            rating: nil
+        )
+        let hostingView = NSHostingView(rootView: content)
+        let availableHeight = NSScreen.main?.visibleFrame.height ?? 800
+        let windowWidth: CGFloat = 450
+        let windowHeight: CGFloat = min(760, max(520, availableHeight - 120))
+
+        let newWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        newWindow.center()
+        newWindow.title = ""
+        newWindow.titlebarAppearsTransparent = true
+        newWindow.titleVisibility = .hidden
+        newWindow.standardWindowButton(.closeButton)?.isHidden = true
+        newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        newWindow.standardWindowButton(.zoomButton)?.isHidden = true
+        newWindow.isMovableByWindowBackground = false
+        newWindow.backgroundColor = .clear
+        newWindow.isOpaque = false
+        newWindow.hasShadow = true
+        newWindow.isReleasedWhenClosed = false
+        newWindow.delegate = self
+        newWindow.contentView = hostingView
+
+        menuBarManagerWindow = newWindow
+
+        AppKitMotion.prepareForPresent(newWindow, initialScale: 0.95)
+        newWindow.orderFront(nil)
+        DispatchQueue.main.async {
+            NSApp.activate(ignoringOtherApps: true)
+            newWindow.makeKeyAndOrderFront(nil)
+        }
+        AppKitMotion.animateIn(newWindow, initialScale: 0.95, duration: 0.2)
+        HapticFeedback.expand()
+    }
+    
     /// Close the settings window
     func close() {
         window?.close()
+        menuBarManagerWindow?.close()
+    }
+    
+    /// Close the lightweight Menu Bar Manager quick settings window.
+    func closeMenuBarManagerQuickSettings() {
+        menuBarManagerWindow?.close()
     }
     
     /// Clears the pending extension (called after SettingsView consumes it)
@@ -126,6 +208,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     /// Clears the pending tab (called after SettingsView consumes it)
     func clearPendingTab() {
         pendingTabToOpen = nil
+    }
+
+    /// Ensures no stale AppKit sheet remains attached after SwiftUI sheet dismissal.
+    /// This prevents the settings window from staying dimmed due to a dangling sheet link.
+    func cleanupAttachedSheetIfPresent() {
+        guard let window = window, let sheet = window.attachedSheet else { return }
+        window.endSheet(sheet, returnCode: .cancel)
     }
     
     // MARK: - Window Sizing
@@ -166,7 +255,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             // Aggressively release the hosted SwiftUI tree when the window closes.
             closingWindow.contentView = nil
             closingWindow.delegate = nil
+            if closingWindow === window {
+                window = nil
+            }
+            if closingWindow === menuBarManagerWindow {
+                menuBarManagerWindow = nil
+            }
         }
-        window = nil
     }
 }

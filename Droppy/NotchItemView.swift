@@ -328,7 +328,7 @@ struct NotchItemView: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .frame(width: 76, height: 96)
+        .frame(width: 80, height: 102)
 
         let interactiveContent = baseContent
             // Drop target for ANY folder - drop files INTO the folder
@@ -353,7 +353,7 @@ struct NotchItemView: View {
                 if isDropTargeted {
                     RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
                         .fill(Color.black.opacity(0.3))
-                        .frame(width: 56, height: 56)
+                        .frame(width: 64, height: 64)
                         .offset(y: -14)
                 }
             }
@@ -653,9 +653,9 @@ struct NotchItemView: View {
                         }
                     } label: {
                         if isMultiSelect {
-                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         } else {
-                            Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         }
                     }
                     .disabled(isCompressing)
@@ -669,9 +669,9 @@ struct NotchItemView: View {
                         }
                     } label: {
                         if isMultiSelect {
-                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress All (\(state.selectedItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         } else {
-                            Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                            Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                         }
                     }
                     .disabled(isCompressing)
@@ -791,7 +791,7 @@ struct NotchItemView: View {
         return dragWrapper
             // Keep the representable wrapper's layout bounds identical to the visual item.
             // This prevents marquee selection from intersecting oversized implicit cells.
-            .frame(width: 76, height: 96)
+            .frame(width: 80, height: 102)
             .background {
                 if !state.isBulkUpdating {
                     GeometryReader { geo in
@@ -866,10 +866,9 @@ struct NotchItemView: View {
                 await MainActor.run {
                     isConverting = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    // Trigger poof animation
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
+                    state.replaceItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } else {
@@ -877,11 +876,23 @@ struct NotchItemView: View {
                     isConverting = false
                     state.endFileOperation()
                 }
-                let requiredApp = FileConverter.requiredAppForPDFConversion(fileType: item.fileType) ?? "Keynote, Pages, Numbers, or LibreOffice"
-                await DroppyAlertController.shared.showError(
-                    title: "Conversion Failed",
-                    message: "Could not convert \(item.name) to PDF. Please install \(requiredApp) (free from App Store) or LibreOffice."
-                )
+                if format == .pdf {
+                    let requiredApp = FileConverter.requiredAppForPDFConversion(fileType: item.fileType) ?? "Keynote, Pages, Numbers, or LibreOffice"
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to PDF. Please install \(requiredApp) (free from App Store) or LibreOffice."
+                    )
+                } else if format == .webp {
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to WebP. Please install FFmpeg (via Video Target Size extension or Homebrew) or cwebp."
+                    )
+                } else {
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to \(format.displayName)."
+                    )
+                }
             }
         }
     }
@@ -983,17 +994,9 @@ struct NotchItemView: View {
                 await MainActor.run {
                     isCompressing = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
-                    }
-                    // Clean up after slight delay to ensure poof is seen
-                    Task {
-                        try? await Task.sleep(nanoseconds: 600_000_000)
-                        await MainActor.run {
-                            state.replaceItem(item, with: newItem)
-                            isPoofing = false
-                        }
+                    state.replaceItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } else {
@@ -1040,9 +1043,9 @@ struct NotchItemView: View {
                 await MainActor.run {
                     isRemovingBackground = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
+                    state.replaceItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } catch {
@@ -1423,7 +1426,7 @@ private struct NotchItemContent: View {
                             .hueRotation(item.isPinned && item.isDirectory ? .degrees(180) : .degrees(0))
                     }
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 56, height: 56)
                 // NO clipShape - keep exact Finder icon shapes
                 // Subtle gray highlight when selected (like Finder)
                 .background {
@@ -1446,13 +1449,17 @@ private struct NotchItemContent: View {
                     // Magic processing animation for background removal
                     if isRemovingBackground || state.processingItemIds.contains(item.id) {
                         MagicProcessingOverlay()
-                            .frame(width: 48, height: 48)
+                            .frame(width: 56, height: 56)
                             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xs, style: .continuous))
                             .transition(.opacity.animation(DroppyAnimation.viewChange))
                     }
                 }
-                .frame(width: 56, height: 56)
+                .frame(width: 64, height: 64)
                 .padding(.top, 6) // Make room for X button above
+
+                if item.autoDropSourceLabel != nil {
+                    centeredTrackedBadge(iconWidth: 64)
+                }
                 
                 // Remove button on hover - hidden for pinned folders
                 if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
@@ -1487,7 +1494,7 @@ private struct NotchItemContent: View {
                         }
                     }
                     .buttonStyle(.borderless)
-                    .offset(x: 4, y: 54) // Bottom-right of icon
+                    .offset(x: 4, y: 62) // Bottom-right of icon
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1539,6 +1546,26 @@ private struct NotchItemContent: View {
                 }
             )
         }
+    }
+
+    private var trackedBadge: some View {
+        Text("tracked")
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(.white)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.blue.opacity(0.95))
+            )
+            .help(item.autoDroppedFromFolderPath ?? "Tracked folder item")
+    }
+
+    @ViewBuilder
+    private func centeredTrackedBadge(iconWidth: CGFloat) -> some View {
+        trackedBadge
+            .frame(width: iconWidth, alignment: .top)
+            .offset(y: 2)
     }
 
     private var renamePopoverPresented: Binding<Bool> {

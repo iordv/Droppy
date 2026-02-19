@@ -86,17 +86,6 @@ struct DroppyMenuContent: View {
         return ExtensionType.windowSnap.isRemoved
     }
     
-    // Load saved shortcut for native keyboard shortcut display
-    private var savedShortcut: SavedShortcut? {
-        // Force re-evaluation when shortcutRefreshId changes
-        _ = shortcutRefreshId
-        if let data = UserDefaults.standard.data(forKey: "elementCaptureShortcut"),
-           let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) {
-            return decoded
-        }
-        return nil
-    }
-    
     var body: some View {
         if licenseManager.requiresLicenseEnforcement && !licenseManager.hasAccess {
             Button {
@@ -285,44 +274,16 @@ struct DroppyMenuContent: View {
                 }
             }
             
-            // Element Capture with native keyboard shortcut styling (hidden when disabled)
+            // Element Capture submenu (hidden when disabled)
             if !isElementCaptureDisabled {
-                elementCaptureButton
+                elementCaptureMenu
                     .id(shortcutRefreshId)  // Force rebuild when shortcut changes
             }
             
-            // Window Snap submenu with quick actions (hidden when disabled)
+            // Window Snap submenu (hidden when disabled)
             if !isWindowSnapDisabled {
-                Menu {
-                    Button {
-                        WindowSnapManager.shared.executeAction(.leftHalf)
-                    } label: {
-                        Label("Left Half", systemImage: "rectangle.lefthalf.filled")
-                    }
-                    Button {
-                        WindowSnapManager.shared.executeAction(.rightHalf)
-                    } label: {
-                        Label("Right Half", systemImage: "rectangle.righthalf.filled")
-                    }
-                    Button {
-                        WindowSnapManager.shared.executeAction(.maximize)
-                    } label: {
-                        Label("Maximize", systemImage: "arrow.up.left.and.arrow.down.right")
-                    }
-                    Button {
-                        WindowSnapManager.shared.executeAction(.center)
-                    } label: {
-                        Label("Center", systemImage: "rectangle.center.inset.filled")
-                    }
-                    Divider()
-                    Button {
-                        SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
-                    } label: {
-                        Label("Configure Window Snap…", systemImage: "keyboard")
-                    }
-                } label: {
-                    Label("Window Snap", systemImage: "rectangle.split.2x1")
-                }
+                windowSnapMenu
+                    .id(shortcutRefreshId)
             }
             
             Divider()
@@ -357,20 +318,151 @@ struct DroppyMenuContent: View {
     }
     
     @ViewBuilder
-    private var elementCaptureButton: some View {
-        if let shortcut = savedShortcut, let key = shortcut.keyEquivalent {
+    private var elementCaptureMenu: some View {
+        Menu {
+            ForEach(ElementCaptureMode.allCases) { mode in
+                elementCaptureModeButton(mode)
+            }
+
+            Divider()
+
             Button {
-                ElementCaptureManager.shared.startCaptureMode()
+                SettingsWindowController.shared.showSettings(openingExtension: .elementCapture)
             } label: {
-                Label("Element Capture", systemImage: "viewfinder")
+                Label("Configure Element Capture…", systemImage: "keyboard")
+            }
+        } label: {
+            Label("Element Capture", systemImage: "viewfinder")
+        }
+    }
+
+    @ViewBuilder
+    private func elementCaptureModeButton(_ mode: ElementCaptureMode) -> some View {
+        if let shortcut = elementCaptureShortcut(for: mode), let key = shortcut.keyEquivalent {
+            Button {
+                ElementCaptureManager.shared.startCaptureMode(mode: mode)
+            } label: {
+                Label(mode.displayName, systemImage: mode.icon)
             }
             .keyboardShortcut(key, modifiers: shortcut.eventModifiers)
         } else {
             Button {
-                ElementCaptureManager.shared.startCaptureMode()
+                ElementCaptureManager.shared.startCaptureMode(mode: mode)
             } label: {
-                Label("Element Capture", systemImage: "viewfinder")
+                Label(mode.displayName, systemImage: mode.icon)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var windowSnapMenu: some View {
+        Menu {
+            Text("Snap")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(primarySnapActions) { action in
+                windowSnapActionButton(action)
+            }
+
+            Divider()
+
+            Text("Displays")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            ForEach(displayMovementSnapActions) { action in
+                windowSnapActionButton(action)
+            }
+
+            ForEach(displayTwoSnapActions) { action in
+                windowSnapActionButton(action)
+            }
+
+            Divider()
+
+            Button {
+                SettingsWindowController.shared.showSettings(openingExtension: .windowSnap)
+            } label: {
+                Label("Configure Window Snap…", systemImage: "keyboard")
+            }
+        } label: {
+            Label("Window Snap", systemImage: "rectangle.split.2x1")
+        }
+    }
+
+    @ViewBuilder
+    private func windowSnapActionButton(_ action: SnapAction) -> some View {
+        if let shortcut = windowSnapShortcut(for: action), let key = shortcut.keyEquivalent {
+            Button {
+                WindowSnapManager.shared.executeAction(action)
+            } label: {
+                Label(action.title, systemImage: action.icon)
+            }
+            .keyboardShortcut(key, modifiers: shortcut.eventModifiers)
+            .disabled(!isSnapActionAvailable(action))
+        } else {
+            Button {
+                WindowSnapManager.shared.executeAction(action)
+            } label: {
+                Label(action.title, systemImage: action.icon)
+            }
+            .disabled(!isSnapActionAvailable(action))
+        }
+    }
+
+    private func elementCaptureShortcut(for mode: ElementCaptureMode) -> SavedShortcut? {
+        _ = shortcutRefreshId
+        guard let data = UserDefaults.standard.data(forKey: mode.shortcutKey),
+              let decoded = try? JSONDecoder().decode(SavedShortcut.self, from: data) else {
+            return nil
+        }
+        return decoded
+    }
+
+    private var windowSnapShortcuts: [SnapAction: SavedShortcut] {
+        _ = shortcutRefreshId
+        guard let data = UserDefaults.standard.data(forKey: "windowSnapShortcuts"),
+              let decoded = try? JSONDecoder().decode([String: SavedShortcut].self, from: data) else {
+            return [:]
+        }
+
+        var resolved: [SnapAction: SavedShortcut] = [:]
+        for (rawAction, shortcut) in decoded {
+            if let action = SnapAction(rawValue: rawAction) {
+                resolved[action] = shortcut
+            }
+        }
+        return resolved
+    }
+
+    private func windowSnapShortcut(for action: SnapAction) -> SavedShortcut? {
+        windowSnapShortcuts[action]
+    }
+
+    private var primarySnapActions: [SnapAction] {
+        SnapAction.allCases.filter { !$0.isDisplayMovement && !$0.isDisplay2Specific }
+    }
+
+    private var displayMovementSnapActions: [SnapAction] {
+        SnapAction.allCases.filter(\.isDisplayMovement)
+    }
+
+    private var displayTwoSnapActions: [SnapAction] {
+        SnapAction.allCases.filter(\.isDisplay2Specific)
+    }
+
+    private func isSnapActionAvailable(_ action: SnapAction) -> Bool {
+        let displayCount = NSScreen.screens.count
+
+        switch action {
+        case .moveToLeftDisplay, .moveToRightDisplay, .moveToDisplay2,
+             .leftHalfDisplay2, .rightHalfDisplay2, .maximizeDisplay2:
+            return displayCount > 1
+        case .moveToDisplay3:
+            return displayCount > 2
+        default:
+            return true
         }
     }
     
@@ -472,6 +564,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isRetryingTerminateAfterClosingSheets = false
     private var backgroundMemoryReclaimWorkItem: DispatchWorkItem?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
+    private var externalDeletionValidationTimer: Timer?
 
     private func reclaimIdleMemory() {
         MemoryRecoveryCoordinator.reclaimTransientMemory(forceAllocatorTrim: false)
@@ -498,6 +591,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         memoryPressureSource?.cancel()
         memoryPressureSource = nil
     }
+
+    private func startExternalDeletionValidation() {
+        guard externalDeletionValidationTimer == nil else { return }
+
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor in
+                Self.validateDeletedSurfaceItems()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        externalDeletionValidationTimer = timer
+    }
+
+    private func stopExternalDeletionValidation() {
+        externalDeletionValidationTimer?.invalidate()
+        externalDeletionValidationTimer = nil
+    }
+
+    private static func validateDeletedSurfaceItems() {
+        let state = DroppyState.shared
+
+        if !state.items.isEmpty {
+            state.validateItems()
+        }
+
+        if !state.basketItems.isEmpty {
+            state.validateBasketItems()
+        }
+
+        FloatingBasketWindowController.validateAllBasketItems()
+    }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // FIX #123: Force LaunchServices re-registration on first launch
@@ -520,10 +644,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppPreferenceKey.enableBrightnessHUDReplacement: PreferenceDefault.enableBrightnessHUDReplacement,
             AppPreferenceKey.enableVolumeKeyFeedbackSound: PreferenceDefault.enableVolumeKeyFeedbackSound,
             AppPreferenceKey.enableBetterDisplayCompatibility: PreferenceDefault.enableBetterDisplayCompatibility,
+            AppPreferenceKey.mediaControlTargetMode: PreferenceDefault.mediaControlTargetMode,
             AppPreferenceKey.showMediaPlayer: PreferenceDefault.showMediaPlayer,
             AppPreferenceKey.enableMediaAlbumArtGlow: PreferenceDefault.enableMediaAlbumArtGlow,
             AppPreferenceKey.enableRealAudioVisualizer: PreferenceDefault.enableRealAudioVisualizer,
             AppPreferenceKey.enableGradientVisualizer: PreferenceDefault.enableGradientVisualizer,
+            AppPreferenceKey.elementCaptureEditorBackgroundEnabled: PreferenceDefault.elementCaptureEditorBackgroundEnabled,
+            AppPreferenceKey.elementCaptureEditorBackgroundPreset: PreferenceDefault.elementCaptureEditorBackgroundPreset,
+            AppPreferenceKey.elementCaptureEditorBackgroundSource: PreferenceDefault.elementCaptureEditorBackgroundSource,
+            AppPreferenceKey.elementCaptureEditorBackgroundCustomImagePath: PreferenceDefault.elementCaptureEditorBackgroundCustomImagePath,
+            AppPreferenceKey.elementCaptureEditorBackgroundPaddingRatio: PreferenceDefault.elementCaptureEditorBackgroundPaddingRatio,
+            AppPreferenceKey.elementCaptureEditorBackgroundCornerRadius: PreferenceDefault.elementCaptureEditorBackgroundCornerRadius,
+            AppPreferenceKey.elementCaptureEditorScreenshotCornerRadius: PreferenceDefault.elementCaptureEditorScreenshotCornerRadius,
+            AppPreferenceKey.elementCaptureEditorScreenshotShadowStrength: PreferenceDefault.elementCaptureEditorScreenshotShadowStrength,
             AppPreferenceKey.enableClipboard: PreferenceDefault.enableClipboard,
             AppPreferenceKey.enableMultiBasket: PreferenceDefault.enableMultiBasket,
             AppPreferenceKey.quickActionsMailApp: PreferenceDefault.quickActionsMailApp,
@@ -540,6 +673,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppPreferenceKey.licenseTrialAccountHash: PreferenceDefault.licenseTrialAccountHash,
             AppPreferenceKey.terminalNotchExternalApp: PreferenceDefault.terminalNotchExternalApp,
             AppPreferenceKey.cameraPreferredDeviceID: PreferenceDefault.cameraPreferredDeviceID,
+            AppPreferenceKey.telepromptyInstalled: PreferenceDefault.telepromptyInstalled,
+            AppPreferenceKey.telepromptyEnabled: PreferenceDefault.telepromptyEnabled,
+            AppPreferenceKey.telepromptyScript: PreferenceDefault.telepromptyScript,
+            AppPreferenceKey.telepromptySpeed: PreferenceDefault.telepromptySpeed,
+            AppPreferenceKey.telepromptyFontSize: PreferenceDefault.telepromptyFontSize,
+            AppPreferenceKey.telepromptyPromptWidth: PreferenceDefault.telepromptyPromptWidth,
+            AppPreferenceKey.telepromptyPromptHeight: PreferenceDefault.telepromptyPromptHeight,
+            AppPreferenceKey.telepromptyCountdown: PreferenceDefault.telepromptyCountdown,
             AppPreferenceKey.disableAnalytics: PreferenceDefault.disableAnalytics,
             AppPreferenceKey.windowSnapPointerModeEnabled: PreferenceDefault.windowSnapPointerModeEnabled,
             AppPreferenceKey.windowSnapMoveModifierMask: PreferenceDefault.windowSnapMoveModifierMask,
@@ -547,6 +688,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppPreferenceKey.windowSnapBringToFrontWhenHandling: PreferenceDefault.windowSnapBringToFrontWhenHandling,
             AppPreferenceKey.windowSnapResizeMode: PreferenceDefault.windowSnapResizeMode,
         ])
+
+        // Menu Bar Manager icon cache moved to Application Support storage.
+        // Remove legacy UserDefaults payloads so cfprefsd no longer has to write multi-MB blobs.
+        UserDefaults.standard.removeObject(forKey: "MenuBarManager_FloatingBarIconCacheV7")
+        UserDefaults.standard.removeObject(forKey: "MenuBarManager_FloatingBarIconCacheV8")
+        UserDefaults.standard.removeObject(forKey: "MenuBarManager_FloatingBarIconCacheV9")
+
+        // Teleprompty was removed from the product surface.
+        UserDefaults.standard.set(false, forKey: AppPreferenceKey.telepromptyInstalled)
+        UserDefaults.standard.set(false, forKey: AppPreferenceKey.telepromptyEnabled)
+        UserDefaults.standard.removeObject(forKey: AppPreferenceKey.telepromptyScript)
+        ExtensionType.teleprompty.setRemoved(true)
+        TelepromptyManager.shared.cleanup()
         Self.normalizeVisualizerPreferencesIfNeeded()
         
         
@@ -597,6 +751,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = ClipboardManager.shared
         _ = ClipboardWindowController.shared
         _ = ThumbnailCache.shared  // Warmup QuickLook Metal shaders early
+        startExternalDeletionValidation()
         
         // Start analytics (anonymous launch tracking)
         AnalyticsService.shared.logAppLaunch()
@@ -855,6 +1010,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationWillTerminate(_ notification: Notification) {
         stopMemoryPressureMonitoring()
+        stopExternalDeletionValidation()
         backgroundMemoryReclaimWorkItem?.cancel()
         backgroundMemoryReclaimWorkItem = nil
 

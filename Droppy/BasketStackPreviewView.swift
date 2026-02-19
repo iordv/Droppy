@@ -129,8 +129,45 @@ struct BasketStackPreviewView: View {
 struct ShelfStackPeekView: View {
     let items: [DroppedItem]
 
+    private static func adaptiveStyle(for itemCount: Int) -> StackedFilePeekStyle {
+        let clampedCount = max(1, min(itemCount, 18))
+        let growth = CGFloat(min(clampedCount - 1, 7))
+        let denseGrowth = CGFloat(max(clampedCount - 8, 0))
+
+        let containerWidth = 124 + (growth * 12)
+        let containerHeight = 94 + (growth * 9)
+        let cardSize = 74 + (growth * 4) + (min(denseGrowth, 4) * 1.5)
+        let iconSize = 32 + (growth * 1.8)
+        let folderSymbolSize = 26 + (growth * 1.5)
+        let thumbnailEdge = 170 + (growth * 10) + (min(denseGrowth, 6) * 8)
+
+        return StackedFilePeekStyle(
+            containerSize: CGSize(width: containerWidth, height: containerHeight),
+            cardSize: cardSize,
+            iconSize: iconSize,
+            folderSymbolSize: folderSymbolSize,
+            cornerRadius: DroppyRadius.medium,
+            thumbnailSize: CGSize(width: thumbnailEdge, height: thumbnailEdge),
+            stackYOffset: 12 + min(growth * 1.4, 12),
+            hoverLift: -2.5,
+            hoverSpreadMultiplier: 1.18 + (growth * 0.03),
+            horizontalOffsetMultiplier: 0.92,
+            rotationMultiplier: 0.82,
+            maxDownwardOffset: 11 + (growth * 0.5),
+            enableHoverHaptic: false
+        )
+    }
+
+    static func preferredFootprint(for itemCount: Int) -> CGSize {
+        let style = adaptiveStyle(for: itemCount)
+        return CGSize(
+            width: style.containerSize.width + 52,
+            height: style.containerSize.height + 36
+        )
+    }
+
     var body: some View {
-        StackedFilePeekView(items: items, style: .shelf)
+        StackedFilePeekView(items: items, style: Self.adaptiveStyle(for: items.count))
     }
 }
 
@@ -482,6 +519,11 @@ struct PeekFileCountHeader: View {
 
 // MARK: - File Count Label (Dropover Style)
 
+enum BasketControlMetrics {
+    static let headerButtonSize: CGFloat = 36
+    static let fileCountPillSize: DroppyButtonSize = .medium
+}
+
 /// Bottom label showing file count with chevron indicator
 /// Uses DroppyPillButtonStyle for consistent styling
 struct BasketFileCountLabel: View {
@@ -497,7 +539,7 @@ struct BasketFileCountLabel: View {
         Button(action: action) {
             Text(countText)
         }
-        .buttonStyle(DroppyPillButtonStyle(size: .small, showChevron: true))
+        .buttonStyle(DroppyPillButtonStyle(size: BasketControlMetrics.fileCountPillSize, showChevron: true))
     }
 }
 
@@ -513,7 +555,7 @@ struct BasketCloseButton: View {
         Button(action: action) {
             Image(systemName: iconName)
         }
-        .buttonStyle(DroppyCircleButtonStyle(size: 32))
+        .buttonStyle(DroppyCircleButtonStyle(size: BasketControlMetrics.headerButtonSize))
     }
 }
 
@@ -525,7 +567,7 @@ struct BasketMenuButton: View {
         Button(action: action) {
             Image(systemName: "chevron.down")
         }
-        .buttonStyle(DroppyCircleButtonStyle(size: 32))
+        .buttonStyle(DroppyCircleButtonStyle(size: BasketControlMetrics.headerButtonSize))
     }
 }
 
@@ -537,9 +579,9 @@ struct BasketBackButton: View {
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: "chevron.left")
+            Image(systemName: "chevron.backward")
         }
-        .buttonStyle(DroppyCircleButtonStyle(size: 32))
+        .buttonStyle(DroppyCircleButtonStyle(size: BasketControlMetrics.headerButtonSize))
     }
 }
 

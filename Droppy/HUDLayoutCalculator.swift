@@ -60,13 +60,16 @@ struct HUDLayoutCalculator {
         let hasPhysicalNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
         let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
         
-        // External displays never have physical notches, always use compact layout
+        // External displays use compact content layout regardless of visual style.
         if !screen.isBuiltIn {
             return true
         }
         
         // For built-in display, use user preference
-        let useDynamicIsland = (UserDefaults.standard.object(forKey: "useDynamicIslandStyle") as? Bool) ?? true
+        let useDynamicIsland = UserDefaults.standard.preference(
+            AppPreferenceKey.useDynamicIslandStyle,
+            default: PreferenceDefault.useDynamicIslandStyle
+        )
         return (!hasPhysicalNotch || forceTest) && useDynamicIsland
     }
     
@@ -76,7 +79,10 @@ struct HUDLayoutCalculator {
         guard let screen = screen else { return false }
         if screen.isBuiltIn { return false }
         // External display with notch style = user chose NOT to use DI style
-        let externalUseDI = (UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool) ?? true
+        let externalUseDI = UserDefaults.standard.preference(
+            AppPreferenceKey.externalDisplayUseDynamicIsland,
+            default: PreferenceDefault.externalDisplayUseDynamicIsland
+        )
         return !externalUseDI
     }
     

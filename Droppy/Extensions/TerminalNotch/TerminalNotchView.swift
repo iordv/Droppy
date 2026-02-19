@@ -30,9 +30,9 @@ struct TerminalNotchView: View {
     }
 
     /// Keep built-in notch text white on black.
-    /// Only use adaptive foregrounds for external transparent-notch mode.
+    /// Adapt foregrounds for transparent, notchless surfaces (Dynamic Island and external displays).
     private var useAdaptiveForegrounds: Bool {
-        useTransparentBackground && isExternalWithNotchStyle
+        useTransparentBackground && notchHeight == 0
     }
 
     private func textColor(_ whiteOpacity: Double = 1.0) -> Color {
@@ -41,6 +41,10 @@ struct TerminalNotchView: View {
 
     private func secondaryTextColor(_ whiteOpacity: Double) -> Color {
         useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(whiteOpacity) : .white.opacity(whiteOpacity)
+    }
+
+    private func outputTextColor() -> Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.72) : secondaryTextColor(0.8)
     }
 
     private func overlayColor(_ whiteOpacity: Double) -> Color {
@@ -301,7 +305,7 @@ struct TerminalNotchView: View {
                 ScrollView {
                     Text(manager.lastOutput)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(secondaryTextColor(0.8))
+                        .foregroundStyle(outputTextColor())
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled) // Allow text selection and copy
                 }
@@ -373,7 +377,7 @@ struct TerminalNotchView: View {
                         if !manager.lastOutput.isEmpty {
                             Text(manager.lastOutput)
                                 .font(.system(size: 13, design: .monospaced))
-                                .foregroundStyle(secondaryTextColor(0.8))
+                                .foregroundStyle(outputTextColor())
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

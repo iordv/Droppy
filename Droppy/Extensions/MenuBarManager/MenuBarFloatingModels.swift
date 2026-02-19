@@ -58,6 +58,212 @@ enum MenuBarFloatingIconLayout {
     }
 }
 
+enum MenuBarFloatingIconRendering {
+    private static let cacheLock = NSLock()
+    private static var templateDecisionByImageID = [ObjectIdentifier: Bool]()
+
+    static func clearCache() {
+        cacheLock.lock()
+        templateDecisionByImageID.removeAll(keepingCapacity: false)
+        cacheLock.unlock()
+    }
+
+    static func shouldUseTemplateTint(for icon: NSImage) -> Bool {
+        if icon.isTemplate {
+            return true
+        }
+
+        let cacheKey = ObjectIdentifier(icon)
+        cacheLock.lock()
+        if let cached = templateDecisionByImageID[cacheKey] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
+        let decision = isLikelyMonochromeLightGlyph(icon)
+
+        cacheLock.lock()
+        templateDecisionByImageID[cacheKey] = decision
+        cacheLock.unlock()
+        return decision
+    }
+
+    private static func isLikelyMonochromeLightGlyph(_ icon: NSImage) -> Bool {
+        guard let cgImage = icon.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return false
+        }
+
+        let sampleWidth = max(1, min(48, cgImage.width))
+        let sampleHeight = max(1, min(48, cgImage.height))
+        let bytesPerPixel = 4
+        let bytesPerRow = sampleWidth * bytesPerPixel
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * sampleHeight)
+        guard let context: CGContext = pixels.withUnsafeMutableBytes({ rawBufferPointer -> CGContext? in
+            guard let baseAddress = rawBufferPointer.baseAddress else { return nil }
+            return CGContext(
+                data: baseAddress,
+                width: sampleWidth,
+                height: sampleHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            )
+        }) else {
+            return false
+        }
+
+        context.interpolationQuality = .low
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: sampleWidth, height: sampleHeight))
+
+        var opaqueCount = 0
+        var monochromeCount = 0
+        var vividColorCount = 0
+        var saturationSum = 0.0
+
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Double(pixels[index + 3]) / 255.0
+            if alpha <= 0.03 {
+                continue
+            }
+
+            let red = Double(pixels[index]) / 255.0
+            let green = Double(pixels[index + 1]) / 255.0
+            let blue = Double(pixels[index + 2]) / 255.0
+            let maxChannel = max(red, max(green, blue))
+            let minChannel = min(red, min(green, blue))
+            let saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0
+            let luminance = (red * 0.2126) + (green * 0.7152) + (blue * 0.0722)
+
+            opaqueCount += 1
+            saturationSum += saturation
+            if saturation < 0.22 {
+                monochromeCount += 1
+            }
+            if saturation > 0.30 && luminance > 0.08 {
+                vividColorCount += 1
+            }
+        }
+
+        guard opaqueCount >= 5 else { return false }
+        let monochromeRatio = Double(monochromeCount) / Double(opaqueCount)
+        let vividColorRatio = Double(vividColorCount) / Double(opaqueCount)
+        let averageSaturation = saturationSum / Double(opaqueCount)
+        if monochromeRatio >= 0.62 && vividColorRatio <= 0.24 {
+            return true
+        }
+        return averageSaturation <= 0.20 && vividColorRatio <= 0.30
+    }
+}
+
+struct MenuBarFloatingIconDebugSummary {
+    let pixelWidth: Int
+    let pixelHeight: Int
+    let opaqueRatio: Double
+    let nearWhiteOpaqueRatio: Double
+    let averageLuminance: Double
+    let averageSaturation: Double
+    let isTemplate: Bool
+
+    var isLikelyWhiteBlob: Bool {
+        opaqueRatio >= 0.62
+            && nearWhiteOpaqueRatio >= 0.88
+            && averageSaturation <= 0.12
+            && averageLuminance >= 0.85
+    }
+
+    var compactDescription: String {
+        let opaque = String(format: "%.2f", opaqueRatio)
+        let white = String(format: "%.2f", nearWhiteOpaqueRatio)
+        let luminance = String(format: "%.2f", averageLuminance)
+        let saturation = String(format: "%.2f", averageSaturation)
+        return "px=\(pixelWidth)x\(pixelHeight) opaque=\(opaque) white=\(white) lum=\(luminance) sat=\(saturation) template=\(isTemplate) whiteBlob=\(isLikelyWhiteBlob)"
+    }
+}
+
+enum MenuBarFloatingIconDiagnostics {
+    static func summarize(_ icon: NSImage?) -> MenuBarFloatingIconDebugSummary? {
+        guard let icon,
+              let cgImage = icon.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let sampleWidth = max(1, min(48, cgImage.width))
+        let sampleHeight = max(1, min(48, cgImage.height))
+        let bytesPerPixel = 4
+        let bytesPerRow = sampleWidth * bytesPerPixel
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * sampleHeight)
+        guard let context: CGContext = pixels.withUnsafeMutableBytes({ rawBufferPointer -> CGContext? in
+            guard let baseAddress = rawBufferPointer.baseAddress else { return nil }
+            return CGContext(
+                data: baseAddress,
+                width: sampleWidth,
+                height: sampleHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: bitmapInfo
+            )
+        }) else {
+            return nil
+        }
+
+        context.interpolationQuality = .low
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: sampleWidth, height: sampleHeight))
+
+        let totalPixels = sampleWidth * sampleHeight
+        var opaqueCount = 0
+        var nearWhiteOpaqueCount = 0
+        var luminanceSum = 0.0
+        var saturationSum = 0.0
+
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Double(pixels[index + 3]) / 255.0
+            if alpha <= 0.03 {
+                continue
+            }
+
+            let red = Double(pixels[index]) / 255.0
+            let green = Double(pixels[index + 1]) / 255.0
+            let blue = Double(pixels[index + 2]) / 255.0
+            let maxChannel = max(red, max(green, blue))
+            let minChannel = min(red, min(green, blue))
+            let saturation = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0
+            let luminance = (red * 0.2126) + (green * 0.7152) + (blue * 0.0722)
+
+            opaqueCount += 1
+            luminanceSum += luminance
+            saturationSum += saturation
+
+            if red >= 0.93 && green >= 0.93 && blue >= 0.93 {
+                nearWhiteOpaqueCount += 1
+            }
+        }
+
+        let opaqueRatio = totalPixels > 0 ? Double(opaqueCount) / Double(totalPixels) : 0
+        let nearWhiteOpaqueRatio = opaqueCount > 0 ? Double(nearWhiteOpaqueCount) / Double(opaqueCount) : 0
+        let averageLuminance = opaqueCount > 0 ? (luminanceSum / Double(opaqueCount)) : 0
+        let averageSaturation = opaqueCount > 0 ? (saturationSum / Double(opaqueCount)) : 0
+
+        return MenuBarFloatingIconDebugSummary(
+            pixelWidth: sampleWidth,
+            pixelHeight: sampleHeight,
+            opaqueRatio: opaqueRatio,
+            nearWhiteOpaqueRatio: nearWhiteOpaqueRatio,
+            averageLuminance: averageLuminance,
+            averageSaturation: averageSaturation,
+            isTemplate: icon.isTemplate
+        )
+    }
+}
+
 enum MenuBarFloatingFallbackIconProvider {
     private static var cachedIconsByKey = [String: NSImage]()
 
@@ -66,6 +272,11 @@ enum MenuBarFloatingFallbackIconProvider {
     }
 
     static func icon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
+        // Only synthesize fallback symbols for items we can tie to a real status window.
+        guard item.windowID != nil else {
+            return nil
+        }
+
         let identityToken = [
             item.ownerBundleID.lowercased(),
             item.axIdentifier?.lowercased() ?? "",
@@ -83,26 +294,16 @@ enum MenuBarFloatingFallbackIconProvider {
             return systemSymbol
         }
 
-        let bundleKey = item.ownerBundleID.lowercased()
-        if let cachedBundleIcon = cachedIconsByKey[bundleKey] {
-            cachedIconsByKey[identityToken] = cachedBundleIcon
-            return cachedBundleIcon
-        }
-
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: item.ownerBundleID) else {
-            return nil
-        }
-
-        let bundleIcon = NSWorkspace.shared.icon(forFile: appURL.path)
-        let iconDimension = max(16, min(24, round(NSStatusBar.system.thickness)))
-        bundleIcon.size = NSSize(width: iconDimension, height: iconDimension)
-        bundleIcon.isTemplate = false
-        cachedIconsByKey[bundleKey] = bundleIcon
-        cachedIconsByKey[identityToken] = bundleIcon
-        return bundleIcon
+        // Do not fall back to application dock icons for menu bar items.
+        // They are frequently inaccurate and confusing vs. actual status glyphs.
+        return nil
     }
 
     private static func mappedSystemSymbolIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
+        guard item.ownerBundleID.lowercased().hasPrefix("com.apple.") else {
+            return nil
+        }
+
         let normalized = [
             item.axIdentifier?.lowercased(),
             item.title?.lowercased(),
@@ -132,6 +333,186 @@ enum MenuBarFloatingFallbackIconProvider {
         if normalized.contains("screen") || normalized.contains("display") { return makeSymbol("display") }
         if normalized.contains("keyboard") || normalized.contains("input") { return makeSymbol("keyboard") }
         return nil
+    }
+}
+
+enum MenuBarStatusWindowCache {
+    struct Entry {
+        let bounds: CGRect
+        let ownerPID: pid_t
+    }
+
+    private struct Snapshot {
+        var timestamp: TimeInterval = 0
+        var entries = [CGWindowID: Entry]()
+        var mouseButtonSignature: UInt8 = 0
+    }
+
+    private static let lock = NSLock()
+    private static var snapshot = Snapshot()
+
+    static func invalidate() {
+        lock.lock()
+        snapshot = Snapshot()
+        lock.unlock()
+    }
+
+    static func windowEntries(maxAge: TimeInterval = 0.35) -> [CGWindowID: Entry] {
+        let now = ProcessInfo.processInfo.systemUptime
+        let buttonSignature = currentMouseButtonSignature()
+        lock.lock()
+        let age = now - snapshot.timestamp
+        if snapshot.timestamp > 0,
+           age <= maxAge,
+           snapshot.mouseButtonSignature == buttonSignature {
+            let cached = snapshot.entries
+            lock.unlock()
+            return cached
+        }
+        lock.unlock()
+
+        let freshEntries = fetchEntries()
+
+        lock.lock()
+        snapshot.timestamp = now
+        snapshot.entries = freshEntries
+        snapshot.mouseButtonSignature = buttonSignature
+        lock.unlock()
+        return freshEntries
+    }
+
+    static func windowMap(maxAge: TimeInterval = 0.35) -> [CGWindowID: CGRect] {
+        let entries = windowEntries(maxAge: maxAge)
+        var map = [CGWindowID: CGRect]()
+        map.reserveCapacity(entries.count)
+        for (windowID, entry) in entries {
+            map[windowID] = entry.bounds
+        }
+        return map
+    }
+
+    static func signature(maxAge: TimeInterval = 0.35) -> [CGWindowID] {
+        windowEntries(maxAge: maxAge).keys.sorted()
+    }
+
+    static func containsStatusItem(at quartzPoint: CGPoint, maxAge: TimeInterval = 0.2) -> Bool {
+        let currentPID = getpid()
+        for entry in windowEntries(maxAge: maxAge).values {
+            if entry.ownerPID == currentPID {
+                continue
+            }
+            if !isHoverEligibleBounds(entry.bounds) {
+                continue
+            }
+            if entry.bounds.contains(quartzPoint) {
+                return true
+            }
+        }
+        return false
+    }
+
+    static func containsAnyStatusWindow(at quartzPoint: CGPoint, maxAge: TimeInterval = 0.2) -> Bool {
+        let currentPID = getpid()
+        for entry in windowEntries(maxAge: maxAge).values {
+            if entry.ownerPID == currentPID {
+                continue
+            }
+            let bounds = entry.bounds
+            guard bounds.width > 2,
+                  bounds.height > 2,
+                  bounds.width <= 640,
+                  bounds.height <= 90,
+                  bounds.width / max(bounds.height, 1) <= 12.0 else {
+                continue
+            }
+            if bounds.contains(quartzPoint) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func isHoverEligibleBounds(_ bounds: CGRect) -> Bool {
+        guard bounds.width > 5,
+              bounds.height > 5,
+              bounds.width <= 360,
+              bounds.height <= 72 else {
+            return false
+        }
+        let aspectRatio = bounds.width / max(bounds.height, 1)
+        guard aspectRatio <= 6.0 else {
+            return false
+        }
+
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        guard let screen = MenuBarFloatingCoordinateConverter.screenContaining(quartzPoint: center),
+              let displayBounds = MenuBarFloatingCoordinateConverter.displayBounds(of: screen) else {
+            return false
+        }
+        let inferredMenuBarHeight = max(22, min(64, screen.frame.maxY - screen.visibleFrame.maxY))
+        let minMenuBandY = displayBounds.maxY - max(40, inferredMenuBarHeight + 14)
+        return bounds.maxY >= minMenuBandY
+    }
+
+    private static func currentMouseButtonSignature() -> UInt8 {
+        let leftDown = CGEventSource.buttonState(.combinedSessionState, button: .left)
+        let rightDown = CGEventSource.buttonState(.combinedSessionState, button: .right)
+        let centerDown = CGEventSource.buttonState(.combinedSessionState, button: .center)
+        var signature: UInt8 = 0
+        if leftDown { signature |= 1 << 0 }
+        if rightDown { signature |= 1 << 1 }
+        if centerDown { signature |= 1 << 2 }
+        return signature
+    }
+
+    private static func fetchEntries() -> [CGWindowID: Entry] {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[CFString: Any]] else {
+            return [:]
+        }
+
+        let statusLayer = Int(CGWindowLevelForKey(.statusWindow))
+        let acceptedLayers = Set([
+            statusLayer - 2,
+            statusLayer - 1,
+            statusLayer,
+            statusLayer + 1,
+            statusLayer + 2,
+        ])
+
+        var entries = [CGWindowID: Entry]()
+        entries.reserveCapacity(windowList.count)
+
+        for windowInfo in windowList {
+            guard let layer = windowInfo[kCGWindowLayer] as? Int,
+                  acceptedLayers.contains(layer),
+                  let windowID = windowInfo[kCGWindowNumber] as? CGWindowID,
+                  let boundsDict = windowInfo[kCGWindowBounds] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: boundsDict) else {
+                continue
+            }
+
+            guard bounds.width > 3,
+                  bounds.height > 3,
+                  bounds.width < 280,
+                  bounds.height < 56 else {
+                continue
+            }
+
+            let ownerPID: pid_t = {
+                if let pid = windowInfo[kCGWindowOwnerPID] as? Int32 {
+                    return pid_t(pid)
+                }
+                if let pid = windowInfo[kCGWindowOwnerPID] as? Int {
+                    return pid_t(pid)
+                }
+                return 0
+            }()
+
+            entries[windowID] = Entry(bounds: bounds, ownerPID: ownerPID)
+        }
+
+        return entries
     }
 }
 

@@ -814,7 +814,9 @@ struct FeaturedExtensionCard<DetailView: View>: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .sheet(isPresented: $showSheet) {
+        .sheet(isPresented: $showSheet, onDismiss: {
+            SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+        }) {
             detailView()
         }
     }
@@ -980,7 +982,9 @@ struct FeaturedExtensionCardWide<DetailView: View>: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .sheet(isPresented: $showSheet) {
+        .sheet(isPresented: $showSheet, onDismiss: {
+            SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+        }) {
             detailView()
         }
     }
@@ -1156,7 +1160,9 @@ struct FeaturedExtensionCardCompact<DetailView: View>: View {
         .onHover { hovering in
             isHovering = hovering
         }
-        .sheet(isPresented: $showSheet) {
+        .sheet(isPresented: $showSheet, onDismiss: {
+            SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+        }) {
             detailView()
         }
     }
@@ -1289,7 +1295,9 @@ struct CompactExtensionRow<DetailView: View>: View {
                 isHovering = hovering
             }
         }
-        .sheet(isPresented: $showSheet) {
+        .sheet(isPresented: $showSheet, onDismiss: {
+            SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+        }) {
             detailView()
         }
         .opacity(isDisabled ? 0.78 : 1)
@@ -1525,7 +1533,9 @@ struct AIBackgroundRemovalSettingsRow: View {
         .aiExtensionCardStyle()
         .contentShape(Rectangle())
         .onTapGesture { showInstallSheet = true }
-        .sheet(isPresented: $showInstallSheet) { AIInstallView() }
+        .sheet(isPresented: $showInstallSheet, onDismiss: {
+            SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+        }) { AIInstallView() }
     }
 }
 

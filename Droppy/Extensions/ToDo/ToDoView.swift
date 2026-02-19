@@ -67,6 +67,39 @@ private enum ToDoViewFormatters {
     }()
 }
 
+private func meetingURL(for item: ToDoItem) -> URL? {
+    guard item.externalSource == .calendar,
+          let raw = item.externalMeetingURL?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !raw.isEmpty,
+          let url = URL(string: raw) else {
+        return nil
+    }
+    return url
+}
+
+private func isTeamsMeetingURL(_ url: URL) -> Bool {
+    let absolute = url.absoluteString.lowercased()
+    if absolute.contains("teams.microsoft.com/l/meetup-join") ||
+        absolute.contains("teams.microsoft.com%2fl%2fmeetup-join") ||
+        absolute.contains("msteams://") {
+        return true
+    }
+    guard let host = url.host?.lowercased() else { return false }
+    return host == "teams.microsoft.com" ||
+        host.hasSuffix(".teams.microsoft.com") ||
+        host == "teams.live.com" ||
+        host.hasSuffix(".teams.live.com") ||
+        host == "teams.office.com" ||
+        host.hasSuffix(".teams.office.com") ||
+        host == "gov.teams.microsoft.us" ||
+        host == "dod.teams.microsoft.us" ||
+        (host == "aka.ms" && absolute.contains("meetup-join"))
+}
+
+private func meetingLinkTitle(for url: URL) -> String {
+    isTeamsMeetingURL(url) ? "Join Teams meeting" : "Open meeting link"
+}
+
 struct ToDoView: View {
     @State private var manager = ToDoManager.shared
     @FocusState private var isInputFocused: Bool
@@ -329,8 +362,8 @@ struct ToDoView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showUndoToast)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: manager.showCleanupToast)
         .animation(.smooth(duration: 0.25), value: manager.items.isEmpty)
-        .animation(.smooth(duration: 0.28), value: overviewTaskItems.map(\.id))
-        .animation(.smooth(duration: 0.28), value: upcomingCalendarItems.map(\.id))
+        .animation(.smooth(duration: 0.28), value: manager.overviewTaskItemsAnimationSignature)
+        .animation(.smooth(duration: 0.28), value: manager.upcomingCalendarItemsAnimationSignature)
         .onChange(of: isInputFocused) { _, focused in
             manager.isEditingText = focused
         }
@@ -479,14 +512,14 @@ private struct ToDoDueDatePopoverContentView: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
-                stepButton("chevron.left") { shiftDays(-1) }
+                stepButton("chevron.backward") { shiftDays(-1) }
                 Text(resolvedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
-                stepButton("chevron.right") { shiftDays(1) }
+                stepButton("chevron.forward") { shiftDays(1) }
             }
             .padding(.horizontal, 6)
             .frame(height: 30)
@@ -881,7 +914,6 @@ struct ToDoRow: View {
             arrowEdge: .top
         ) {
             infoPopoverContent
-                .allowsHitTesting(false)
         }
         .popover(isPresented: $isEditing) {
             VStack(alignment: .leading, spacing: 12) {
@@ -1133,6 +1165,23 @@ struct ToDoRow: View {
                 infoDetailRow(icon: "flag", label: "Priority", value: item.priority.rawValue.capitalized)
                 infoDetailRow(icon: item.isCompleted ? "checkmark.circle.fill" : "circle", label: "Status", value: item.isCompleted ? "Completed" : "Pending")
             } else {
+                if let url = meetingURL(for: item) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: isTeamsMeetingURL(url) ? "video.fill" : "link")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 12)
+                        Text("Meeting")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(AdaptiveColors.secondaryTextAuto.opacity(0.85))
+                            .frame(width: 46, alignment: .leading)
+                        Link(meetingLinkTitle(for: url), destination: url)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                }
                 infoDetailRow(icon: "lock.fill", label: "Access", value: "Read-only")
             }
         }

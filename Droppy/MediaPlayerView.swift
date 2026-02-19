@@ -277,9 +277,9 @@ struct MediaPlayerView: View {
     }
 
     /// Keep physical-notch media text white on black.
-    /// Only adapt foregrounds for external transparent-notch mode.
+    /// Adapt foregrounds for transparent, notchless surfaces (Dynamic Island and external displays).
     private var useAdaptiveForegrounds: Bool {
-        useTransparentBackground && isExternalWithNotchStyle
+        useTransparentBackground && notchHeight == 0
     }
 
     private func primaryText(_ opacity: Double = 1.0) -> Color {

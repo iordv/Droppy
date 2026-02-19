@@ -64,8 +64,8 @@ enum ElementCaptureMode: String, CaseIterable, Identifiable {
 // MARK: - Editor Shortcut Actions
 enum EditorShortcut: String, CaseIterable, Identifiable {
     // Tool shortcuts
-    case arrow, curvedArrow, line, rectangle, ellipse, freehand, highlighter, blur, text
-    case cursorSticker, pointerSticker, cursorStickerCircled, pointerStickerCircled, typingIndicatorSticker
+    case arrow, curvedArrow, line, rectangle, ellipse, freehand, highlighter, blur, magnifier, text
+    case cursorSticker, pointerSticker, cursorStickerCircled, pointerStickerCircled, typingIndicatorSticker, numberSticker
     // Action shortcuts
     case strokeSmall, strokeMedium, strokeLarge
     case zoomIn, zoomOut, zoomReset
@@ -84,12 +84,14 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
         case .freehand: return "Freehand"
         case .highlighter: return "Highlighter"
         case .blur: return "Blur"
+        case .magnifier: return "Magnifier"
         case .text: return "Text"
         case .cursorSticker: return "Cursor Sticker"
         case .pointerSticker: return "Pointer Sticker"
         case .cursorStickerCircled: return "Cursor Sticker (Circle)"
         case .pointerStickerCircled: return "Pointer Sticker (Circle)"
         case .typingIndicatorSticker: return "Typing Indicator"
+        case .numberSticker: return "Number Sticker"
         case .strokeSmall: return "Small Stroke"
         case .strokeMedium: return "Medium Stroke"
         case .strokeLarge: return "Large Stroke"
@@ -105,7 +107,7 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
     
     var icon: String {
         switch self {
-        case .arrow: return "arrow.up.right"
+        case .arrow: return "arrow.up.forward"
         case .curvedArrow: return "arrow.uturn.up"
         case .line: return "line.diagonal"
         case .rectangle: return "rectangle"
@@ -113,10 +115,12 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
         case .freehand: return "scribble"
         case .highlighter: return "highlighter"
         case .blur: return "eye.slash"
+        case .magnifier: return "magnifyingglass.circle"
         case .text: return "textformat"
         case .cursorSticker, .cursorStickerCircled: return "cursorarrow"
         case .pointerSticker, .pointerStickerCircled: return "hand.point.up.left.fill"
         case .typingIndicatorSticker: return "ibeam"
+        case .numberSticker: return "number.circle"
         case .strokeSmall: return "1.circle"
         case .strokeMedium: return "2.circle"
         case .strokeLarge: return "3.circle"
@@ -145,12 +149,14 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
         case .freehand: return 3     // F
         case .highlighter: return 4  // H
         case .blur: return 11        // B
+        case .magnifier: return 46   // M
         case .text: return 17        // T
         case .cursorSticker: return 32          // U
         case .pointerSticker: return 35         // P
         case .cursorStickerCircled: return 34   // I
         case .pointerStickerCircled: return 40  // K
         case .typingIndicatorSticker: return 16 // Y
+        case .numberSticker: return 45          // N
         case .strokeSmall: return 18  // 1
         case .strokeMedium: return 19 // 2
         case .strokeLarge: return 20  // 3
@@ -181,7 +187,7 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
     /// Is this a tool shortcut vs action shortcut
     var isTool: Bool {
         switch self {
-        case .arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .text, .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker:
+        case .arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .magnifier, .text, .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker:
             return true
         default:
             return false
@@ -190,7 +196,7 @@ enum EditorShortcut: String, CaseIterable, Identifiable {
     
     /// Tool shortcuts only
     static var tools: [EditorShortcut] {
-        [.arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .text, .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker]
+        [.arrow, .curvedArrow, .line, .rectangle, .ellipse, .freehand, .highlighter, .blur, .magnifier, .text, .cursorSticker, .pointerSticker, .cursorStickerCircled, .pointerStickerCircled, .typingIndicatorSticker, .numberSticker]
     }
     
     /// Action shortcuts only
@@ -237,6 +243,7 @@ final class ElementCaptureManager: ObservableObject {
     private var globalHotKeys: [ElementCaptureMode: GlobalHotKey] = [:]  // Multiple hot keys
     private var escapeMonitor: Any?  // Local monitor for ESC key
     private var globalEscapeMonitor: Any?  // Global monitor for ESC key when focus changes
+    private var activeCaptureTask: Task<Void, Never>?
     private var captureCursorPushed = false
     private var activeMode: ElementCaptureMode = .element  // Current capture mode
     private var isOCRCapture = false  // Flag for OCR mode capture
@@ -249,7 +256,10 @@ final class ElementCaptureManager: ObservableObject {
     private let borderWidth: CGFloat = 2.0
     private let cornerRadius: CGFloat = 6.0
     private let mousePollingInterval: TimeInterval = 1.0 / 60.0  // 60 FPS
-    
+    private var isFrameDebugLoggingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "DEBUG_ELEMENT_CAPTURE_FRAME_TRACKING")
+    }
+
     // MARK: - Initialization
     
     private init() {
@@ -277,6 +287,10 @@ final class ElementCaptureManager: ObservableObject {
             print("[ElementCapture] Extension is disabled, skipping monitoring")
             return
         }
+        
+        // Legacy cleanup after removing scrolling capture mode.
+        UserDefaults.standard.removeObject(forKey: "elementCaptureScrollingShortcut")
+        UserDefaults.standard.removeObject(forKey: "elementCapture_scrollingSpeedPreset")
         
         loadAllShortcuts()
         startMonitoringAllShortcuts()
@@ -343,6 +357,7 @@ final class ElementCaptureManager: ObservableObject {
                 stopCaptureMode()
                 return
             }
+            installEventTap()
             installEscapeMonitor()
             activateCaptureCursor()
             print("[ElementCapture] Area selection mode started")
@@ -350,24 +365,27 @@ final class ElementCaptureManager: ObservableObject {
             
         case .fullscreen:
             // Fullscreen: immediately capture the entire screen
-            Task {
-                await captureFullscreen()
+            activeCaptureTask?.cancel()
+            activeCaptureTask = Task { [weak self] in
+                await self?.captureFullscreen()
             }
             return
             
         case .window:
             // Window mode: capture the window under cursor
-            Task {
-                await captureWindowUnderCursor()
+            activeCaptureTask?.cancel()
+            activeCaptureTask = Task { [weak self] in
+                await self?.captureWindowUnderCursor()
             }
             return
-            
+
         case .ocr:
             // OCR mode: area selection then perform OCR on result
             guard setupAreaSelectionOverlay(forOCR: true) else {
                 stopCaptureMode()
                 return
             }
+            installEventTap()
             installEscapeMonitor()
             activateCaptureCursor()
             print("[ElementCapture] OCR capture mode started")
@@ -387,12 +405,16 @@ final class ElementCaptureManager: ObservableObject {
             globalEscapeMonitor != nil ||
             highlightWindow != nil ||
             areaSelectionWindow != nil ||
+            activeCaptureTask != nil ||
             captureCursorPushed
 
+        activeCaptureTask?.cancel()
+        activeCaptureTask = nil
         isActive = false
         hasElement = false
         currentElementFrame = .zero
         lastDetectedFrame = .zero
+        isOCRCapture = false
         
         // Stop mouse tracking
         mouseTrackingTimer?.invalidate()
@@ -567,7 +589,7 @@ final class ElementCaptureManager: ObservableObject {
             // This will show the system prompt for screen recording
             screenRecordingOK = PermissionManager.shared.requestScreenRecording()
         }
-        
+
         return accessibilityOK && screenRecordingOK
     }
     
@@ -584,6 +606,7 @@ final class ElementCaptureManager: ObservableObject {
             print("🔐 ElementCaptureManager: Requesting Screen Recording via native dialog")
             PermissionManager.shared.requestScreenRecording()
         }
+
     }
     
     // MARK: - Highlight Window Setup
@@ -691,8 +714,9 @@ final class ElementCaptureManager: ObservableObject {
             guard let self = self else { return }
             
             // Capture the selected area
-            Task {
-                await self.captureArea(selectedRect, on: screen)
+            self.activeCaptureTask?.cancel()
+            self.activeCaptureTask = Task { [weak self] in
+                await self?.captureArea(selectedRect, on: screen)
             }
         }
         
@@ -703,7 +727,11 @@ final class ElementCaptureManager: ObservableObject {
         
         areaSelectionWindow?.presentForCapture()
         NSCursor.crosshair.set()
-        print("[ElementCapture] Created area selection window, frame: \(screen.frame)\(forOCR ? " (OCR mode)" : "")")
+        var modeLabel = ""
+        if forOCR {
+            modeLabel = " (OCR mode)"
+        }
+        print("[ElementCapture] Created area selection window, frame: \(screen.frame)\(modeLabel)")
         return areaSelectionWindow != nil
     }
     
@@ -865,10 +893,11 @@ final class ElementCaptureManager: ObservableObject {
             currentElementFrame = cocoaFrame
             hasElement = true
             
-            // DEBUG: Log coordinates for external monitor debugging
-            let screenDisplayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
-            print("[ElementCapture DEBUG] Screen \(screenDisplayID): elementFrame=\(elementFrame), cocoaFrame=\(cocoaFrame)")
-            print("[ElementCapture DEBUG] Window frame: \(highlightWindow?.frame ?? .zero)")
+            if isFrameDebugLoggingEnabled {
+                let screenDisplayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
+                print("[ElementCapture DEBUG] Screen \(screenDisplayID): elementFrame=\(elementFrame), cocoaFrame=\(cocoaFrame)")
+                print("[ElementCapture DEBUG] Window frame: \(highlightWindow?.frame ?? .zero)")
+            }
             
             highlightWindow?.animateToFrame(cocoaFrame)
         }
@@ -990,16 +1019,19 @@ final class ElementCaptureManager: ObservableObject {
     
     // MARK: - Accessibility Element Detection
     
-    private func getElementFrameAtPosition(_ point: CGPoint) -> CGRect? {
+    private func accessibilityElementAtPosition(_ point: CGPoint) -> AXUIElement? {
         // Create system-wide element
         let systemElement = AXUIElementCreateSystemWide()
         
         var element: AXUIElement?
         let result = AXUIElementCopyElementAtPosition(systemElement, Float(point.x), Float(point.y), &element)
         
-        guard result == .success, let element = element else {
-            return nil
-        }
+        guard result == .success else { return nil }
+        return element
+    }
+
+    private func getElementFrameAtPosition(_ point: CGPoint) -> CGRect? {
+        guard let element = accessibilityElementAtPosition(point) else { return nil }
         
         // Get position
         var positionValue: CFTypeRef?
@@ -1035,6 +1067,68 @@ final class ElementCaptureManager: ObservableObject {
         }
         
         return CGRect(origin: position, size: size)
+    }
+
+    private func parentAXElement(of element: AXUIElement) -> AXUIElement? {
+        var parentValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &parentValue) == .success,
+              let parentValue else {
+            return nil
+        }
+        // AXUIElementCopyAttributeValue returned success, so the CFTypeRef is an AXUIElement.
+        return (parentValue as! AXUIElement)
+    }
+
+    private func verticalScrollBarAXElement(for element: AXUIElement) -> AXUIElement? {
+        var verticalBarValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXVerticalScrollBarAttribute as CFString,
+            &verticalBarValue
+        ) == .success,
+              let verticalBarValue else {
+            return nil
+        }
+        // AXUIElementCopyAttributeValue returned success, so the CFTypeRef is an AXUIElement.
+        return (verticalBarValue as! AXUIElement)
+    }
+
+    private func axElement(_ element: AXUIElement, supportsAction action: CFString) -> Bool {
+        var actionsRef: CFArray?
+        guard AXUIElementCopyActionNames(element, &actionsRef) == .success,
+              let actionsRef,
+              let actions = actionsRef as? [String] else {
+            return false
+        }
+        return actions.contains(action as String)
+    }
+
+    private func performAXScrollFallback(at quartzPoint: CGPoint, direction: Int32) -> Bool {
+        guard let startingElement = accessibilityElementAtPosition(quartzPoint) else {
+            return false
+        }
+
+        let action: CFString = direction < 0 ? kAXIncrementAction as CFString : kAXDecrementAction as CFString
+        var currentElement: AXUIElement? = startingElement
+        var depth = 0
+
+        while let element = currentElement, depth < 10 {
+            if axElement(element, supportsAction: action),
+               AXUIElementPerformAction(element, action) == .success {
+                return true
+            }
+
+            if let verticalBar = verticalScrollBarAXElement(for: element),
+               axElement(verticalBar, supportsAction: action),
+               AXUIElementPerformAction(verticalBar, action) == .success {
+                return true
+            }
+
+            currentElement = parentAXElement(of: element)
+            depth += 1
+        }
+
+        return false
     }
     
     // MARK: - Window Fallback Detection
@@ -1306,9 +1400,9 @@ final class ElementCaptureManager: ObservableObject {
         isOCRCapture = false
         stopCaptureMode()
     }
-    
+
     // MARK: - Fullscreen Capture
-    
+
     private func captureFullscreen() async {
         // Get the screen under the mouse cursor
         let mouseLocation = NSEvent.mouseLocation
@@ -1341,9 +1435,9 @@ final class ElementCaptureManager: ObservableObject {
 
         stopCaptureMode()
     }
-    
+
     // MARK: - Window Capture
-    
+
     private func captureWindowUnderCursor() async {
         let mouseLocation = NSEvent.mouseLocation
         guard let mouseScreen = screenForMouseLocation(mouseLocation) else {
@@ -1351,12 +1445,12 @@ final class ElementCaptureManager: ObservableObject {
             stopCaptureMode()
             return
         }
-        
+
         let queryPoints = candidateQueryPoints(for: mouseLocation, on: mouseScreen)
-        
+
         var windowFrame: CGRect?
         var targetScreen: NSScreen?
-        
+
         for point in queryPoints {
             guard let frame = getWindowFrameAtPosition(point) else { continue }
             guard let screen = NSScreen.screens.first(where: { quartzScreenFrame(for: $0).intersects(frame) }) else { continue }
@@ -1365,39 +1459,37 @@ final class ElementCaptureManager: ObservableObject {
             targetScreen = screen
             break
         }
-        
+
         guard let windowFrame, let targetScreen else {
             print("[ElementCapture] No window found under cursor")
             stopCaptureMode()
             return
         }
-        
+
         if let displayID = targetScreen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID {
             currentScreenDisplayID = displayID
         }
-        
+
         do {
             let cocoaWindowFrame = convertToCocoaCoordinates(windowFrame, screen: targetScreen)
             let image = try await captureRect(cocoaWindowFrame, on: targetScreen)
             let nsImage = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
-            
+
             copyToClipboard(image)
             playScreenshotSound()
             print("[ElementCapture] Window captured successfully")
-            
+
             await MainActor.run {
                 CapturePreviewWindowController.shared.show(with: nsImage)
             }
-            
+
         } catch {
             print("[ElementCapture] Window capture failed: \(error)")
         }
-        
+
         stopCaptureMode()
     }
-    
-    /// Capture a rect expressed in global Cocoa coordinates, constrained to one target NSScreen.
-    /// This avoids cross-display/global-origin assumptions that can crop or offset captures.
+
     private func captureRect(_ cocoaRect: CGRect, on screen: NSScreen) async throws -> CGImage {
         guard CGPreflightScreenCaptureAccess() else {
             print("[ElementCapture] Screen recording permission not granted - aborting capture")
@@ -1647,6 +1739,7 @@ final class ElementCaptureManager: ObservableObject {
         case noElement
         case captureFailed
         case permissionDenied
+        case captureCancelled
     }
     
     // MARK: - Extension Removal Cleanup
@@ -1666,9 +1759,12 @@ final class ElementCaptureManager: ObservableObject {
         areaShortcut = nil
         fullscreenShortcut = nil
         windowShortcut = nil
+        ocrShortcut = nil
         for mode in ElementCaptureMode.allCases {
             UserDefaults.standard.removeObject(forKey: mode.shortcutKey)
         }
+        UserDefaults.standard.removeObject(forKey: "elementCaptureScrollingShortcut")
+        UserDefaults.standard.removeObject(forKey: "elementCapture_scrollingSpeedPreset")
         
         // Notify other components
         NotificationCenter.default.post(name: .elementCaptureShortcutChanged, object: nil)

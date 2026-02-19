@@ -237,6 +237,8 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     let dateAdded: Date
     var isTemporary: Bool = false  // Tracks if this file was created as a temp file (conversion, ZIP, etc.)
     var isPinned: Bool = false  // Pinned folders persist across auto-clean and sessions
+    let autoDroppedFromFolderName: String?
+    let autoDroppedFromFolderPath: String?
     
     /// Universal placeholder icon - never triggers Metal shader compilation
     /// Used as immediate fallback while real icons load async
@@ -267,6 +269,15 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
     /// For normal files, this is the file URL itself.
     var preferredShareURL: URL {
         remoteLinkURL ?? url
+    }
+
+    /// Label shown in shelf/basket when this item came from a watched folder auto-drop.
+    var autoDropSourceLabel: String? {
+        guard let folderName = autoDroppedFromFolderName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !folderName.isEmpty else {
+            return nil
+        }
+        return "From \(folderName)"
     }
     
     /// Generates a tooltip string listing the folder's contents (up to 8 items)
@@ -301,7 +312,12 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         ProxyRepresentation(exporting: \.url)
     }
     
-    init(url: URL, isTemporary: Bool = false) {
+    init(
+        url: URL,
+        isTemporary: Bool = false,
+        autoDroppedFromFolderName: String? = nil,
+        autoDroppedFromFolderPath: String? = nil
+    ) {
         self.url = url
         self.name = url.lastPathComponent
         self.fileType = UTType(filenameExtension: url.pathExtension)
@@ -311,6 +327,8 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         self.dateAdded = Date()
         self.thumbnail = nil
         self.isTemporary = isTemporary
+        self.autoDroppedFromFolderName = autoDroppedFromFolderName
+        self.autoDroppedFromFolderPath = autoDroppedFromFolderPath
     }
     
     // MARK: - Hashable & Equatable (PERFORMANCE CRITICAL)
@@ -628,7 +646,14 @@ struct DroppedItem: Identifiable, Hashable, Transferable {
         
         do {
             try fileManager.moveItem(at: url, to: newURL)
-            return DroppedItem(url: newURL)
+            var renamedItem = DroppedItem(
+                url: newURL,
+                isTemporary: isTemporary,
+                autoDroppedFromFolderName: autoDroppedFromFolderName,
+                autoDroppedFromFolderPath: autoDroppedFromFolderPath
+            )
+            renamedItem.isPinned = isPinned
+            return renamedItem
         } catch {
             print("DroppedItem.renamed: Failed to rename: \(error.localizedDescription)")
             return nil

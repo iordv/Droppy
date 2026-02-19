@@ -301,7 +301,7 @@ struct FFmpegInstallView: View {
                     
                     Spacer()
                     
-                    Image(systemName: "chevron.right")
+                    Image(systemName: "chevron.forward")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }

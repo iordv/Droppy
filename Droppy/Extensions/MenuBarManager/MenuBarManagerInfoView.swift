@@ -9,6 +9,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct MenuBarManagerInfoView: View {
+    private enum PlacementLane: Hashable {
+        case visible
+        case hidden
+        case alwaysHidden
+        case floatingBar
+    }
+
     @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     @ObservedObject private var manager = MenuBarManager.shared
     @ObservedObject private var floatingBarManager = MenuBarFloatingBarManager.shared
@@ -23,13 +30,18 @@ struct MenuBarManagerInfoView: View {
     @State private var alwaysHiddenSectionWasVisibleBeforeSettings = false
     @State private var alwaysHiddenSectionWasEnabledBeforeSettings = false
     @State private var wasLockedVisibleBeforeSettings = false
-    @State private var activeDropPlacement: MenuBarFloatingPlacement?
-    @State private var hoveredPlacementItemID: String?
+    @State private var activeDropPlacement: PlacementLane?
     @State private var draggingPlacementItemID: String?
     @State private var draggingPlacementItemSnapshot: MenuBarFloatingItemSnapshot?
-    @State private var mouseDownEventMonitor: Any?
     @State private var mouseUpEventMonitor: Any?
     @State private var didEnterSettingsInspectionMode = false
+    @State private var didAttemptStatsLoad = false
+    @State private var resolvedInstallCount: Int?
+    @State private var resolvedRating: AnalyticsService.ExtensionRating?
+    @State private var isRescanOverlayVisible = false
+    @State private var rescanOverlayTimeoutTask: Task<Void, Never>?
+    @State private var rescanOverlayHideTask: Task<Void, Never>?
+    @State private var rescanOverlayShownAt: Date?
 
     private var panelHeight: CGFloat {
         let availableHeight = NSScreen.main?.visibleFrame.height ?? 800
@@ -39,6 +51,18 @@ struct MenuBarManagerInfoView: View {
     /// Use ExtensionType.isRemoved as single source of truth
     private var isActive: Bool {
         !ExtensionType.menuBarManager.isRemoved && manager.isEnabled
+    }
+
+    private var displayInstallCountText: String {
+        if AnalyticsService.shared.isDisabled { return "–" }
+        if let count = installCount ?? resolvedInstallCount {
+            return "\(count)"
+        }
+        return "–"
+    }
+
+    private var displayRating: AnalyticsService.ExtensionRating? {
+        rating ?? resolvedRating
     }
     
     var body: some View {
@@ -84,9 +108,9 @@ struct MenuBarManagerInfoView: View {
             ExtensionReviewsSheet(extensionType: .menuBarManager)
         }
         .onAppear {
+            loadStatsIfNeeded()
             didEnterSettingsInspectionMode = false
             guard isActive else { return }
-            installMouseDownEventMonitor()
             installMouseUpEventMonitor()
             floatingBarManager.start()
             let hiddenSection = manager.section(withName: .hidden)
@@ -96,14 +120,15 @@ struct MenuBarManagerInfoView: View {
             alwaysHiddenSectionWasEnabledBeforeSettings = manager.isSectionEnabled(.alwaysHidden)
             wasLockedVisibleBeforeSettings = manager.isLockedVisible
             manager.isLockedVisible = true
-            manager.showAllSectionsForSettingsInspection()
-            floatingBarManager.enterSettingsInspectionMode()
-            didEnterSettingsInspectionMode = true
+            DispatchQueue.main.async {
+                manager.showAllSectionsForSettingsInspection()
+                floatingBarManager.enterSettingsInspectionMode()
+                didEnterSettingsInspectionMode = true
+            }
         }
         .onDisappear {
-            removeMouseDownEventMonitor()
+            stopRescanFeedback(animated: false)
             removeMouseUpEventMonitor()
-            hoveredPlacementItemID = nil
             draggingPlacementItemID = nil
             draggingPlacementItemSnapshot = nil
             guard didEnterSettingsInspectionMode else { return }
@@ -111,14 +136,45 @@ struct MenuBarManagerInfoView: View {
             manager.isLockedVisible = wasLockedVisibleBeforeSettings
             let shouldEnableAlwaysHiddenOnRestore =
                 alwaysHiddenSectionWasEnabledBeforeSettings
-                || (floatingBarManager.isFeatureEnabled && !floatingBarManager.alwaysHiddenItemIDs.isEmpty)
+                || !floatingBarManager.alwaysHiddenItemIDs.isEmpty
             manager.restoreSectionVisibilityAfterSettings(
                 hiddenWasVisible: hiddenSectionWasVisibleBeforeSettings,
                 alwaysHiddenWasVisible: alwaysHiddenSectionWasVisibleBeforeSettings,
                 alwaysHiddenWasEnabled: shouldEnableAlwaysHiddenOnRestore
             )
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                floatingBarManager.rescan(force: true)
+        }
+        .onReceive(floatingBarManager.$scannedItems) { _ in
+            if isRescanOverlayVisible {
+                finishRescanFeedback()
+            }
+        }
+    }
+
+    private func loadStatsIfNeeded() {
+        guard !didAttemptStatsLoad else { return }
+        guard !AnalyticsService.shared.isDisabled else { return }
+        guard installCount == nil || rating == nil else { return }
+
+        didAttemptStatsLoad = true
+
+        Task {
+            var fetchedCount: Int?
+            var fetchedRating: AnalyticsService.ExtensionRating?
+
+            if installCount == nil, let counts = try? await AnalyticsService.shared.fetchExtensionCounts() {
+                fetchedCount = counts["menuBarManager"]
+            }
+            if rating == nil, let ratings = try? await AnalyticsService.shared.fetchExtensionRatings() {
+                fetchedRating = ratings["menuBarManager"]
+            }
+
+            await MainActor.run {
+                if installCount == nil {
+                    resolvedInstallCount = fetchedCount
+                }
+                if rating == nil {
+                    resolvedRating = fetchedRating
+                }
             }
         }
     }
@@ -149,7 +205,7 @@ struct MenuBarManagerInfoView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 12))
-                    Text(AnalyticsService.shared.isDisabled ? "–" : "\(installCount ?? 0)")
+                    Text(displayInstallCountText)
                         .font(.caption.weight(.medium))
                 }
                 .foregroundStyle(.secondary)
@@ -162,7 +218,7 @@ struct MenuBarManagerInfoView: View {
                         Image(systemName: "star.fill")
                             .font(.system(size: 12))
                             .foregroundStyle(.yellow)
-                        if let r = rating, r.ratingCount > 0 {
+                        if let r = displayRating, r.ratingCount > 0 {
                             Text(String(format: "%.1f", r.averageRating))
                                 .font(.caption.weight(.medium))
                             Text("(\(r.ratingCount))")
@@ -198,28 +254,45 @@ struct MenuBarManagerInfoView: View {
     }
     
     private var featuresSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Hide unused menu bar icons and reveal them with a click. Keep your menu bar clean and organized.")
-                .font(.callout)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Core Actions")
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                featureRow(icon: "eye.fill", text: "Eye icon toggles visibility")
-                featureRow(icon: "line.vertical", text: "Separator line shows when icons are hidden")
-                featureRow(icon: "hand.raised.fill", text: "Drag icons left of the separator to hide")
-                featureRow(icon: "arrow.left.arrow.right", text: "Rearrange by holding ⌘ and dragging")
-                featureRow(icon: "rectangle.bottomthird.inset.filled", text: "Pin always-hidden icons to the Floating Bar (Alpha)")
+
+            VStack(alignment: .leading, spacing: 7) {
+                featureRow(
+                    icon: "eye.fill",
+                    title: "Toggle hidden icons",
+                    detail: "Click the eye icon to show or hide hidden menu bar items."
+                )
+                featureRow(
+                    icon: "arrow.left.arrow.right",
+                    title: "Rearrange quickly",
+                    detail: "Hold ⌘ and drag icons to move them across sections."
+                )
+                featureRow(
+                    icon: "rectangle.bottomthird.inset.filled",
+                    title: "Pin to Floating Bar",
+                    detail: "Keep selected always-hidden icons accessible from the bar."
+                )
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DroppySpacing.lg)
+        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.42))
+        .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
+                .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
+        )
     }
     
-    private func featureRow(icon: String, text: String) -> some View {
+    private func featureRow(icon: String, title: String, detail: String) -> some View {
         HStack(spacing: 12) {
             Group {
                 if NSImage(systemSymbolName: icon, accessibilityDescription: nil) != nil {
                     Image(systemName: icon)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 13, weight: .semibold))
                 } else {
                     Text("|")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -228,26 +301,33 @@ struct MenuBarManagerInfoView: View {
             .foregroundStyle(.blue)
             .frame(width: 24)
             
-            Text(text)
-                .font(.callout)
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
     
     private var usageSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.green)
-                Text("Menu Bar Manager is active")
-                    .font(.headline)
+                Text("Quick Start")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
             }
             
-            VStack(alignment: .leading, spacing: 8) {
-                instructionRow(step: "1", text: "Look for the eye icon in your menu bar")
-                instructionRow(step: "2", text: "Click it to hide icons — a separator line ( | ) will appear")
-                instructionRow(step: "3", text: "Hold ⌘ and drag icons LEFT of the separator to hide them")
-                instructionRow(step: "4", text: "In settings, mark icons as Always Hidden to move them into the Floating Bar (Alpha)")
+            VStack(alignment: .leading, spacing: 7) {
+                instructionRow(step: "1", text: "Click the eye icon to reveal or collapse hidden icons.")
+                instructionRow(step: "2", text: "Hold ⌘ and drag icons left of the separator to hide them.")
+                instructionRow(step: "3", text: "Use Menu Bar Layout below to move items into Floating Bar.")
             }
             
             HStack(spacing: 8) {
@@ -257,11 +337,11 @@ struct MenuBarManagerInfoView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.top, 4)
+            .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(DroppySpacing.lg)
-        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.5))
+        .background(AdaptiveColors.buttonBackgroundAuto.opacity(0.42))
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DroppyRadius.ml, style: .continuous)
@@ -331,46 +411,25 @@ struct MenuBarManagerInfoView: View {
             
             Divider()
             
-            // Rehide strategy
+            // Rehide is always timed
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Rehide Behavior")
+                        Text("Auto-Hide Delay")
                             .font(.callout)
-                        Text(manager.rehideStrategy.description)
+                        Text("Automatically hide after revealing")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Picker("", selection: $manager.rehideStrategy) {
-                        ForEach(RehideStrategy.allCases) { strategy in
-                            Text(strategy.displayName).tag(strategy)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 120)
+                    Text(manager.autoHideDelay == 0 ? "Off" : String(format: "%.1fs", manager.autoHideDelay))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
-                
-                // Show auto-hide delay only for timed strategy
-                if manager.rehideStrategy == .timed {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Auto-Hide Delay")
-                                .font(.callout)
-                            Text("Automatically hide after revealing")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(manager.autoHideDelay == 0 ? "Off" : String(format: "%.1fs", manager.autoHideDelay))
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(value: $manager.autoHideDelay, in: 0.0...5.0, step: 0.5)
-                        .sliderHaptics(value: manager.autoHideDelay, range: 0.0...5.0)
-                        .controlSize(.small)
-                }
+
+                Slider(value: $manager.autoHideDelay, in: 0.0...5.0, step: 0.5)
+                    .sliderHaptics(value: manager.autoHideDelay, range: 0.0...5.0)
+                    .controlSize(.small)
             }
             
             Divider()
@@ -480,52 +539,30 @@ struct MenuBarManagerInfoView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Menu Bar Layout")
                         .font(.callout)
-                    Text(
-                        floatingBarManager.isFeatureEnabled
-                        ? "Drag icons between rows to place them in Visible, Hidden, or Floating Bar."
-                        : "Drag icons between rows to place them in Visible or Hidden. Enable Floating Bar (Alpha) to use the Floating Bar row."
-                    )
+                    Text("Drag icons between rows to place them in Visible, Hidden, Always Hidden, or Floating Bar.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
             HStack(spacing: 8) {
-                SettingsSegmentButtonWithContent(
+                permissionTile(
                     label: "Accessibility",
-                    isSelected: permissionManager.isAccessibilityGranted,
-                    tileWidth: 92,
-                    tileHeight: 42,
-                    action: {
+                    isGranted: permissionManager.isAccessibilityGranted,
+                    requestSymbol: "hand.raised",
+                    requestAction: {
                         floatingBarManager.requestAccessibilityPermission()
                     }
-                ) {
-                    Image(systemName: permissionManager.isAccessibilityGranted ? "hand.raised.fill" : "hand.raised")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(
-                            permissionManager.isAccessibilityGranted
-                            ? Color.blue
-                            : AdaptiveColors.overlayAuto(0.6)
-                        )
-                }
+                )
 
-                SettingsSegmentButtonWithContent(
+                permissionTile(
                     label: "Screen Rec",
-                    isSelected: permissionManager.isScreenRecordingGranted,
-                    tileWidth: 92,
-                    tileHeight: 42,
-                    action: {
+                    isGranted: permissionManager.isScreenRecordingGranted,
+                    requestSymbol: "record.circle",
+                    requestAction: {
                         floatingBarManager.requestScreenRecordingPermission()
                     }
-                ) {
-                    Image(systemName: permissionManager.isScreenRecordingGranted ? "record.circle.fill" : "record.circle")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(
-                            permissionManager.isScreenRecordingGranted
-                            ? Color.blue
-                            : AdaptiveColors.overlayAuto(0.6)
-                        )
-                }
+                )
 
                 SettingsSegmentButtonWithContent(
                     label: "Rescan",
@@ -533,7 +570,11 @@ struct MenuBarManagerInfoView: View {
                     tileWidth: 92,
                     tileHeight: 42,
                     action: {
-                        floatingBarManager.rescan(force: true)
+                        beginRescanFeedback()
+                        Task { @MainActor in
+                            await Task.yield()
+                            floatingBarManager.rescan(force: true, refreshIcons: true)
+                        }
                     }
                 ) {
                     Image(systemName: "arrow.clockwise")
@@ -567,38 +608,154 @@ struct MenuBarManagerInfoView: View {
                 Text("Grant Accessibility to discover and trigger menu bar items from the Floating Bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else if floatingBarManager.settingsItems.isEmpty {
-                Text("No right-side menu bar icons detected yet. Click “Rescan”.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    placementLane(
-                        title: "Visible",
-                        placement: .visible,
-                        items: floatingBarManager.settingsItems(for: .visible)
-                    )
-                    placementLane(
-                        title: "Hidden",
-                        placement: .hidden,
-                        items: floatingBarManager.settingsItems(for: .hidden)
-                    )
-                    if floatingBarManager.isFeatureEnabled {
-                        placementLane(
-                            title: "Floating Bar",
-                            placement: .floating,
-                            items: floatingBarManager.settingsItems(for: .floating)
-                        )
+                let lanes = floatingBarManager.settingsLaneItems()
+                let hasDetectedItems =
+                    !lanes.visible.isEmpty
+                    || !lanes.hidden.isEmpty
+                    || !lanes.alwaysHidden.isEmpty
+                    || !lanes.floatingBar.isEmpty
+                if !hasDetectedItems {
+                    Text("No menu bar icons detected yet. Click “Rescan”.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ZStack {
+                        VStack(alignment: .leading, spacing: 12) {
+                            placementLane(
+                                title: "Visible",
+                                lane: .visible,
+                                items: lanes.visible
+                            )
+                            placementLane(
+                                title: "Hidden",
+                                lane: .hidden,
+                                items: lanes.hidden
+                            )
+                            placementLane(
+                                title: "Always Hidden",
+                                lane: .alwaysHidden,
+                                items: lanes.alwaysHidden
+                            )
+                            placementLane(
+                                title: "Floating Bar",
+                                lane: .floatingBar,
+                                items: lanes.floatingBar
+                            )
+                        }
+                        .allowsHitTesting(!isRescanOverlayVisible)
+
+                        if isRescanOverlayVisible {
+                            rescanSectionsOverlay
+                                .transition(.opacity)
+                        }
                     }
+                    .padding(.top, 2)
+                    .animation(.easeInOut(duration: 0.16), value: isRescanOverlayVisible)
                 }
-                .padding(.top, 2)
             }
         }
     }
 
+    private var rescanSectionsOverlay: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.black.opacity(0.28))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(AdaptiveColors.overlayAuto(0.15), lineWidth: 1)
+                )
+
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Scanning all menu bar icons…")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(
+                        useTransparentBackground
+                        ? AnyShapeStyle(.ultraThinMaterial)
+                        : AdaptiveColors.panelBackgroundOpaqueStyle
+                    )
+            )
+            .overlay(
+                Capsule()
+                    .stroke(AdaptiveColors.overlayAuto(0.14), lineWidth: 1)
+            )
+        }
+        .padding(6)
+    }
+
+    @ViewBuilder
+    private func permissionTile(
+        label: String,
+        isGranted: Bool,
+        requestSymbol: String,
+        requestAction: @escaping () -> Void
+    ) -> some View {
+        if isGranted {
+            grantedPermissionStatusTile(label: label)
+        } else {
+            SettingsSegmentButtonWithContent(
+                label: label,
+                isSelected: false,
+                tileWidth: 92,
+                tileHeight: 42,
+                action: requestAction
+            ) {
+                Image(systemName: requestSymbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(AdaptiveColors.overlayAuto(0.6))
+            }
+        }
+    }
+
+    private func grantedPermissionStatusTile(label: String) -> some View {
+        VStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.green.opacity(0.2),
+                            Color.green.opacity(0.1),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DroppyRadius.medium, style: .continuous)
+                        .stroke(Color.green.opacity(0.75), lineWidth: 1.4)
+                )
+                .overlay {
+                    Text("Granted")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.green.opacity(0.95))
+                }
+                .frame(width: 92, height: 42)
+
+            Text(label)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 92)
+        }
+        .frame(width: 92, height: 72, alignment: .top)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) permission granted")
+    }
+
     private func placementLane(
         title: String,
-        placement: MenuBarFloatingPlacement,
+        lane: PlacementLane,
         items: [MenuBarFloatingItemSnapshot]
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -607,23 +764,6 @@ struct MenuBarManagerInfoView: View {
                     Text(title)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.primary)
-
-                    if placement == .floating {
-                        Text("ALPHA")
-                            .font(.system(size: 9, weight: .bold))
-                            .tracking(0.4)
-                            .foregroundStyle(Color.orange)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(Color.orange.opacity(0.14))
-                            )
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(Color.orange.opacity(0.35), lineWidth: 0.8)
-                            )
-                    }
                 }
                 Spacer()
                 Text("\(items.count)")
@@ -632,7 +772,7 @@ struct MenuBarManagerInfoView: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                LazyHStack(spacing: 8) {
                     if items.isEmpty {
                         Text("Drop icons here")
                             .font(.caption)
@@ -668,12 +808,12 @@ struct MenuBarManagerInfoView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        activeDropPlacement == placement ? Color.blue.opacity(0.55) : Color.clear,
-                        lineWidth: activeDropPlacement == placement ? 1.2 : 0
+                        activeDropPlacement == lane ? Color.blue.opacity(0.55) : Color.clear,
+                        lineWidth: activeDropPlacement == lane ? 1.2 : 0
                     )
             )
-            .onDrop(of: [.text], isTargeted: dropTargetBinding(for: placement)) { providers in
-                handlePlacementDrop(providers: providers, to: placement)
+            .onDrop(of: [.text], isTargeted: dropTargetBinding(for: lane)) { providers in
+                handlePlacementDrop(providers: providers, to: lane)
             }
         }
     }
@@ -684,7 +824,6 @@ struct MenuBarManagerInfoView: View {
         let currentPlacement = floatingBarManager.placement(for: item)
         let isBlockedInVisibleLane = isNonHideable && currentPlacement == .visible
         let canDrag = !isBlockedInVisibleLane
-        let isHovered = hoveredPlacementItemID == item.id && draggingPlacementItemID == nil
         let isDragging = draggingPlacementItemID == item.id
         let helpText: String = {
             let base = "\(item.displayName) (\(item.ownerBundleID))"
@@ -698,7 +837,6 @@ struct MenuBarManagerInfoView: View {
             item: item,
             isDimmed: isBlockedInVisibleLane,
             showLockBadge: isBlockedInVisibleLane,
-            isHovered: isHovered,
             isDragging: isDragging,
             helpText: helpText
         )
@@ -711,7 +849,6 @@ struct MenuBarManagerInfoView: View {
             chip.onDrag {
                 draggingPlacementItemID = item.id
                 draggingPlacementItemSnapshot = item
-                hoveredPlacementItemID = nil
                 return NSItemProvider(object: item.id as NSString)
             }
         )
@@ -721,7 +858,6 @@ struct MenuBarManagerInfoView: View {
         item: MenuBarFloatingItemSnapshot,
         isDimmed: Bool,
         showLockBadge: Bool,
-        isHovered: Bool,
         isDragging: Bool,
         helpText: String
     ) -> some View {
@@ -739,10 +875,8 @@ struct MenuBarManagerInfoView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(
-                        isHovered
-                        ? AdaptiveColors.overlayAuto(0.35)
-                        : Color.clear,
-                        lineWidth: isHovered ? 1 : 0
+                        Color.clear,
+                        lineWidth: 0
                     )
             )
             .overlay(alignment: .bottomTrailing) {
@@ -764,27 +898,19 @@ struct MenuBarManagerInfoView: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .help(helpText)
-            .onHover { hovering in
-                if hovering {
-                    guard draggingPlacementItemID == nil else { return }
-                    hoveredPlacementItemID = item.id
-                } else if hoveredPlacementItemID == item.id {
-                    hoveredPlacementItemID = nil
-                }
-            }
     }
 
     @ViewBuilder
     private func placementIconView(for item: MenuBarFloatingItemSnapshot) -> some View {
         if let icon = resolvedIcon(for: item) {
-            if icon.isTemplate {
+            if MenuBarFloatingIconRendering.shouldUseTemplateTint(for: icon) {
                 Image(nsImage: icon)
                     .renderingMode(.template)
                     .interpolation(.high)
                     .antialiased(true)
                     .resizable()
                     .scaledToFit()
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
             } else {
                 Image(nsImage: icon)
                     .renderingMode(.original)
@@ -801,13 +927,13 @@ struct MenuBarManagerInfoView: View {
         }
     }
 
-    private func dropTargetBinding(for placement: MenuBarFloatingPlacement) -> Binding<Bool> {
+    private func dropTargetBinding(for lane: PlacementLane) -> Binding<Bool> {
         Binding(
-            get: { activeDropPlacement == placement },
+            get: { activeDropPlacement == lane },
             set: { isTargeted in
                 if isTargeted {
-                    activeDropPlacement = placement
-                } else if activeDropPlacement == placement {
+                    activeDropPlacement = lane
+                } else if activeDropPlacement == lane {
                     activeDropPlacement = nil
                 }
             }
@@ -816,11 +942,10 @@ struct MenuBarManagerInfoView: View {
 
     private func handlePlacementDrop(
         providers: [NSItemProvider],
-        to placement: MenuBarFloatingPlacement
+        to lane: PlacementLane
     ) -> Bool {
         let draggedSnapshot = draggingPlacementItemSnapshot
         draggingPlacementItemID = nil
-        hoveredPlacementItemID = nil
         activeDropPlacement = nil
 
         if let draggedSnapshot {
@@ -828,7 +953,7 @@ struct MenuBarManagerInfoView: View {
                 itemID: draggedSnapshot.id,
                 fallback: draggedSnapshot
             ) ?? draggedSnapshot
-            applyDroppedPlacement(immediateItem, to: placement)
+            applyDroppedPlacement(immediateItem, to: lane)
             draggingPlacementItemSnapshot = nil
             return true
         }
@@ -845,7 +970,7 @@ struct MenuBarManagerInfoView: View {
                     draggingPlacementItemSnapshot = nil
                     return
                 }
-                applyDroppedPlacement(item, to: placement)
+                applyDroppedPlacement(item, to: lane)
                 draggingPlacementItemSnapshot = nil
             }
         }
@@ -855,25 +980,38 @@ struct MenuBarManagerInfoView: View {
 
     private func applyDroppedPlacement(
         _ item: MenuBarFloatingItemSnapshot,
-        to placement: MenuBarFloatingPlacement
+        to lane: PlacementLane
     ) {
-        if placement != .visible,
+        if lane != .visible,
            floatingBarManager.nonHideableReason(for: item) != nil {
             return
         }
-        floatingBarManager.setPlacement(placement, for: item)
+        switch lane {
+        case .visible:
+            floatingBarManager.setPlacement(.visible, for: item)
+            floatingBarManager.setFloatingBarInclusion(false, for: item)
+        case .hidden:
+            floatingBarManager.setPlacement(.hidden, for: item)
+            floatingBarManager.setFloatingBarInclusion(false, for: item)
+        case .alwaysHidden:
+            floatingBarManager.setPlacement(.floating, for: item)
+            floatingBarManager.setFloatingBarInclusion(false, for: item)
+        case .floatingBar:
+            floatingBarManager.setPlacement(.floating, for: item)
+            floatingBarManager.setFloatingBarInclusion(true, for: item)
+        }
     }
 
     private func resolveDroppedPlacementItem(
         itemID: String,
         fallback: MenuBarFloatingItemSnapshot?
     ) -> MenuBarFloatingItemSnapshot? {
-        if let exact = floatingBarManager.settingsItems.first(where: { $0.id == itemID }) {
+        let items = floatingBarManager.settingsItems
+        if let exact = items.first(where: { $0.id == itemID }) {
             return exact
         }
         guard let fallback else { return nil }
 
-        let items = floatingBarManager.settingsItems
         let sameOwner = items.filter { $0.ownerBundleID == fallback.ownerBundleID }
         guard !sameOwner.isEmpty else { return nil }
 
@@ -940,16 +1078,6 @@ struct MenuBarManagerInfoView: View {
         mouseUpEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { event in
             self.draggingPlacementItemID = nil
             self.draggingPlacementItemSnapshot = nil
-            self.hoveredPlacementItemID = nil
-            return event
-        }
-    }
-
-    private func installMouseDownEventMonitor() {
-        guard mouseDownEventMonitor == nil else { return }
-        mouseDownEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged]) { event in
-            // Dismiss hover popovers immediately so drag-and-drop stays responsive.
-            self.hoveredPlacementItemID = nil
             return event
         }
     }
@@ -960,14 +1088,8 @@ struct MenuBarManagerInfoView: View {
         self.mouseUpEventMonitor = nil
     }
 
-    private func removeMouseDownEventMonitor() {
-        guard let mouseDownEventMonitor else { return }
-        NSEvent.removeMonitor(mouseDownEventMonitor)
-        self.mouseDownEventMonitor = nil
-    }
-
     private func resolvedIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
-        item.icon ?? MenuBarFloatingFallbackIconProvider.icon(for: item)
+        item.icon
     }
     
     private func iconOption(_ iconSet: MBMIconSet) -> some View {
@@ -987,7 +1109,7 @@ struct MenuBarManagerInfoView: View {
                 Text(iconSet.displayName)
                     .font(.caption2)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 70)
             .padding(.vertical, 8)
             .background(isSelected ? Color.blue.opacity(0.2) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -995,26 +1117,29 @@ struct MenuBarManagerInfoView: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(isSelected ? Color.blue : AdaptiveColors.overlayAuto(0.1), lineWidth: 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
     
     private func instructionRow(step: String, text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text(step)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 20, height: 20)
-                .background(Circle().fill(Color.blue))
+                .foregroundStyle(.blue)
+                .frame(width: 18, height: 18)
+                .background(Circle().fill(Color.blue.opacity(0.18)))
             
             Text(text)
-                .font(.callout)
+                .font(.callout.weight(.semibold))
                 .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
     
     private var buttonSection: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button("Close") { dismiss() }
                 .buttonStyle(DroppyPillButtonStyle(size: .small))
             
@@ -1032,6 +1157,58 @@ struct MenuBarManagerInfoView: View {
             }
         }
         .padding(DroppySpacing.lg)
+    }
+
+    private func beginRescanFeedback() {
+        rescanOverlayTimeoutTask?.cancel()
+        rescanOverlayTimeoutTask = nil
+        rescanOverlayHideTask?.cancel()
+        rescanOverlayHideTask = nil
+        rescanOverlayShownAt = Date()
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isRescanOverlayVisible = true
+        }
+        rescanOverlayTimeoutTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if isRescanOverlayVisible {
+                stopRescanFeedback(animated: true)
+            }
+        }
+    }
+
+    private func finishRescanFeedback() {
+        let minimumVisibleDuration: TimeInterval = 0.6
+        let shownAt = rescanOverlayShownAt ?? Date()
+        let elapsed = Date().timeIntervalSince(shownAt)
+        let remaining = max(0, minimumVisibleDuration - elapsed)
+
+        guard remaining > 0 else {
+            stopRescanFeedback(animated: true)
+            return
+        }
+
+        rescanOverlayHideTask?.cancel()
+        rescanOverlayHideTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            if isRescanOverlayVisible {
+                stopRescanFeedback(animated: true)
+            }
+        }
+    }
+
+    private func stopRescanFeedback(animated: Bool) {
+        rescanOverlayTimeoutTask?.cancel()
+        rescanOverlayTimeoutTask = nil
+        rescanOverlayHideTask?.cancel()
+        rescanOverlayHideTask = nil
+        rescanOverlayShownAt = nil
+        if animated {
+            withAnimation(.easeInOut(duration: 0.16)) {
+                isRescanOverlayVisible = false
+            }
+        } else {
+            isRescanOverlayVisible = false
+        }
     }
 
     private func enableMenuBarManager() {

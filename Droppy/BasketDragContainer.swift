@@ -76,7 +76,6 @@ class BasketDragContainer: NSView {
         ]
         types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
         registerForDraggedTypes(types)
-        registerForDraggedTypes(types)
     }
     
     // MARK: - Efficient Mouse Tracking (v8.4.3 Lag Fix)
@@ -141,14 +140,7 @@ class BasketDragContainer: NSView {
         let airDropLeftEdge = basketRightEdge - airDropZoneWidth
         
         // Point is in AirDrop zone if it's within basket bounds AND in the right portion
-        let result = point.x >= airDropLeftEdge && point.x <= basketRightEdge
-        
-        // Debug logging for Issue #62
-        if result {
-            print("📡 AirDrop Zone HIT: point.x=\(Int(point.x)) zone=[\(Int(airDropLeftEdge))…\(Int(basketRightEdge))]")
-        }
-        
-        return result
+        return point.x >= airDropLeftEdge && point.x <= basketRightEdge
     }
     
     /// Check if point is in the main basket zone (left side)
@@ -174,20 +166,21 @@ class BasketDragContainer: NSView {
         if showAirDropZone {
             let isOverAirDrop = isPointInAirDropZone(point)
             let isOverBasket = isPointInBasketZone(point)
-            
-            // Debug logging for Issue #62 - help diagnose zone detection issues
-            let windowCenterX = bounds.width / 2
-            let basketRightEdge = windowCenterX + currentBasketWidth / 2
-            let airDropLeftEdge = basketRightEdge - airDropZoneWidth
-            let basketLeftEdge = windowCenterX - currentBasketWidth / 2
-            print("🎯 Zone: point.x=\(Int(point.x)) basket=[\(Int(basketLeftEdge))…\(Int(airDropLeftEdge))] airdrop=[\(Int(airDropLeftEdge))…\(Int(basketRightEdge))] isAirDrop=\(isOverAirDrop) isBasket=\(isOverBasket)")
-            
-            // Synchronous update for responsive feedback
-            basketState.isAirDropZoneTargeted = isOverAirDrop
-            basketState.isTargeted = isOverBasket
+
+            // Avoid redundant state writes while dragging to reduce update churn.
+            if basketState.isAirDropZoneTargeted != isOverAirDrop {
+                basketState.isAirDropZoneTargeted = isOverAirDrop
+            }
+            if basketState.isTargeted != isOverBasket {
+                basketState.isTargeted = isOverBasket
+            }
         } else {
-            basketState.isTargeted = true
-            basketState.isAirDropZoneTargeted = false
+            if !basketState.isTargeted {
+                basketState.isTargeted = true
+            }
+            if basketState.isAirDropZoneTargeted {
+                basketState.isAirDropZoneTargeted = false
+            }
         }
     }
 

@@ -86,25 +86,36 @@ final class BasketState {
     
     /// Adds multiple items from URLs
     func addItems(from urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        
-        let isBulk = urls.count > 3
+        let droppedItems = urls.map { DroppedItem(url: $0) }
+        addItems(droppedItems)
+    }
+
+    /// Adds multiple pre-built dropped items (preserves metadata like watched-folder source).
+    func addItems(_ droppedItems: [DroppedItem]) {
+        guard !droppedItems.isEmpty else { return }
+
+        let isBulk = droppedItems.count > 3
         if isBulk { isBulkUpdating = true }
-        
+
         let enablePowerFolders = UserDefaults.standard.object(forKey: AppPreferenceKey.enablePowerFolders) as? Bool ?? true
-        let existingURLs = Set(itemsList.map(\.url) + powerFolders.map(\.url))
-        
-        for url in urls where !existingURLs.contains(url) {
-            let item = DroppedItem(url: url)
+        var existingURLs = Set(itemsList.map(\.url) + powerFolders.map(\.url))
+        var didAdd = false
+
+        for item in droppedItems {
+            guard !existingURLs.contains(item.url) else { continue }
+            existingURLs.insert(item.url)
             if item.isDirectory && enablePowerFolders {
                 powerFolders.append(item)
             } else {
                 itemsList.append(item)
             }
+            didAdd = true
         }
-        
-        HapticFeedback.drop()
-        
+
+        if didAdd {
+            HapticFeedback.drop()
+        }
+
         if isBulk {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.isBulkUpdating = false

@@ -54,10 +54,12 @@ struct NotificationHUDView: View {
         manager.currentNotification != nil || manager.isExpanded || isHovering
     }
 
-    /// Keep built-in notch HUD text white on black.
-    /// Only adapt foregrounds for external transparent-notch mode.
+    /// Keep built-in physical-notch HUD text white on black.
+    /// Adapt foregrounds for transparent surfaces:
+    /// - Dynamic Island transparent mode (built-in/external)
+    /// - External notch-style transparent mode
     private var useAdaptiveForegrounds: Bool {
-        useTransparentBackground && isExternalWithNotchStyle
+        useTransparentBackground && (layout.isDynamicIslandMode || isExternalWithNotchStyle)
     }
 
     private func primaryText(_ opacity: Double = 1.0) -> Color {
@@ -252,7 +254,10 @@ struct NotificationHUDView: View {
     private var isExternalWithNotchStyle: Bool {
         guard let screen = targetScreen ?? NSScreen.main else { return false }
         if screen.isBuiltIn { return false }
-        let externalUseDI = (UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool) ?? true
+        let externalUseDI = UserDefaults.standard.preference(
+            AppPreferenceKey.externalDisplayUseDynamicIsland,
+            default: PreferenceDefault.externalDisplayUseDynamicIsland
+        )
         return !externalUseDI
     }
 

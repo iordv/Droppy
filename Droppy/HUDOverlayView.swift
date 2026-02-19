@@ -30,6 +30,7 @@ struct NotchHUDView: View {
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     var onValueChange: ((CGFloat) -> Void)?
     @ObservedObject private var volumeManager = VolumeManager.shared
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     /// SSOT: Use HUDLayoutCalculator for consistent padding across all HUDs
     private var layout: HUDLayoutCalculator {
@@ -57,14 +58,20 @@ struct NotchHUDView: View {
         return (!hasNotch || forceTest) && useDynamicIsland
     }
     
-    /// Whether this is an external display using notch visual style (curved corners)
-    private var isExternalWithNotchStyle: Bool {
+    /// True when the active display has a physical camera notch.
+    private var hasPhysicalNotchOnDisplay: Bool {
         let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first
         guard let screen = screen else { return false }
-        if screen.isBuiltIn { return false }
-        // External display with notch style = user chose NOT to use DI style
-        let externalUseDI = UserDefaults.standard.object(forKey: "externalDisplayUseDynamicIsland") as? Bool ?? true
-        return !externalUseDI
+        return screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
+    }
+
+    /// Adaptive text/icon foregrounds only on transparent, non-physical-notch surfaces.
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && !hasPhysicalNotchOnDisplay
+    }
+
+    private var neutralForeground: Color {
+        useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white
     }
     
     /// Width of each "wing" (area left/right of physical notch) - only used in notch mode
@@ -94,10 +101,10 @@ struct NotchHUDView: View {
                     // Icon scales from 0.85x (0%) to 1.15x (100%) for premium feel
                     let iconScale = 0.85 + (value * 0.30)
                     
-                    // Volume: White icon | Brightness: Yellow icon
+                    // Volume: adaptive neutral icon | Brightness: yellow icon
                     Image(systemName: iconSymbol(for: value))
                         .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : .white)
+                        .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : neutralForeground)
                         .contentTransition(.symbolEffect(.replace.byLayer))
                         .scaleEffect(iconScale)
                         .animation(.interpolatingSpring(stiffness: 300, damping: 20), value: value)
@@ -108,6 +115,7 @@ struct NotchHUDView: View {
                         value: $value,
                         hudType: hudType,
                         isMuted: isMuted,
+                        percentageColor: neutralForeground.opacity(0.88),
                         isActive: isActive,
                         onChange: onValueChange
                     )
@@ -129,10 +137,10 @@ struct NotchHUDView: View {
                         // Icon scales from 0.85x (0%) to 1.15x (100%) for premium feel
                         let iconScale = 0.85 + (value * 0.30)
                         
-                        // Volume: White icon | Brightness: Yellow icon
+                        // Volume: adaptive neutral icon | Brightness: yellow icon
                         Image(systemName: iconSymbol(for: value))
                             .font(.system(size: iconSize, weight: .semibold))
-                            .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : .white)
+                            .foregroundStyle(hudType == .brightness ? Color(red: 1.0, green: 0.85, blue: 0.0) : neutralForeground)
                             .contentTransition(.symbolEffect(.replace.byLayer))
                             .scaleEffect(iconScale)
                             .animation(.interpolatingSpring(stiffness: 300, damping: 20), value: value)
@@ -140,7 +148,7 @@ struct NotchHUDView: View {
                         
                         Text(hudType == .brightness ? "Brightness" : "Volume")
                             .font(.system(size: labelSize, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(neutralForeground)
                             .lineLimit(1)
                             .fixedSize()
                         
@@ -159,6 +167,7 @@ struct NotchHUDView: View {
                             value: $value,
                             hudType: hudType,
                             isMuted: isMuted,
+                            percentageColor: neutralForeground.opacity(0.88),
                             isActive: isActive,
                             onChange: onValueChange
                         )

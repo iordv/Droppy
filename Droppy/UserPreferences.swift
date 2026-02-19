@@ -146,6 +146,14 @@ enum AppPreferenceKey {
     static let elementCaptureEditorDefaultColor = "elementCapture_editorDefaultColor"
     static let elementCaptureEditorPrefer100Zoom = "elementCapture_editorPrefer100Zoom"
     static let elementCaptureEditorPinchZoomEnabled = "elementCapture_editorPinchZoomEnabled"
+    static let elementCaptureEditorBackgroundEnabled = "elementCapture_editorBackgroundEnabled"
+    static let elementCaptureEditorBackgroundPreset = "elementCapture_editorBackgroundPreset"
+    static let elementCaptureEditorBackgroundSource = "elementCapture_editorBackgroundSource"
+    static let elementCaptureEditorBackgroundCustomImagePath = "elementCapture_editorBackgroundCustomImagePath"
+    static let elementCaptureEditorBackgroundPaddingRatio = "elementCapture_editorBackgroundPaddingRatio"
+    static let elementCaptureEditorBackgroundCornerRadius = "elementCapture_editorBackgroundCornerRadius"
+    static let elementCaptureEditorScreenshotCornerRadius = "elementCapture_editorScreenshotCornerRadius"
+    static let elementCaptureEditorScreenshotShadowStrength = "elementCapture_editorScreenshotShadowStrength"
     static let ocrAutoCopyExtractedText = "ocr_autoCopyExtractedText"  // Auto-copy OCR results and skip result window
 
     // MARK: - Extension: Window Snap
@@ -164,6 +172,16 @@ enum AppPreferenceKey {
     static let cameraInstalled = "camera_installed"
     static let cameraEnabled = "camera_enabled"  // Whether to show camera preview in expanded shelf
     static let cameraPreferredDeviceID = "camera_preferredDeviceID"  // Empty = auto-pick best available camera
+
+    // MARK: - Extension: Teleprompty
+    static let telepromptyInstalled = "teleprompty_installed"
+    static let telepromptyEnabled = "teleprompty_enabled"  // Whether to show Teleprompty in expanded shelf
+    static let telepromptyScript = "teleprompty_script"
+    static let telepromptySpeed = "teleprompty_speed"
+    static let telepromptyFontSize = "teleprompty_fontSize"
+    static let telepromptyPromptWidth = "teleprompty_promptWidth"
+    static let telepromptyPromptHeight = "teleprompty_promptHeight"
+    static let telepromptyCountdown = "teleprompty_countdown"
     
     // MARK: - Extension: Notification HUD
     static let notificationHUDInstalled = "notificationHUD_installed"
@@ -275,7 +293,7 @@ enum PreferenceDefault {
     static let enableDNDHUD = false  // Requires Full Disk Access
     static let enableUpdateHUD = true  // Show HUD when update is available
     static let enableBetterDisplayCompatibility = true  // Allow BetterDisplay to own brightness keys while Droppy mirrors HUD updates
-    static let mediaControlTargetMode = "mainMacBook"  // Keep behavior focused on built-in display by default
+    static let mediaControlTargetMode = "activeDisplay"  // Follow pointer display by default so external monitors work out of the box
     
     // MARK: - Lock Screen Media Widget
     static let enableLockScreenMediaWidget = false  // Uses private APIs, opt-in
@@ -349,6 +367,14 @@ enum PreferenceDefault {
     static let elementCaptureEditorDefaultColor = "red"
     static let elementCaptureEditorPrefer100Zoom = false
     static let elementCaptureEditorPinchZoomEnabled = true
+    static let elementCaptureEditorBackgroundEnabled = false
+    static let elementCaptureEditorBackgroundPreset = "midnight"
+    static let elementCaptureEditorBackgroundSource = "gradient"
+    static let elementCaptureEditorBackgroundCustomImagePath = ""
+    static let elementCaptureEditorBackgroundPaddingRatio: Double = 0.1
+    static let elementCaptureEditorBackgroundCornerRadius: Double = 44
+    static let elementCaptureEditorScreenshotCornerRadius: Double = 24
+    static let elementCaptureEditorScreenshotShadowStrength: Double = 0.55
     static let ocrAutoCopyExtractedText = false
 
     // MARK: - Extension: Window Snap
@@ -367,6 +393,24 @@ enum PreferenceDefault {
     static let cameraInstalled = false
     static let cameraEnabled = true  // Enabled by default when installed
     static let cameraPreferredDeviceID = ""
+
+    // MARK: - Extension: Teleprompty
+    static let telepromptyInstalled = false
+    static let telepromptyEnabled = true
+    static let telepromptyScript = """
+good morning.
+
+today i'm testing this teleprompter.
+
+if you can read this smoothly, it's working.
+
+thank you.
+"""
+    static let telepromptySpeed: Double = 110
+    static let telepromptyFontSize: Double = 18
+    static let telepromptyPromptWidth: Double = 460
+    static let telepromptyPromptHeight: Double = 142
+    static let telepromptyCountdown: Double = 3
     
     // MARK: - Extension: Notification HUD
     static let notificationHUDInstalled = false

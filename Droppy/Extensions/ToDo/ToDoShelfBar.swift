@@ -70,6 +70,39 @@ private enum ToDoShelfFormatters {
     }()
 }
 
+private func meetingURL(for item: ToDoItem) -> URL? {
+    guard item.externalSource == .calendar,
+          let raw = item.externalMeetingURL?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !raw.isEmpty,
+          let url = URL(string: raw) else {
+        return nil
+    }
+    return url
+}
+
+private func isTeamsMeetingURL(_ url: URL) -> Bool {
+    let absolute = url.absoluteString.lowercased()
+    if absolute.contains("teams.microsoft.com/l/meetup-join") ||
+        absolute.contains("teams.microsoft.com%2fl%2fmeetup-join") ||
+        absolute.contains("msteams://") {
+        return true
+    }
+    guard let host = url.host?.lowercased() else { return false }
+    return host == "teams.microsoft.com" ||
+        host.hasSuffix(".teams.microsoft.com") ||
+        host == "teams.live.com" ||
+        host.hasSuffix(".teams.live.com") ||
+        host == "teams.office.com" ||
+        host.hasSuffix(".teams.office.com") ||
+        host == "gov.teams.microsoft.us" ||
+        host == "dod.teams.microsoft.us" ||
+        (host == "aka.ms" && absolute.contains("meetup-join"))
+}
+
+private func meetingLinkTitle(for url: URL) -> String {
+    isTeamsMeetingURL(url) ? "Join Teams meeting" : "Open meeting link"
+}
+
 private struct TimelineSectionOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: [Date: CGFloat] = [:]
 
@@ -600,7 +633,7 @@ struct ToDoShelfBar: View {
     private var timelineToolbar: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Text(timelineModeTitle)
+                Text(timelineToolbarTitle)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(
                         useAdaptiveForegrounds
@@ -608,7 +641,7 @@ struct ToDoShelfBar: View {
                             : .white.opacity(0.74)
                     )
                     .contentTransition(.interpolate)
-                    .animation(DroppyAnimation.state, value: timelineModeTitle)
+                    .animation(DroppyAnimation.state, value: timelineToolbarTitle)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(
@@ -677,13 +710,17 @@ struct ToDoShelfBar: View {
 
             nativeDayStrip
         }
+        .padding(.top, -toolbarBlockLift)
     }
 
     private var nativeDayStrip: some View {
         let calendar = Calendar.current
         let stripStart = stripWindowStartDay
+        let stripSpacing: CGFloat = isSplitViewEnabled ? 6 : 4
+        let dayContentSpacing: CGFloat = isSplitViewEnabled ? 6 : 4
+        let dayNumberFrame: CGFloat = isSplitViewEnabled ? 22 : 20
 
-        return HStack(spacing: 6) {
+        return HStack(spacing: stripSpacing) {
             ForEach(0..<7, id: \.self) { offset in
                 let day = calendar.date(byAdding: .day, value: offset, to: stripStart) ?? stripStart
                 let dayStart = calendar.startOfDay(for: day)
@@ -697,14 +734,17 @@ struct ToDoShelfBar: View {
                     }
                     ensureSelectedDayVisibleInStrip()
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(day, format: .dateTime.weekday(.abbreviated))
+                    HStack(spacing: dayContentSpacing) {
+                        Text(stripWeekdayLabel(for: day))
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(
                                 useAdaptiveForegrounds
                                     ? AdaptiveColors.primaryTextAuto.opacity(isSelectedDay ? 0.95 : 0.84)
                                     : .white.opacity(isSelectedDay ? 0.9 : 0.75)
                             )
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .allowsTightening(true)
                             .contentTransition(.interpolate)
                             .animation(DroppyAnimation.state, value: stripWindowStartDay)
 
@@ -717,7 +757,7 @@ struct ToDoShelfBar: View {
                             )
                             .contentTransition(.numericText(value: Double(Calendar.current.component(.day, from: day))))
                             .animation(DroppyAnimation.state, value: stripWindowStartDay)
-                            .frame(width: 22, height: 22)
+                            .frame(width: dayNumberFrame, height: dayNumberFrame)
                             .background(
                                 Circle()
                                     .fill(
@@ -735,7 +775,7 @@ struct ToDoShelfBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, isSplitViewEnabled ? 4 : 2)
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .simultaneousGesture(
@@ -939,6 +979,16 @@ struct ToDoShelfBar: View {
                                 .foregroundStyle(calendarTint(for: item).opacity(0.95))
                         }
 
+                        if let url = meetingURL(for: item) {
+                            Link(destination: url) {
+                                Label(meetingLinkTitle(for: url), systemImage: isTeamsMeetingURL(url) ? "video.fill" : "link")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .help(url.absoluteString)
+                        }
+
                         Label("Read-only (Apple Calendar)", systemImage: "lock.fill")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.78) : .white.opacity(0.6))
@@ -1043,7 +1093,7 @@ struct ToDoShelfBar: View {
                 )
             } else {
                 VStack(spacing: 8) {
-                    Image(systemName: "sidebar.right")
+                    Image(systemName: "sidebar.trailing")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.6) : .white.opacity(0.45))
                     Text("Select an item")
@@ -1572,14 +1622,14 @@ private struct ToDoDueDatePopoverContentLocal: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
-                stepButton("chevron.left") { shiftDays(-1) }
+                stepButton("chevron.backward") { shiftDays(-1) }
                 Text(resolvedDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(AdaptiveColors.primaryTextAuto)
                     .lineLimit(1)
                     .monospacedDigit()
                     .frame(maxWidth: .infinity, alignment: .center)
-                stepButton("chevron.right") { shiftDays(1) }
+                stepButton("chevron.forward") { shiftDays(1) }
             }
             .padding(.horizontal, 6)
             .frame(height: 30)
@@ -1811,6 +1861,7 @@ private struct ShelfTimelineRow: View {
     let onSelect: () -> Void
     let onToggleCompletion: () -> Void
     let onDelete: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
     private static var colorCache: [String: Color] = [:]
     @State private var isShowingInfoPopover = false
     @State private var isEditing = false
@@ -1819,6 +1870,7 @@ private struct ShelfTimelineRow: View {
     @State private var isPressPulse = false
     private var clampedSubtaskDepth: Int { min(max(subtaskDepth, 0), 4) }
     private var subtaskIndent: CGFloat { CGFloat(clampedSubtaskDepth) * 14 }
+    private var useAdaptivePopoverForegrounds: Bool { useAdaptiveForegrounds || colorScheme == .light }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -2046,19 +2098,19 @@ private struct ShelfTimelineRow: View {
                     .foregroundStyle(calendarTint)
                 Text("Event Details")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
+                    .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
                 Spacer(minLength: 0)
             }
 
             Text(item.title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
                 .fixedSize(horizontal: false, vertical: true)
 
             if let detailDateLabel {
                 Label(detailDateLabel, systemImage: "clock")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.86) : .white.opacity(0.72))
+                    .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.86) : .white.opacity(0.72))
             }
 
             if let listTitle = item.externalListTitle, !listTitle.isEmpty {
@@ -2067,9 +2119,19 @@ private struct ShelfTimelineRow: View {
                     .foregroundStyle(calendarTint.opacity(0.95))
             }
 
+            if let url = meetingURL(for: item) {
+                Link(destination: url) {
+                    Label(meetingLinkTitle(for: url), systemImage: isTeamsMeetingURL(url) ? "video.fill" : "link")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+                .help(url.absoluteString)
+            }
+
             Label("Read-only (Apple Calendar)", systemImage: "lock.fill")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.8) : .white.opacity(0.62))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.8) : .white.opacity(0.62))
         }
         .padding(12)
         .frame(width: 300)
@@ -2187,12 +2249,14 @@ private struct TaskRow: View {
     let manager: ToDoManager
     let reminderListOptions: [ToDoReminderListOption]
     let useAdaptiveForegrounds: Bool
+    @Environment(\.colorScheme) private var colorScheme
     private static var colorCache: [String: Color] = [:]
     @State private var isHovering = false
     @State private var isShowingInfoPopover = false
     @State private var isEditing = false
     @State private var editText = ""
     @State private var editDueDate: Date?
+    private var useAdaptivePopoverForegrounds: Bool { useAdaptiveForegrounds || colorScheme == .light }
 
     var body: some View {
         HStack(spacing: DroppySpacing.smd) {
@@ -2395,7 +2459,6 @@ private struct TaskRow: View {
             arrowEdge: .top
         ) {
             hoverInfoPopoverContent
-                .allowsHitTesting(false)
         }
         .popover(isPresented: $isEditing) {
             VStack(alignment: .leading, spacing: 12) {
@@ -2595,19 +2658,19 @@ private struct TaskRow: View {
             HStack(spacing: 8) {
                 Image(systemName: isCalendarEvent ? "calendar.badge.clock" : "checklist")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(isCalendarEvent ? calendarEventTint : (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto : .white.opacity(0.9)))
+                    .foregroundStyle(isCalendarEvent ? calendarEventTint : (useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto : .white.opacity(0.9)))
                 Text(isCalendarEvent ? "Event Details" : "Task Details")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
+                    .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
                 Spacer(minLength: 0)
             }
 
             Divider()
-                .background(useAdaptiveForegrounds ? AdaptiveColors.overlayAuto(0.12) : Color.white.opacity(0.12))
+                .background(useAdaptivePopoverForegrounds ? AdaptiveColors.overlayAuto(0.12) : Color.white.opacity(0.12))
 
             Text(item.title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.primaryTextAuto : .white.opacity(0.95))
                 .fixedSize(horizontal: false, vertical: true)
 
             infoDetailRow(icon: "square.stack.3d.up", label: "Source", value: sourceDetailsLabel)
@@ -2624,6 +2687,23 @@ private struct TaskRow: View {
                 infoDetailRow(icon: "flag", label: "Priority", value: item.priority.rawValue.capitalized)
                 infoDetailRow(icon: item.isCompleted ? "checkmark.circle.fill" : "circle", label: "Status", value: item.isCompleted ? "Completed" : "Pending")
             } else {
+                if let url = meetingURL(for: item) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: isTeamsMeetingURL(url) ? "video.fill" : "link")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .frame(width: 12)
+                        Text("Meeting")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.68))
+                            .frame(width: 46, alignment: .leading)
+                        Link(meetingLinkTitle(for: url), destination: url)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.blue)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                }
                 infoDetailRow(icon: "lock.fill", label: "Access", value: "Read-only")
             }
         }
@@ -2636,15 +2716,15 @@ private struct TaskRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.8) : .white.opacity(0.6))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.8) : .white.opacity(0.6))
                 .frame(width: 12)
             Text(label)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.68))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.68))
                 .frame(width: 46, alignment: .leading)
             Text(value)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(useAdaptiveForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.95) : .white.opacity(0.92))
+                .foregroundStyle(useAdaptivePopoverForegrounds ? AdaptiveColors.primaryTextAuto.opacity(0.95) : .white.opacity(0.92))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
@@ -2739,6 +2819,18 @@ private extension ToDoShelfBar {
         case .combined:
             return "Tasks + Calendar"
         }
+    }
+
+    var timelineToolbarTitle: String {
+        if !isSplitViewEnabled {
+            switch timelineContentMode {
+            case .combined:
+                return "T+C"
+            default:
+                break
+            }
+        }
+        return timelineModeTitle
     }
 
     var timelineEmptyLabel: String {
@@ -3201,6 +3293,11 @@ private extension ToDoShelfBar {
         return " \(abbreviation)"
     }
 
+    func stripWeekdayLabel(for day: Date) -> String {
+        let formatter = isSplitViewEnabled ? Self.stripWeekdayAbbreviatedFormatter : Self.stripWeekdayCompactFormatter
+        return formatter.string(from: day)
+    }
+
     func dueDateHasTime(_ date: Date) -> Bool {
         let components = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (components.hour ?? 0) != 0 || (components.minute ?? 0) != 0
@@ -3243,12 +3340,17 @@ private extension ToDoShelfBar {
 
     var topToolbarLift: CGFloat {
         guard notchHeight > 0 else { return 0 }
+        // Keep the top pills aligned around the notch midpoint instead of below it.
         if isSplitViewEnabled {
-            // In split view, left/right toolbar controls sit outside the physical notch area,
-            // so we can safely lift them higher for tighter top alignment.
-            return min(44, notchHeight * 1.12)
+            return min(62, notchHeight + 14)
         }
-        return min(28, notchHeight * 0.72)
+        return min(56, notchHeight + 18)
+    }
+
+    var toolbarBlockLift: CGFloat {
+        guard notchHeight > 0, !isSplitViewEnabled else { return 0 }
+        // Lift the day strip with the header in single-pane mode.
+        return min(16, notchHeight * 0.45)
     }
 
     var visibleStripWeekNumber: Int {
@@ -3284,6 +3386,22 @@ private extension ToDoShelfBar {
         formatter.locale = .autoupdatingCurrent
         formatter.timeZone = .autoupdatingCurrent
         formatter.setLocalizedDateFormatFromTemplate("EEE d MMM yyyy")
+        return formatter
+    }()
+
+    private static let stripWeekdayAbbreviatedFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("EEE")
+        return formatter
+    }()
+
+    private static let stripWeekdayCompactFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("EEEEE")
         return formatter
     }()
 }

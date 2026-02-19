@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 enum ConversionFormat: String, CaseIterable, Identifiable {
     case jpeg = "JPEG"
     case png = "PNG"
+    case webp = "WebP"
     case pdf = "PDF"
     
     var id: String { rawValue }
@@ -21,6 +22,7 @@ enum ConversionFormat: String, CaseIterable, Identifiable {
         switch self {
         case .jpeg: return "jpg"
         case .png: return "png"
+        case .webp: return "webp"
         case .pdf: return "pdf"
         }
     }
@@ -29,6 +31,7 @@ enum ConversionFormat: String, CaseIterable, Identifiable {
         switch self {
         case .jpeg: return .jpeg
         case .png: return .png
+        case .webp: return nil // Encoded via cwebp/ffmpeg
         case .pdf: return nil // PDF uses native apps or LibreOffice
         }
     }
@@ -37,6 +40,7 @@ enum ConversionFormat: String, CaseIterable, Identifiable {
         switch self {
         case .jpeg: return "JPEG"
         case .png: return "PNG"
+        case .webp: return "WebP"
         case .pdf: return "PDF"
         }
     }
@@ -45,6 +49,7 @@ enum ConversionFormat: String, CaseIterable, Identifiable {
         switch self {
         case .jpeg: return "photo"
         case .png: return "photo.fill"
+        case .webp: return "photo.stack"
         case .pdf: return "doc.richtext"
         }
     }
@@ -59,7 +64,7 @@ struct ConversionOption: Identifiable {
     var icon: String { format.icon }
 }
 
-/// Utility class for converting files between formats using native macOS APIs
+/// Utility class for converting files between formats using native macOS APIs and local CLI tools
 class FileConverter {
     
     // MARK: - Available Conversions
@@ -72,21 +77,35 @@ class FileConverter {
         
         // Image conversions
         if fileType.conforms(to: .image) {
-            // If it's a PNG, offer JPEG
+            // If it's a PNG, offer JPEG/WebP
             if fileType.conforms(to: .png) {
                 options.append(ConversionOption(format: .jpeg))
+                options.append(ConversionOption(format: .webp))
             }
-            // If it's a JPEG, offer PNG
+            // If it's a JPEG, offer PNG/WebP
             else if fileType.conforms(to: .jpeg) {
                 options.append(ConversionOption(format: .png))
+                options.append(ConversionOption(format: .webp))
             }
-            // For other image formats (HEIC, TIFF, BMP, GIF), offer both
+            // If it's a WebP, offer JPEG/PNG
+            else if fileType.conforms(to: .webP) ||
+                    fileType.identifier == "org.webmproject.webp" {
+                options.append(ConversionOption(format: .jpeg))
+                options.append(ConversionOption(format: .png))
+            }
+            // For other image formats (HEIC, TIFF, BMP, GIF), offer all image targets
             else if fileType.conforms(to: .heic) ||
                     fileType.conforms(to: .tiff) ||
                     fileType.conforms(to: .bmp) ||
                     fileType.conforms(to: .gif) {
                 options.append(ConversionOption(format: .jpeg))
                 options.append(ConversionOption(format: .png))
+                options.append(ConversionOption(format: .webp))
+            } else {
+                // Generic fallback for any remaining image type
+                options.append(ConversionOption(format: .jpeg))
+                options.append(ConversionOption(format: .png))
+                options.append(ConversionOption(format: .webp))
             }
         }
         
@@ -134,6 +153,8 @@ class FileConverter {
         // Route to appropriate converter
         if format == .pdf {
             return await convertDocumentToPDF(from: url, to: finalURL)
+        } else if format == .webp {
+            return await convertImageToWebP(from: url, to: finalURL)
         } else {
             return await convertImage(from: url, to: finalURL, format: format)
         }
@@ -202,6 +223,83 @@ class FileConverter {
             print("FileConverter: Failed to write file: \(error)")
             return nil
         }
+    }
+
+    /// Convert an image to WebP using external encoders (cwebp or ffmpeg)
+    private static func convertImageToWebP(from sourceURL: URL, to destinationURL: URL) async -> URL? {
+        // First choice: cwebp (libwebp) when available
+        if let cwebpPath = findExecutable(named: "cwebp", commonPaths: cwebpPaths) {
+            let args = [
+                "-quiet",
+                "-q", "90",
+                sourceURL.path,
+                "-o", destinationURL.path
+            ]
+            if await runProcess(path: cwebpPath, arguments: args),
+               FileManager.default.fileExists(atPath: destinationURL.path) {
+                print("FileConverter: Successfully converted to WebP via cwebp")
+                return destinationURL
+            }
+        }
+
+        // Fallback: Python Pillow (if available with WebP support)
+        if let pythonPath = findExecutable(named: "python3", commonPaths: pythonPaths) {
+            let script = """
+            from PIL import Image
+            import sys
+            source, destination = sys.argv[1], sys.argv[2]
+            image = Image.open(source)
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+            image.save(destination, "WEBP", quality=90, method=6)
+            """
+            let args = ["-c", script, sourceURL.path, destinationURL.path]
+            if await runProcess(path: pythonPath, arguments: args),
+               FileManager.default.fileExists(atPath: destinationURL.path) {
+                print("FileConverter: Successfully converted to WebP via Pillow")
+                return destinationURL
+            }
+        }
+
+        // Final fallback: ffmpeg (already used by Droppy for video tooling)
+        if let ffmpegPath = findExecutable(named: "ffmpeg", commonPaths: ffmpegPaths) {
+            let libwebpArgs = [
+                "-hide_banner",
+                "-loglevel", "error",
+                "-y",
+                "-i", sourceURL.path,
+                "-frames:v", "1",
+                "-c:v", "libwebp",
+                "-q:v", "75",
+                "-compression_level", "6",
+                destinationURL.path
+            ]
+            if await runProcess(path: ffmpegPath, arguments: libwebpArgs),
+               FileManager.default.fileExists(atPath: destinationURL.path) {
+                print("FileConverter: Successfully converted to WebP via ffmpeg (libwebp)")
+                return destinationURL
+            }
+
+            let webpArgs = [
+                "-hide_banner",
+                "-loglevel", "error",
+                "-y",
+                "-i", sourceURL.path,
+                "-frames:v", "1",
+                "-c:v", "webp",
+                "-q:v", "75",
+                "-compression_level", "6",
+                destinationURL.path
+            ]
+            if await runProcess(path: ffmpegPath, arguments: webpArgs),
+               FileManager.default.fileExists(atPath: destinationURL.path) {
+                print("FileConverter: Successfully converted to WebP via ffmpeg (webp)")
+                return destinationURL
+            }
+        }
+
+        print("FileConverter: WebP conversion failed (install cwebp, FFmpeg with WebP encoder, or Python Pillow)")
+        return nil
     }
     
     /// Returns the specific app name required to convert this file type to PDF
@@ -368,6 +466,29 @@ class FileConverter {
         "/opt/homebrew/bin/soffice",
         "/usr/local/bin/soffice"
     ]
+
+    /// Common cwebp locations on macOS
+    private static let cwebpPaths = [
+        "/opt/homebrew/bin/cwebp",
+        "/usr/local/bin/cwebp",
+        "/opt/local/bin/cwebp"
+    ]
+
+    /// Common ffmpeg locations on macOS
+    private static let ffmpegPaths = [
+        "/opt/homebrew/bin/ffmpeg",
+        "/usr/local/bin/ffmpeg",
+        "/usr/bin/ffmpeg",
+        "/opt/local/bin/ffmpeg"
+    ]
+
+    /// Common python3 locations on macOS
+    private static let pythonPaths = [
+        "/opt/homebrew/bin/python3",
+        "/usr/local/bin/python3",
+        "/Library/Frameworks/Python.framework/Versions/Current/bin/python3",
+        "/usr/bin/python3"
+    ]
     
     /// Check if LibreOffice is installed and return the path
     private static var libreOfficePath: String? {
@@ -377,6 +498,52 @@ class FileConverter {
             }
         }
         return nil
+    }
+
+    /// Find executable in common paths, then via `which`.
+    private static func findExecutable(named binary: String, commonPaths: [String]) -> String? {
+        for path in commonPaths where FileManager.default.isExecutableFile(atPath: path) {
+            return path
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        process.arguments = [binary]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let resolved = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (resolved?.isEmpty == false) ? resolved : nil
+        } catch {
+            return nil
+        }
+    }
+
+    /// Run subprocess asynchronously and return whether it exited successfully.
+    private static func runProcess(path: String, arguments: [String]) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = arguments
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
+            do {
+                process.terminationHandler = { proc in
+                    continuation.resume(returning: proc.terminationStatus == 0)
+                }
+                try process.run()
+            } catch {
+                continuation.resume(returning: false)
+            }
+        }
     }
     
     /// Convert document using LibreOffice command-line (headless mode)

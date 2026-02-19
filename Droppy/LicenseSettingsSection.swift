@@ -232,7 +232,7 @@ struct LicenseSettingsSection: View {
                 if let purchaseURL = licenseManager.purchaseURL {
                     Link(destination: purchaseURL) {
                         HStack(spacing: 6) {
-                            Image(systemName: "arrow.up.right")
+                            Image(systemName: "arrow.up.forward")
                             Text("Buy License")
                         }
                     }

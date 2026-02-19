@@ -118,22 +118,23 @@ struct SettingsView: View {
     @ObservedObject private var cameraManager = CameraManager.shared
     
     /// Detects if the BUILT-IN display has a physical notch.
-    /// Uses auxiliary notch areas first because safeAreaInsets.top can be 0 on some notch Macs.
+    /// Uses auxiliary notch areas only; menu-bar safe area is not a reliable notch signal on externals.
     private var hasPhysicalNotch: Bool {
         if let builtIn = NSScreen.builtIn {
-            let hasAuxiliaryNotchAreas = builtIn.auxiliaryTopLeftArea != nil && builtIn.auxiliaryTopRightArea != nil
-            if hasAuxiliaryNotchAreas {
-                return true
-            }
-            return builtIn.safeAreaInsets.top > 0
+            return builtIn.auxiliaryTopLeftArea != nil && builtIn.auxiliaryTopRightArea != nil
         }
 
         // Fallback: check all screens in case the built-in helper is temporarily unavailable.
         return NSScreen.screens.contains { screen in
             guard screen.isBuiltIn else { return false }
-            let hasAuxiliaryNotchAreas = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-            return hasAuxiliaryNotchAreas || screen.safeAreaInsets.top > 0
+            return screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
         }
+    }
+
+    /// True when the Mac has an internal display (MacBook/iMac).
+    /// Desktop Macs (Mac mini/Mac Studio/Mac Pro) return false.
+    private var hasBuiltInDisplay: Bool {
+        NSScreen.builtIn != nil
     }
 
     private var externalScreens: [NSScreen] {
@@ -696,6 +697,18 @@ struct SettingsView: View {
                 closeNotchWindowIfUnused()
             }
         }
+        .onChange(of: useDynamicIslandStyle) { _, _ in
+            NotchWindowController.shared.forceRecalculateAllWindowSizes()
+            if hidePhysicalNotch {
+                HideNotchManager.shared.refreshWindows()
+            }
+        }
+        .onChange(of: externalDisplayUseDynamicIsland) { _, _ in
+            NotchWindowController.shared.forceRecalculateAllWindowSizes()
+            if hidePhysicalNotch {
+                HideNotchManager.shared.refreshWindows()
+            }
+        }
         .onChange(of: selectedTab) { _, newTab in
             // Resize window when switching to/from extensions tab
             // Defer to next runloop to avoid NSHostingView reentrant layout
@@ -752,9 +765,8 @@ struct SettingsView: View {
                         }
                     ) {
                         Group {
-                            if let dockSymbol = NSImage(systemSymbolName: "dock.rectangle", accessibilityDescription: "Dock Icon") {
-                                Image(nsImage: dockSymbol)
-                                    .renderingMode(.template)
+                            if #available(macOS 13.0, *) {
+                                Image(systemName: "dock.rectangle")
                             } else {
                                 Image(systemName: "macwindow.on.rectangle")
                             }
@@ -796,7 +808,7 @@ struct SettingsView: View {
             }
             
             // MARK: Display Mode (Non-notch displays only)
-            if !hasPhysicalNotch {
+            if hasBuiltInDisplay && !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         nativePickerRow(
@@ -1211,7 +1223,7 @@ struct SettingsView: View {
                             isSelected: autoCollapseShelf,
                             action: { autoCollapseShelf.toggle() }
                         ) {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            Image(systemName: "arrow.down.forward.and.arrow.up.backward")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(autoCollapseShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
@@ -1222,7 +1234,7 @@ struct SettingsView: View {
                             isSelected: autoExpandShelf,
                             action: { autoExpandShelf.toggle() }
                         ) {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            Image(systemName: "arrow.up.backward.and.arrow.down.forward")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(autoExpandShelf ? Color.blue : AdaptiveColors.overlayAuto(0.5))
                         }
@@ -1706,7 +1718,7 @@ struct SettingsView: View {
             }
             
             // MARK: Display Mode (Non-notch displays only)
-            if !hasPhysicalNotch {
+            if hasBuiltInDisplay && !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Display Mode")
@@ -2383,17 +2395,8 @@ struct SettingsView: View {
                     
                     HStack(alignment: .top, spacing: 16) {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack(alignment: .center, spacing: 6) {
-                                Text("Media Key Target")
-                                Text("beta")
-                                    .font(.system(size: 9, weight: .medium))
-                                    .foregroundStyle(Color.orange.opacity(0.95))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.orange.opacity(0.18)))
-                                    .overlay(Capsule().stroke(Color.orange.opacity(0.45), lineWidth: 1))
-                            }
-                            Text("Choose whether volume and brightness follow your active display")
+                            Text("Media Key Target")
+                            Text("Choose where volume and brightness keys apply")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2401,21 +2404,21 @@ struct SettingsView: View {
                         
                         HStack(alignment: .center, spacing: 8) {
                             SettingsSegmentButton(
+                                icon: "cursorarrow.rays",
+                                label: "Under Pointer",
+                                isSelected: mediaControlTargetMode == "activeDisplay",
+                                tileWidth: 130
+                            ) {
+                                mediaControlTargetMode = "activeDisplay"
+                            }
+                            
+                            SettingsSegmentButton(
                                 icon: "laptopcomputer",
                                 label: "Main MacBook",
                                 isSelected: mediaControlTargetMode == "mainMacBook",
                                 tileWidth: 130
                             ) {
                                 mediaControlTargetMode = "mainMacBook"
-                            }
-                            
-                            SettingsSegmentButton(
-                                icon: "cursorarrow.rays",
-                                label: "Active Display",
-                                isSelected: mediaControlTargetMode == "activeDisplay",
-                                tileWidth: 130
-                            ) {
-                                mediaControlTargetMode = "activeDisplay"
                             }
                         }
                         .fixedSize(horizontal: true, vertical: false)
@@ -2945,7 +2948,9 @@ struct SettingsView: View {
     
     private var integrationsSettings: some View {
         ExtensionsShopView()
-            .sheet(item: $deepLinkedExtension) { extensionType in
+            .sheet(item: $deepLinkedExtension, onDismiss: {
+                SettingsWindowController.shared.cleanupAttachedSheetIfPresent()
+            }) { extensionType in
                 // AI Background Removal has its own view
                 if extensionType == .aiBackgroundRemoval {
                     AIInstallView()
@@ -2981,7 +2986,7 @@ struct SettingsView: View {
                             SpotifyAuthManager.shared.startAuthentication()
                         case .appleMusic:
                             AppleMusicController.shared.refreshState()
-                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .camera, .quickshare, .notificationHUD, .caffeine, .menuBarManager, .todo:
+                        case .elementCapture, .aiBackgroundRemoval, .windowSnap, .voiceTranscribe, .ffmpegVideoCompression, .terminalNotch, .camera, .quickshare, .notificationHUD, .caffeine, .menuBarManager, .todo, .teleprompty:
                             break // No action needed - these have their own configuration UI
                         }
                     }
@@ -3062,7 +3067,7 @@ struct SettingsView: View {
             // MARK: Display Mode (Non-notch displays only)
             // MacBooks WITH a physical notch MUST use notch mode - no choice
             // Only non-notch Macs (iMacs, Mac minis, older MacBooks) can choose
-            if !hasPhysicalNotch {
+            if hasBuiltInDisplay && !hasPhysicalNotch {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Display Mode")
@@ -5142,13 +5147,13 @@ struct ClipboardShortcutInfoButton: View {
     
     /// Parse shortcut into display string
     private var shortcutString: String {
-        guard let s = shortcut else { return "⌘⇧Space" }
+        guard let s = shortcut else { return "⇧⌘Space" }
         var parts: [String] = []
         let flags = NSEvent.ModifierFlags(rawValue: s.modifiers)
-        if flags.contains(.command) { parts.append("⌘") }
-        if flags.contains(.shift) { parts.append("⇧") }
-        if flags.contains(.option) { parts.append("⌥") }
         if flags.contains(.control) { parts.append("⌃") }
+        if flags.contains(.option) { parts.append("⌥") }
+        if flags.contains(.shift) { parts.append("⇧") }
+        if flags.contains(.command) { parts.append("⌘") }
         parts.append(KeyCodeHelper.string(for: UInt16(s.keyCode)))
         return parts.joined()
     }
@@ -5452,7 +5457,7 @@ struct TrackedFoldersInfoButton: View {
                     
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Watch Downloads, Desktop, or any folder", systemImage: "folder")
-                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.right.circle")
+                        Label("New files trigger shelf or basket automatically", systemImage: "arrow.forward.circle")
                         Label("Choose destination per folder", systemImage: "tray.2")
                     }
                     .font(.caption)

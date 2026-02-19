@@ -104,17 +104,22 @@ final class MenuBarMaskController {
     }
 
     private func applyMaterialMask(to window: NSWindow) {
-        if let effect = window.contentView as? NSVisualEffectView {
-            effect.frame = window.contentView?.bounds ?? .zero
-            return
+        let effect: NSVisualEffectView
+        if let existing = window.contentView as? NSVisualEffectView {
+            effect = existing
+        } else {
+            effect = NSVisualEffectView(frame: .zero)
+            window.contentView = effect
         }
 
-        let effect = NSVisualEffectView(frame: .zero)
+        effect.frame = window.contentView?.bounds ?? .zero
         effect.autoresizingMask = [.width, .height]
-        effect.material = .titlebar
-        effect.blendingMode = .withinWindow
+        // Blend with the real pixels behind the mask window so the temporary
+        // cover does not appear as opaque titlebar tiles.
+        effect.material = .menu
+        effect.blendingMode = .behindWindow
         effect.state = .active
-        window.contentView = effect
+        effect.isEmphasized = false
     }
 
     private func applySnapshot(_ snapshot: NSImage, to window: NSWindow) {
@@ -206,6 +211,11 @@ final class MenuBarMaskController {
 
 @MainActor
 final class MenuBarFloatingPanelController {
+    private struct ControlAnchor {
+        let frame: CGRect
+        let x: CGFloat
+    }
+
     private var panel: FloatingPanel?
     private var hostingView: NSHostingView<MenuBarFloatingBarView>?
 
@@ -221,6 +231,7 @@ final class MenuBarFloatingPanelController {
 
     func show(
         items: [MenuBarFloatingItemSnapshot],
+        allowReposition: Bool = true,
         onPress: @escaping (MenuBarFloatingItemSnapshot) -> Void
     ) {
         if panel == nil {
@@ -237,7 +248,19 @@ final class MenuBarFloatingPanelController {
             panel?.contentView = view
         }
 
-        positionPanel(for: items)
+        if allowReposition || !(panel?.isVisible ?? false) {
+            let positioned = positionPanel(for: items)
+            if !positioned {
+                if panel?.isVisible == true {
+                    // Keep current placement rather than flickering out when divider
+                    // frame is transiently unavailable during menu bar state changes.
+                    panel?.orderFrontRegardless()
+                    return
+                }
+                panel?.orderOut(nil)
+                return
+            }
+        }
         panel?.orderFrontRegardless()
     }
 
@@ -268,9 +291,13 @@ final class MenuBarFloatingPanelController {
         return panel
     }
 
-    private func positionPanel(for items: [MenuBarFloatingItemSnapshot]) {
-        guard let panel else { return }
-        guard let screen = bestScreen(for: items) ?? NSScreen.main else { return }
+    @discardableResult
+    private func positionPanel(for items: [MenuBarFloatingItemSnapshot]) -> Bool {
+        guard let panel else { return false }
+        guard let screen = bestScreen(for: items) else { return false }
+        guard let anchor = hiddenDividerAnchor(on: screen) else {
+            return false
+        }
 
         let contentWidth = FloatingBarMetrics.contentWidth(for: items)
         let width = max(
@@ -283,9 +310,16 @@ final class MenuBarFloatingPanelController {
         let rowHeight = FloatingBarMetrics.rowHeight(for: items)
         let height = rowHeight + (FloatingBarMetrics.verticalPadding * 2)
 
-        let menuBarHeight = NSStatusBar.system.thickness
-        let originX = screen.frame.maxX - width - 8
-        let originY = screen.frame.maxY - menuBarHeight - height - 10
+        let verticalGap: CGFloat = 10
+        let horizontalInset: CGFloat = 8
+        let anchoredOriginX: CGFloat = {
+            return anchor.x - (width / 2)
+        }()
+        let minX = screen.frame.minX + horizontalInset
+        let maxX = screen.frame.maxX - width - horizontalInset
+        let originX = min(max(anchoredOriginX, minX), maxX)
+        let menuBarBaselineY = menuBarBottomY(on: screen, anchorFrame: anchor.frame)
+        let originY = menuBarBaselineY - height - verticalGap
 
         panel.setFrame(
             CGRect(
@@ -296,40 +330,88 @@ final class MenuBarFloatingPanelController {
             ),
             display: true
         )
+        return true
     }
 
-    private func bestScreen(for items: [MenuBarFloatingItemSnapshot]) -> NSScreen? {
-        // Priority 1: Screen owning the control items (definitive anchor)
-        if let controlScreen = screenForControlItemFrames() {
-            return controlScreen
-        }
-
-        // Priority 2: Screen with the most items
-        if let mostItemsScreen = screenWithMostItems(items) {
-            return mostItemsScreen
-        }
-
-        // Priority 3: Mouse screen (only if pointer is near the menu bar)
-        let mouseLocation = NSEvent.mouseLocation
-        if let mouseScreen = NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) {
-            let pointerNearMenuBar = mouseLocation.y >= (mouseScreen.frame.maxY - max(28, NSStatusBar.system.thickness + 4))
-            if pointerNearMenuBar {
-                return mouseScreen
-            }
-        }
-
-        // Priority 4: Absolute fallback
-        return NSScreen.main
+    private func hiddenDividerAnchor(on screen: NSScreen) -> ControlAnchor? {
+        anchorForControlItem(.hidden, on: screen)
     }
 
-    private func screenForControlItemFrames() -> NSScreen? {
+    private func anchorForControlItem(_ sectionName: MenuBarSection.Name, on screen: NSScreen) -> ControlAnchor? {
+        guard let frame = MenuBarManager.shared.controlItemFrame(for: sectionName),
+              let ownerScreen = screenContainingDivider(of: frame),
+              isSameDisplay(ownerScreen, screen) else {
+            return nil
+        }
+        return ControlAnchor(frame: frame, x: dividerAnchorX(for: frame))
+    }
+
+    private enum HiddenSectionSide {
+        case leftOfHiddenDivider
+        case rightOfHiddenDivider
+    }
+
+    private func hiddenSectionSide() -> HiddenSectionSide {
         if let hiddenFrame = MenuBarManager.shared.controlItemFrame(for: .hidden),
-           let hiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(hiddenFrame) }) {
-            return hiddenScreen
+           let visibleFrame = MenuBarManager.shared.controlItemFrame(for: .visible) {
+            return visibleFrame.midX >= hiddenFrame.midX ? .leftOfHiddenDivider : .rightOfHiddenDivider
         }
-        if let alwaysHiddenFrame = MenuBarManager.shared.controlItemFrame(for: .alwaysHidden),
-           let alwaysHiddenScreen = NSScreen.screens.first(where: { $0.frame.intersects(alwaysHiddenFrame) }) {
-            return alwaysHiddenScreen
+        if let hiddenFrame = MenuBarManager.shared.controlItemFrame(for: .hidden),
+           let alwaysHiddenFrame = MenuBarManager.shared.controlItemFrame(for: .alwaysHidden) {
+            return alwaysHiddenFrame.midX < hiddenFrame.midX ? .leftOfHiddenDivider : .rightOfHiddenDivider
+        }
+        return NSApp.userInterfaceLayoutDirection == .rightToLeft ? .rightOfHiddenDivider : .leftOfHiddenDivider
+    }
+
+    private func dividerAnchorX(for frame: CGRect) -> CGFloat {
+        // Divider controls can report expanded frames while hiding items.
+        // Anchor on the visible-section side so placement works for RTL layouts.
+        let inset = min(6, frame.width / 2)
+        switch hiddenSectionSide() {
+        case .leftOfHiddenDivider:
+            return frame.maxX - inset
+        case .rightOfHiddenDivider:
+            return frame.minX + inset
+        }
+    }
+
+    private func screenContainingDivider(of frame: CGRect) -> NSScreen? {
+        let anchorPoint = CGPoint(x: dividerAnchorX(for: frame), y: frame.midY)
+        return NSScreen.screens.first(where: { $0.frame.contains(anchorPoint) })
+    }
+
+    private func isSameDisplay(_ lhs: NSScreen, _ rhs: NSScreen) -> Bool {
+        if let lhsID = MenuBarFloatingCoordinateConverter.displayID(for: lhs),
+           let rhsID = MenuBarFloatingCoordinateConverter.displayID(for: rhs) {
+            return lhsID == rhsID
+        }
+        return lhs.frame.equalTo(rhs.frame)
+    }
+
+    private func menuBarBottomY(on screen: NSScreen, anchorFrame: CGRect?) -> CGFloat {
+        let inferredMenuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+        if inferredMenuBarHeight > 0, inferredMenuBarHeight < 80 {
+            return screen.frame.maxY - inferredMenuBarHeight
+        }
+        if let anchorFrame, screen.frame.intersects(anchorFrame) {
+            return anchorFrame.minY
+        }
+        return screen.frame.maxY - NSStatusBar.system.thickness
+    }
+
+    private func bestScreen(for _: [MenuBarFloatingItemSnapshot]) -> NSScreen? {
+        // Priority 1: Screen owning the control items (definitive anchor)
+        if let hiddenControlScreen = screenForHiddenControlItemFrame() {
+            return hiddenControlScreen
+        }
+        // No divider anchor available yet; skip showing until we can place deterministically.
+        return nil
+    }
+
+    private func screenForHiddenControlItemFrame() -> NSScreen? {
+        if let hiddenFrame = MenuBarManager.shared.controlItemFrame(for: .hidden),
+           let hiddenScreen = screenContainingDivider(of: hiddenFrame) {
+            return hiddenScreen
         }
         return nil
     }
@@ -436,14 +518,14 @@ private struct MenuBarFloatingBarView: View {
     @ViewBuilder
     private func floatingIconView(for item: MenuBarFloatingItemSnapshot) -> some View {
         if let icon = resolvedIcon(for: item) {
-            if icon.isTemplate {
+            if MenuBarFloatingIconRendering.shouldUseTemplateTint(for: icon) {
                 Image(nsImage: icon)
                     .renderingMode(.template)
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)
                     .scaledToFit()
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(AdaptiveColors.primaryTextAuto)
             } else {
                 Image(nsImage: icon)
                     .renderingMode(.original)
@@ -456,11 +538,12 @@ private struct MenuBarFloatingBarView: View {
             Image(systemName: "app.dashed")
                 .resizable()
                 .scaledToFit()
+                .foregroundStyle(AdaptiveColors.primaryTextAuto)
         }
     }
 
     private func resolvedIcon(for item: MenuBarFloatingItemSnapshot) -> NSImage? {
-        item.icon ?? MenuBarFloatingFallbackIconProvider.icon(for: item)
+        item.icon
     }
 
 }

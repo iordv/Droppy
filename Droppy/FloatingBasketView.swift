@@ -74,12 +74,14 @@ struct FloatingBasketView: View {
     
     private let cornerRadius: CGFloat = 28
     
-    // Each item is 72pt wide + 12pt spacing (in expanded view)
-    // For 4 items: 4 * 72 + 3 * 12 = 288 + 36 = 324, plus 18pt padding each side = 360
-    private let itemWidth: CGFloat = 72
+    // Expanded grid sizing (4 columns).
+    // Keep edge padding fixed while letting item/card thumbnails be slightly larger.
+    private let itemWidth: CGFloat = 80
     private let itemSpacing: CGFloat = 12
     private let horizontalPadding: CGFloat = 18
     private let columnsPerRow: Int = 4
+    private let gridRowSpacing: CGFloat = 12
+    private let gridItemHeight: CGFloat = 102
     
     // AirDrop zone width (30% of total when enabled)
     private let airDropZoneWidth: CGFloat = 90
@@ -92,8 +94,12 @@ struct FloatingBasketView: View {
         AdaptiveColors.secondaryTextAuto
     }
     
-    /// Full width for 4-column grid: 4 * 68 + 3 * 12 + 12 * 2 = 272 + 36 + 24 = 360 (expanded only)
-    private let fullGridWidth: CGFloat = 360
+    /// Full expanded width derived from item width/spacing and fixed edge padding.
+    private var fullGridWidth: CGFloat {
+        (CGFloat(columnsPerRow) * itemWidth) +
+        (CGFloat(columnsPerRow - 1) * itemSpacing) +
+        (horizontalPadding * 2)
+    }
     
     /// Dynamic height that fits content
     private var currentHeight: CGFloat {
@@ -105,8 +111,8 @@ struct FloatingBasketView: View {
             let rowCount = ceil(Double(slotCount) / Double(columnsPerRow))
             let headerHeight: CGFloat = 44  // Header + top padding
             let bottomPadding: CGFloat = 32 // Symmetrical with left/right 18pt + extra for label clearance
-            let itemHeight: CGFloat = 90    // Item with label and padding
-            let rowSpacing: CGFloat = 12    // Match actual grid row spacing!
+            let itemHeight: CGFloat = gridItemHeight
+            let rowSpacing: CGFloat = gridRowSpacing
             
             if isListView {
                 // List view: 25% taller for 1 row, 50% taller for 2+ rows (with scroll)
@@ -134,7 +140,7 @@ struct FloatingBasketView: View {
         if basketState.items.count == 0 {
             return 246
         } else if isExpanded {
-            return fullGridWidth  // Full width when expanded (360)
+            return fullGridWidth
         } else {
             return 236
         }
@@ -654,7 +660,7 @@ struct FloatingBasketView: View {
                 } label: {
                     Image(systemName: "square.grid.2x2")
                 }
-                .buttonStyle(DroppyCircleButtonStyle(size: 32))
+                .buttonStyle(DroppyCircleButtonStyle(size: BasketControlMetrics.headerButtonSize))
                 .opacity(isListView ? 0.6 : 1.0)
                 
                 // List view button
@@ -665,7 +671,7 @@ struct FloatingBasketView: View {
                 } label: {
                     Image(systemName: "list.bullet")
                 }
-                .buttonStyle(DroppyCircleButtonStyle(size: 32))
+                .buttonStyle(DroppyCircleButtonStyle(size: BasketControlMetrics.headerButtonSize))
                 .opacity(isListView ? 1.0 : 0.6)
             }
         }
@@ -862,7 +868,7 @@ struct FloatingBasketView: View {
                 // Items grid using LazyVGrid for efficient rendering
                 let columns = Array(repeating: GridItem(.fixed(itemWidth), spacing: itemSpacing), count: columnsPerRow)
                 
-                LazyVGrid(columns: columns, spacing: 12) {  // Match column spacing
+                LazyVGrid(columns: columns, spacing: gridRowSpacing) {
                     // Power Folders first (always distinct, never stacked)
                     ForEach(basketState.powerFolders) { folder in
                         BasketItemView(item: folder, state: basketState, renamingItemId: $renamingItemId) {
@@ -1094,41 +1100,77 @@ struct FloatingBasketView: View {
     }
 
     private func dropSelectedToFinder() {
-        guard let finderFolder = FinderFolderDetector.getCurrentFinderFolder() else {
-            // Show notification that no Finder folder is open
-            DroppyAlertController.shared.showSimple(
-                style: .info,
-                title: "No Finder folder open",
-                message: "Open a Finder window to drop files into"
-            )
-            return
-        }
-        
-        // Get selected items
-        let selectedItems = basketState.items.filter { basketState.selectedItems.contains($0.id) }
-        guard !selectedItems.isEmpty else { return }
-        
-        // Copy files to finder folder
-        let urls = selectedItems.map { $0.url }
-        let copied = FinderFolderDetector.copyFiles(urls, to: finderFolder)
-        
-        if copied > 0 {
-            // Remove from basket
-            for item in selectedItems {
-                basketState.removeItem(item)
+        let selectedIDs = basketState.selectedItems
+        guard !selectedIDs.isEmpty else { return }
+
+        let selectedURLs = basketState.items
+            .filter { selectedIDs.contains($0.id) }
+            .map(\.url)
+        guard !selectedURLs.isEmpty else { return }
+
+        Task {
+            guard let finderFolder = await MainActor.run(resultType: URL?.self, body: {
+                FinderFolderDetector.getCurrentFinderFolder()
+            }) else {
+                await MainActor.run(resultType: Void.self, body: {
+                    DroppyAlertController.shared.showSimple(
+                        style: .info,
+                        title: "No Finder folder open",
+                        message: "Open a Finder window to drop files into"
+                    )
+                })
+                return
             }
-            
-            // Show confirmation
-            DroppyAlertController.shared.showSimple(
-                style: .info,
-                title: "Copied \(copied) file\(copied == 1 ? "" : "s")",
-                message: "to \(finderFolder.lastPathComponent)"
-            )
-        }
-        
-        // Hide basket if empty
-        if basketState.items.isEmpty {
-            ownerController?.hideBasket()
+
+            let copied = await Task.detached(priority: .userInitiated, operation: {
+                let fileManager = FileManager.default
+                var successCount = 0
+
+                for sourceURL in selectedURLs {
+                    let destinationURL = finderFolder.appendingPathComponent(sourceURL.lastPathComponent)
+                    var finalDestinationURL = destinationURL
+                    var counter = 1
+
+                    while fileManager.fileExists(atPath: finalDestinationURL.path) {
+                        let folder = destinationURL.deletingLastPathComponent()
+                        let filename = destinationURL.deletingPathExtension().lastPathComponent
+                        let ext = destinationURL.pathExtension
+                        let newFilename = ext.isEmpty
+                            ? "\(filename) \(counter)"
+                            : "\(filename) \(counter).\(ext)"
+                        finalDestinationURL = folder.appendingPathComponent(newFilename)
+                        counter += 1
+                    }
+
+                    do {
+                        try fileManager.copyItem(at: sourceURL, to: finalDestinationURL)
+                        successCount += 1
+                    } catch {
+                        print("[FloatingBasketView] Failed to copy \(sourceURL.lastPathComponent): \(error)")
+                    }
+                }
+
+                return successCount
+            }).value
+
+            await MainActor.run(resultType: Void.self, body: {
+                guard copied > 0 else { return }
+
+                let copiedItems = basketState.items.filter { selectedIDs.contains($0.id) }
+                for item in copiedItems {
+                    basketState.removeItem(item)
+                }
+
+                DroppyAlertController.shared.showSimple(
+                    style: .info,
+                    title: "Copied \(copied) file\(copied == 1 ? "" : "s")",
+                    message: "to \(finderFolder.lastPathComponent)"
+                )
+
+                if basketState.items.isEmpty {
+                    ownerController?.hideBasket()
+                }
+            })
         }
     }
 

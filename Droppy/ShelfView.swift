@@ -36,7 +36,7 @@ struct ShelfView: View {
         .droppyTransparentBackground(useTransparentBackground)
         .dropDestination(for: URL.self) { urls, _ in
             withAnimation(DroppyAnimation.transition) {
-                state.addItems(from: urls)
+                state.addItems(from: urls, shouldAutoExpand: false)
             }
             return true
         }

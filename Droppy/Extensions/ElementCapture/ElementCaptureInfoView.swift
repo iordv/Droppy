@@ -98,9 +98,7 @@ struct ElementCaptureInfoView: View {
         .fixedSize(horizontal: true, vertical: true)
         .droppyTransparentBackground(useTransparentBackground)
         .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xl, style: .continuous))
-        .onAppear {
-            loadShortcuts()
-        }
+        .onAppear { loadShortcuts() }
         .onDisappear {
             stopRecording()
         }
@@ -192,7 +190,7 @@ struct ElementCaptureInfoView: View {
             
             VStack(alignment: .leading, spacing: 10) {
                 featureRow(icon: "viewfinder", text: "Capture specific UI elements")
-                featureRow(icon: "rectangle.dashed", text: "Capture fullscreen or windows")
+                featureRow(icon: "rectangle.dashed", text: "Capture fullscreen, windows, or selected areas")
                 featureRow(icon: "pencil.tip", text: "Annotate with arrows, shapes & text")
                 featureRow(icon: "eye.slash.fill", text: "Blur sensitive content")
             }
@@ -255,7 +253,7 @@ struct ElementCaptureInfoView: View {
                 .stroke(AdaptiveColors.overlayAuto(0.08), lineWidth: 1)
         )
     }
-    
+
     // MARK: - Editor Shortcuts Section
     
     private var editorShortcutsSection: some View {
@@ -595,7 +593,7 @@ struct ElementCaptureInfoView: View {
                             .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
                             .padding()
-                            .frame(width: 240)
+                            .frame(width: 240, alignment: .leading)
                         }
                 }
             }

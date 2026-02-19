@@ -15,6 +15,7 @@ struct HighAlertHUDView: View {
     let hudWidth: CGFloat     // Total HUD width
     var targetScreen: NSScreen? = nil  // Target screen for multi-monitor support
     var notchWidth: CGFloat = 180  // Actual notch width from caller (for proper spacer alignment)
+    @AppStorage(AppPreferenceKey.useTransparentBackground) private var useTransparentBackground = PreferenceDefault.useTransparentBackground
     
     // Access CaffeineManager for timer display
     private var caffeineManager: CaffeineManager { CaffeineManager.shared }
@@ -28,7 +29,16 @@ struct HighAlertHUDView: View {
     private var accentColor: Color {
         isActive
             ? Color(red: 1.0, green: 0.62, blue: 0.26)
-            : .white.opacity(0.78)
+            : (useAdaptiveForegrounds ? AdaptiveColors.secondaryTextAuto.opacity(0.85) : .white.opacity(0.78))
+    }
+
+    private var hasPhysicalNotchOnDisplay: Bool {
+        guard let screen = targetScreen ?? NSScreen.main ?? NSScreen.screens.first else { return false }
+        return screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
+    }
+
+    private var useAdaptiveForegrounds: Bool {
+        useTransparentBackground && !hasPhysicalNotchOnDisplay
     }
     
     /// Display text - shows timer when active, "Inactive" when not
@@ -63,13 +73,13 @@ struct HighAlertHUDView: View {
                     // Eyes icon - .leading alignment within frame
                     Image(systemName: "eyes")
                         .font(.system(size: iconSize, weight: .semibold))
-                        .foregroundStyle(layout.adjustedColor(accentColor))
+                        .foregroundStyle(accentColor)
                         .symbolEffect(.bounce.up, value: isActive)
                         .frame(width: 20, height: iconSize, alignment: .leading)
                     
                     Spacer()
                     
-                    statusIndicator(useAdjustedColor: true)
+                    statusIndicator()
                 }
                 .padding(.horizontal, symmetricPadding)
                 .frame(height: layout.notchHeight)
@@ -100,7 +110,7 @@ struct HighAlertHUDView: View {
                     // Right wing: Timer near right edge
                     HStack {
                         Spacer(minLength: 0)
-                        statusIndicator(useAdjustedColor: false)
+                        statusIndicator()
                     }
                     .padding(.trailing, symmetricPadding)
                     .frame(width: wingWidth)
@@ -113,18 +123,14 @@ struct HighAlertHUDView: View {
     }
     
     @ViewBuilder
-    private func statusIndicator(useAdjustedColor: Bool) -> some View {
-        let foregroundColor = useAdjustedColor
-            ? layout.adjustedColor(accentColor)
-            : accentColor
-        
+    private func statusIndicator() -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(foregroundColor.opacity(isActive ? 1 : 0.6))
+                .fill(accentColor.opacity(isActive ? 1 : 0.6))
                 .frame(width: 4, height: 4)
             Text(statusText)
                 .font(.system(size: textSize, weight: .semibold, design: isActive && statusText != "∞" ? .monospaced : .default))
-                .foregroundStyle(foregroundColor)
+                .foregroundStyle(accentColor)
                 .contentTransition(.numericText())
                 .monospacedDigit()
         }

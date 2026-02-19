@@ -9,6 +9,7 @@
 import SwiftUI
 import SQLite3
 import Observation
+import CryptoKit
 
 enum CapturedNotificationOrigin {
     case system
@@ -91,10 +92,15 @@ final class NotificationHUDManager {
     private var dbConnection: OpaquePointer?
     private let pollingInterval: TimeInterval = 2.0  // Backup polling (file watcher is primary)
     private var dismissWorkItem: DispatchWorkItem?
+    private var queueDrainWorkItem: DispatchWorkItem?
     private let autoDismissDelay: TimeInterval = 5.0
     private var isUserInteractingWithHUD = false
     @ObservationIgnored
     private var dueSoonChimeSound: NSSound?
+    private var recentSystemPayloadFingerprints: [String: Date] = [:]
+    private let systemPayloadDuplicateWindow: TimeInterval = 12 * 60 * 60
+    private let staleSystemNotificationWindow: TimeInterval = 10 * 60
+    private let futureDeliveredDateTolerance: TimeInterval = 30
 
     // File system monitoring for instant notification detection
     private var fileMonitorSource: DispatchSourceFileSystemObject?
@@ -320,6 +326,8 @@ final class NotificationHUDManager {
         closeDatabase()
         dismissWorkItem?.cancel()
         dismissWorkItem = nil
+        queueDrainWorkItem?.cancel()
+        queueDrainWorkItem = nil
         isUserInteractingWithHUD = false
 
         DispatchQueue.main.async { [weak self] in
@@ -514,6 +522,8 @@ final class NotificationHUDManager {
     
     private func pollForNewNotifications() {
         guard let db = dbConnection else { return }
+        let now = Date()
+        pruneRecentSystemPayloadFingerprints(now: now)
         
         // Query for new notifications since last check
         let query = """
@@ -535,6 +545,7 @@ final class NotificationHUDManager {
         sqlite3_bind_int64(statement, 1, lastProcessedRecordID)
         
         var newNotifications: [CapturedNotification] = []
+        var newlySeenApps: [String: (name: String, icon: NSImage?)] = [:]
         
         while sqlite3_step(statement) == SQLITE_ROW {
             let recID = sqlite3_column_int64(statement, 0)
@@ -551,6 +562,8 @@ final class NotificationHUDManager {
             guard let dataBlob = sqlite3_column_blob(statement, 2) else { continue }
             let dataLength = sqlite3_column_bytes(statement, 2)
             let data = Data(bytes: dataBlob, count: Int(dataLength))
+            let deliveredDateRaw = sqlite3_column_double(statement, 3)
+            let deliveredDate = decodedDeliveredDate(from: deliveredDateRaw, referenceNow: now)
             
             // Parse plist
             guard let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
@@ -587,14 +600,29 @@ final class NotificationHUDManager {
             }
             
             let canonicalBundleID = canonicalBundleIdentifier(from: bundleID)
-            // Debug: Log extracted content
-            print("NotificationHUD: Notification from \(canonicalBundleID) - title: \(title ?? "nil"), subtitle: \(subtitle ?? "nil"), body: \(body ?? "nil")")
+
+            if let deliveredDate, isLikelyStaleNotification(deliveredDate, referenceNow: now) {
+                debugLog("Skipping stale notification from \(canonicalBundleID) delivered at \(deliveredDate)")
+                continue
+            }
+
+            if shouldSuppressSystemPayload(
+                data: data,
+                bundleID: canonicalBundleID,
+                referenceNow: now
+            ) {
+                debugLog("Skipping duplicate payload notification from \(canonicalBundleID)")
+                continue
+            }
+            debugLog(
+                "Notification from \(canonicalBundleID) parsed (title=\(title != nil), subtitle=\(subtitle != nil), body=\(body != nil))"
+            )
             // Get app name and icon
             let appName = getAppName(for: canonicalBundleID) ?? canonicalBundleID.components(separatedBy: ".").last ?? canonicalBundleID
             let appIcon = getAppIcon(for: canonicalBundleID)
 
             // Get timestamp
-            let timestamp = Date() // Use current time since delivered_date format varies
+            let timestamp = deliveredDate ?? now
             
             let notification = CapturedNotification(
                 appBundleID: canonicalBundleID,
@@ -607,19 +635,77 @@ final class NotificationHUDManager {
                 origin: .system
             )
             
-            // Track this app as having sent notifications (safe: we're on databaseQueue)
-            if self.seenApps[canonicalBundleID] == nil {
-                self.seenApps[canonicalBundleID] = (name: appName, icon: appIcon)
+            if newlySeenApps[canonicalBundleID] == nil {
+                newlySeenApps[canonicalBundleID] = (name: appName, icon: appIcon)
             }
             
             newNotifications.append(notification)
         }
         
         // Update UI on main thread
-        if !newNotifications.isEmpty {
+        if !newNotifications.isEmpty || !newlySeenApps.isEmpty {
             DispatchQueue.main.async { [weak self] in
-                self?.processNewNotifications(newNotifications)
+                guard let self else { return }
+                if !newlySeenApps.isEmpty {
+                    for (bundleID, payload) in newlySeenApps where self.seenApps[bundleID] == nil {
+                        self.seenApps[bundleID] = payload
+                    }
+                }
+                if !newNotifications.isEmpty {
+                    self.processNewNotifications(newNotifications)
+                }
             }
+        }
+    }
+
+    private func decodedDeliveredDate(from rawValue: Double, referenceNow now: Date) -> Date? {
+        guard rawValue.isFinite, rawValue > 0 else { return nil }
+
+        let candidates: [Date] = [
+            Date(timeIntervalSinceReferenceDate: rawValue),
+            Date(timeIntervalSince1970: rawValue),
+            Date(timeIntervalSince1970: rawValue / 1_000),
+            Date(timeIntervalSince1970: rawValue / 1_000_000),
+            Date(timeIntervalSince1970: rawValue / 1_000_000_000)
+        ]
+
+        let fifteenYears: TimeInterval = 15 * 365 * 24 * 60 * 60
+        let lowerBound = now.addingTimeInterval(-fifteenYears)
+        let upperBound = now.addingTimeInterval(fifteenYears)
+        let plausible = candidates.filter { $0 >= lowerBound && $0 <= upperBound }
+
+        guard !plausible.isEmpty else { return nil }
+        return plausible.min {
+            abs($0.timeIntervalSince(now)) < abs($1.timeIntervalSince(now))
+        }
+    }
+
+    private func isLikelyStaleNotification(_ deliveredDate: Date, referenceNow now: Date) -> Bool {
+        let age = now.timeIntervalSince(deliveredDate)
+        if age < -futureDeliveredDateTolerance {
+            return true
+        }
+        return age > staleSystemNotificationWindow
+    }
+
+    private func shouldSuppressSystemPayload(data: Data, bundleID: String, referenceNow now: Date) -> Bool {
+        var hasher = SHA256()
+        hasher.update(data: data)
+        hasher.update(data: Data(bundleID.utf8))
+        let fingerprint = Data(hasher.finalize()).base64EncodedString()
+
+        if let lastSeen = recentSystemPayloadFingerprints[fingerprint],
+           now.timeIntervalSince(lastSeen) <= systemPayloadDuplicateWindow {
+            return true
+        }
+
+        recentSystemPayloadFingerprints[fingerprint] = now
+        return false
+    }
+
+    private func pruneRecentSystemPayloadFingerprints(now: Date) {
+        recentSystemPayloadFingerprints = recentSystemPayloadFingerprints.filter {
+            now.timeIntervalSince($0.value) <= systemPayloadDuplicateWindow
         }
     }
     
@@ -760,20 +846,50 @@ final class NotificationHUDManager {
             if currentNotification == nil && !HUDManager.shared.isVisible {
                 // Show immediately - no other HUD is active
                 debugLog("Showing notification from \(notification.appName) immediately")
+                queueDrainWorkItem?.cancel()
+                queueDrainWorkItem = nil
                 currentNotification = notification
                 scheduleAutoDismiss()
                 HUDManager.shared.show(.notification)
             } else if currentNotification == nil && HUDManager.shared.isVisible {
                 // Another HUD type is active - queue this notification
-                // It will be shown when HUDManager processes its queue
+                // Retry until HUDManager goes idle, then surface this queue.
                 debugLog("Queueing notification from \(notification.appName) - another HUD type active")
                 notificationQueue.append(notification)
+                scheduleQueueDrainIfNeeded()
             } else {
                 // We have a current notification - add to queue
                 debugLog("Queueing notification from \(notification.appName) - already showing \(currentNotification?.appName ?? "unknown")")
                 notificationQueue.append(notification)
             }
         }
+    }
+
+    private func scheduleQueueDrainIfNeeded() {
+        guard currentNotification == nil, !notificationQueue.isEmpty else { return }
+        queueDrainWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.drainQueuedNotificationIfPossible()
+        }
+        queueDrainWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+    }
+
+    private func drainQueuedNotificationIfPossible() {
+        queueDrainWorkItem = nil
+        guard currentNotification == nil else { return }
+        guard !HUDManager.shared.isVisible else {
+            scheduleQueueDrainIfNeeded()
+            return
+        }
+        guard !notificationQueue.isEmpty else { return }
+
+        let next = notificationQueue.removeFirst()
+        debugLog("Draining queued notification from \(next.appName)")
+        currentNotification = next
+        scheduleAutoDismiss()
+        HUDManager.shared.show(.notification)
     }
 
     private func playDueSoonChime() {
@@ -898,6 +1014,8 @@ final class NotificationHUDManager {
         debugLog("Dismissing all notifications")
         dismissWorkItem?.cancel()
         dismissWorkItem = nil
+        queueDrainWorkItem?.cancel()
+        queueDrainWorkItem = nil
         isUserInteractingWithHUD = false
         currentNotification = nil
         notificationQueue.removeAll()
@@ -983,15 +1101,7 @@ final class NotificationHUDManager {
     }
 
     private func notificationHUDUsesDynamicIsland(on screen: NSScreen) -> Bool {
-        let hasPhysicalNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-        let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
-
-        if !screen.isBuiltIn {
-            return (UserDefaults.standard.object(forKey: AppPreferenceKey.externalDisplayUseDynamicIsland) as? Bool) ?? true
-        }
-
-        let useDynamicIsland = (UserDefaults.standard.object(forKey: AppPreferenceKey.useDynamicIslandStyle) as? Bool) ?? true
-        return (!hasPhysicalNotch || forceTest) && useDynamicIsland
+        NotchLayoutConstants.usesDynamicIslandStyle(for: screen)
     }
 
     private func notificationHUDHeight(on screen: NSScreen, isDynamicIslandMode: Bool) -> CGFloat {
@@ -1001,7 +1111,10 @@ final class NotificationHUDManager {
             baseHeight = InteractionHitZone.dynamicIslandHeight
         } else {
             let isExternalNotchStyle = !screen.isBuiltIn &&
-                !((UserDefaults.standard.object(forKey: AppPreferenceKey.externalDisplayUseDynamicIsland) as? Bool) ?? true)
+                !UserDefaults.standard.preference(
+                    AppPreferenceKey.externalDisplayUseDynamicIsland,
+                    default: PreferenceDefault.externalDisplayUseDynamicIsland
+                )
             if !isExternalNotchStyle {
                 baseHeight = InteractionHitZone.builtInNotchHeight
             } else {

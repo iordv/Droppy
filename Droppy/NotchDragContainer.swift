@@ -22,13 +22,10 @@ class NotchDragContainer: NSView {
     /// AirDrop zone width (must match NotchShelfView.airDropZoneWidth)
     private let airDropZoneWidth: CGFloat = 90
     
-    /// Base expanded shelf width (matches NotchShelfView.shelfWidth)
-    private let expandedShelfBaseWidth: CGFloat = 450
-    /// Split ToDo+Calendar shelf width (matches NotchShelfView.todoSplitViewShelfWidth)
-    private let todoSplitShelfWidth: CGFloat = 920
-    
     /// Track if current drag is valid (for Power Folders restriction)
     private var currentDragIsValid: Bool = true
+    /// True only when this drag session auto-expanded the shelf from collapsed state.
+    private var expandedForCurrentDrag: Bool = false
 
     private func activeDisplayID() -> CGDirectDisplayID? {
         if let notchWindow = self.window as? NotchWindow {
@@ -50,18 +47,62 @@ class NotchDragContainer: NSView {
         return DroppyState.shared.isHovering(for: displayID)
     }
 
-    private func currentExpandedShelfWidth() -> CGFloat {
-        if ToDoManager.shared.isShelfListExpanded &&
-            ToDoManager.shared.isShelfSplitViewEnabled {
-            return max(expandedShelfBaseWidth, todoSplitShelfWidth)
-        }
-        return expandedShelfBaseWidth
-    }
-
     private func isNotificationHUDActiveOnThisDisplay() -> Bool {
         guard HUDManager.shared.isNotificationHUDVisible else { return false }
         guard NotificationHUDManager.shared.currentNotification != nil else { return false }
         return true
+    }
+
+    private func collapseTemporaryDragExpansion() {
+        guard expandedForCurrentDrag else { return }
+        expandedForCurrentDrag = false
+
+        if let displayID = activeDisplayID() {
+            withAnimation(DroppyAnimation.state) {
+                DroppyState.shared.collapseShelf(for: displayID)
+            }
+        } else {
+            withAnimation(DroppyAnimation.state) {
+                DroppyState.shared.isExpanded = false
+            }
+        }
+    }
+
+    /// Enlarged interaction rect for collapsed stacked shelf preview so users can click it directly.
+    private func collapsedShelfTapRect(from notchRect: NSRect, isExpanded: Bool) -> NSRect? {
+        guard !isExpanded else { return nil }
+        let count = DroppyState.shared.shelfDisplaySlotCount
+        guard count > 0 else { return nil }
+
+        let footprint = ShelfStackPeekView.preferredFootprint(for: count)
+        let width = min(320, max(notchRect.width + 24, footprint.width + 18))
+        let height = min(182, max(112, footprint.height + 18))
+
+        return NSRect(
+            x: notchRect.midX - (width / 2),
+            y: notchRect.maxY - height,
+            width: width,
+            height: height
+        )
+    }
+
+    private func collapsedInteractionRect(for notchWindow: NotchWindow) -> NSRect {
+        notchWindow.collapsedInteractionRect()
+    }
+
+    private func expandedInteractionZoneInScreen(for screen: NSScreen) -> NSRect {
+        NotchWindowController.shared.expandedShelfInteractionZone(for: screen)
+    }
+
+    private func expandedInteractionZoneInLocal(for screen: NSScreen) -> NSRect? {
+        guard let windowFrame = window?.frame else { return nil }
+        let screenZone = expandedInteractionZoneInScreen(for: screen)
+        return NSRect(
+            x: screenZone.minX - windowFrame.minX,
+            y: screenZone.minY - windowFrame.minY,
+            width: screenZone.width,
+            height: screenZone.height
+        )
     }
 
     
@@ -133,12 +174,9 @@ class NotchDragContainer: NSView {
         let trackingRect: NSRect
         
         if isExpanded {
-            // When expanded, track the full expanded shelf area
-            let expandedWidth = currentExpandedShelfWidth()
-            let centerX = bounds.midX
-            
-            // Issue #64: Use unified height calculator (single source of truth)
-            guard let screen = notchWindow.notchScreen else {
+            // When expanded, track the canonical interaction zone used by controller monitors.
+            guard let screen = notchWindow.notchScreen,
+                  let expandedZone = expandedInteractionZoneInLocal(for: screen) else {
                 trackingRect = NSRect(x: bounds.midX - 130, y: bounds.height - 50, width: 260, height: 50)
                 let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways]
                 trackingArea = NSTrackingArea(rect: trackingRect, options: options, owner: self, userInfo: nil)
@@ -147,17 +185,10 @@ class NotchDragContainer: NSView {
                 }
                 return
             }
-            let expandedHeight = DroppyState.expandedShelfHeight(for: screen)
-            
-            trackingRect = NSRect(
-                x: centerX - expandedWidth / 2,
-                y: bounds.height - expandedHeight,
-                width: expandedWidth,
-                height: expandedHeight
-            )
+            trackingRect = expandedZone
         } else if isActive {
             // When hovering/dragging but not expanded, use slightly expanded notch bounds
-            let notchRect = notchWindow.getNotchRect()
+            let notchRect = collapsedInteractionRect(for: notchWindow)
             // Convert screen coordinates to local view coordinates
             guard let windowFrame = window?.frame else {
                 trackingRect = NSRect(x: bounds.midX - 130, y: bounds.height - 50, width: 260, height: 50)
@@ -182,7 +213,7 @@ class NotchDragContainer: NSView {
         } else {
             // COLLAPSED STATE: Use minimal tracking area just over the visible notch
             // This is the key fix - we don't track the full container when idle
-            let notchRect = notchWindow.getNotchRect()
+            let notchRect = collapsedInteractionRect(for: notchWindow)
             guard let windowFrame = window?.frame else {
                 // Fallback minimal rect
                 trackingRect = NSRect(x: bounds.midX - 105, y: bounds.height - 40, width: 210, height: 40)
@@ -262,20 +293,13 @@ class NotchDragContainer: NSView {
         }
         
         // Verify the click is actually within the expanded shelf area
-        guard let event = event else { return true }
-        let locationInWindow = event.locationInWindow
-        let locationInView = convert(locationInWindow, from: nil)
-        
-        // Check if within expanded shelf bounds (approximate)
-        let expandedWidth = currentExpandedShelfWidth()
-        let centerX = bounds.midX
-        let xRange = (centerX - expandedWidth/2)...(centerX + expandedWidth/2)
-        
-        if xRange.contains(locationInView.x) {
-            return true
-        }
-        
-        return false
+        guard let event = event,
+              let notchWindow = self.window as? NotchWindow,
+              let screen = notchWindow.notchScreen,
+              let window = self.window else { return false }
+
+        let clickLocation = window.convertPoint(toScreen: event.locationInWindow)
+        return expandedInteractionZoneInScreen(for: screen).contains(clickLocation)
     }
     
     // MARK: - Mouse Tracking Methods
@@ -328,10 +352,20 @@ class NotchDragContainer: NSView {
         }
         
         let mouseLocation = NSEvent.mouseLocation
-        let notchRect = notchWindow.getNotchRect()
+        let notchRect = collapsedInteractionRect(for: notchWindow)
         
-        // Use exact notch rect for click handling to avoid blocking bookmark bars etc
-        guard notchRect.contains(mouseLocation) else {
+        let collapsedRect = collapsedShelfTapRect(from: notchRect, isExpanded: false)
+        let clickInsideInteractiveZone = notchRect.contains(mouseLocation) || (collapsedRect?.contains(mouseLocation) ?? false)
+        
+        // Keep pass-through when click is outside the visible notch/stack surface.
+        guard clickInsideInteractiveZone else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        // When collapsed stack preview is visible, let SwiftUI/DraggableArea own click+drag.
+        let hasCollapsedPeek = DroppyState.shared.shelfDisplaySlotCount > 0
+        if hasCollapsedPeek {
             super.mouseDown(with: event)
             return
         }
@@ -362,41 +396,28 @@ class NotchDragContainer: NSView {
 
         // We want to be selective about when we intercept events vs letting them pass through to apps below.
         
-        // 1. Convert point to view coordinates
-        let localPoint = convert(point, from: nil)
-        
-        // 2. Check current state
+        // 1. Check current state
         let isExpanded = isExpandedOnTargetDisplay()
-        let isDragging = DragMonitor.shared.isDragging || DroppyState.shared.isDropTargeted
+        let mouseIsDown = CGEventSource.buttonState(.combinedSessionState, button: .left)
+        let dragPasteboardHasTypes = !((NSPasteboard(name: .drag).types ?? []).isEmpty)
+        let probableExternalDrag = mouseIsDown && dragPasteboardHasTypes
+        let isDragging = DragMonitor.shared.isDragging || DroppyState.shared.isDropTargeted || probableExternalDrag
         
-        // 3. Define the active interaction area
+        // 2. Define the active interaction area
         // If expanded, the whole expanded area is interactive
         if isExpanded {
-            // Expanded shelf width is state-driven (normal shelf vs split ToDo+Calendar layout)
-            // But we can just rely on the SwiftUI view's frame if possible.
-            // Since we don't know the exact SwiftUI frame here easily, we can estimate:
-            // Expanded width is centered.
-            let expandedWidth = currentExpandedShelfWidth()
-            let centerX = bounds.midX
-            let xRange = (centerX - expandedWidth/2)...(centerX + expandedWidth/2)
-            
-            // Issue #64: Use unified height calculator (single source of truth)
             guard let notchWindow = self.window as? NotchWindow,
                   let screen = notchWindow.notchScreen else { return nil }
-            let expandedHeight = DroppyState.expandedShelfHeight(for: screen)
-             
-            // Y is from top (bounds.height) down to (bounds.height - expandedHeight)
-            let yRange = (bounds.height - expandedHeight)...bounds.height
-            
-            if xRange.contains(localPoint.x) && yRange.contains(localPoint.y) {
-                 return super.hitTest(point)
+            let mouseScreenPos = NSEvent.mouseLocation
+            let expandedZone = expandedInteractionZoneInScreen(for: screen)
+
+            if expandedZone.contains(mouseScreenPos) {
+                return super.hitTest(point)
             }
             
             // ALSO accept drops at the notch area when expanded (user might drop before moving into shelf)
             if isDragging {
-                guard let notchWindow = self.window as? NotchWindow else { return nil }
-                let realNotchRect = notchWindow.getNotchRect()
-                let mouseScreenPos = NSEvent.mouseLocation
+                let realNotchRect = collapsedInteractionRect(for: notchWindow)
                 if realNotchRect.contains(mouseScreenPos) {
                     return super.hitTest(point)
                 }
@@ -410,16 +431,21 @@ class NotchDragContainer: NSView {
             
             guard let notchWindow = self.window as? NotchWindow,
                   let screen = notchWindow.notchScreen else { return nil }
+            let notchRect = collapsedInteractionRect(for: notchWindow)
+            let collapsedRect = collapsedShelfTapRect(from: notchRect, isExpanded: isExpandedOnTargetDisplay())
             
             // Use expanded notch area (wider and taller to catch media player HUD)
             let centerX = screen.notchAlignedCenterX
-            let dragHitWidth: CGFloat = 400  // Generous width for drag targeting
-            let dragHitHeight: CGFloat = 100 // Generous height to catch media player
-            
-            let xMin = centerX - dragHitWidth / 2
-            let xMax = centerX + dragHitWidth / 2
-            let yMin = screen.frame.origin.y + screen.frame.height - dragHitHeight
+            var xMin = centerX - 200
+            var xMax = centerX + 200
+            var yMin = screen.frame.origin.y + screen.frame.height - 100
             let yMax = screen.frame.origin.y + screen.frame.height
+
+            if let collapsedRect {
+                xMin = min(xMin, collapsedRect.minX - 8)
+                xMax = max(xMax, collapsedRect.maxX + 8)
+                yMin = min(yMin, collapsedRect.minY - 8)
+            }
             
             if mouseScreenPos.x >= xMin && mouseScreenPos.x <= xMax &&
                mouseScreenPos.y >= yMin && mouseScreenPos.y <= yMax {
@@ -431,21 +457,8 @@ class NotchDragContainer: NSView {
             if isExpandedOnTargetDisplay() {
                 guard let notchWindow = self.window as? NotchWindow,
                       let screen = notchWindow.notchScreen else { return nil }
-
-                let expandedWidth = currentExpandedShelfWidth()
-                // Use global coordinates
-                let centerX = screen.notchAlignedCenterX
-                let xMin = centerX - expandedWidth / 2
-                let xMax = centerX + expandedWidth / 2
-
-                // Issue #64: Use unified height calculator (single source of truth)
-                let expandedHeight = DroppyState.expandedShelfHeight(for: screen)
-
-                let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
-                let yMax = screen.frame.origin.y + screen.frame.height
-
-                if mouseScreenPos.x >= xMin && mouseScreenPos.x <= xMax &&
-                   mouseScreenPos.y >= yMin && mouseScreenPos.y <= yMax {
+                let expandedZone = expandedInteractionZoneInScreen(for: screen)
+                if expandedZone.contains(mouseScreenPos) {
                     return super.hitTest(point)
                 }
             }
@@ -470,16 +483,24 @@ class NotchDragContainer: NSView {
             // CRITICAL: NO downward extension - this was blocking Chrome's bookmarks bar!
             // The indicator appears INSIDE the notch area, so we don't need extra space below.
             guard let notchWindow = self.window as? NotchWindow else { return nil }
-            let notchRect = notchWindow.getNotchRect()
+            let notchRect = collapsedInteractionRect(for: notchWindow)
             let mouseScreenPos = NSEvent.mouseLocation
+            let collapsedRect = collapsedShelfTapRect(from: notchRect, isExpanded: isExpanded)
             
-            // Horizontal: notch bounds + 10px on each side for comfortable clicking
-            let xMin = notchRect.minX - 10
-            let xMax = notchRect.maxX + 10
+            // Horizontal: notch bounds + 10px on each side for comfortable clicking.
+            // Include collapsed stacked peek bounds when visible.
+            var xMin = notchRect.minX - 10
+            var xMax = notchRect.maxX + 10
+            if let collapsedRect {
+                xMin = min(xMin, collapsedRect.minX - 4)
+                xMax = max(xMax, collapsedRect.maxX + 4)
+            }
             
-            // Vertical: From notch bottom to screen top ONLY - no downward extension!
-            // This ensures we don't block bookmark bars, URL fields, or other UI below the notch
-            let yMin = notchRect.minY  // Exact notch bottom - NO extension below!
+            // Vertical: default notch-only hit zone, plus collapsed stacked peek zone when visible.
+            var yMin = notchRect.minY
+            if let collapsedRect {
+                yMin = min(yMin, collapsedRect.minY - 4)
+            }
             // Use notchScreen for multi-monitor support
             let yMax = notchWindow.notchScreen?.frame.maxY ?? notchRect.maxY
             
@@ -513,15 +534,20 @@ class NotchDragContainer: NSView {
         let screenLocation = NSPoint(x: windowFrame.origin.x + dragLocation.x, 
                                      y: windowFrame.origin.y + dragLocation.y)
         
-        // Use generous hit area matching hitTest logic
+        // Use generous hit area matching hitTest logic.
+        // Include full collapsed stacked shelf height/width when present.
         let centerX = screen.notchAlignedCenterX
-        let dragHitWidth: CGFloat = 400  // Generous width for drag targeting
-        let dragHitHeight: CGFloat = 100 // Generous height to catch media player
-        
-        let xMin = centerX - dragHitWidth / 2
-        let xMax = centerX + dragHitWidth / 2
-        let yMin = screen.frame.origin.y + screen.frame.height - dragHitHeight
+        var xMin = centerX - 200
+        var xMax = centerX + 200
+        var yMin = screen.frame.origin.y + screen.frame.height - 100
         let yMax = screen.frame.origin.y + screen.frame.height
+
+        let notchRect = collapsedInteractionRect(for: notchWindow)
+        if let collapsedRect = collapsedShelfTapRect(from: notchRect, isExpanded: isExpandedOnTargetDisplay()) {
+            xMin = min(xMin, collapsedRect.minX - 8)
+            xMax = max(xMax, collapsedRect.maxX + 8)
+            yMin = min(yMin, collapsedRect.minY - 8)
+        }
         
         return screenLocation.x >= xMin && screenLocation.x <= xMax &&
                screenLocation.y >= yMin && screenLocation.y <= yMax
@@ -539,25 +565,15 @@ class NotchDragContainer: NSView {
         let screenLocation = NSPoint(x: windowFrame.origin.x + dragLocation.x,
                                      y: windowFrame.origin.y + dragLocation.y)
 
-        // Calculate expanded shelf bounds (same logic as hitTest)
-        // Use global coordinates
-        let expandedWidth = currentExpandedShelfWidth()
-        let centerX = screen.notchAlignedCenterX
-        let xMin = centerX - expandedWidth / 2
-        let xMax = centerX + expandedWidth / 2
-
-        // Issue #64: Use unified height calculator (single source of truth)
-        let expandedHeight = DroppyState.expandedShelfHeight(for: screen)
-
-        let yMin = screen.frame.origin.y + screen.frame.height - expandedHeight
-        let yMax = screen.frame.origin.y + screen.frame.height
-
-        return screenLocation.x >= xMin && screenLocation.x <= xMax &&
-               screenLocation.y >= yMin && screenLocation.y <= yMax
+        let expandedZone = expandedInteractionZoneInScreen(for: screen)
+        return expandedZone.contains(screenLocation)
     }
     
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         currentDragIsValid = true
+        if !isExpandedOnTargetDisplay() {
+            expandedForCurrentDrag = false
+        }
         
         // Check Power Folders restriction
         // CRITICAL: Use object() ?? true to match @AppStorage default
@@ -605,9 +621,8 @@ class NotchDragContainer: NSView {
             }
         }
         
-        // Auto-expand shelf when drag enters notch (replaces the drop indicator)
+        // Restore clear drag feedback: temporarily expand while dragging over notch.
         if overNotch && !isExpanded {
-            // Get the display ID from the notch window's screen
             if let notchWindow = self.window as? NotchWindow,
                let displayID = notchWindow.notchScreen?.displayID {
                 let animationScreen = notchWindow.notchScreen
@@ -615,11 +630,12 @@ class NotchDragContainer: NSView {
                     withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
                         DroppyState.shared.expandShelf(for: displayID)
                     }
-                    DroppyState.shared.isDropTargeted = true
-                    DroppyState.shared.dropTargetDisplayID = displayID  // Track which screen
                 }
+                expandedForCurrentDrag = true
             }
-        } else if overExpandedArea {
+        }
+
+        if overNotch || overExpandedArea {
             // Highlight UI when over expanded drop zone
             // Also track which screen for multi-monitor expand fix
             if let notchWindow = self.window as? NotchWindow,
@@ -642,10 +658,9 @@ class NotchDragContainer: NSView {
         let overExpandedArea = isExpanded && isDragOverExpandedShelf(sender)
         
         DispatchQueue.main.async {
-            // Show highlight when:
-            // - Over notch and not expanded (collapsed state trigger)
-            // - Over expanded shelf area (expanded state drop zone)
-            let shouldBeTargeted = (overNotch && !isExpanded) || overExpandedArea
+            // Keep highlight while over notch OR expanded shelf drop zone.
+            // Important when shelf is temporarily expanded for drag feedback.
+            let shouldBeTargeted = overNotch || overExpandedArea
             if DroppyState.shared.isDropTargeted != shouldBeTargeted {
                 DroppyState.shared.isDropTargeted = shouldBeTargeted
             }
@@ -662,6 +677,7 @@ class NotchDragContainer: NSView {
             DroppyState.shared.isDropTargeted = false
             DroppyState.shared.dropTargetDisplayID = nil
         }
+        collapseTemporaryDragExpansion()
         
         // Issue #136: Also clear force-set drag state when drag exits
         // Only if mouse button is no longer pressed (drag truly ended)
@@ -677,6 +693,7 @@ class NotchDragContainer: NSView {
             DroppyState.shared.isDropTargeted = false
             DroppyState.shared.dropTargetDisplayID = nil
         }
+        collapseTemporaryDragExpansion()
         
         // Issue #136: Clear force-set drag state when drag operation ends
         DragMonitor.shared.forceSetDragging(false)
@@ -692,6 +709,7 @@ class NotchDragContainer: NSView {
         
         // Accept drops when over the notch OR over the expanded shelf area
         if !overNotch && !overExpandedArea {
+            collapseTemporaryDragExpansion()
             return false // Reject - let other apps handle the drop
         }
         
@@ -708,6 +726,15 @@ class NotchDragContainer: NSView {
         // Remove highlight state
         DroppyState.shared.isDropTargeted = false
         DroppyState.shared.dropTargetDisplayID = nil
+        collapseTemporaryDragExpansion()
+
+        func revealShelfAfterDrop() {
+            if let displayID = targetDisplayID {
+                DroppyState.shared.expandShelf(for: displayID)
+            } else {
+                DroppyState.shared.triggerAutoExpand()
+            }
+        }
         
         // Check if drop is in AirDrop zone - feature removed, now handled by quick actions
         
@@ -736,10 +763,8 @@ class NotchDragContainer: NSView {
                         NSScreen.screens.first(where: { $0.displayID == displayID })
                     }
                     withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
-                        DroppyState.shared.addItems(from: savedFiles)
-                        if let displayID = targetDisplayID {
-                            DroppyState.shared.expandShelf(for: displayID)
-                        }
+                        DroppyState.shared.addItems(from: savedFiles, shouldAutoExpand: false)
+                        revealShelfAfterDrop()
                     }
                 } else {
                     print("📧 No emails exported, AppleScript may need user permission")
@@ -797,10 +822,8 @@ class NotchDragContainer: NSView {
                             NSScreen.screens.first(where: { $0.displayID == displayID })
                         }
                         withAnimation(DroppyAnimation.notchState(for: animationScreen)) {
-                            DroppyState.shared.addItems(from: [fileURL])
-                            if let displayID = targetDisplayID {
-                                DroppyState.shared.expandShelf(for: displayID)
-                            }
+                            DroppyState.shared.addItems(from: [fileURL], shouldAutoExpand: false)
+                            revealShelfAfterDrop()
                         }
                     }
                 }
@@ -817,10 +840,8 @@ class NotchDragContainer: NSView {
                     NSScreen.screens.first(where: { $0.displayID == displayID })
                 }
                 withAnimation(DroppyAnimation.itemInsertion(for: animationScreen)) {
-                    DroppyState.shared.addItems(from: urls)
-                    if let displayID = targetDisplayID {
-                        DroppyState.shared.expandShelf(for: displayID)
-                    }
+                    DroppyState.shared.addItems(from: urls, shouldAutoExpand: false)
+                    revealShelfAfterDrop()
                 }
             }
             return true
@@ -837,10 +858,8 @@ class NotchDragContainer: NSView {
                     NSScreen.screens.first(where: { $0.displayID == displayID })
                 }
                 withAnimation(DroppyAnimation.itemInsertion(for: animationScreen)) {
-                    DroppyState.shared.addItems(from: droppedFiles)
-                    if let displayID = targetDisplayID {
-                        DroppyState.shared.expandShelf(for: displayID)
-                    }
+                    DroppyState.shared.addItems(from: droppedFiles, shouldAutoExpand: false)
+                    revealShelfAfterDrop()
                 }
             }
             return true

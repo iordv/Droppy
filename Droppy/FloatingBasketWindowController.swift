@@ -138,17 +138,25 @@ final class FloatingBasketWindowController: NSObject {
         return target
     }
 
-    /// Adds a pre-built dropped item (preserves metadata like `isTemporary`) and reveals the target basket.
+    /// Adds pre-built dropped items to the best available basket and reveals it.
+    /// Used when metadata must be preserved (for example watched-folder source labels).
     @discardableResult
-    static func addDroppedItemFromExternalSource(_ item: DroppedItem, showAtLastPosition: Bool = false) -> FloatingBasketWindowController {
+    static func addDroppedItemsFromExternalSource(_ items: [DroppedItem], showAtLastPosition: Bool = false) -> FloatingBasketWindowController {
+        guard !items.isEmpty else { return shared }
         let target = targetBasketForInboundAdd()
-        target.basketState.addItem(item)
+        target.basketState.addItems(items)
         if showAtLastPosition {
             target.showBasket(atLastPosition: true)
         } else {
             target.showBasket()
         }
         return target
+    }
+
+    /// Adds a pre-built dropped item (preserves metadata like `isTemporary`) and reveals the target basket.
+    @discardableResult
+    static func addDroppedItemFromExternalSource(_ item: DroppedItem, showAtLastPosition: Bool = false) -> FloatingBasketWindowController {
+        return addDroppedItemsFromExternalSource([item], showAtLastPosition: showAtLastPosition)
     }
 
     /// Closes all visible baskets (shared and spawned).
@@ -160,6 +168,17 @@ final class FloatingBasketWindowController: NSObject {
         shared.hideBasket(force: true)
         for basket in spawnedBaskets {
             basket.hideBasket(force: true)
+        }
+    }
+
+    /// Removes missing-file ghost items from all basket states and closes visible baskets that became empty.
+    static func validateAllBasketItems() {
+        for basket in allBaskets {
+            guard !basket.basketState.items.isEmpty else { continue }
+            basket.basketState.validateItems()
+            if basket.basketState.items.isEmpty {
+                basket.hideBasket()
+            }
         }
     }
     

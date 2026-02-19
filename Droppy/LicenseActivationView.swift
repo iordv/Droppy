@@ -232,7 +232,7 @@ struct LicenseActivationView: View {
                !(showActivatedState || licenseManager.isActivated) {
                 Link(destination: purchaseURL) {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.up.right")
+                        Image(systemName: "arrow.up.forward")
                         Text("Buy License")
                     }
                 }

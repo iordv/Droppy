@@ -65,6 +65,10 @@ struct NotchShelfView: View {
     @AppStorage(AppPreferenceKey.enableMediaAlbumArtGlow) private var enableMediaAlbumArtGlow = PreferenceDefault.enableMediaAlbumArtGlow
     @AppStorage(AppPreferenceKey.cameraInstalled) private var cameraInstalled = PreferenceDefault.cameraInstalled
     @AppStorage(AppPreferenceKey.cameraEnabled) private var cameraEnabled = PreferenceDefault.cameraEnabled
+    @AppStorage(AppPreferenceKey.telepromptyInstalled) private var telepromptyInstalled = PreferenceDefault.telepromptyInstalled
+    @AppStorage(AppPreferenceKey.telepromptyEnabled) private var telepromptyEnabled = PreferenceDefault.telepromptyEnabled
+    @AppStorage(AppPreferenceKey.telepromptyPromptWidth) private var telepromptyPromptWidth = PreferenceDefault.telepromptyPromptWidth
+    @AppStorage(AppPreferenceKey.telepromptyPromptHeight) private var telepromptyPromptHeight = PreferenceDefault.telepromptyPromptHeight
     @AppStorage(AppPreferenceKey.todoShelfSplitViewEnabled) private var todoShelfSplitViewEnabled = PreferenceDefault.todoShelfSplitViewEnabled
 
     
@@ -81,6 +85,7 @@ struct NotchShelfView: View {
     @ObservedObject private var dndManager = DNDManager.shared
     @ObservedObject private var terminalManager = TerminalNotchManager.shared
     @ObservedObject private var cameraManager = CameraManager.shared
+    @ObservedObject private var telepromptyManager = TelepromptyManager.shared
     var caffeineManager = CaffeineManager.shared  // @Observable - no wrapper needed
     var todoManager = ToDoManager.shared  // @Observable - no wrapper needed
     var hudManager = HUDManager.shared  // @Observable - needed for notification HUD visibility tracking
@@ -148,6 +153,7 @@ struct NotchShelfView: View {
     // Caffeine extension view state
     @State private var showCaffeineView: Bool = false
     @State private var showCameraView: Bool = false
+    @State private var showTelepromptyView: Bool = false
 
     // Todo extension state (for in-shelf input bar)
     @State private var isTodoListExpanded: Bool = false
@@ -216,24 +222,8 @@ struct NotchShelfView: View {
     
     /// Whether we're in Dynamic Island mode (no physical notch + setting enabled, or force test)
     private var isDynamicIslandMode: Bool {
-        // Use target screen or fallback to built-in
-        // CRITICAL: Return false (notch mode) when screen is unavailable to prevent layout jumps
-        // During lock screen transitions, NSScreen.screens can be momentarily empty/unavailable
-        // Defaulting to notch mode is safer for built-in MacBooks and prevents DI mode flickering
-        guard let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main else { return false }
-        // CRITICAL: Use auxiliary areas to detect physical notch, NOT safeAreaInsets
-        // safeAreaInsets.top can be 0 on lock screen (no menu bar), but auxiliary areas
-        // are hardware-based and always present for notch MacBooks
-        let hasNotch = screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
-        let forceTest = UserDefaults.standard.bool(forKey: "forceDynamicIslandTest")
-        
-        // For external displays (non-built-in), use the external display setting
-        if !screen.isBuiltIn {
-            return externalDisplayUseDynamicIsland
-        }
-        
-        // For built-in display, use the main Dynamic Island setting
-        return (!hasNotch || forceTest) && useDynamicIslandStyle
+        let screen = targetScreen ?? NSScreen.builtInWithNotch ?? NSScreen.main
+        return NotchLayoutConstants.usesDynamicIslandStyle(for: screen)
     }
     
     /// Whether this view is on an external display (non-built-in)
@@ -254,10 +244,10 @@ struct NotchShelfView: View {
         isDynamicIslandMode && useTransparentBackground
     }
     
-    /// Whether the external display notch should use transparent glass effect
-    /// Uses the main "Transparent Background" setting
+    /// Whether transparent, non-physical-notch surfaces should use adaptive foregrounds.
+    /// Uses the main "Transparent Background" setting.
     private var shouldUseExternalNotchTransparent: Bool {
-        isExternalDisplay && useTransparentBackground
+        !hasPhysicalNotchOnDisplay && useTransparentBackground
     }
     
     /// Whether floating buttons should use transparent glass effect
@@ -491,6 +481,7 @@ struct NotchShelfView: View {
         let shouldBlockAutoSwitch = shouldLockMediaForTodo
 
         return showMediaPlayer &&
+        !isTelepromptyViewVisible &&
         !isCameraViewVisible &&
         !state.isDropTargeted &&
         !dragMonitor.isDragging &&
@@ -506,6 +497,7 @@ struct NotchShelfView: View {
         !musicManager.isPlayerIdle &&
         !isTerminalViewVisible &&
         !isCaffeineViewVisible &&
+        !isTelepromptyViewVisible &&
         !isCameraViewVisible &&
         !shouldLockMediaForTodo
     }
@@ -525,6 +517,10 @@ struct NotchShelfView: View {
         !ExtensionType.camera.isRemoved
     }
 
+    private var telepromptyExtensionEnabled: Bool {
+        false
+    }
+
     private var canShowCameraFloatingButton: Bool {
         cameraExtensionEnabled &&
         state.shelfDisplaySlotCount == 0 &&
@@ -532,8 +528,17 @@ struct NotchShelfView: View {
         !isTerminalViewVisible
     }
 
+    private var canShowTelepromptyFloatingButton: Bool {
+        telepromptyExtensionEnabled &&
+        !isTerminalViewVisible
+    }
+
     private var isCameraViewVisible: Bool {
         showCameraView && canShowCameraFloatingButton
+    }
+
+    private var isTelepromptyViewVisible: Bool {
+        showTelepromptyView && canShowTelepromptyFloatingButton
     }
 
     /// Keep To-do in focus only on the display where To-do is actively being used.
@@ -543,7 +548,9 @@ struct NotchShelfView: View {
             isTodoExtensionActive &&
             state.shelfDisplaySlotCount == 0 &&
             !isTerminalViewVisible &&
-            !isCaffeineViewVisible
+            !isCaffeineViewVisible &&
+            !isCameraViewVisible &&
+            !isTelepromptyViewVisible
 
         let isActiveTodoListSession = todoCanOwnShelfOnThisScreen &&
             (isTodoListExpanded || todoManager.isEditingText || todoManager.isInteractingWithPopover)
@@ -574,6 +581,7 @@ struct NotchShelfView: View {
         isTodoExtensionActive &&
         !isTerminalViewVisible &&
         !isCaffeineViewVisible &&
+        !isTelepromptyViewVisible &&
         !isCameraViewVisible
     }
 
@@ -585,6 +593,10 @@ struct NotchShelfView: View {
             // Apple Music needs extra width for additional controls (shuffle, repeat, love)
             let appleMusicExtraWidth: CGFloat = musicManager.isAppleMusicSource ? 50 : 0
             return mediaPlayerWidth + appleMusicExtraWidth
+        }
+        if isTelepromptyViewVisible {
+            let targetPromptWidth = CGFloat(max(320, min(telepromptyPromptWidth, 760)))
+            return max(shelfWidth, targetPromptWidth + 120)
         }
         if shouldUseTodoSplitShelfWidth {
             return max(shelfWidth, todoSplitViewShelfWidth)
@@ -807,12 +819,37 @@ struct NotchShelfView: View {
     private var shouldShowCollapsedShelfPeek: Bool {
         enableNotchShelf &&
         !isExpandedOnThisScreen &&
+        isHoveringOnThisScreen &&
         !collapsedShelfPeekItems.isEmpty &&
         !state.isDropTargeted &&
         !hudIsVisible &&
         !HUDManager.shared.isVisible &&
         !isMediaHUDSurfaceActive &&
         !isCaffeineHoverActive
+    }
+
+    private var collapsedShelfPeekFootprint: CGSize {
+        ShelfStackPeekView.preferredFootprint(for: collapsedShelfPeekItems.count)
+    }
+
+    private var collapsedShelfPeekWidth: CGFloat {
+        let minWidth = notchWidth + (isDynamicIslandMode ? 18 : 24)
+        let maxWidth = max(minWidth, min(expandedWidth - 26, 320))
+        let desired = collapsedShelfPeekFootprint.width
+        return min(max(desired, minWidth), maxWidth)
+    }
+
+    private var collapsedShelfPeekHeight: CGFloat {
+        let requiredUnderNotchHeight = collapsedShelfPeekFootprint.height + 22
+        let desiredTotalHeight = requiredUnderNotchHeight + contentLayoutNotchHeight
+        return min(max(desiredTotalHeight, notchHeight), 236)
+    }
+
+    private var currentNotchBottomRadius: CGFloat {
+        if isExpandedOnThisScreen { return 40 }
+        if hudIsVisible { return 18 }
+        if shouldShowCollapsedShelfPeek { return 26 }
+        return 16
     }
     
     /// Whether caffeine hover indicator should show (takes priority over media HUD)
@@ -871,6 +908,8 @@ struct NotchShelfView: View {
             return isDynamicIslandMode ? hudWidth : expandedWidth
         } else if isMediaHUDSurfaceActive {
             return hudWidth  // Media HUD uses tighter wings
+        } else if shouldShowCollapsedShelfPeek {
+            return collapsedShelfPeekWidth
         } else if enableNotchShelf && isHoveringOnThisScreen {
             // When High Alert is active, expand enough to show timer on hover
             if CaffeineManager.shared.isActive && caffeineExtensionEnabled && !caffeineInstantlyExpandShelfOnHover {
@@ -917,6 +956,8 @@ struct NotchShelfView: View {
         } else if isMediaHUDSurfaceActive {
             // No vertical expansion on media HUD hover - just stay at notch height
             return notchHeight
+        } else if shouldShowCollapsedShelfPeek {
+            return collapsedShelfPeekHeight
         } else if enableNotchShelf && (isHoveringOnThisScreen || dragMonitor.isDragging) {
             // No vertical expansion on hover - just stay at notch height
             return notchHeight
@@ -973,6 +1014,22 @@ struct NotchShelfView: View {
             }
         }
 
+        if isTelepromptyViewVisible {
+            let isExternalNotchStyle = isExternalDisplay && !externalDisplayUseDynamicIsland
+            let clampedPromptHeight = CGFloat(max(100, min(telepromptyPromptHeight, 260)))
+            let contentHeight: CGFloat = telepromptyManager.isPromptVisible
+                ? (clampedPromptHeight + 56)
+                : (telepromptyManager.isInlineEditorVisible ? 196 : 110)
+
+            if contentLayoutNotchHeight > 0 {
+                return contentLayoutNotchHeight + contentHeight + 20
+            } else if isExternalNotchStyle {
+                return contentHeight + 40
+            } else {
+                return contentHeight + 40
+            }
+        }
+
         // MEDIA PLAYER: Content height based on layout
         if isMediaPlayerVisibleInShelf {
             // SSOT (v21.68): Different base heights for different modes:
@@ -1010,9 +1067,9 @@ struct NotchShelfView: View {
             : 0
         
         // FIX: When todo list is expanded and shelf is empty, don't add baseHeight
-        // The todo bar provides its own height, no need for the 110px shelf base
+        // The todo bar provides its own height, no need for the per-row shelf base
         let shouldSkipBaseHeight = state.shelfDisplaySlotCount == 0 && isTodoListExpanded && todoBarHeight > 0
-        let baseHeight = shouldSkipBaseHeight ? 0 : max(1, cappedRowCount) * 110
+        let baseHeight = shouldSkipBaseHeight ? 0 : max(1, cappedRowCount) * 116
 
         // In built-in notch mode, add extra height to compensate for top padding that clears physical notch
         // Island mode and external displays don't need this as they use symmetrical layout
@@ -1174,6 +1231,8 @@ struct NotchShelfView: View {
                     if !isExpanded {
                         showCaffeineView = false
                         showCameraView = false
+                        showTelepromptyView = false
+                        telepromptyManager.stop(hidePrompt: true)
                         resetTodoExpansionStateWithoutAnimation()
                     }
                 }
@@ -1202,6 +1261,7 @@ struct NotchShelfView: View {
             let caffeineShouldShow = caffeineInstalled && caffeineEnabled
             let terminalShouldShow = terminalManager.isInstalled && terminalEnabled
             let cameraShouldShow = canShowCameraFloatingButton
+            let telepromptyShouldShow = canShowTelepromptyFloatingButton
             if enableNotchShelf && isExpandedOnThisScreen {
                 // FLOATING BUTTONS: ZStack enables smooth crossfade between button states
                 // - Quick Actions: Shown when dragging files
@@ -1229,7 +1289,7 @@ struct NotchShelfView: View {
                     }
                     
                     // Regular floating buttons (caffeine/terminal/close) - appear when NOT dragging
-                    if !dragMonitor.isDragging && (shouldShowExternalMouseSwitchFloatingButton || caffeineShouldShow || terminalShouldShow || cameraShouldShow || !autoCollapseShelf) {
+                    if !dragMonitor.isDragging && (shouldShowExternalMouseSwitchFloatingButton || caffeineShouldShow || terminalShouldShow || cameraShouldShow || telepromptyShouldShow || !autoCollapseShelf) {
                         HStack(spacing: 12) {
                             if shouldShowExternalMouseSwitchFloatingButton {
                                 Button(action: {
@@ -1258,6 +1318,8 @@ struct NotchShelfView: View {
                                         if showCaffeineView {
                                             terminalManager.hide()
                                             showCameraView = false
+                                            showTelepromptyView = false
+                                            telepromptyManager.stop(hidePrompt: true)
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1287,6 +1349,8 @@ struct NotchShelfView: View {
                                         if showCameraView {
                                             showCaffeineView = false
                                             terminalManager.hide()
+                                            showTelepromptyView = false
+                                            telepromptyManager.stop(hidePrompt: true)
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1304,6 +1368,38 @@ struct NotchShelfView: View {
                                     solidFill: isHighlight ? .cyan : (isDynamicIslandMode ? dynamicIslandGray : .black)
                                 ))
                                 .help(showCameraView ? "Hide Notchface" : "Show Notchface")
+                                .transition(displayElementTransition)
+                            }
+
+                            if telepromptyShouldShow {
+                                let isHighlight = isTelepromptyViewVisible || telepromptyManager.isRunning || telepromptyManager.isCountingDown
+                                Button(action: {
+                                    HapticFeedback.tap()
+                                    withAnimation(displayNotchStateAnimation) {
+                                        showTelepromptyView.toggle()
+                                        if showTelepromptyView {
+                                            showCaffeineView = false
+                                            showCameraView = false
+                                            terminalManager.hide()
+                                            isTodoListExpanded = false
+                                            todoManager.isShelfListExpanded = false
+                                        } else {
+                                            telepromptyManager.stop(hidePrompt: true)
+                                        }
+                                    }
+                                    notchController.forceRecalculateAllWindowSizes()
+                                    DispatchQueue.main.async {
+                                        notchController.forceRecalculateAllWindowSizes()
+                                    }
+                                }) {
+                                    Image(systemName: "text.bubble")
+                                }
+                                .buttonStyle(DroppyCircleButtonStyle(
+                                    size: 32,
+                                    useTransparent: shouldUseFloatingButtonTransparent,
+                                    solidFill: isHighlight ? .mint : (isDynamicIslandMode ? dynamicIslandGray : .black)
+                                ))
+                                .help(showTelepromptyView ? "Hide Teleprompty" : "Show Teleprompty")
                                 .transition(displayElementTransition)
                             }
 
@@ -1339,6 +1435,8 @@ struct NotchShelfView: View {
                                         if openingTerminal {
                                             showCaffeineView = false
                                             showCameraView = false
+                                            showTelepromptyView = false
+                                            telepromptyManager.stop(hidePrompt: true)
                                             isTodoListExpanded = false
                                             todoManager.isShelfListExpanded = false
                                         }
@@ -1427,6 +1525,10 @@ struct NotchShelfView: View {
                     if showCameraView {
                         showCameraView = false
                     }
+                    if showTelepromptyView {
+                        showTelepromptyView = false
+                        telepromptyManager.stop(hidePrompt: true)
+                    }
                     if isTodoListExpanded {
                         isTodoListExpanded = false
                     }
@@ -1465,6 +1567,13 @@ struct NotchShelfView: View {
                         guard isExpandedOnThisScreen, !state.isDropTargeted, !dragMonitor.isDragging else { return }
                         notchController.forceRecalculateAllWindowSizes()
                     }
+                }
+            }
+            .onChange(of: state.isFileOperationInProgress) { _, isInProgress in
+                if isInProgress {
+                    cancelAutoShrinkTimer()
+                } else if isExpandedOnThisScreen && !isHoveringExpandedContent && !dragMonitor.isDragging {
+                    startAutoShrinkTimer()
                 }
             }
             // PREMIUM: Reset hover scale when expanding (smooth transition)
@@ -1640,6 +1749,28 @@ struct NotchShelfView: View {
                     }
                 }
             }
+            .onChange(of: state.isRenaming) { _, isRenaming in
+                if isRenaming {
+                    cancelAutoShrinkTimer()
+                } else if renamingItemId == nil &&
+                            isExpandedOnThisScreen &&
+                            !isHoveringExpandedContent &&
+                            !state.isDropTargeted &&
+                            !dragMonitor.isDragging {
+                    startAutoShrinkTimer()
+                }
+            }
+            .onChange(of: renamingItemId) { _, activeRenameItemID in
+                if activeRenameItemID != nil {
+                    cancelAutoShrinkTimer()
+                } else if !state.isRenaming &&
+                            isExpandedOnThisScreen &&
+                            !isHoveringExpandedContent &&
+                            !state.isDropTargeted &&
+                            !dragMonitor.isDragging {
+                    startAutoShrinkTimer()
+                }
+            }
             .onChange(of: isTodoListExpanded) { _, expanded in
                 todoManager.isShelfListExpanded = expanded
                 if expanded {
@@ -1664,56 +1795,39 @@ struct NotchShelfView: View {
 
     private var shelfContentWithObservers: some View {
         shelfContentWithStateObservers
-            .onReceive(NotificationCenter.default.publisher(for: .todoQuickOpenRequested)) { notification in
-                guard let requestedIDValue = notification.userInfo?["displayID"] as? NSNumber else { return }
-                let requestedDisplayID = CGDirectDisplayID(requestedIDValue.uint32Value)
-                guard requestedDisplayID == thisDisplayID else { return }
-                guard isTodoExtensionActive else { return }
-                guard !isTerminalViewVisible && !isCaffeineViewVisible && !isCameraViewVisible else {
-                    SettingsWindowController.shared.showSettings(openingExtension: .todo)
-                    return
-                }
-
-                if isTodoListExpanded {
-                    withAnimation(DroppyAnimation.smoothContent) {
-                        isTodoListExpanded = false
-                    }
-                    todoManager.isShelfListExpanded = false
-                    if state.shelfDisplaySlotCount == 0 {
-                        withAnimation(displayExpandCloseAnimation) {
-                            state.expandedDisplayID = nil
-                        }
-                    }
-                    NotchWindowController.shared.forceRecalculateAllWindowSizes()
-                    return
-                }
-
-                cancelAutoShrinkTimer()
-                withAnimation(DroppyAnimation.smoothContent) {
-                    isTodoListExpanded = true
-                }
-                todoManager.isShelfListExpanded = true
-                NotchWindowController.shared.forceRecalculateAllWindowSizes()
-            }
+            .onReceive(NotificationCenter.default.publisher(for: .todoQuickOpenRequested), perform: handleTodoQuickOpenRequested)
             .onChange(of: isTerminalViewVisible) { _, _ in
-                notchController.forceRecalculateAllWindowSizes()
+                recalculateAllNotchWindowSizes()
             }
             .onChange(of: isCameraViewVisible) { _, _ in
-                notchController.forceRecalculateAllWindowSizes()
+                recalculateAllNotchWindowSizes()
             }
             .onChange(of: isCaffeineViewVisible) { _, _ in
-                notchController.forceRecalculateAllWindowSizes()
+                recalculateAllNotchWindowSizes()
+            }
+            .onChange(of: isTelepromptyViewVisible) { _, _ in
+                recalculateAllNotchWindowSizes()
+            }
+            .onChange(of: telepromptyManager.isPromptVisible) { _, _ in
+                recalculateAllNotchWindowSizes()
+            }
+            .onChange(of: telepromptyManager.isInlineEditorVisible) { _, _ in
+                recalculateAllNotchWindowSizes()
             }
             .onChange(of: canShowCameraFloatingButton) { _, canShow in
                 guard !canShow && showCameraView else { return }
                 showCameraView = false
             }
+            .onChange(of: canShowTelepromptyFloatingButton) { _, canShow in
+                guard !canShow && showTelepromptyView else { return }
+                showTelepromptyView = false
+                telepromptyManager.stop(hidePrompt: true)
+            }
             .onAppear {
                 todoManager.isShelfListExpanded = isTodoListExpanded
             }
             .onDisappear {
-                externalCollapseVisibilityWorkItem?.cancel()
-                browserTrackLoadingWorkItem?.cancel()
+                cancelShelfObserverWorkItems()
             }
             .background {
                 Button("") {
@@ -1724,6 +1838,54 @@ struct NotchShelfView: View {
                 .keyboardShortcut("a", modifiers: .command)
                 .opacity(0)
             }
+    }
+
+    private func handleTodoQuickOpenRequested(_ notification: Notification) {
+        guard let requestedIDValue = notification.userInfo?["displayID"] as? NSNumber else { return }
+        let requestedDisplayID = CGDirectDisplayID(requestedIDValue.uint32Value)
+        guard requestedDisplayID == thisDisplayID else { return }
+        guard isTodoExtensionActive else { return }
+
+        let hasBlockingView = isTerminalViewVisible || isCaffeineViewVisible || isCameraViewVisible || isTelepromptyViewVisible
+        guard !hasBlockingView else {
+            SettingsWindowController.shared.showSettings(openingExtension: .todo)
+            return
+        }
+
+        if isTodoListExpanded {
+            withAnimation(DroppyAnimation.smoothContent) {
+                isTodoListExpanded = false
+            }
+            todoManager.isShelfListExpanded = false
+            if state.shelfDisplaySlotCount == 0 {
+                withAnimation(displayExpandCloseAnimation) {
+                    state.expandedDisplayID = nil
+                }
+            }
+            recalculateAllNotchWindowSizes()
+            return
+        }
+
+        cancelAutoShrinkTimer()
+        withAnimation(DroppyAnimation.smoothContent) {
+            isTodoListExpanded = true
+        }
+        todoManager.isShelfListExpanded = true
+        recalculateAllNotchWindowSizes()
+    }
+
+    private func recalculateAllNotchWindowSizes() {
+        notchController.forceRecalculateAllWindowSizes()
+    }
+
+    private func cancelShelfObserverWorkItems() {
+        externalCollapseVisibilityWorkItem?.cancel()
+        browserTrackLoadingWorkItem?.cancel()
+        autoShrinkWorkItem?.cancel()
+        mediaFadeWorkItem?.cancel()
+        mediaDebounceWorkItem?.cancel()
+        mediaHUDHoverWorkItem?.cancel()
+        hudWorkItem?.cancel()
     }
     // MARK: - HUD Overlay Content (Legacy - now embedded in notch)
     // Kept for reference but no longer used
@@ -1863,10 +2025,14 @@ struct NotchShelfView: View {
         // Check if auto-collapse is enabled (new toggle)
         guard autoCollapseShelf else { return }
         guard isExpandedOnThisScreen else { return }
+        guard !state.isFileOperationInProgress else { return }
         // Keep the shelf open while Reminders panel is expanded (including quick-open).
         guard !isTodoListExpanded else { return }
         // Keep the shelf stable during active To-do interactions (popover/edit/split-toggle hold).
         guard !ToDoManager.shared.isInteractingWithPopover else { return }
+        // Keep rename editor responsive; collapsing the shelf invalidates the active popover.
+        guard !state.isRenaming else { return }
+        guard renamingItemId == nil else { return }
         
         // Cancel any existing timer
         autoShrinkWorkItem?.cancel()
@@ -1890,7 +2056,14 @@ struct NotchShelfView: View {
             // Check BOTH SwiftUI hover state AND geometric fallback
             let isHoveringAnyMethod = isHoveringOnThisScreen || isMouseInExpandedZone
             let isTodoPopoverInteractionActive = ToDoManager.shared.isInteractingWithPopover
-            guard isExpandedOnThisScreen && !isTodoListExpanded && !isHoveringAnyMethod && !state.isDropTargeted && !isTodoPopoverInteractionActive else {
+            let isRenameSessionActive = state.isRenaming || renamingItemId != nil
+            guard isExpandedOnThisScreen &&
+                !isTodoListExpanded &&
+                !isHoveringAnyMethod &&
+                !state.isDropTargeted &&
+                !isTodoPopoverInteractionActive &&
+                !isRenameSessionActive &&
+                !state.isFileOperationInProgress else {
                 notchShelfDebugLog("⏳ AUTO-SHRINK SKIPPED: conditions not met (isHoveringAnyMethod=\(isHoveringAnyMethod))")
                 return
             }
@@ -1941,7 +2114,24 @@ struct NotchShelfView: View {
             if shouldShowCollapsedShelfPeek {
                 collapsedShelfPeekContent
                     .zIndex(2)
-                    .transition(displayUnifiedSurfaceTransition)
+                    .transition(.asymmetric(
+                        insertion: displayUnifiedSurfaceTransition,
+                        removal: .scale(scale: 0.96, anchor: .top)
+                            .combined(with: .opacity)
+                            .animation(displayUnifiedOpenCloseAnimation)
+                    ))
+            }
+
+            if state.isDropTargeted &&
+                !isExpandedOnThisScreen &&
+                !hudIsVisible &&
+                !HUDManager.shared.isVisible &&
+                !isMediaHUDSurfaceActive &&
+                !isCaffeineHoverActive {
+                dropIndicatorContent
+                    .zIndex(4)
+                    .allowsHitTesting(false)
+                    .transition(displayButtonTransition)
             }
             
             // MARK: - HUD Views
@@ -1989,7 +2179,7 @@ struct NotchShelfView: View {
                 if isDynamicIslandMode {
                     DynamicIslandShape(cornerRadius: 50)
                 } else {
-                    NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
+                    NotchShape(bottomRadius: currentNotchBottomRadius)
                 }
             }
         }
@@ -2358,8 +2548,7 @@ struct NotchShelfView: View {
             .animation(displayUnifiedOpenCloseAnimation, value: musicManager.isPlaying)  // pause shrink matches expand timing
             // INTERACTIVE: User-triggered animations kept separate
             .animation(DroppyAnimation.interactiveSpring(response: 0.3, dampingFraction: 0.6, for: targetScreen), value: albumArtNudgeOffset)
-            .animation(DroppyAnimation.interactiveSpring(response: 0.25, dampingFraction: 0.7, for: targetScreen), value: albumArtParallaxOffset.width)
-            .animation(DroppyAnimation.interactiveSpring(response: 0.25, dampingFraction: 0.7, for: targetScreen), value: albumArtParallaxOffset.height)
+            .animation(DroppyAnimation.interactiveSpring(response: 0.25, dampingFraction: 0.7, for: targetScreen), value: albumArtParallaxOffset)
             .animation(DroppyAnimation.interactiveSpring(response: 0.2, dampingFraction: 0.5, for: targetScreen), value: albumArtTapScale)
             // PREMIUM: Scale+blur+opacity appear animation (matches notchTransition pattern)
             .scaleEffect(mediaOverlayAppeared ? 1.0 : 0.8, anchor: .top)
@@ -2619,6 +2808,7 @@ struct NotchShelfView: View {
         let caffeineShouldShow = UserDefaults.standard.preference(AppPreferenceKey.caffeineInstalled, default: PreferenceDefault.caffeineInstalled) && caffeineEnabled
         guard !(showCaffeineView && caffeineShouldShow) else { return false }
         guard !isCameraViewVisible else { return false }
+        guard !isTelepromptyViewVisible else { return false }
         let dragMonitor = DragMonitor.shared
         let shouldBlockAutoSwitch = shouldLockMediaForTodo
         let forced = musicManager.isMediaHUDForced
@@ -2654,7 +2844,7 @@ struct NotchShelfView: View {
             // Notch shape (U-shaped)
             // Built-in: always black (physical notch is black)
             // External: can be transparent when transparency setting is enabled
-            NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
+            NotchShape(bottomRadius: currentNotchBottomRadius)
                 .droppyTransparentFill(shouldUseExternalNotchTransparent, fallback: Color.black)
                 .opacity(isDynamicIslandMode ? 0 : 1)
                 .scaleEffect(isDynamicIslandMode ? 0.85 : 1)
@@ -2667,7 +2857,7 @@ struct NotchShelfView: View {
             if isDynamicIslandMode && !shouldUseDynamicIslandTransparent {
                 // Premium pill shadow for Dynamic Island (only when NOT transparent)
                 // Shadow visible when expanded OR hovering (premium depth effect)
-                let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen
+                let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen || shouldShowCollapsedShelfPeek
                 DynamicIslandShape(cornerRadius: 50)
                     .fill(dynamicIslandGray)
                     .shadow(
@@ -2680,8 +2870,8 @@ struct NotchShelfView: View {
             } else if !isDynamicIslandMode {
                 // PREMIUM: Shadow for notch mode as well
                 // Shadow visible when expanded OR hovering (premium depth effect)
-                let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen
-                NotchShape(bottomRadius: isExpandedOnThisScreen ? 40 : (hudIsVisible ? 18 : 16))
+                let showShadow = isExpandedOnThisScreen || isHoveringOnThisScreen || shouldShowCollapsedShelfPeek
+                NotchShape(bottomRadius: currentNotchBottomRadius)
                     .droppyTransparentFill(shouldUseExternalNotchTransparent, fallback: Color.black)
                     .shadow(
                         // PREMIUM EXACT: .black.opacity(0.7) radius 6
@@ -2788,6 +2978,16 @@ struct NotchShelfView: View {
 
         return isNearTopEdge && isWithinNotchRange
     }
+
+    private func expandShelfFromCollapsedState() {
+        guard enableNotchShelf else { return }
+        guard !isExpandedOnThisScreen else { return }
+        guard let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID else { return }
+
+        withAnimation(displayExpandOpenAnimation) {
+            state.expandShelf(for: displayID)
+        }
+    }
     
     private var dropZone: some View {
         // MILLIMETER-PRECISE DETECTION (v5.3)
@@ -2813,17 +3013,9 @@ struct NotchShelfView: View {
             // Drop indicator removed - shelf now auto-expands when dragging starts
         }
         .onTapGesture {
-            // Only allow expanding shelf when shelf is enabled
-            guard enableNotchShelf else { return }
-            // CRITICAL: Only OPEN the shelf when collapsed - when expanded, clicks should go to items
-            // This prevents the tap gesture from swallowing X button clicks in Dynamic Island mode
-            guard !isExpandedOnThisScreen else { return }
-            // Expand on this specific screen
-            if let displayID = targetScreen?.displayID {
-                withAnimation(displayExpandOpenAnimation) {
-                    state.expandShelf(for: displayID)
-                }
-            }
+            // CRITICAL: Only OPEN the shelf when collapsed - when expanded, clicks should go to items.
+            // This prevents the tap gesture from swallowing X button clicks in Dynamic Island mode.
+            expandShelfFromCollapsedState()
         }
         .onHover { isHovering in
             // STABLE HOVER: No withAnimation inside onHover - use view-level .animation() instead
@@ -2884,54 +3076,53 @@ struct NotchShelfView: View {
     }
 
     private var collapsedShelfPeekContent: some View {
-        let expandShelf = {
-            let displayID = targetScreen?.displayID ?? NSScreen.builtInWithNotch?.displayID
-            guard let displayID else { return }
-            withAnimation(displayExpandOpenAnimation) {
-                state.expandShelf(for: displayID)
-            }
-        }
+        let stackFootprint = collapsedShelfPeekFootprint
+        let stackWidth = max(128, min(stackFootprint.width, collapsedShelfPeekWidth - 18))
+        let stackHeight = max(88, min(stackFootprint.height, collapsedShelfPeekHeight - 34))
+        let underNotchHeight = max(0, currentNotchHeight - contentLayoutNotchHeight)
+        let payloadHeight = min(underNotchHeight, stackHeight + 28)
+        let payloadWidth = min(collapsedShelfPeekWidth - 12, stackWidth + 14)
 
         return VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button(action: expandShelf) {
-                    PeekFileCountHeader(items: collapsedShelfPeekItems, style: .plain)
-                }
-                .buttonStyle(.plain)
-                Spacer()
-            }
-            .frame(height: 26)
-            .padding(.top, 4)
-
             Spacer(minLength: 0)
 
-            DraggableArea(
-                items: {
-                    collapsedShelfPeekItems.map { $0.url as NSURL }
-                },
-                onTap: { _ in
-                    expandShelf()
-                },
-                onRightClick: {},
-                onDragComplete: { _ in
-                    let autoCleanEnabled = UserDefaults.standard.bool(forKey: AppPreferenceKey.enableAutoClean)
-                    guard autoCleanEnabled else { return }
-                    withAnimation(displayExpandCloseAnimation) {
-                        state.clearAll()
-                    }
-                },
-                selectionSignature: collapsedShelfPeekItems.map(\.id).hashValue
-            ) {
-                ShelfStackPeekView(items: collapsedShelfPeekItems)
+            VStack(spacing: 8) {
+                DraggableArea(
+                    items: {
+                        collapsedShelfPeekItems.map { $0.url as NSURL }
+                    },
+                    onTap: { _ in
+                        expandShelfFromCollapsedState()
+                    },
+                    onRightClick: {},
+                    onDragComplete: { _ in
+                        let autoCleanEnabled = UserDefaults.standard.bool(forKey: AppPreferenceKey.enableAutoClean)
+                        guard autoCleanEnabled else { return }
+                        withAnimation(displayExpandCloseAnimation) {
+                            state.clearAll()
+                        }
+                    },
+                    selectionSignature: collapsedShelfPeekItems.map(\.id).hashValue
+                ) {
+                    ShelfStackPeekView(items: collapsedShelfPeekItems)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+                .frame(width: stackWidth, height: stackHeight, alignment: .center)
+                .contentShape(Rectangle())
+
+                Button(action: expandShelfFromCollapsedState) {
+                    PeekFileCountHeader(items: collapsedShelfPeekItems, compact: true, style: .plain)
+                        .padding(.horizontal, 6)
+                }
+                .buttonStyle(.plain)
             }
-            .frame(width: 176, height: 98, alignment: .bottom)
-            .contentShape(Rectangle())
+            .frame(width: payloadWidth, height: payloadHeight, alignment: .center)
+            .padding(.top, contentLayoutNotchHeight)
 
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-        .padding(.bottom, 0)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
     
     // MARK: - Indicators
@@ -3015,6 +3206,17 @@ struct NotchShelfView: View {
                     .frame(height: currentExpandedHeight, alignment: .top)
                     .id("camera-view")
                     .transition(displayContentSwapTransition)
+            }
+            else if isTelepromptyViewVisible {
+                TelepromptyShelfView(
+                    manager: telepromptyManager,
+                    isVisible: $showTelepromptyView,
+                    notchHeight: contentLayoutNotchHeight,
+                    isExternalWithNotchStyle: isExternalDisplay && !externalDisplayUseDynamicIsland
+                )
+                .frame(height: currentExpandedHeight, alignment: .top)
+                .id("teleprompty-view")
+                .transition(displayContentSwapTransition)
             }
             // Show drop zone when dragging over (takes priority) - but NOT when Todo bar is visible
             else if state.isDropTargeted && state.items.isEmpty && !shouldShowTodoBar {

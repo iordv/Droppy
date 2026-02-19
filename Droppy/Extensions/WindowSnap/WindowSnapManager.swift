@@ -85,9 +85,9 @@ enum SnapAction: String, CaseIterable, Identifiable, Codable {
         case .leftThird: return "rectangle.split.3x1"
         case .centerThird: return "rectangle.center.inset.filled"
         case .rightThird: return "rectangle.split.3x1"
-        case .maximize: return "arrow.up.left.and.arrow.down.right"
+        case .maximize: return "arrow.up.backward.and.arrow.down.forward"
         case .center: return "arrow.up.and.down.and.arrow.left.and.right"
-        case .restore: return "arrow.down.right.and.arrow.up.left"
+        case .restore: return "arrow.down.forward.and.arrow.up.backward"
         case .moveToLeftDisplay: return "arrow.left.to.line"
         case .moveToRightDisplay: return "arrow.right.to.line"
         case .moveToDisplay1: return "1.circle"
@@ -95,7 +95,7 @@ enum SnapAction: String, CaseIterable, Identifiable, Codable {
         case .moveToDisplay3: return "3.circle"
         case .leftHalfDisplay2: return "rectangle.lefthalf.filled"
         case .rightHalfDisplay2: return "rectangle.righthalf.filled"
-        case .maximizeDisplay2: return "arrow.up.left.and.arrow.down.right"
+        case .maximizeDisplay2: return "arrow.up.backward.and.arrow.down.forward"
         }
     }
     
@@ -303,9 +303,13 @@ final class WindowSnapManager: ObservableObject {
     private let edgeSnapStickyInset: CGFloat = 22
     private let minResizeWidth: CGFloat = 360
     private let minResizeHeight: CGFloat = 240
+    private let debugLogQueue = DispatchQueue(label: "app.getdroppy.windowsnap.debuglog", qos: .utility)
 
     private let shortcutsKey = "windowSnapShortcuts"
     private let excludedAppsKey = "windowSnapExcludedApps"
+    private var isDebugLoggingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "DEBUG_WINDOW_SNAP")
+    }
     
     // MARK: - Initialization
     
@@ -381,17 +385,20 @@ final class WindowSnapManager: ObservableObject {
     
     // DEBUG: Write to file for debugging
     private func debugLog(_ message: String) {
+        guard isDebugLoggingEnabled else { return }
         let logPath = "/tmp/droppy_windowsnap_debug.log"
         let timestamp = ISO8601DateFormatter().string(from: Date())
         let line = "[\(timestamp)] \(message)\n"
-        if let handle = FileHandle(forWritingAtPath: logPath) {
-            handle.seekToEndOfFile()
-            handle.write(line.data(using: .utf8)!)
-            handle.closeFile()
-        } else {
-            FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
+        debugLogQueue.async {
+            if let handle = FileHandle(forWritingAtPath: logPath) {
+                handle.seekToEndOfFile()
+                handle.write(line.data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
+            }
         }
-        print(message)  // Also print for console
+        print(message)  // Also print for console when debug logging is enabled
     }
     
     /// Called from AppDelegate after app finishes launching
@@ -401,7 +408,6 @@ final class WindowSnapManager: ObservableObject {
         // Don't start if extension is disabled
         guard !ExtensionType.windowSnap.isRemoved else {
             debugLog("[WindowSnap] Extension is disabled, skipping monitoring")
-            print("[WindowSnap] Extension is disabled, skipping monitoring")
             return
         }
         

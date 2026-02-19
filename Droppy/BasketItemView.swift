@@ -43,6 +43,7 @@ struct BasketItemView: View {
     @State private var hoverTask: Task<Void, Never>?  // Task for delayed hover show
     @State private var dismissTask: Task<Void, Never>?  // Task for delayed hover dismiss (to reach popover)
     @State private var isHoveringPopover = false  // Track if cursor is over popover content
+    @State private var cachedFileSize: String?
     @State private var cachedAvailableApps: [(name: String, icon: NSImage, url: URL)] = []
     @State private var cachedSharingServices: [NSSharingService] = []
     
@@ -101,13 +102,7 @@ struct BasketItemView: View {
     
     /// File size for list layout
     private var listFileSize: String {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: item.url.path)
-            if let size = attributes[.size] as? Int64 {
-                return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            }
-        } catch {}
-        return "—"
+        cachedFileSize ?? "—"
     }
 
     /// Approximate available width for filename in list rows.
@@ -119,6 +114,26 @@ struct BasketItemView: View {
     /// Read-through cache so first render can use preloaded previews immediately.
     private var resolvedThumbnail: NSImage? {
         thumbnail ?? ThumbnailCache.shared.cachedThumbnail(for: item)
+    }
+
+    private var trackedBadge: some View {
+        Text("tracked")
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(.white)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.blue.opacity(0.95))
+            )
+            .help(item.autoDroppedFromFolderPath ?? "Tracked folder item")
+    }
+
+    @ViewBuilder
+    private func centeredTrackedBadge(iconWidth: CGFloat) -> some View {
+        trackedBadge
+            .frame(width: iconWidth, alignment: .top)
+            .offset(y: 2)
     }
     
     var body: some View {
@@ -158,100 +173,15 @@ struct BasketItemView: View {
 
     @ViewBuilder
     private var draggableItemContent: some View {
-        // MARK: - Pre-defined closures to help compiler type-check
-        // (Breaking up complex expression that was timing out)
-        
-        let itemsClosure: () -> [NSPasteboardWriting] = {
-            if state.selectedBasketItems.contains(item.id) {
-                let selected = state.basketItems.filter { state.selectedBasketItems.contains($0.id) }
-                return selected.map { $0.url as NSURL }
-            } else {
-                return [item.url as NSURL]
-            }
-        }
-        
-        let tapClosure: (NSEvent.ModifierFlags) -> Void = { modifiers in
-            if !NSApp.isActive {
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            let cleanModifiers = modifiers.intersection(.deviceIndependentFlagsMask)
-            if cleanModifiers.contains(.shift) {
-                state.selectBasketRange(to: item, additive: cleanModifiers.contains(.command))
-            } else if cleanModifiers.contains(.command) {
-                state.toggleBasketSelection(item)
-            } else {
-                state.deselectAllBasket()
-                state.selectBasket(item)
-            }
-        }
-        
-        let doubleClickClosure: () -> Void = {
-            hoverTask?.cancel()
-            hoverTask = nil
-            showFolderPreview = false
-            
-            let ext = item.url.pathExtension.lowercased()
-            if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
-                unzipFile()
-                return
-            }
-            item.openFile()
-        }
-        
-        let rightClickClosure: () -> Void = {
-            hoverTask?.cancel()
-            hoverTask = nil
-            showFolderPreview = false
-            if !state.selectedBasketItems.contains(item.id) {
-                state.deselectAllBasket()
-                state.selectBasket(item)
-            }
-        }
-        
-        let dragStartClosure: () -> Void = {
-            hoverTask?.cancel()
-            hoverTask = nil
-            showFolderPreview = false
-            isDraggingSelf = true
-            DragMonitor.shared.setSuppressBasketRevealForCurrentDrag(true)
-        }
-        
-        let dragCompleteClosure: (NSDragOperation) -> Void = { [weak state] operation in
-            isDraggingSelf = false
-            DragMonitor.shared.setSuppressBasketRevealForCurrentDrag(false)
-            guard let state = state else { return }
-            let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
-            if enableAutoClean {
-                withAnimation(DroppyAnimation.state) {
-                    if state.selectedBasketItems.contains(item.id) {
-                        let itemsToRemove = state.basketItems.filter { state.selectedBasketItems.contains($0.id) && !$0.isPinned }
-                        for itemToRemove in itemsToRemove {
-                            state.removeBasketItem(itemToRemove)
-                        }
-                        state.selectedBasketItems.removeAll()
-                    } else if !item.isPinned {
-                        state.removeBasketItem(item)
-                    }
-                }
-            }
-        }
-        
-        // Button callbacks - ONLY for grid mode which has visible X/pin buttons
-        let removeButtonClosure: (() -> Void)? = layoutMode == .grid && !item.isPinned ? onRemove : nil
-        let pinButtonClosure: (() -> Void)? = layoutMode == .grid && item.isDirectory ? {
-            HapticFeedback.pin()
-            state.togglePin(item)
-        } : nil
-
         DraggableArea(
-            items: itemsClosure,
-            onTap: tapClosure,
-            onDoubleClick: doubleClickClosure,
-            onRightClick: rightClickClosure,
-            onDragStart: dragStartClosure,
-            onDragComplete: dragCompleteClosure,
-            onRemoveButton: removeButtonClosure,
-            onPinButton: pinButtonClosure,
+            items: dragItems,
+            onTap: handleTap,
+            onDoubleClick: handleDoubleClick,
+            onRightClick: handleRightClick,
+            onDragStart: handleDragStart,
+            onDragComplete: handleDragComplete,
+            onRemoveButton: removeButtonAction,
+            onPinButton: pinButtonAction,
             selectionSignature: state.selectedBasketItems.hashValue
         ) {
             Group {
@@ -322,6 +252,10 @@ struct BasketItemView: View {
                                             }
                                         }
                                     }
+                            }
+
+                            if item.autoDropSourceLabel != nil {
+                                centeredTrackedBadge(iconWidth: 36)
                             }
                         }
                         
@@ -438,7 +372,7 @@ struct BasketItemView: View {
                             .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .frame(width: 76, height: 96)
+                    .frame(width: 80, height: 102)
                 }
             }
         }
@@ -570,11 +504,14 @@ struct BasketItemView: View {
         .onChange(of: item.url) { _, _ in
             refreshContextMenuCache()
             thumbnail = nil
+            cachedFileSize = nil
         }
         .contextMenu {
             contextMenuContent()
         }
         .task(id: item.url) {
+            // Load file size metadata asynchronously so list animations don't trigger disk I/O.
+            cachedFileSize = await loadFileSizeString()
             // ASYNC: Load QuickLook thumbnail (if available)
             if let cached = ThumbnailCache.shared.cachedThumbnail(for: item) {
                 thumbnail = cached
@@ -583,6 +520,104 @@ struct BasketItemView: View {
                     thumbnail = asyncThumbnail
                 }
             }
+        }
+    }
+
+    private func loadFileSizeString() async -> String? {
+        guard !item.isDirectory else { return nil }
+
+        let path = item.url.path
+        return await Task.detached(priority: .utility) {
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+                  let size = attributes[.size] as? Int64 else {
+                return "—"
+            }
+            return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+        }.value
+    }
+
+    private func dragItems() -> [NSPasteboardWriting] {
+        if state.selectedBasketItems.contains(item.id) {
+            let selected = state.basketItems.filter { state.selectedBasketItems.contains($0.id) }
+            return selected.map { $0.url as NSURL }
+        }
+        return [item.url as NSURL]
+    }
+
+    private func handleTap(modifiers: NSEvent.ModifierFlags) {
+        if !NSApp.isActive {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        let cleanModifiers = modifiers.intersection(.deviceIndependentFlagsMask)
+        if cleanModifiers.contains(.shift) {
+            state.selectBasketRange(to: item, additive: cleanModifiers.contains(.command))
+        } else if cleanModifiers.contains(.command) {
+            state.toggleBasketSelection(item)
+        } else {
+            state.deselectAllBasket()
+            state.selectBasket(item)
+        }
+    }
+
+    private func handleDoubleClick() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        showFolderPreview = false
+
+        let ext = item.url.pathExtension.lowercased()
+        if ["zip", "tar", "gz", "bz2", "xz", "7z"].contains(ext) {
+            unzipFile()
+            return
+        }
+        item.openFile()
+    }
+
+    private func handleRightClick() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        showFolderPreview = false
+        if !state.selectedBasketItems.contains(item.id) {
+            state.deselectAllBasket()
+            state.selectBasket(item)
+        }
+    }
+
+    private func handleDragStart() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        showFolderPreview = false
+        isDraggingSelf = true
+        DragMonitor.shared.setSuppressBasketRevealForCurrentDrag(true)
+    }
+
+    private func handleDragComplete(_ operation: NSDragOperation) {
+        isDraggingSelf = false
+        DragMonitor.shared.setSuppressBasketRevealForCurrentDrag(false)
+        let enableAutoClean = UserDefaults.standard.bool(forKey: "enableAutoClean")
+        if enableAutoClean {
+            withAnimation(DroppyAnimation.state) {
+                if state.selectedBasketItems.contains(item.id) {
+                    let itemsToRemove = state.basketItems.filter { state.selectedBasketItems.contains($0.id) && !$0.isPinned }
+                    for itemToRemove in itemsToRemove {
+                        state.removeBasketItem(itemToRemove)
+                    }
+                    state.selectedBasketItems.removeAll()
+                } else if !item.isPinned {
+                    state.removeBasketItem(item)
+                }
+            }
+        }
+    }
+
+    private var removeButtonAction: (() -> Void)? {
+        layoutMode == .grid && !item.isPinned ? onRemove : nil
+    }
+
+    private var pinButtonAction: (() -> Void)? {
+        guard layoutMode == .grid && item.isDirectory else { return nil }
+        return {
+            HapticFeedback.pin()
+            state.togglePin(item)
         }
     }
     
@@ -649,6 +684,10 @@ struct BasketItemView: View {
                                     }
                                 }
                             }
+                    }
+
+                    if item.autoDropSourceLabel != nil {
+                        centeredTrackedBadge(iconWidth: 36)
                     }
                 }
                 
@@ -764,7 +803,7 @@ struct BasketItemView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
             }
-            .frame(width: 76, height: 96)
+            .frame(width: 80, height: 102)
         }
     }
 
@@ -968,9 +1007,9 @@ struct BasketItemView: View {
                     }
                 } label: {
                     if isMultiSelect {
-                        Label("Compress All (\(state.selectedBasketItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                        Label("Compress All (\(state.selectedBasketItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                     } else {
-                        Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                        Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                     }
                 }
                 .disabled(isCompressing)
@@ -984,9 +1023,9 @@ struct BasketItemView: View {
                     }
                 } label: {
                     if isMultiSelect {
-                        Label("Compress All (\(state.selectedBasketItems.count))", systemImage: "arrow.down.right.and.arrow.up.left")
+                        Label("Compress All (\(state.selectedBasketItems.count))", systemImage: "arrow.down.forward.and.arrow.up.backward")
                     } else {
-                        Label("Compress", systemImage: "arrow.down.right.and.arrow.up.left")
+                        Label("Compress", systemImage: "arrow.down.forward.and.arrow.up.backward")
                     }
                 }
                 .disabled(isCompressing)
@@ -1249,10 +1288,9 @@ struct BasketItemView: View {
                 await MainActor.run {
                     isConverting = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    // Trigger poof animation
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
+                    state.replaceBasketItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } else {
@@ -1261,11 +1299,23 @@ struct BasketItemView: View {
                     state.endFileOperation()
                 }
                 print("Conversion failed")
-                let requiredApp = FileConverter.requiredAppForPDFConversion(fileType: item.fileType) ?? "Keynote, Pages, Numbers, or LibreOffice"
-                await DroppyAlertController.shared.showError(
-                    title: "Conversion Failed",
-                    message: "Could not convert \(item.name) to PDF. Please install \(requiredApp) (free from App Store) or LibreOffice."
-                )
+                if format == .pdf {
+                    let requiredApp = FileConverter.requiredAppForPDFConversion(fileType: item.fileType) ?? "Keynote, Pages, Numbers, or LibreOffice"
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to PDF. Please install \(requiredApp) (free from App Store) or LibreOffice."
+                    )
+                } else if format == .webp {
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to WebP. Please install FFmpeg (via Video Target Size extension or Homebrew) or cwebp."
+                    )
+                } else {
+                    await DroppyAlertController.shared.showError(
+                        title: "Conversion Failed",
+                        message: "Could not convert \(item.name) to \(format.displayName)."
+                    )
+                }
             }
         }
     }
@@ -1399,9 +1449,9 @@ struct BasketItemView: View {
                 await MainActor.run {
                     isCompressing = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
+                    state.replaceBasketItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } else {
@@ -1449,9 +1499,9 @@ struct BasketItemView: View {
                 await MainActor.run {
                     isRemovingBackground = false
                     state.endFileOperation()
-                    pendingConvertedItem = newItem
-                    withAnimation(DroppyAnimation.state) {
-                        isPoofing = true
+                    state.replaceBasketItem(item, with: newItem)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        state.triggerPoof(for: newItem.id)
                     }
                 }
             } catch {
@@ -1806,7 +1856,7 @@ private struct BasketItemContent: View {
                             .hueRotation(item.isPinned && item.isDirectory ? .degrees(180) : .degrees(0))
                     }
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 56, height: 56)
                 // NO clipShape - native icons have their own shapes (folders, dmg, zip, etc.)
                 // Subtle gray highlight when selected (like Finder)
                 .background {
@@ -1829,13 +1879,17 @@ private struct BasketItemContent: View {
                     // Magic processing animation for background removal
                     if isRemovingBackground || state.processingItemIds.contains(item.id) {
                         MagicProcessingOverlay()
-                            .frame(width: 48, height: 48)
+                            .frame(width: 56, height: 56)
                             .clipShape(RoundedRectangle(cornerRadius: DroppyRadius.xs, style: .continuous))
                             .transition(.opacity.animation(DroppyAnimation.viewChange))
                     }
                 }
-                .frame(width: 56, height: 56)
+                .frame(width: 64, height: 64)
                 .padding(.top, 6) // Make room for X button above
+
+                if item.autoDropSourceLabel != nil {
+                    centeredTrackedBadge(iconWidth: 64)
+                }
                 
                 // Remove button on hover - hidden for pinned folders
                 if isHovering && !isPoofing && renamingItemId != item.id && !item.isPinned {
@@ -1867,7 +1921,7 @@ private struct BasketItemContent: View {
                         }
                     }
                     .buttonStyle(.borderless)
-                    .offset(x: 4, y: 54) // Bottom-right of icon
+                    .offset(x: 4, y: 62) // Bottom-right of icon
                     .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -1884,12 +1938,12 @@ private struct BasketItemContent: View {
             )
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: DroppyRadius.xs, style: .continuous)
-                        .fill(Color.accentColor)
+                .background {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: DroppyRadius.xs, style: .continuous)
+                            .fill(Color.accentColor)
+                    }
                 }
-            }
         }
         .padding(.vertical, 2)
         .id(item.id)
@@ -1908,6 +1962,26 @@ private struct BasketItemContent: View {
                 pendingConvertedItem = nil
             }
         }
+    }
+
+    private var trackedBadge: some View {
+        Text("tracked")
+            .font(.system(size: 8, weight: .bold))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .foregroundStyle(.white)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.blue.opacity(0.95))
+            )
+            .help(item.autoDroppedFromFolderPath ?? "Tracked folder item")
+    }
+
+    @ViewBuilder
+    private func centeredTrackedBadge(iconWidth: CGFloat) -> some View {
+        trackedBadge
+            .frame(width: iconWidth, alignment: .top)
+            .offset(y: 2)
     }
 }
 
